@@ -1,0 +1,54 @@
+
+    #video {
+        border: 2px solid black;
+        width: 320px;
+        height: 240px;
+    }
+    #photo {
+        border: 2px solid black;
+        width: 320px;
+        height: 240px;
+    }
+    #canvas {
+        display: none;
+    }
+    .camera {
+        width: 340px;
+        display: inline-block;
+    }
+    .output {
+        width: 340px;
+        padding-top: 20px;
+        display: inline-block;
+    }
+    #startbutton {
+        display: block;
+        position: relative;
+        margin-left: auto;
+        margin-right: auto;
+        bottom: -5px;
+        padding: 15px;
+        background-color: #8481da;
+        border: 1px solid rgba(0, 0, 0, 0.7);
+        font-size: 14px;
+        color: rgba(255, 255, 255, 1.0);
+        cursor: pointer;
+    }
+    #downloadbutton {
+        display: block;
+        position: relative;
+        margin-left: auto;
+        margin-right: auto;
+        bottom: -10px;
+        padding: 18px;
+        background-color: #4caf50;
+        border: 1px solid rgba(0, 0, 0, 0.7);
+        font-size: 14px;
+        color: rgba(255, 255, 255, 1.0);
+        cursor: pointer;
+    }
+    .contentarea {
+        font-size: 16px;
+        font-family: Arial;
+        text-align: center;
+    }
