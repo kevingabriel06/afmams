@@ -151,10 +151,10 @@
                       <hr class="mb-0 navbar-vertical-divider" />
                     </div>
                   </div><!-- Attendance pages-->
-                  <a class="nav-link" href="<?php echo site_url('list-attendees') ;?>" role="button">
+                  <a class="nav-link" href="<?php echo site_url('admin/list-activities-attendance') ;?>" role="button">
                     <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-calendar-alt"></span></span><span class="nav-link-text ps-1">Attendance</span></div>
                   </a><!-- Fines pages-->
-                  <a class="nav-link" href="<?php echo site_url('list-fines') ?>" role="button">
+                  <a class="nav-link" href="<?php echo site_url('admin/list-activities-fines') ?>" role="button">
                     <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-coins"></span></span><span class="nav-link-text ps-1">Fines</span></div>
                   </a>
                   <!-- Activity management pages-->

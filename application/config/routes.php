@@ -75,26 +75,35 @@ $route['translate_uri_dashes'] = FALSE;
 $route['admin/dashboard'] = 'AdminController/admin_dashboard';
 
 // ATTENDANCE MONITORING =======>
-$route['list-attendees'] = 'AdminController/list_attendees';
-$route['scan-qr'] = 'AdminController/scanning_qr';
+$route['admin/list-activities-attendance'] = 'AdminController/list_activities_attendance';
+$route['admin/list-attendees/(:num)'] = 'AdminController/list_attendees/$1';
+$route['admin/activity/scan-qr/(:num)'] = 'AdminController/scanning_qr/$1';
+$route['admin/activity/scan-qr-code'] = 'AdminController/scan';
+$route['admin/attendance/get-faces'] = 'AdminController/getFaces';
+$route['admin/attendance/detect'] = 'AdminController/updateAttendance';
 
 
 //FINES MONITORING
-$route['list-fines'] = 'AdminController/list_fines';
+$route['admin/list-activities-fines'] = 'AdminController/list_activities_fines';
+$route['admin/list-fines/(:num)'] = 'AdminController/list_fines/$1';
 
 
 //ACTIVITY MANAGEMENT======>
-$route['admin/create-activity'] ='AdminController/create_activity'; 
+$route['admin/create-activity'] ='AdminController/create_activity'; // VIEW CREATE ACTIVITY PAGE
+$route['admin/create-activity/add']['POST'] = 'AdminController/save' ; // SAVING ACTIVITY TO DATABASE
+$route['admin/edit-activity/(:num)'] ='AdminController/edit_activity/$1'; // VIEW EDIT ACTIVITY PAGE
 $route['admin/list-of-activity'] = 'AdminController/list_activity';
 $route['admin/activity-details/(:num)'] = 'AdminController/activity_details/$1';
+$route['admin/activity-details/activity-share']['post'] = 'AdminController/share_activity';
 
 $route['admin/create-evaluation-form'] = 'AdminController/create_evaluationform';
 $route['admin/create-evaluation-form/create']['post'] = 'AdminController/create';
 
 //=======> EXCUSE PART
 $route['admin/activity-list'] = 'AdminController/list_activity_excuse';
-$route['admin/list-of-excuse-letter'] = 'AdminController/list_excuse_letter';
-$route['admin/review-excuse-letter'] = 'AdminController/review_excuse_letter';
+$route['admin/list-of-excuse-letter/(:num)'] = 'AdminController/list_excuse_letter/$1';
+$route['admin/review-excuse-letter/(:num)'] = 'AdminController/review_excuse_letter/$1';
+$route['admin/review-excuse-letter/update']['POST'] = 'AdminController/updateApprovalStatus';
 
 // ======> COMMUNITY SECTION
 $route['admin/community'] = 'AdminController/community';
