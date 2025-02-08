@@ -16,7 +16,7 @@ class Admin_model extends CI_Model {
 
     // <========= THIS PART IS FOR THE CREATE ACTIVITY =====>
     
-    // FETCHING ORGANIZATION WHERE THE ADMIN BELONGS - CONTAINS ORGID AND ORGNAME
+    // FETCHING ORGANIZATION WHERE THE ADMIN BELONGS - CONTAINS ORGID AND ORGNAME *
     public function admin_org() {
         $student_id = $this->session->userdata('student_id');
 
@@ -32,7 +32,7 @@ class Admin_model extends CI_Model {
         return $query->row(); // Returns a single row as an object
     }
 
-    // FETCHING DEPARTMENT WHERE THE ADMIN BELONGS - CONTAINS DEPTID AND DEPTNAME
+    // FETCHING DEPARTMENT WHERE THE ADMIN BELONGS - CONTAINS DEPTID AND DEPTNAME *
     public function admin_dept() {
         $student_id = $this->session->userdata('student_id');
 
@@ -47,7 +47,7 @@ class Admin_model extends CI_Model {
         return $result;  // Return department data for the logged-in user
     }
 
-    // INSERTING ACTIVITY TO DATABASE
+    // INSERTING ACTIVITY TO DATABASE *
     public function save_activity($data) {
        
         // Prepare data for insertion
@@ -72,8 +72,13 @@ class Admin_model extends CI_Model {
         // Insert the data into the database
         return $this->db->insert('activity', $data);
     }
-    
 
+    // UPDATING ACTIVITY TO DATABASE *
+    public function update_activity($activity_id, $data) {
+        $this->db->where('activity_id', $activity_id);
+        return $this->db->update('activity', $data);
+    }
+    
     // GETTING ACTIVITY TABLE WITH ORGANIZER NAME *
     public function get_activities() {
         $this->db->select('activity.*, department.dept_name, organization.org_name');
@@ -86,6 +91,46 @@ class Admin_model extends CI_Model {
         return $query->result(); 
     }
 
+    // FETCHING EXCUSE APPLICATION PER EVENT *
+    public function fetch_application($activity_id) {
+        return $this->db->get_where('activity', ['activity_id' => $activity_id])->row_array();
+    }
+
+    // FETCHING DETAILS OF APPLICATION
+    public function fetch_letters(){
+        $this->db->select('*');
+        $this->db->from('excuse_application');
+        $this->db->join('users', 'excuse_application.student_id = users.student_id');
+        $query = $this->db->get();
+
+        return $query->result(); 
+    }
+
+    // FETCHING EXCUSE LETTER PER STUDENT
+    public function review_letter($excuse_id) {
+        $this->db->select('*');
+        $this->db->from('excuse_application');
+        $this->db->join('users', 'excuse_application.student_id = users.student_id');
+        $this->db->join('department', 'users.dept_id = department.dept_id');
+        $this->db->where('excuse_application.excuse_id', $excuse_id); // Add condition to filter by excuse_id
+        $query = $this->db->get();
+    
+        // Return the result as an array
+        return $query->row_array();
+    }
+
+    // UPDATING STATUS AND REMARKS FOR THE EXCUSE APPLICATION *
+    public function updateApprovalStatus($data) {
+        
+        $this->db->where('excuse_id', $data['excuse_id']);  // Ensure you use the correct column for identification
+        $this->db->update('excuse_application', $data);
+    
+        // Check if any rows were affected (successful update)
+        return $this->db->affected_rows() > 0;
+    }
+
+
+    
     // FETCHING ORGANIZATION WHERE THE USER BELONGS *
     public function get_organizer_org() {
         $student_id = $this->session->userdata('student_id');
@@ -351,42 +396,10 @@ class Admin_model extends CI_Model {
         return $this->db->trans_status(); // Returns TRUE if successful, FALSE otherwise
     }
     
-    // FETCHING APPLICATION PER EVENT
-    public function fetch_application($activity_id) {
-        return $this->db->get_where('activity', ['activity_id' => $activity_id])->row_array();
-    }
-
-    public function fetch_letters(){
-        $this->db->select('*');
-        $this->db->from('excuse_application');
-        $this->db->join('users', 'excuse_application.student_id = users.student_id');
-        $query = $this->db->get();
-
-        return $query->result(); 
-    }
-
-    // FETCHING EXCUSE LETTER PER EVENT
-    public function review_letter($excuse_id) {
-        $this->db->select('*');
-        $this->db->from('excuse_application');
-        $this->db->join('users', 'excuse_application.student_id = users.student_id');
-        $this->db->join('department', 'users.dept_id = department.dept_id');
-        $this->db->where('excuse_application.excuse_id', $excuse_id); // Add condition to filter by excuse_id
-        $query = $this->db->get();
     
-        // Return the result as an array
-        return $query->row_array();
-    }
 
-    // UPDATING STATUS AND REMARKS
-    public function updateApprovalStatus($data) {
-        
-        $this->db->where('excuse_id', $data['excuse_id']);  // Ensure you use the correct column for identification
-        $this->db->update('excuse_application', $data);
+
     
-        // Check if any rows were affected (successful update)
-        return $this->db->affected_rows() > 0;
-    }
 
     public function fetch_users(){
         $this->db->select('*');

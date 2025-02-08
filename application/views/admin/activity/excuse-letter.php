@@ -120,7 +120,7 @@
                   <div class="d-md-flex d-xl-inline-block d-xxl-flex align-items-center justify-content-between mb-x1">
                     <div class="d-flex align-items-center gap-2">
                         <div class="avatar avatar-2xl">
-                          <img class="rounded-circle" src="<?php echo base_url('assets/profile/' . (!empty($excuse['profile-pic']) ? $excuse['profile-pic'] : 'default.jpg')); ?>" alt="" />
+                          <img class="rounded-circle" src="<?php echo base_url('assets/profile/' . (!empty($excuse['profile_pic']) ? $excuse['profile_pic'] : 'default.jpg')); ?>" alt="" />
                         </div>
                       <!-- details ng name at date -->
                       <p class="mb-0"><a class="fw-semi-bold mb-0 text-800"><?php echo $excuse['first_name']." ".$excuse['last_name']; ?></a>
@@ -212,7 +212,7 @@
                       <div class="row g-0 border-bottom pb-x1 mb-x1 align-items-sm-center align-items-xl-start">
                         <div class="col-12 col-sm-auto col-xl-12 me-sm-3 me-xl-0">
                           <div class="avatar avatar-3xl">
-                            <img class="rounded-circle" src="<?php echo base_url('assets/profile/' . (!empty($excuse['profile-pic']) ? $excuse['profile-pic'] : 'default.jpg')); ?>" alt="Profile Picture" />
+                            <img class="rounded-circle" src="<?php echo base_url('assets/profile/' . (!empty($excuse['profile_pic']) ? $excuse['profile_pic'] : 'default.jpg')); ?>" alt="Profile Picture" />
                           </div>
                         </div>
                         <div class="col-12 col-sm-auto col-xl-12">
@@ -251,11 +251,11 @@
                                   <?php 
                                   // Dynamically set badge color based on status
                                   if ($excuse['status'] == 'Approved') {
-                                      echo '<span class="badge bg-success">Approved</span>';
+                                      echo '<span class="badge bg-success">Approved<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span>';
                                   } elseif ($excuse['status'] == 'Pending') {
-                                      echo '<span class="badge bg-warning">Pending</span>';
+                                      echo '<span class="badge bg-warning">Pending<span class="ms-1 fas fa-redo" data-fa-transform="shrink-2"></span></span>';
                                   } elseif ($excuse['status'] == 'Disapproved') {
-                                      echo '<span class="badge bg-danger">Disapproved</span>';
+                                      echo '<span class="badge bg-danger">Disapproved<span class="ms-1 fas fa-ban" data-fa-transform="shrink-2"></span></span>';
                                   } 
                                   ?>
                               </h6>

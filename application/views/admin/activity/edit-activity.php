@@ -178,8 +178,9 @@
             <h5 class="mb-1">Activity Details</h5>
         </div>
         <div class="card-body bg-body-tertiary">
-            <form id="activityCreate" class="row g-3 needs-validation dropzone dropzone-multiple p-0" data-dropzone="data-dropzone" enctype="multipart/form-data" novalidate>
+            <form id="activityEdit" class="row g-3 needs-validation dropzone dropzone-multiple p-0" data-dropzone="data-dropzone" enctype="multipart/form-data" novalidate>
                 <!-- Activity Title -->
+                <input type="hidden" name="activity_id" value="<?php echo $activity['activity_id'] ;?>">
                 <div class="col-12 mb-3">
                     <label class="form-label" for="activity-title">Activity Title <span style="color: red;">*</span></label>
                     <input class="form-control" id="activity-title" type="text" placeholder="Activity Title" name="title" value="<?php echo $activity['activity_title'];?>" required/>
@@ -230,9 +231,8 @@
                 <?php if (!empty($department)): ?>
                 <div class="col-sm-6 mb-3">
                     <label class="form-label" for="dept">Department</label>
-                    <select class="form-control" id="dept" name="dept" onchange="toggleFields()" required>
-                        <option value="0">Select a Department</option>
-                        <option value="<?php echo $activity['dept_id']; ?>">
+                    <select class="form-control" id="dept" name="dept" required>
+                        <option value="<?php echo $activity['dept_id']; ?>" selected>
                             <?php echo $department->dept_name; ?>
                         </option>
                     </select>
@@ -243,11 +243,10 @@
                 <?php if (!empty($organization)): ?>
                 <div class="col-sm-6 mb-3">
                     <label class="form-label" for="org">Organization</label>
-                    <select class="form-control" id="org" name="org" onchange="toggleFields()" required>
-                        <option value="">Select an Organization</option>
-                            <option value="<?php echo $activity['org_id']; ?>">
-                                <?php echo $organization->org_name; ?>
-                            </option>
+                    <select class="form-control" id="org" name="org" required>
+                        <option value="<?php echo $activity['org_id']; ?>" selected>
+                            <?php echo $organization->org_name; ?>
+                        </option>
                     </select>
                     <div id="org-error" class="invalid-feedback" style="display: none;">Select an organization.</div>
                 </div>
@@ -256,130 +255,197 @@
                 <?php elseif($role == 'Admin') :?>
                     <div class="col-sm-6 mb-3">
                         <label class="form-label" for="dept">Organizer</label>
-                        <select class="form-control" id="dept" name="dept" onchange="toggleFields()">
+                        <select class="form-control" id="dept" name="dept">
                             <option value="0">Student Parliament</option>
                         </select>
                     </div>
                     <div class="col-sm-6 mb-3" hidden>
                         <label class="form-label" for="org">Organization</label>
-                        <select class="form-control" id="org" name="org" onchange="toggleFields()">
+                        <select class="form-control" id="org" name="org" >
                             <option value="0">Select an Organization</option>
                         </select>
                     </div>
                 <?php endif ;?>
 
-                <!-- SCHEDULE DETAILS -->
-                <div class="card-header bg-body-tertiary d-flex justify-content-between">
-                    <h5 class="mb-0">Schedule Details</h5>
-                    <div>
-                        <select class="btn btn-outline-primary btn-sm text-start" id="schedule_type" name="schedule_type" style="width: auto;">
-                            <option value="" selected>Select Schedule Category</option>
-                            <option value="whole_day">Whole Day</option>
-                            <option value="half_day_am">Half Day - AM</option>
-                            <option value="half_day_pm">Half Day - PM</option>
-                        </select>
+                <!-- SHOWING WHOLE DAY -->
+                <?php if(!empty($activity['am_in']) && !empty($activity['am_out']) && !empty($activity['pm_in']) && !empty($activity['pm_out']) ) :?>
+                    <div class="card-header bg-body-tertiary d-flex justify-content-between">
+                        <h5 class="mb-0">Schedule Details</h5>
+                        <div>
+                            <select class="btn btn-outline-primary btn-sm text-start" id="schedule_type" name="schedule_type" style="width: auto;">
+                                <option value="" >Select Schedule Category</option>
+                                <option value="whole_day" selected >Whole Day</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
-
-                <div class="col-sm-6 mb-3" id="am_in_div">
-                    <label class="form-label" for="am_in">Morning Time In <span style="color: blue;">*</span></label>
-                    <div class="input-group">
-                        <input class="form-control datetimepicker" id="am_in" type="text" placeholder="H:i" name="am_in" aria-describedby="timeHelp" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"h:i K","disableMobile":true}' value="<?php echo $activity['am_in'];?>" />
-                        <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
-                        <div id="am_in_error" class="invalid-feedback" style="display: none;">Please provide both morning time in and time out between 1 AM and 1 PM.</div>
+                    
+                    <div class="col-sm-6 mb-3" id="am_in_div">
+                        <label class="form-label" for="am_in">Morning Time In <span style="color: blue;">*</span></label>
+                        <div class="input-group">
+                            <input class="form-control datetimepicker" id="am_in" type="text" placeholder="H:i" name="am_in" aria-describedby="timeHelp" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"h:i K","disableMobile":true}' value="<?php echo $activity['am_in'];?>" />
+                            <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
+                            <div id="am_in_error" class="invalid-feedback" style="display: none;">Please provide both morning time in and time out between 1 AM and 1 PM.</div>
+                        </div>
                     </div>
-                </div>
 
-                <div class="col-sm-6 mb-3" id="am_out_div">
-                    <label class="form-label" for="am_out">Morning Time Out <span style="color: blue;">*</span></label>
-                    <div class="input-group">
-                        <input class="form-control datetimepicker" id="am_out" type="text" placeholder="H:i" name="am_out" aria-describedby="timeHelp" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"h:i K","disableMobile":true}' value="<?php echo $activity['am_in'];?>" />
-                        <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
-                        <div id="am_out_error" class="invalid-feedback" style="display: none;">Morning time out must be later than morning time in.</div>
+                    <div class="col-sm-6 mb-3" id="am_out_div">
+                        <label class="form-label" for="am_out">Morning Time Out <span style="color: blue;">*</span></label>
+                        <div class="input-group">
+                            <input class="form-control datetimepicker" id="am_out" type="text" placeholder="H:i" name="am_out" aria-describedby="timeHelp" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"h:i K","disableMobile":true}' value="<?php echo $activity['am_in'];?>" />
+                            <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
+                            <div id="am_out_error" class="invalid-feedback" style="display: none;">Morning time out must be later than morning time in.</div>
+                        </div>
                     </div>
-                </div>
 
-                <div class="col-sm-6 mb-3" id="pm_in_div">
-                    <label class="form-label" for="pm_in">Afternoon Time In <span style="color: blue;">*</span></label>
-                    <div class="input-group">
-                        <input class="form-control datetimepicker" id="pm_in" type="text" placeholder="H:i" name="pm_in" aria-describedby="timeHelp" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"h:i K","disableMobile":true}' value="<?php echo $activity['pm_in'];?>" />
-                        <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
-                        <div id="pm_in_error" class="invalid-feedback" style="display: none;">Please provide both afternoon time in and time out between 12 PM and 1 AM.</div>
+                    <div class="col-sm-6 mb-3" id="pm_in_div">
+                        <label class="form-label" for="pm_in">Afternoon Time In <span style="color: blue;">*</span></label>
+                        <div class="input-group">
+                            <input class="form-control datetimepicker" id="pm_in" type="text" placeholder="H:i" name="pm_in" aria-describedby="timeHelp" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"h:i K","disableMobile":true}' value="<?php echo $activity['pm_in'];?>" />
+                            <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
+                            <div id="pm_in_error" class="invalid-feedback" style="display: none;">Please provide both afternoon time in and time out between 12 PM and 1 AM.</div>
+                        </div>
                     </div>
-                </div>
 
-                <div class="col-sm-6 mb-3" id="pm_out_div">
-                    <label class="form-label" for="pm_out">Afternoon Time Out <span style="color: blue;">*</span></label>
-                    <div class="input-group">
-                        <input class="form-control datetimepicker" id="pm_out" type="text" placeholder="H:i" name="pm_out" aria-describedby="timeHelp" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"h:i K","disableMobile":true}' value="<?php echo $activity['pm_out'];?>"/>
-                        <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
-                        <div id="pm_out_error" class="invalid-feedback" style="display: none;">Afternoon time out must be later than afternoon time in.</div>
+                    <div class="col-sm-6 mb-3" id="pm_out_div">
+                        <label class="form-label" for="pm_out">Afternoon Time Out <span style="color: blue;">*</span></label>
+                        <div class="input-group">
+                            <input class="form-control datetimepicker" id="pm_out" type="text" placeholder="H:i" name="pm_out" aria-describedby="timeHelp" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"h:i K","disableMobile":true}' value="<?php echo $activity['pm_out'];?>"/>
+                            <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
+                            <div id="pm_out_error" class="invalid-feedback" style="display: none;">Afternoon time out must be later than afternoon time in.</div>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Cut-off Times -->
-                <div class="col-sm-6 mb-3" id="customFieldsAInC" style="display: none;">
-                    <label class="form-label" for="am_inC">Morning Time In Cut-off <label style="color: blue;"> * </label></label>
-                    <div class="input-group">
-                        <input class="form-control datetimepicker" id="am_inC" type="text" placeholder="H:i" name="am_in_cut" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"H:i","disableMobile":true}' value="<?php echo $activity['am_in_cut'];?>"/>
-                        <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
+                <!-- SHOWING HALFDAY - PM -->
+                <?php elseif(empty($activity['am_in']) && empty($activity['am_out'])) :?>
+                    <div class="card-header bg-body-tertiary d-flex justify-content-between">
+                        <h5 class="mb-0">Schedule Details</h5>
+                        <div>
+                            <select class="btn btn-outline-primary btn-sm text-start" id="schedule_type" name="schedule_type" style="width: auto;">
+                                <option value="" >Select Schedule Category</option>
+                                <option value="half_day_pm" selected >Half Day - PM</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
 
-                <div class="col-sm-6 mb-3" id="customFieldsAOutC" style="display: none;">
-                    <label class="form-label" for="am_outC">Morning Time Out Cut-off <label style="color: blue;"> * </label></label>
-                    <div class="input-group">
-                        <input class="form-control datetimepicker" id="am_outC" type="text" placeholder="H:i" name="am_out_cut" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"H:i","disableMobile":true}' value="<?php echo $activity['am_out_cut'];?>"/>
-                        <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
+                    <div class="col-sm-6 mb-3" id="pm_in_div">
+                        <label class="form-label" for="pm_in">Afternoon Time In <span style="color: blue;">*</span></label>
+                        <div class="input-group">
+                            <input class="form-control datetimepicker" id="pm_in" type="text" placeholder="H:i" name="pm_in" aria-describedby="timeHelp" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"h:i K","disableMobile":true}' value="<?php echo $activity['pm_in'];?>" />
+                            <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
+                            <div id="pm_in_error" class="invalid-feedback" style="display: none;">Please provide both afternoon time in and time out between 12 PM and 1 AM.</div>
+                        </div>
                     </div>
-                </div>
 
-                <div class="col-sm-6 mb-3" id="customFieldsPInC" style="display: none;">
-                    <label class="form-label" for="pm_inC">Afternoon Time In Cut-off <label style="color: blue;"> * </label></label>
-                    <div class="input-group">
-                        <input class="form-control datetimepicker" id="pm_inC" type="text" placeholder="H:i" name="pm_in_cut" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"H:i","disableMobile":true}' value="<?php echo $activity['pm_in_cut'];?>"/>
-                        <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
+                    <div class="col-sm-6 mb-3" id="pm_out_div">
+                        <label class="form-label" for="pm_out">Afternoon Time Out <span style="color: blue;">*</span></label>
+                        <div class="input-group">
+                            <input class="form-control datetimepicker" id="pm_out" type="text" placeholder="H:i" name="pm_out" aria-describedby="timeHelp" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"h:i K","disableMobile":true}' value="<?php echo $activity['pm_out'];?>"/>
+                            <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
+                            <div id="pm_out_error" class="invalid-feedback" style="display: none;">Afternoon time out must be later than afternoon time in.</div>
+                        </div>
                     </div>
-                </div>
-
-                <div class="col-sm-6 mb-3" id="customFieldsPOutC" style="display: none;">
-                    <label class="form-label" for="pm_outC">Afternoon Time Out Cut-off <label style="color: blue;"> * </label></label>
-                    <div class="input-group">
-                        <input class="form-control datetimepicker" id="pm_outC" type="text" placeholder="H:i" name="pm_out_cut" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"H:i","disableMobile":true}' value="<?php echo $activity['pm_out_cut'];?>"/>
-                        <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
+                <!-- SHOWING HALF-DAY - AM -->
+                <?php elseif(empty($activity['pm_in']) && empty($activity['pm_in'])):?>
+                    <div class="card-header bg-body-tertiary d-flex justify-content-between">
+                        <h5 class="mb-0">Schedule Details</h5>
+                        <div>
+                            <select class="btn btn-outline-primary btn-sm text-start" id="schedule_type" name="schedule_type" style="width: auto;">
+                                <option value="" >Select Schedule Category</option>
+                                <option value="half_day_am" selected >Half Day - AM</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
+                    
+                    <div class="col-sm-6 mb-3" id="am_in_div">
+                        <label class="form-label" for="am_in">Morning Time In <span style="color: blue;">*</span></label>
+                        <div class="input-group">
+                            <input class="form-control datetimepicker" id="am_in" type="text" placeholder="H:i" name="am_in" aria-describedby="timeHelp" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"h:i K","disableMobile":true}' value="<?php echo $activity['am_in'];?>" />
+                            <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
+                            <div id="am_in_error" class="invalid-feedback" style="display: none;">Please provide both morning time in and time out between 1 AM and 1 PM.</div>
+                        </div>
+                    </div>
 
-                <button class="btn btn-falcon-default btn-sm me-2" type="button" id="showCustomFieldsBtn">
-                    <span class="far fa-clock text-danger me-1"></span>Edit Cut-Off Time
-                </button>
+                    <div class="col-sm-6 mb-3" id="am_out_div">
+                        <label class="form-label" for="am_out">Morning Time Out <span style="color: blue;">*</span></label>
+                        <div class="input-group">
+                            <input class="form-control datetimepicker" id="am_out" type="text" placeholder="H:i" name="am_out" aria-describedby="timeHelp" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"h:i K","disableMobile":true}' value="<?php echo $activity['am_out'];?>" />
+                            <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
+                            <div id="am_out_error" class="invalid-feedback" style="display: none;">Morning time out must be later than morning time in.</div>
+                        </div>
+                    </div>
+                
+                <?php endif ;?>
+                
+                <div class="border-bottom border-dashed my-3"></div>
 
-                <script>
-                    document.addEventListener("DOMContentLoaded", function() {
-                        // Get the button and custom fields containers
-                        var showCustomFieldsBtn = document.getElementById("showCustomFieldsBtn");
-                        var customFieldsContainer1 = document.getElementById("customFieldsAInC");
-                        var customFieldsContainer2 = document.getElementById("customFieldsAOutC");
-                        var customFieldsContainer3 = document.getElementById("customFieldsPInC");
-                        var customFieldsContainer4 = document.getElementById("customFieldsPOutC");
+                <!-- SHOWING CUT OFF TIMES PM -->
+                <?php if(empty($activity['am_in']) && empty($activity['am_out'])) :?>
+                    <div class="col-sm-6 mb-3" id="customFieldsPInC">
+                        <label class="form-label" for="pm_inC">Afternoon Time In Cut-off <label style="color: blue;"> * </label></label>
+                        <div class="input-group">
+                            <input class="form-control datetimepicker" id="pm_inC" type="text" placeholder="H:i" name="pm_in_cut" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"H:i","disableMobile":true}' value="<?php echo $activity['pm_in_cut'];?>"/>
+                            <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
+                        </div>
+                    </div>
 
-                        // Add event listener to the button
-                        showCustomFieldsBtn.addEventListener("click", function() {
-                            // Toggle the visibility of the custom fields containers
-                            if (customFieldsContainer1.style.display === "none") {
-                                customFieldsContainer1.style.display = "block";
-                                customFieldsContainer2.style.display = "block";
-                                customFieldsContainer3.style.display = "block";
-                                customFieldsContainer4.style.display = "block";
-                            } else {
-                                // customFieldsContainer1.style.display = "none";
-                                // customFieldsContainer2.style.display = "none";
-                                // customFieldsContainer3.style.display = "none";
-                                // customFieldsContainer4.style.display = "none";
-                            }
-                        });
-                    });
-                </script>
+                    <div class="col-sm-6 mb-3" id="customFieldsPOutC" >
+                        <label class="form-label" for="pm_outC">Afternoon Time Out Cut-off <label style="color: blue;"> * </label></label>
+                        <div class="input-group">
+                            <input class="form-control datetimepicker" id="pm_outC" type="text" placeholder="H:i" name="pm_out_cut" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"H:i","disableMobile":true}' value="<?php echo $activity['pm_out_cut'];?>"/>
+                            <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
+                        </div>
+                    </div>
+                <!-- SHOWING CUT OFF AM -->
+                <?php elseif(empty($activity['pm_in']) && empty($activity['pm_in'])):?>
+                    <div class="col-sm-6 mb-3" id="customFieldsAInC">
+                        <label class="form-label" for="am_inC">Morning Time In Cut-off <label style="color: blue;"> * </label></label>
+                        <div class="input-group">
+                            <input class="form-control datetimepicker" id="am_inC" type="text" placeholder="H:i" name="am_in_cut" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"H:i","disableMobile":true}' value="<?php echo $activity['am_in_cut'];?>"/>
+                            <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
+                        </div>
+                    </div>
+
+                    <div class="col-sm-6 mb-3" id="customFieldsAOutC" >
+                        <label class="form-label" for="am_outC">Morning Time Out Cut-off <label style="color: blue;"> * </label></label>
+                        <div class="input-group">
+                            <input class="form-control datetimepicker" id="am_outC" type="text" placeholder="H:i" name="am_out_cut" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"H:i","disableMobile":true}' value="<?php echo $activity['am_out_cut'];?>"/>
+                            <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
+                        </div>
+                    </div>
+                <!-- SHOWING CUT-OFF TIME OF WHOLE DAY -->
+                <?php elseif(!empty($activity['am_in']) && !empty($activity['am_out']) && !empty($activity['pm_in']) && !empty($activity['pm_out']) ) :?>
+                    <div class="col-sm-6 mb-3" id="customFieldsAInC">
+                        <label class="form-label" for="am_inC">Morning Time In Cut-off <label style="color: blue;"> * </label></label>
+                        <div class="input-group">
+                            <input class="form-control datetimepicker" id="am_inC" type="text" placeholder="H:i" name="am_in_cut" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"H:i","disableMobile":true}' value="<?php echo $activity['am_in_cut'];?>"/>
+                            <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
+                        </div>
+                    </div>
+
+                    <div class="col-sm-6 mb-3" id="customFieldsAOutC">
+                        <label class="form-label" for="am_outC">Morning Time Out Cut-off <label style="color: blue;"> * </label></label>
+                        <div class="input-group">
+                            <input class="form-control datetimepicker" id="am_outC" type="text" placeholder="H:i" name="am_out_cut" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"H:i","disableMobile":true}' value="<?php echo $activity['am_out_cut'];?>"/>
+                            <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
+                        </div>
+                    </div>
+
+                    <div class="col-sm-6 mb-3" id="customFieldsPInC">
+                        <label class="form-label" for="pm_inC">Afternoon Time In Cut-off <label style="color: blue;"> * </label></label>
+                        <div class="input-group">
+                            <input class="form-control datetimepicker" id="pm_inC" type="text" placeholder="H:i" name="pm_in_cut" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"H:i","disableMobile":true}' value="<?php echo $activity['pm_in_cut'];?>"/>
+                            <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
+                        </div>
+                    </div>
+
+                    <div class="col-sm-6 mb-3" id="customFieldsPOutC">
+                        <label class="form-label" for="pm_outC">Afternoon Time Out Cut-off <label style="color: blue;"> * </label></label>
+                        <div class="input-group">
+                            <input class="form-control datetimepicker" id="pm_outC" type="text" placeholder="H:i" name="pm_out_cut" data-options='{"enableTime":true,"noCalendar":true,"dateFormat":"H:i","disableMobile":true}' value="<?php echo $activity['pm_out_cut'];?>"/>
+                            <span class="input-group-text" id="time-icon" title="Pick a time"><i class="fas fa-clock"></i></span>
+                        </div>
+                    </div>
+                <?php endif ;?>
 
                 <div class="col-12">
                     <div class="form-text mt-0"><i> * Note: The default cut-off time for scheduling is 15 minutes, but it can be edited depending on the situation.</i></div>
@@ -523,33 +589,6 @@
                         // Reset fields and error messages
                         resetFields();
 
-                        if (selectedType === 'half_day_am') {
-                            // Half Day - AM: Show AM fields, hide PM fields, make AM fields required
-                            pmInDiv.style.display = 'none';
-                            pmOutDiv.style.display = 'none';
-                            amInDiv.style.display = 'block';
-                            amOutDiv.style.display = 'block';
-                            amInInput.setAttribute('required', true);
-                            amOutInput.setAttribute('required', true);
-                        } else if (selectedType === 'half_day_pm') {
-                            // Half Day - PM: Show PM fields, hide AM fields, make PM fields required
-                            amInDiv.style.display = 'none';
-                            amOutDiv.style.display = 'none';
-                            pmInDiv.style.display = 'block';
-                            pmOutDiv.style.display = 'block';
-                            pmInInput.setAttribute('required', true);
-                            pmOutInput.setAttribute('required', true);
-                        } else {
-                            // Whole Day: Show both AM and PM fields, make both AM and PM fields required
-                            pmInDiv.style.display = 'block';
-                            pmOutDiv.style.display = 'block';
-                            amInDiv.style.display = 'block';
-                            amOutDiv.style.display = 'block';
-                            amInInput.setAttribute('required', true);
-                            amOutInput.setAttribute('required', true);
-                            pmInInput.setAttribute('required', true);
-                            pmOutInput.setAttribute('required', true);
-                        }
                     });
                 </script>
 
@@ -574,7 +613,6 @@
                         <div class="invalid-feedback">Enter a fines amount.</div>
                     </div>
                 </div>
-                <div class="form-text mt-0"><i> * Note: Input the fines amount per attendance.</i></div>
                 <div class="border-bottom border-dashed my-3"></div>
 
                 <!-- Upload Photos -->
@@ -617,7 +655,7 @@
                             <h5 class="mb-2 mb-md-0">Nice Job! You're almost done</h5>
                         </div>
                         <div class="col-auto">
-                            <button class="btn btn-danger btn-sm me-2" type="button" onclick="$('#activityCreate').get(0).reset()">Cancel</button>
+                            <button class="btn btn-danger btn-sm me-2" type="button" onclick="$('#activityEdit').get(0).reset()">Cancel</button>
                             <!-- Save Button -->
                             <button class="btn btn-falcon-default btn-sm me-2" type="submit"> Save </button>
                         </div>
@@ -759,16 +797,61 @@
     $(document).ready(function(){
         // Set Alertify default position to top-right
         alertify.set('notifier', 'position', 'top-right');
-        
-        $('#activityCreate').on('submit', function(e){
+
+        $('#activityEdit').on('submit', function(e){
             e.preventDefault();
 
             var formData = new FormData(this);
 
+            // Function to convert 12hr time to 24hr format
+            function convertTo24HourFormat(time) {
+                if (!time) return null; // If the time is empty, return null
+
+                var date = new Date("1970-01-01 " + time);
+                var hours = date.getHours();
+                var minutes = date.getMinutes();
+                return (hours < 10 ? '0' : '') + hours + ':' + (minutes < 10 ? '0' : '') + minutes;
+            }
+
+            // Get the time values from the form
+            var am_in = $('input[name="am_in"]').val(); 
+            var am_out = $('input[name="am_out"]').val();
+            var pm_in = $('input[name="pm_in"]').val();
+            var pm_out = $('input[name="pm_out"]').val();
+
+            var am_in_cut = $('input[name="am_in_cut"]').val(); 
+            var am_out_cut = $('input[name="am_out_cut"]').val();
+            var pm_in_cut = $('input[name="pm_in_cut"]').val();
+            var pm_out_cut = $('input[name="pm_out_cut"]').val();
+
+
+            // Convert the times to 24hr format or leave as null if empty
+            am_in = (am_in === "" || am_in === null) ? null : convertTo24HourFormat(am_in);
+            am_out = (am_out === "" || am_out === null) ? null : convertTo24HourFormat(am_out);
+            pm_in = (pm_in === "" || pm_in === null) ? null : convertTo24HourFormat(pm_in);
+            pm_out = (pm_out === "" || pm_out === null) ? null : convertTo24HourFormat(pm_out);
+
+            am_in_cut = (am_in_cut === "" || am_in_cut === null) ? null : convertTo24HourFormat(am_in_cut);
+            am_out_cut = (am_out_cut === "" || am_out_cut === null) ? null : convertTo24HourFormat(am_out_cut);
+            pm_in_cut = (pm_in_cut === "" || pm_in_cut === null) ? null : convertTo24HourFormat(pm_in_cut);
+            pm_out_cut = (pm_out_cut === "" || pm_out_cut === null) ? null : convertTo24HourFormat(pm_out_cut);
+
+            // Set the form data with the proper values
+            formData.set('am_in', am_in);
+            formData.set('am_out', am_out);
+            formData.set('pm_in', pm_in);
+            formData.set('pm_out', pm_out);
+
+            formData.set('am_in_cut', am_in_cut);
+            formData.set('am_out_cut', am_out_cut);
+            formData.set('pm_in_cut', pm_in_cut);
+            formData.set('pm_out_cut', pm_out_cut);
+
+            // Log each key-value pair in FormData
             console.log("Form data: ", formData);
 
             $.ajax({
-                url: '<?php echo site_url("admin/create-activity/add"); ?>',
+                url: '<?php echo site_url("admin/edit-activity/update"); ?>',
                 type: 'POST',
                 data: formData,
                 contentType: false,
@@ -781,7 +864,7 @@
                     } else if (response.status == 'success') {
                         // Display success using Alertify (top-right)
                         alertify.success('Success: ' + response.message);
-                        
+
                         // Redirect after a short delay
                         setTimeout(function(){
                             window.location.href = response.redirect;
@@ -795,8 +878,6 @@
         });
     });
 </script>
-
-
 
 <!-- SCRIPT FOR DATES  -->
 <script>

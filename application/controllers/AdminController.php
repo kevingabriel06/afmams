@@ -32,6 +32,9 @@ class AdminController extends CI_Controller {
 		$this->load->view('layout/footer', $data);
 	}
 
+    // <========= THIS PART IS FOR THE CREATE ACTIVITY =====>
+
+
     // VIEWING OF CREATE ACTIVITY PAGE
     public function create_activity() {
         $data['title'] = 'Create Activity';
@@ -52,7 +55,7 @@ class AdminController extends CI_Controller {
     }
 
     // SAVING OF ACTIVITY TO DATABASE
-    public function save() {
+    public function save_activity() {
 
         // Check if the form is submitted
         if ($this->input->post()) {
@@ -134,8 +137,6 @@ class AdminController extends CI_Controller {
         echo json_encode($response);
     }
 
-    
-
     // EDITING OF ACTIVITY TO DATABASE
     public function edit_activity($activity_id) {
         $data['title'] = 'Edit Activity';
@@ -157,6 +158,72 @@ class AdminController extends CI_Controller {
         $this->load->view('layout/footer', $data);
     }
 
+    // SAVING OF ACTIVITY TO DATABASE
+    public function update_activity() {
+
+        $this->form_validation->set_rules('title', 'Activity Title', 'required');
+        $this->form_validation->set_rules('date_start', 'Start Date', 'required');
+        $this->form_validation->set_rules('date_end', 'End Date', 'required');
+
+        $activity_id = $this->input->post('activity_id');
+
+        if ($this->form_validation->run() == FALSE) {
+            $response = [
+                'status' => 'error',
+                'errors' => validation_errors()
+            ];
+            echo json_encode($response);
+            return;
+        }
+
+        $data = array(
+            'activity_title' => $this->input->post('title', TRUE),
+            'start_date' => $this->input->post('date_start', TRUE),
+            'end_date' => $this->input->post('date_end', TRUE),
+            'registration_deadline' => $this->input->post('registration_deadline', TRUE),
+            'registration_fee' => $this->input->post('registration_fee', TRUE),
+            'dept_id' => $this->input->post('dept', TRUE),
+            'org_id' => $this->input->post('org', TRUE),
+            'am_in' => $this->input->post('am_in', TRUE),
+            'am_out' => $this->input->post('am_out', TRUE),
+            'pm_in' => $this->input->post('pm_in', TRUE),
+            'pm_out' => $this->input->post('pm_out', TRUE),
+            'am_in_cut' => $this->input->post('am_in_cut', TRUE),
+            'am_out_cut' => $this->input->post('am_out_cut', TRUE),
+            'pm_in_cut' => $this->input->post('pm_in_cut', TRUE),
+            'pm_out_cut' => $this->input->post('pm_out_cut', TRUE),
+            'description' => $this->input->post('description', TRUE),
+            'privacy' => $this->input->post('privacy', TRUE),
+            'fines' => $this->input->post('fines', TRUE)
+        );
+
+        if (!empty($_FILES['image']['name'])) {
+            $config = [
+                'upload_path' => './assets/coverEvent',
+                'allowed_types' => 'gif|jpg|jpeg|png',
+                'max_size' => 2048,
+                'file_name' => uniqid() . '_' . $_FILES['image']['name']
+            ];
+            $this->load->library('upload', $config);
+
+            if ($this->upload->do_upload('image')) {
+                $uploadData = $this->upload->data();
+                $data['activity_image'] = $uploadData['file_name'];
+            } else {
+                echo json_encode(['status' => 'error', 'errors' => $this->upload->display_errors()]);
+                return;
+            }
+        }
+
+        $result = $this->admin->update_activity($activity_id, $data);
+
+        echo json_encode(
+            $result ? 
+            ['status' => 'success', 'message' => 'Activity Updated Successfully', 'redirect' => site_url("admin/activity-details/$activity_id")] :
+            ['status' => 'error', 'errors' => 'Failed to Update Activity']
+        );
+    }
+
     // FETCHING ACTIVITY BASED ON WHERE THE USER IS ADMIN
     public function list_activity() {
         $data['title'] = 'List of Activities';
@@ -167,9 +234,9 @@ class AdminController extends CI_Controller {
         $users= $this->admin->get_roles($student_id);
         $data['role'] = $users['role'];
 
-        // CROSS CHECKING OF THE WHERE THE USER IS ADMIN
-        $data['org'] = $this->admin->get_organizer_org();
-        $data['dept'] = $this->admin->get_organizer_dept();
+        // ORGANIZATION AND DEPT ID OF THE ADMIN
+        $data['organization'] = $this->admin->admin_org();
+        $data['department'] = $this->admin->admin_dept();
         
         // GETTING OF THE ACTIVITY FROM THE DATABASE
         $data['activities'] = $this->admin->get_activities();
@@ -191,33 +258,14 @@ class AdminController extends CI_Controller {
         $data['role'] = $users['role'];
 
         // CROSS CHECKING OF THE WHERE THE USER IS ADMIN
-        $data['org'] = $this->admin->get_organizer_org();
-        $data['dept'] = $this->admin->get_organizer_dept();
+        $data['organization'] = $this->admin->admin_org();
+        $data['department'] = $this->admin->admin_dept();
 
-        // WHERE THE USER BELONGS
-        $data['organization'] = $this->admin->get_student_organizations($student_id);
-        $data['department'] = $this->admin->get_student_department($student_id);
-
-        $data['activity'] = $this->admin->get_activity($activity_id);
-        $data['activities'] = $this->admin->get_activities();
+        $data['activity'] = $this->admin->get_activity($activity_id); // SPECIFIC ACTIVITY
+        $data['activities'] = $this->admin->get_activities(); // FOR UPCOMING ACTIVITY PART
 
         $this->load->view('layout/header', $data);
         $this->load->view('admin/activity/activity-detail', $data);
-        $this->load->view('layout/footer', $data);
-    }
-
-    public function create_evaluationform() {
-        $data['title'] = 'Create Evaluation Form';
-      
-        $student_id = $this->session->userdata('student_id');
-        
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users= $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
-
-        
-        $this->load->view('layout/header', $data);
-        $this->load->view('admin/activity/create-evaluation-form', $data);
         $this->load->view('layout/footer', $data);
     }
 
@@ -244,8 +292,25 @@ class AdminController extends CI_Controller {
     }
 
 
+    public function create_evaluationform() {
+        $data['title'] = 'Create Evaluation Form';
+      
+        $student_id = $this->session->userdata('student_id');
+        
+        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
+        $users= $this->admin->get_roles($student_id);
+        $data['role'] = $users['role'];
 
-    // ========> REVIEW EXCUSE LETTER SECTION
+        
+        $this->load->view('layout/header', $data);
+        $this->load->view('admin/activity/create-evaluation-form', $data);
+        $this->load->view('layout/footer', $data);
+    }
+
+
+    //  <=== REVIEW EXCUSE LETTER SECTION ===>
+
+    // FETCHING ACTIVITY
     public function list_activity_excuse() {
         $data['title'] = 'List of Activity for Excuse Letter';
         
@@ -256,8 +321,8 @@ class AdminController extends CI_Controller {
         $data['role'] = $users['role'];
 
         // CROSS CHECKING OF THE WHERE THE USER IS ADMIN
-        $data['org'] = $this->admin->get_organizer_org();
-        $data['dept'] = $this->admin->get_organizer_dept();
+        $data['organization'] = $this->admin->admin_org();
+        $data['department'] = $this->admin->admin_dept();
 
         $data['activities'] = $this->admin->get_activities();
         
@@ -267,9 +332,7 @@ class AdminController extends CI_Controller {
 
     }
 
-  
-
-    // list of excuse letter per event
+    // LIST OF APPLICATION PER EVENT
     public function list_excuse_letter($activity_id) {
         $data['title'] = 'List of Excuse Letter';
     
@@ -305,7 +368,7 @@ class AdminController extends CI_Controller {
         $this->load->view('layout/footer', $data);
     }
 
-    // UPDATING REMARKS AND STATUS
+    // UPDATING REMARKS AND STATUS OF THE APPLICATION
     public function updateApprovalStatus() {
         $remarks = $this->input->post('remarks');
         $approvalStatus = $this->input->post('approvalStatus');
@@ -326,8 +389,13 @@ class AdminController extends CI_Controller {
         } else {
           echo json_encode(['success' => false]);
         }
-      }
+    }
 
+
+
+
+
+    
     
       // VIEWING OF COMMUNITY SECTION
     public function community() {

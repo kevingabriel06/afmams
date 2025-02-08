@@ -170,6 +170,13 @@
                                     <?php if ($activity->registration_fee == '0'): ?>
                                         <span class="badge badge-subtle-success rounded-pill">Free</span>
                                     <?php endif; ?>
+                                    <?php if ($activity->status == 'Completed'): ?>
+                                        <span class="badge badge-subtle-success rounded-pill">Completed</span>
+                                    <?php elseif ($activity->status == 'Ongoing'): ?>
+                                        <span class="badge badge-subtle-warning rounded-pill">Ongoing</span>
+                                    <?php elseif ($activity->status == 'Upcoming'): ?>
+                                        <span class="badge badge-subtle-danger rounded-pill">Upcoming</span>
+                                    <?php endif; ?>
                                 </a>
                             </h6>
                             <p class="mb-1">Organized by 
@@ -198,7 +205,14 @@
                         </div>
                     </div>
                 </div>
-            <?php elseif ($role == 'Officer' && $activity->dept_id == $dept && empty($activity->org_id)): ?>
+            <?php elseif (
+                $role == 'Officer' && 
+                isset($activity, $department) && 
+                is_object($activity) && is_object($department) && 
+                isset($activity->dept_id, $department->dept_id) && 
+                $activity->dept_id == $department->dept_id && 
+                empty($activity->org_id)
+            ): ?>
                 <div class="col-md-6 h-100 activity" data-start-date="<?php echo $activity->start_date; ?>">
                     <div class="d-flex btn-reveal-trigger">
                         <div class="calendar">
@@ -219,6 +233,13 @@
                                     <?php echo htmlspecialchars($activity->activity_title); ?> 
                                     <?php if ($activity->registration_fee == '0'): ?>
                                         <span class="badge badge-subtle-success rounded-pill">Free</span>
+                                    <?php endif; ?>
+                                    <?php if ($activity->status == 'Completed'): ?>
+                                        <span class="badge badge-subtle-success rounded-pill">Completed</span>
+                                    <?php elseif ($activity->status == 'Ongoing'): ?>
+                                        <span class="badge badge-subtle-warning rounded-pill">Ongoing</span>
+                                    <?php elseif ($activity->status == 'Upcoming'): ?>
+                                        <span class="badge badge-subtle-danger rounded-pill">Upcoming</span>
                                     <?php endif; ?>
                                 </a>
                             </h6>
@@ -245,7 +266,14 @@
                     </div>
                 </div>
 
-            <?php elseif ($role == 'Officer' && $activity->org_id == $org && empty($activity->dept_id)): ?>
+            <?php elseif (
+                $role == 'Officer' && 
+                isset($activity, $organization) && 
+                is_object($activity) && is_object($organization) && 
+                isset($activity->org_id, $organization->org_id) && 
+                $activity->org_id == $organization->org_id && 
+                empty($activity->dept_id)
+            ): ?>
                 <div class="col-md-6 h-100 activity" data-start-date="<?php echo $activity->start_date; ?>">
                     <div class="d-flex btn-reveal-trigger">
                         <div class="calendar">
@@ -266,6 +294,13 @@
                                     <?php echo htmlspecialchars($activity->activity_title); ?> 
                                     <?php if ($activity->registration_fee == '0'): ?>
                                         <span class="badge badge-subtle-success rounded-pill">Free</span>
+                                    <?php endif; ?>
+                                    <?php if ($activity->status == 'Completed'): ?>
+                                        <span class="badge badge-subtle-success rounded-pill">Completed</span>
+                                    <?php elseif ($activity->status == 'Ongoing'): ?>
+                                        <span class="badge badge-subtle-warning rounded-pill">Ongoing</span>
+                                    <?php elseif ($activity->status == 'Upcoming'): ?>
+                                        <span class="badge badge-subtle-danger rounded-pill">Upcoming</span>
                                     <?php endif; ?>
                                 </a>
                             </h6>
@@ -295,10 +330,12 @@
         <?php endforeach; ?>
 
 
-          <!-- No Activities Message -->
-          <div id="no-activity" class="card-body text-center" style="display: none">
-              <h5 class="mb-1">No activities listed.</h5>
-          </div>
+        <!-- No Activities Message -->
+        <div id="no-activity" class="card-body text-center" style="display: none">
+            <span class="fas fa-calendar-times fa-3x text-muted"></span> <!-- Calendar icon -->
+            <h5 class="mt-2 mb-1">No activities listed.</h5>
+        </div>
+
       </div>
   </div>
   

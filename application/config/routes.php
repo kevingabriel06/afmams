@@ -90,8 +90,9 @@ $route['admin/list-fines/(:num)'] = 'AdminController/list_fines/$1';
 
 //ACTIVITY MANAGEMENT======>
 $route['admin/create-activity'] ='AdminController/create_activity'; // VIEW CREATE ACTIVITY PAGE
-$route['admin/create-activity/add']['POST'] = 'AdminController/save' ; // SAVING ACTIVITY TO DATABASE
+$route['admin/create-activity/add']['POST'] = 'AdminController/save_activity' ; // SAVING ACTIVITY TO DATABASE
 $route['admin/edit-activity/(:num)'] ='AdminController/edit_activity/$1'; // VIEW EDIT ACTIVITY PAGE
+$route['admin/edit-activity/update']['POST'] ='AdminController/update_activity'; // UPDATING ACTIVITY TO DATABASE
 $route['admin/list-of-activity'] = 'AdminController/list_activity';
 $route['admin/activity-details/(:num)'] = 'AdminController/activity_details/$1';
 $route['admin/activity-details/activity-share']['post'] = 'AdminController/share_activity';

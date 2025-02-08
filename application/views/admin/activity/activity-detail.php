@@ -72,18 +72,19 @@
             <span class="fas fa-users text-danger me-1"></span> 235 Attendees
           </button>
           <?php if ($activity['org_id'] == '0' && $activity['dept_id'] == '0') :?>
-            <button id="share" class="btn btn-falcon-default btn-sm me-2" type="button">
-                <span class="fas fa-share-alt me-1"></span> Share
-            </button>
-            <a href="<?php echo site_url('admin/edit-activity/'.$activity['activity_id']);?>" class="btn btn-falcon-default btn-sm me-2">
-                <span class="fas fa-edit me-1"></span> Edit
-            </a>
+            <?php if ($activity['status'] == 'Upcoming' || $activity['status'] == 'Ongoing') : ?> 
+              <button id="share" class="btn btn-falcon-default btn-sm me-2" type="button">
+                  <span class="fas fa-share-alt me-1"></span> Share
+              </button>
+              <a href="<?php echo site_url('admin/edit-activity/'.$activity['activity_id']);?>" class="btn btn-falcon-default btn-sm me-2">
+                  <span class="fas fa-edit me-1"></span> Edit
+              </a>
+            <?php endif ;?>
           <?php endif ;?>
           <?php if ($activity['org_id'] == '0' && $activity['dept_id'] == '0') :?>
+            <?php if ($activity['status'] == 'Ongoing') : ?> 
             <a class="btn btn-falcon-primary btn-sm px-4 px-sm-5" href="<?php echo site_url('admin/activity/scan-qr/'.$activity['activity_id']); ?>">Scan QR</a>
-          <?php endif ;?>
-          <?php if ($activity['org_id'] == '0' && $activity['dept_id'] == '0') :?>
-            
+            <?php endif; ?>
           <?php endif ;?>
         </div>
       </div>
@@ -173,6 +174,17 @@
               <p class="fs-10 mb-0">Registration Deadline: <?= $registration_date_formatted ?></p>
               <p class="fs-10 mb-0">Registration Fee: <?= htmlspecialchars($activity['registration_fee']); ?></p>
             <?php } ?>
+
+            <h6 class="mt-4 fs-10">Status:
+              <?php if ($activity['status'] == 'Completed'): ?>
+                  <span class="badge badge-subtle-success rounded-pill fs-10">Completed</span>
+              <?php elseif ($activity['status'] == 'Ongoing'): ?>
+                  <span class="badge badge-subtle-warning rounded-pill fs-10">Ongoing</span>
+              <?php elseif ($activity['status'] == 'Upcoming'): ?>
+                  <span class="badge badge-subtle-danger rounded-pill fs-10">Upcoming</span>
+              <?php endif; ?>
+            </h6>
+            
           </div>
         </div>
 
@@ -293,16 +305,20 @@
           <button class="btn btn-falcon-default btn-sm me-2" type="button">
             <span class="fas fa-users text-danger me-1"></span> 235 Attendees
           </button>
-          <?php if ($activity['org_id'] == $org || $activity['dept_id'] == $dept) :?>
-            <button id="share" class="btn btn-falcon-default btn-sm me-2" type="button">
-                <span class="fas fa-share-alt me-1"></span> Share
-            </button>
-            <a href="<?php echo site_url('admin/edit-activity/'.$activity['activity_id']);?>" class="btn btn-falcon-default btn-sm me-2">
-                <span class="fas fa-edit me-1"></span> Edit
-            </a>
+          <?php if ($activity['org_id'] == $organization->org_id || $activity['dept_id'] == $department->dept_id) :?>
+            <?php if ($activity['status'] == 'Upcoming' || $activity['status'] == 'Ongoing') : ?> 
+              <button id="share" class="btn btn-falcon-default btn-sm me-2" type="button">
+                  <span class="fas fa-share-alt me-1"></span> Share
+              </button>
+              <a href="<?php echo site_url('admin/edit-activity/'.$activity['activity_id']);?>" class="btn btn-falcon-default btn-sm me-2">
+                  <span class="fas fa-edit me-1"></span> Edit
+              </a>
+            <?php endif ;?>
           <?php endif ;?>
-          <?php if ($activity['org_id'] == $org || $activity['dept_id'] == $dept) :?>
+          <?php if ($activity['org_id'] == $organization->org_id || $activity['dept_id'] == $department->dept_id) :?>
+            <?php if ($activity['status'] == 'Ongoing') : ?> 
             <a class="btn btn-falcon-primary btn-sm px-4 px-sm-5" href="<?php echo site_url('admin/activity/scan-qr/'.$activity['activity_id']); ?>">Scan QR</a>
+            <?php endif; ?>
           <?php endif ;?>
         </div>
       </div>
@@ -392,6 +408,17 @@
               <p class="fs-10 mb-0">Registration Deadline: <?= $registration_date_formatted ?></p>
               <p class="fs-10 mb-0">Registration Fee: <?= htmlspecialchars($activity['registration_fee']); ?></p>
             <?php } ?>
+            
+            <h6 class="mt-4 fs-10">Status:
+              <?php if ($activity['status'] == 'Completed'): ?>
+                  <span class="badge badge-subtle-success rounded-pill fs-10">Completed</span>
+              <?php elseif ($activity['status'] == 'Ongoing'): ?>
+                  <span class="badge badge-subtle-warning rounded-pill fs-10">Ongoing</span>
+              <?php elseif ($activity['status'] == 'Upcoming'): ?>
+                  <span class="badge badge-subtle-danger rounded-pill fs-10">Upcoming</span>
+              <?php endif; ?>
+            </h6>
+            
           </div>
         </div>
 

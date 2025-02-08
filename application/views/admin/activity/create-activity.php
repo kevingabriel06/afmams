@@ -231,8 +231,7 @@
                 <div class="col-sm-6 mb-3">
                     <label class="form-label" for="dept">Department</label>
                     <select class="form-control" id="dept" name="dept"  required>
-                        <option value="0">Select a Department</option>
-                        <option value="<?php echo $department->dept_id; ?>">
+                        <option value="<?php echo $department->dept_id; ?>" selected>
                             <?php echo $department->dept_name; ?>
                         </option>
                     </select>
@@ -244,10 +243,9 @@
                 <div class="col-sm-6 mb-3">
                     <label class="form-label" for="org">Organization</label>
                     <select class="form-control" id="org" name="org" required>
-                        <option value="">Select an Organization</option>
-                            <option value="<?php echo $organization->org_id; ?>">
-                                <?php echo $organization->org_name; ?>
-                            </option>
+                        <option value="<?php echo $organization->org_id; ?>" selected>
+                            <?php echo $organization->org_name; ?>
+                        </option>
                     </select>
                     <div id="org-error" class="invalid-feedback" style="display: none;">Select an organization.</div>
                 </div>
