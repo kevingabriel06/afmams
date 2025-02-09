@@ -111,9 +111,10 @@ $route['admin/community'] = 'AdminController/community';
 
 $route['admin/community/like-post/(:num)'] = 'AdminController/like_post/$1'; // Route for liking a post
 $route['admin/community/unlike-post/(:num)'] = 'AdminController/unlike_post/$1'; // Route for unliking a post
-$route['admin/community/add-comment']['post'] = 'AdminController/add_comment';
+$route['admin/community/add-comment']['post'] = 'AdminController/add_comment'; // Route for adding of comment
 $route['admin/community/add-post']['post'] = 'AdminController/add_post';
 $route['admin/community/share-activity']['post'] = 'AdminController/share';
+$route['admin/community/delete-post']['post'] = 'AdminController/delete_post';
 
 // PROFILE SETTINGS ========>
 $route['admin/profile-settings'] = 'AdminController/profile_settings';

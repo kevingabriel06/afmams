@@ -72,10 +72,12 @@
             <span class="fas fa-users text-danger me-1"></span> 235 Attendees
           </button>
           <?php if ($activity['org_id'] == '0' && $activity['dept_id'] == '0') :?>
-            <?php if ($activity['status'] == 'Upcoming' || $activity['status'] == 'Ongoing') : ?> 
-              <button id="share" class="btn btn-falcon-default btn-sm me-2" type="button">
-                  <span class="fas fa-share-alt me-1"></span> Share
-              </button>
+            <?php if ($activity['status'] == 'Upcoming' || $activity['status'] == 'Ongoing') : ?>
+              <?php if ($activity['is_shared'] == 'No') :?>
+                <button id="share" class="btn btn-falcon-default btn-sm me-2" type="button">
+                    <span class="fas fa-share-alt me-1"></span> Share
+                </button>
+              <?php endif;?>
               <a href="<?php echo site_url('admin/edit-activity/'.$activity['activity_id']);?>" class="btn btn-falcon-default btn-sm me-2">
                   <span class="fas fa-edit me-1"></span> Edit
               </a>
@@ -305,17 +307,19 @@
           <button class="btn btn-falcon-default btn-sm me-2" type="button">
             <span class="fas fa-users text-danger me-1"></span> 235 Attendees
           </button>
-          <?php if ($activity['org_id'] == $organization->org_id || $activity['dept_id'] == $department->dept_id) :?>
+          <?php if ($activity['org_id'] == $organization || $activity['dept_id'] == $department) :?>
             <?php if ($activity['status'] == 'Upcoming' || $activity['status'] == 'Ongoing') : ?> 
+              <?php if ($activity['is_shared'] == 'No') :?>
               <button id="share" class="btn btn-falcon-default btn-sm me-2" type="button">
                   <span class="fas fa-share-alt me-1"></span> Share
               </button>
+              <?php endif; ?>
               <a href="<?php echo site_url('admin/edit-activity/'.$activity['activity_id']);?>" class="btn btn-falcon-default btn-sm me-2">
                   <span class="fas fa-edit me-1"></span> Edit
               </a>
             <?php endif ;?>
           <?php endif ;?>
-          <?php if ($activity['org_id'] == $organization->org_id || $activity['dept_id'] == $department->dept_id) :?>
+          <?php if ($activity['org_id'] == $organization || $activity['dept_id'] == $department) :?>
             <?php if ($activity['status'] == 'Ongoing') : ?> 
             <a class="btn btn-falcon-primary btn-sm px-4 px-sm-5" href="<?php echo site_url('admin/activity/scan-qr/'.$activity['activity_id']); ?>">Scan QR</a>
             <?php endif; ?>
@@ -353,7 +357,12 @@
                       dataType: 'json', // Expect JSON response
                       success: function(response) {
                           if (response.success) {
-                              alertify.success('Activity ' + activityId + ' shared successfully!', 5);
+                              alertify.success('Activity shared successfully!', 5);
+                              
+                              // Wait for the alert to show before reloading
+                              setTimeout(function() {
+                                  window.location.href = "<?= site_url('admin/community'); ?>";
+                              }, 2000);  // Redirect after 2 seconds for better UX
                           } else {
                               alertify.error(response.message || 'Failed to share the activity', 5);
                           }

@@ -258,8 +258,8 @@ class AdminController extends CI_Controller {
         $data['role'] = $users['role'];
 
         // CROSS CHECKING OF THE WHERE THE USER IS ADMIN
-        $data['organization'] = $this->admin->admin_org();
-        $data['department'] = $this->admin->admin_dept();
+        $data['organization'] = $this->admin->admin_org_id();
+        $data['department'] = $this->admin->admin_dept_id();
 
         $data['activity'] = $this->admin->get_activity($activity_id); // SPECIFIC ACTIVITY
         $data['activities'] = $this->admin->get_activities(); // FOR UPCOMING ACTIVITY PART
@@ -391,13 +391,10 @@ class AdminController extends CI_Controller {
         }
     }
 
-
-
-
+    // <===== COMMUNITY SECTION =====>
 
     
-    
-      // VIEWING OF COMMUNITY SECTION
+    // VIEWING OF COMMUNITY SECTION
     public function community() {
         $data['title'] = 'Community';
 
@@ -407,12 +404,12 @@ class AdminController extends CI_Controller {
         $users= $this->admin->get_roles($student_id);
         $data['role'] = $users['role'];
     
-        // GETTING USER 
+        // GETTING USER INFORMATION
         $data['authors'] = $this->admin->get_user();
 
         // CHECKING WHICH THE USER BELONGS FOR DEPT AND ORG
-        $data['org'] = $this->admin->get_student_organizations($student_id);
-        $data['dept'] = $this->admin->get_student_department($student_id);
+        $data['organization'] = $this->admin->get_student_organizations($student_id);
+        $data['department'] = $this->admin->get_student_department($student_id);
 
         // POST DETAILS
         $data['posts'] = $this->admin->get_all_posts();
@@ -420,60 +417,28 @@ class AdminController extends CI_Controller {
         // FETCH LIKE COUNTS FOR EACH POST
         foreach ($data['posts'] as &$post) {
             $post->like_count = $this->admin->get_like_count($post->post_id);
-            $post->user_has_liked_post = $this->admin->has_liked($student_id, $post->post_id);
+            $post->user_has_liked_post = $this->admin->user_has_liked($post->post_id, $student_id);
             $post->comments_count = $this->admin->get_comment_count($post->post_id);
         }
     
         // FETCH 2 COMMENTS ONLY IN A POST
         foreach ($data['posts'] as &$post) {
-            $post->comments = $this->admin->get_comments_by_post($post->post_id, 2);
+            $post->comments = $this->admin->get_comments_by_post($post->post_id);
         }
     
-        // GETTING THE DEPT AND ORG ID
-        $data['organization'] = $this->admin->get_student_organizations($student_id);
-        $data['department'] = $this->admin->get_student_department($student_id);
-        
         // FETCHING ACTVITIES UPCOMING
-        $data['activities'] = $this->admin->get_activities_with_organizer_name();
+        $data['activities'] = $this->admin->get_activities();
     
 
-        // AMDIN ID 
-        $data['org_id'] = $this->admin->get_organizer_org();
-        $data['dept_id'] = $this->admin->get_organizer_dept();
-
-        $data['posted_activity'] = $this->admin->activity_posted();
+        // AMDIN SHARING OF ACTIVITY 
+        $data['org_id'] = $this->admin->admin_org_id();
+        $data['dept_id'] = $this->admin->admin_dept_id();
 
 
         // Load the views
         $this->load->view('layout/header', $data);
         $this->load->view('admin/activity/community', $data);
         $this->load->view('layout/footer', $data);
-    }
-
-    // SHARING OF ACTIVITY TO THE FEED
-    public function share() {
-        // Only accept AJAX requests
-        if (!$this->input->is_ajax_request()) {
-            show_error('No direct script access allowed.');
-        }
-
-        // Get the activity ID from the POST request
-        $input = json_decode(file_get_contents('php://input'), true);
-        $activity_id = $input['activity_id'];
-
-        if ($activity_id) {
-            // Update the activity's is_shared column
-            $result = $this->admin->update_is_shared($activity_id);
-
-            if ($result) {
-                // Return success response
-                echo json_encode(['success' => true]);
-                return;
-            }
-        }
-
-        // Return failure response
-        echo json_encode(['success' => false]);
     }
 
     // LIKING OF POST
@@ -504,7 +469,6 @@ class AdminController extends CI_Controller {
         ]);
     }
 
-
     // ADDING COMMENTS
     public function add_comment() {
         if ($this->input->post()) {
@@ -531,14 +495,19 @@ class AdminController extends CI_Controller {
                     // Fetch updated comment count
                     $comments_count = $this->admin->get_comment_count($post_id);
     
-                    // Fetch the latest 2 comments (INCLUDING the newly added comment)
-                    $new_comments = $this->admin->get_comments_by_post($post_id, 2);
+                    // Fetch the newly added comment only
+                    $new_comment = $this->admin->get_latest_comment($post_id); // Ensure this function fetches only the latest
     
+                    // Ensure correct JSON response
                     $response = array(
                         'status' => 'success',
                         'message' => 'Comment Saved Successfully',
                         'comments_count' => $comments_count,
-                        'new_comments' => $new_comments // Send the latest comments
+                        'new_comment' => array( // Make sure this is an array with expected keys
+                            'name' => $new_comment->name ?? 'Unknown',
+                            'profile_pic' => base_url('assets/profile/') . ($new_comment->profile_pic ?? 'default.jpg'),
+                            'content' => $new_comment->content ?? '',
+                        )
                     );
                 } else {
                     $response = array(
@@ -551,12 +520,76 @@ class AdminController extends CI_Controller {
         
         echo json_encode($response);
     }
+
+    public function delete_post() {
+        $post_id = $this->input->post('post_id');
     
+        if (!$post_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Invalid Post ID']);
+            return;
+        }
+    
+        // Fetch image path before deleting
+        $this->db->select('media');
+        $this->db->where('post_id', $post_id);
+        $query = $this->db->get('post'); // Get image from images table
+    
+        if ($query->num_rows() > 0) {
+            foreach ($query->result() as $row) {
+                if (!empty($row->media)) { // Check if media field is not empty
+                    $image_path = FCPATH . 'assets/post/' . $row->media; // Change path as needed
+                    
+                    if (file_exists($image_path)) {
+                        unlink($image_path); // Delete image from folder
+                    }
+                }
+            }
+        }
+        
+    
+        // Load model and delete post
+        $deleted = $this->admin->delete_post($post_id);
+    
+        if ($this->db->affected_rows() > 0) {
+            echo json_encode(['status' => 'success', 'message' => 'Post deleted successfully']);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Failed to delete post']);
+        }
+    }
+    
+    
+    
+    // SHARING OF ACTIVITY TO THE FEED
+    public function share() {
+        // Only accept AJAX requests
+        if (!$this->input->is_ajax_request()) {
+            show_error('No direct script access allowed.');
+        }
+
+        // Get the activity ID from the POST request
+        $input = json_decode(file_get_contents('php://input'), true);
+        $activity_id = $input['activity_id'];
+
+        if ($activity_id) {
+            // Update the activity's is_shared column
+            $result = $this->admin->update_is_shared($activity_id);
+
+            if ($result) {
+                // Return success response
+                echo json_encode(['success' => true]);
+                return;
+            }
+        }
+
+        // Return failure response
+        echo json_encode(['success' => false]);
+    }
+
     // ADDING OF POST
     public function add_post() {
         $student_id = $this->session->userdata('student_id');
-        $dept_id = $this->admin->get_organizer_org();
-        $org_id = $this->admin->get_organizer_dept();
+        $dept_id = $this->admin->admin_dept_id();
+        $org_id = $this->admin->admin_org_id();
     
         // Check if the form is submitted
         if ($this->input->post()) {
@@ -638,6 +671,59 @@ class AdminController extends CI_Controller {
         ];
         echo json_encode($response);
     }
+
+
+    // Try
+    public function getPostData($post_id) {
+        // Fetch the post data from the database
+        $post = $this->admin->getPostById($post_id);
+    
+        // If no post is found, return an error
+        if (!$post) {
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'Post not found']);
+            return;
+        }
+    
+        // Fetch comments for the post (assuming you have a CommentModel)
+        $comments = $this->admin->get_comments_by_post($post_id);
+    
+        // Combine post and comments into a single response
+        $response = [
+            'post_id' => $post['post_id'],
+            'first_name' => $post['first_name'],
+            'last_name' => $post['last_name'],
+            'profile_pic' => $post['profile_pic'],
+            'content' => $post['content'],
+            'created_at' => $post['created_at'],
+            'privacy' => $post['privacy'],
+            'org_id' => $post['org_id'],
+            'dept_id' => $post['dept_id'],
+            'org_name' => $post['org_name'],
+            'dept_name' => $post['dept_name'],
+            'like_count' => $post['like_count'],
+            'comments' => $comments,
+        ];
+    
+        // Return the response as JSON
+        header('Content-Type: application/json');
+        echo json_encode($response);
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     // create evaluation
     public function create()
