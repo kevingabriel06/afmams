@@ -8,6 +8,56 @@
 <!-- Include jQuery -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
+<!-- FOR SHARING THE ACTIVITY IN THE FEED -->
+<script>
+    $(document).ready(function() {
+        // Attach the click event handler to the button using its id
+        $('#share').click(function() {
+            // Get the activity ID dynamically
+            var activityId = <?php echo htmlspecialchars($activity['activity_id']); ?>;
+
+            // Trigger the confirmation dialog when the button is clicked
+            confirmShare(activityId);
+        });
+    });
+
+    function confirmShare(activityId) {
+        // Align Alertify toast notifications to the right
+        alertify.set('notifier', 'position', 'top-right');
+
+        alertify.confirm('Confirm Share', 'Are you sure you want to share this activity?',
+            function() {
+                // AJAX request to share the activity
+                $.ajax({
+                    url: '<?php echo site_url('admin/activity-details/activity-share'); ?>', // Ensure PHP outputs the correct URL
+                    type: 'POST',
+                    contentType: 'application/json', // Ensure JSON format is sent
+                    data: JSON.stringify({ activity_id: activityId }), // Send JSON data
+                    dataType: 'json', // Expect JSON response
+                    success: function(response) {
+                        if (response.success) {
+                            alertify.success('Activity shared successfully!', 5);
+                            
+                            // Wait for the alert to show before reloading
+                            setTimeout(function() {
+                                window.location.href = "<?= site_url('admin/community'); ?>";
+                            }, 2000);  // Redirect after 2 seconds for better UX
+                        } else {
+                            alertify.error(response.message || 'Failed to share the activity', 5);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('AJAX Error:', error);
+                        alertify.error('An error occurred. Please try again.', 5);
+                    }
+                });
+            },
+            function() {
+                // Action if cancelled
+                alertify.error('Share cancelled', 5);
+            });
+    }
+</script>
 
 <!-- Custom CSS to Set Standard Size -->
 <style>
@@ -23,7 +73,9 @@
         width: 100%; /* You can adjust the width of the card */
     }
 </style>
-  
+
+
+
 <?php if ($role == 'Admin') : ?>
   <div class="card mb-3">
     <img id="coverPhoto" class="card-img-top" 
@@ -92,52 +144,6 @@
       </div>
     </div>
   </div>
-
-  <!-- FOR SHARING THE ACTIVITY IN THE FEED -->
-  <script>
-      $(document).ready(function() {
-          // Attach the click event handler to the button using its id
-          $('#share').click(function() {
-              // Get the activity ID dynamically
-              var activityId = <?php echo htmlspecialchars($activity['activity_id']); ?>;
-
-              // Trigger the confirmation dialog when the button is clicked
-              confirmShare(activityId);
-          });
-      });
-
-      function confirmShare(activityId) {
-          // Align Alertify toast notifications to the right
-          alertify.set('notifier', 'position', 'top-right');
-
-          alertify.confirm('Confirm Share', 'Are you sure you want to share this activity?',
-              function() {
-                  // AJAX request to share the activity
-                  $.ajax({
-                      url: '<?php echo site_url('admin/activity-details/activity-share'); ?>', // Ensure PHP outputs the correct URL
-                      type: 'POST',
-                      contentType: 'application/json', // Ensure JSON format is sent
-                      data: JSON.stringify({ activity_id: activityId }), // Send JSON data
-                      dataType: 'json', // Expect JSON response
-                      success: function(response) {
-                          if (response.success) {
-                              alertify.success('Activity ' + activityId + ' shared successfully!', 5);
-                          } else {
-                              alertify.error(response.message || 'Failed to share the activity', 5);
-                          }
-                      },
-                      error: function(xhr, status, error) {
-                          console.error('AJAX Error:', error);
-                          alertify.error('An error occurred. Please try again.', 5);
-                      }
-                  });
-              },
-              function() {
-                  // Action if cancelled
-                  alertify.error('Share cancelled', 5);
-              });
-      }
-  </script>
 
   <div class="row g-0">
     <div class="col-lg-8 pe-lg-2">
@@ -329,57 +335,6 @@
     </div>
   </div>
 
-  <!-- FOR SHARING THE ACTIVITY IN THE FEED -->
-  <script>
-      $(document).ready(function() {
-          // Attach the click event handler to the button using its id
-          $('#share').click(function() {
-              // Get the activity ID dynamically
-              var activityId = <?php echo htmlspecialchars($activity['activity_id']); ?>;
-
-              // Trigger the confirmation dialog when the button is clicked
-              confirmShare(activityId);
-          });
-      });
-
-      function confirmShare(activityId) {
-          // Align Alertify toast notifications to the right
-          alertify.set('notifier', 'position', 'top-right');
-
-          alertify.confirm('Confirm Share', 'Are you sure you want to share this activity?',
-              function() {
-                  // AJAX request to share the activity
-                  $.ajax({
-                      url: '<?php echo site_url('admin/activity-details/activity-share'); ?>', // Ensure PHP outputs the correct URL
-                      type: 'POST',
-                      contentType: 'application/json', // Ensure JSON format is sent
-                      data: JSON.stringify({ activity_id: activityId }), // Send JSON data
-                      dataType: 'json', // Expect JSON response
-                      success: function(response) {
-                          if (response.success) {
-                              alertify.success('Activity shared successfully!', 5);
-                              
-                              // Wait for the alert to show before reloading
-                              setTimeout(function() {
-                                  window.location.href = "<?= site_url('admin/community'); ?>";
-                              }, 2000);  // Redirect after 2 seconds for better UX
-                          } else {
-                              alertify.error(response.message || 'Failed to share the activity', 5);
-                          }
-                      },
-                      error: function(xhr, status, error) {
-                          console.error('AJAX Error:', error);
-                          alertify.error('An error occurred. Please try again.', 5);
-                      }
-                  });
-              },
-              function() {
-                  // Action if cancelled
-                  alertify.error('Share cancelled', 5);
-              });
-      }
-  </script>
-
   <div class="row g-0">
     <div class="col-lg-8 pe-lg-2">
       <div class="card mb-3 mb-lg-0">
@@ -506,3 +461,4 @@
   </div>
 
 <?php endif; ?>
+

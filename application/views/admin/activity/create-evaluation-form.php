@@ -1,10 +1,10 @@
 <div class="card mb-3">
     <div class="card-body">
-    <div class="row flex-between-center">
-        <div class="col-md">
-        <h5 class="mb-2 mb-md-0">Create Evaluation Form</h5>
+        <div class="row flex-between-center">
+            <div class="col-md">
+                <h5 class="mb-2 mb-md-0">Create Evaluation Form</h5>
+            </div>
         </div>
-    </div>
     </div>
 </div>
 
@@ -29,15 +29,33 @@
 
 <div class="row g-0">
     <div id="messages"></div>
-        <div class="card mt-3">
-            <div class="card-body bg-body-tertiary">
+    <div class="card mt-3">
+        <div class="card-body bg-body-tertiary">
             <form
               id="createForm"
               class="row g-3 needs-validation dropzone dropzone-multiple p-0"
               data-dropzone="data-dropzone"
               enctype="multipart/form-data"
             >
-              <!-- Activity Details -->
+            <!-- Select Activity Dropdown -->
+				<?php if (!empty($activities)): ?>
+						<div class="mb-3">
+								<label class="form-label" for="activity">Select Activity</label>
+								<select class="form-control" id="activity" name="activity_id" required>
+										<option value="" disabled selected>Select an activity</option>
+										<?php foreach ($activities as $activity): ?>
+												<option value="<?= $activity->activity_id ?>">
+														<?= htmlspecialchars($activity->activity_title) ?>
+												</option>
+										<?php endforeach; ?>
+								</select>
+						</div>
+				<?php else: ?>
+						<p>No activities found</p>
+				<?php endif; ?>
+
+
+              <!-- Form Title -->
               <div class="mb-3">
                 <label class="form-label" for="formtitle">Form Title</label>
                 <input
@@ -58,6 +76,29 @@
                   rows="3"
                   required
                 ></textarea>
+              </div>
+
+              <!-- Start Date and End Date -->
+              <div class="mb-3">
+                <label class="form-label" for="startdate">Start Date and Time</label>
+                <input
+                  class="form-control"
+                  id="startdate"
+                  type="datetime-local"
+                  name="startdate"
+                  required
+                />
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label" for="enddate">End Date and Time</label>
+                <input
+                  class="form-control"
+                  id="enddate"
+                  type="datetime-local"
+                  name="enddate"
+                  required
+                />
               </div>
 
               <div id="form-fields" class="border-bottom border-dashed my-3"></div>
@@ -99,6 +140,7 @@
     </div>
 </div>
 
+<!-- Modal for adding fields (remains unchanged) -->
 <div
   class="modal fade"
   id="addFieldModal"
@@ -157,7 +199,7 @@ function addField(type) {
           </div>
         </div>
         <input class="form-control mb-2" id="question-${fieldCount}" type="text" placeholder="Enter your question" name="questions[]" required />
-        <input class="form-control mb-2" id="answer-${fieldCount}" type="text" placeholder="Short Answer" name="answers[]" required />
+        <input class="form-control mb-2" id="answer-${fieldCount}" type="text" placeholder="Short Answer" name="answers[]" />
         <input type="hidden" name="type[]" id="type-${fieldCount}" value="short" />
         <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')">Remove</button>
       </div>
@@ -248,8 +290,11 @@ $("#createForm").on("submit", function (e) {
   });
 
   const dataToSend = {
+    activity: $("#activity").val(), // Send selected activity ID
     formtitle: $("#formtitle").val(),
     formdescription: $("#formdescription").val(),
+    startdate: $("#startdate").val(),
+    enddate: $("#enddate").val(),
     fields: fields,
   };
 
@@ -264,11 +309,9 @@ $("#createForm").on("submit", function (e) {
     },
     error: function (xhr) {
       $("#messages").html(
-        `<div class="alert alert-danger">Error: ${xhr.responseText}</div>`
+        `<div class="alert alert-danger">Failed to create form.</div>`
       );
     },
   });
 });
-
 </script>
-

@@ -76,7 +76,8 @@ $route['admin/dashboard'] = 'AdminController/admin_dashboard';
 
 // ATTENDANCE MONITORING =======>
 $route['admin/list-activities-attendance'] = 'AdminController/list_activities_attendance';
-$route['admin/list-attendees/(:num)'] = 'AdminController/list_attendees/$1';
+$route['admin/list-department/(:num)'] = 'AdminController/list_department/$1';
+$route['admin/list-attendees/(:num)/(:num)'] = 'AdminController/list_attendees/$1/$2';
 $route['admin/activity/scan-qr/(:num)'] = 'AdminController/scanning_qr/$1';
 $route['admin/activity/scan-qr-code'] = 'AdminController/scan';
 $route['admin/attendance/get-faces'] = 'AdminController/getFaces';
@@ -85,38 +86,46 @@ $route['admin/attendance/detect'] = 'AdminController/updateAttendance';
 
 //FINES MONITORING
 $route['admin/list-activities-fines'] = 'AdminController/list_activities_fines';
-$route['admin/list-fines/(:num)'] = 'AdminController/list_fines/$1';
+$route['admin/list-department-fines/(:num)'] = 'AdminController/list_department_fines/$1';
+$route['admin/list-fines/(:num)/(:num)'] = 'AdminController/list_fines/$1/$2';
+$route['admin/fines/update_status']['post'] = 'AdminController/update_status';
 
 
-//ACTIVITY MANAGEMENT======>
+//<======= CREATION ACTIVITY ======>
 $route['admin/create-activity'] ='AdminController/create_activity'; // VIEW CREATE ACTIVITY PAGE
 $route['admin/create-activity/add']['POST'] = 'AdminController/save_activity' ; // SAVING ACTIVITY TO DATABASE
 $route['admin/edit-activity/(:num)'] ='AdminController/edit_activity/$1'; // VIEW EDIT ACTIVITY PAGE
 $route['admin/edit-activity/update']['POST'] ='AdminController/update_activity'; // UPDATING ACTIVITY TO DATABASE
-$route['admin/list-of-activity'] = 'AdminController/list_activity';
-$route['admin/activity-details/(:num)'] = 'AdminController/activity_details/$1';
-$route['admin/activity-details/activity-share']['post'] = 'AdminController/share_activity';
+$route['admin/list-of-activity'] = 'AdminController/list_activity'; // List of activity
+$route['admin/activity-details/(:num)'] = 'AdminController/activity_details/$1'; // Activity Details
+$route['admin/activity-details/activity-share']['post'] = 'AdminController/share_activity'; // Sharing activity to community
 
 $route['admin/create-evaluation-form'] = 'AdminController/create_evaluationform';
-$route['admin/create-evaluation-form/create']['post'] = 'AdminController/create';
+$route['admin/create-evaluation-form/create']['post'] = 'AdminController/create_eval';
+$route['admin/list-activity-evaluation'] = 'AdminController/list_activity_evaluation';
+$route['admin/list-evaluation-answers/(:num)'] = 'AdminController/list_evaluation_answers/$1';
+$route['admin/list-evaluation-answers/view_response/(:num)'] = 'AdminController/view_response/$1';
 
-//=======> EXCUSE PART
-$route['admin/activity-list'] = 'AdminController/list_activity_excuse';
-$route['admin/list-of-excuse-letter/(:num)'] = 'AdminController/list_excuse_letter/$1';
-$route['admin/review-excuse-letter/(:num)'] = 'AdminController/review_excuse_letter/$1';
-$route['admin/review-excuse-letter/update']['POST'] = 'AdminController/updateApprovalStatus';
+// <==== EXCUSE APPLICATION ======>
+$route['admin/activity-list'] = 'AdminController/list_activity_excuse'; // List of activity
+$route['admin/list-of-excuse-letter/(:num)'] = 'AdminController/list_excuse_letter/$1'; // List of Excuse Application per Activity
+$route['admin/review-excuse-letter/(:num)'] = 'AdminController/review_excuse_letter/$1'; // Excuse Application
+$route['admin/review-excuse-letter/update']['POST'] = 'AdminController/updateApprovalStatus'; // Remarks of the application
 
-// ======> COMMUNITY SECTION
+// <===== COMMUNITY SECTION =======>
 $route['admin/community'] = 'AdminController/community';
-
 $route['admin/community/like-post/(:num)'] = 'AdminController/like_post/$1'; // Route for liking a post
 $route['admin/community/unlike-post/(:num)'] = 'AdminController/unlike_post/$1'; // Route for unliking a post
 $route['admin/community/add-comment']['post'] = 'AdminController/add_comment'; // Route for adding of comment
-$route['admin/community/add-post']['post'] = 'AdminController/add_post';
-$route['admin/community/share-activity']['post'] = 'AdminController/share';
-$route['admin/community/delete-post']['post'] = 'AdminController/delete_post';
+$route['admin/community/add-post']['post'] = 'AdminController/add_post'; // Route for adding of post
+$route['admin/community/share-activity']['post'] = 'AdminController/share'; // Route for sharing activity
+$route['admin/community/delete-post']['post'] = 'AdminController/delete_post'; // Route for deleting post
 
 // PROFILE SETTINGS ========>
 $route['admin/profile-settings'] = 'AdminController/profile_settings';
 $route['admin/manage-officers'] = 'AdminController/manage_officers';
+$route['admin/manage-officers-department/(:num)'] = 'AdminController/list_officers_dept/$1';
+$route['admin/manage-officers-department/update_status']['post'] = 'AdminController/update_status_dept';
+$route['admin/manage-officers-organization/(:num)'] = 'AdminController/list_officers_org/$1';
+$route['admin/manage-officers-organization/update_status']['post'] = 'AdminController/update_status_org';
 

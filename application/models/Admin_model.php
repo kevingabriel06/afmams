@@ -280,8 +280,6 @@ class Admin_model extends CI_Model {
         $query = $this->db->get();
         return $query->row(); // Return a single comment object
     }
-    
-
 
     // FETCHING ORGANIZATION WHERE THE STUDENT BELONG *
     public function get_student_organizations($student_id) {
@@ -338,119 +336,220 @@ class Admin_model extends CI_Model {
         return $result;  // Return department data for the logged-in user
     }
 
-
-
-
-
-
-
-
-
-
-
-
-    // FETCHING ORGANIZATION WHERE THE USER BELONGS *
-    public function get_organizer_org() {
-        $student_id = $this->session->userdata('student_id');
-
-        $this->db->select('student_org.org_id');
-        $this->db->from('users');
-        $this->db->join('student_org', 'student_org.student_id = users.student_id');
-        $this->db->where('users.student_id', $student_id);
-        $this->db->where('users.is_admin', 'Yes');
-        $this->db->where('student_org.is_officer', 'Yes');
-
-        $result = $this->db->get()->row();
-        return $result ? $result->org_id : null;
-    }
-
-    // FETCHING DEPARTMENT WHERE THE USER BELONGS *
-    public function get_organizer_dept() {
-        $student_id = $this->session->userdata('student_id');
-
-        $this->db->select('dept_id');
-        $this->db->from('users');
-        $this->db->where('users.student_id', $student_id);
-        $this->db->where('users.is_admin', 'Yes');
-        $this->db->where('users.is_officer_dept', 'Yes');
-
-        $result = $this->db->get()->row();
-        return $result ? $result->dept_id : null;
-    }
-
-
-
-
-
-
-    // FECTHING ACTIVITIES FOR COMMUNITY AND ACTVITY LIST *
-    public function get_activities_with_organizer_name() {
-        $this->db->select('activity.*, department.dept_name, organization.org_name');
-        $this->db->from('activity');
-        $this->db->join('organization', 'organization.org_id = activity.org_id', 'left');
-        $this->db->join('department', 'department.dept_id = activity.dept_id', 'left');
-        $this->db->where('activity.start_date >', date('Y-m-d')); 
-
-
-        $query = $this->db->get();
-        return $query->result(); // Returns an array of objects
-    }
-
-
-
-    // public function get_comment_by_id($comment_id) {
-    //     $this->db->select('c.*, u.profile_pic, u.name');
-    //     $this->db->from('comment c');
-    //     $this->db->join('users u', 'u.student_id = c.student_id');
-    //     $this->db->where('c.id', $comment_id);
-    //     $query = $this->db->get();
-    //     return $query->row();  // Return the comment object
-    // }
-   
-
-
-
-
     public function update_is_shared($activity_id) {
         $this->db->set('is_shared', 'Yes'); // Set is_shared to Yes (or TRUE)
         $this->db->where('activity_id', $activity_id);
         return $this->db->update('activity'); // Returns TRUE on success
     }
 
-
-    // evaluation
-    public function create_form_with_fields($formData, $fieldsData) {
+    //========CREATE EVALUATION START
+    public function create_form_with_fields($formData, $fieldsData)
+    {
+        // Start the transaction
         $this->db->trans_start();
-    
-        // Insert form data
+
+        // Insert form data into the 'forms' table
         $this->db->insert('forms', $formData);
-        $formId = $this->db->insert_id();
-    
-        // Add form_id to each field and insert fields
-        foreach ($fieldsData as &$field) {
-            $field['form_id'] = $formId;
+        
+        // Fallback to get the last insert ID, based on the DB driver
+        if (method_exists($this->db, 'insert_id')) {
+            $formId = $this->db->insert_id(); // MySQL or compatible DB
+        } else {
+            // For Cubrid or other DB drivers, use a custom approach to retrieve the last insert ID
+            $this->db->select('MAX(form_id) AS form_id');
+            $query = $this->db->get('forms');
+            $result = $query->row(); // Fetch the latest inserted ID
+            $formId = isset($result->form_id) ? $result->form_id : null; // Return form_id or null if not found
         }
-        $this->db->insert_batch('formfields', $fieldsData);
-    
+
+        if ($formId) {
+            // Add form_id to each field before inserting into formfields table
+            foreach ($fieldsData as &$field) {
+                $field['form_id'] = $formId;
+            }
+
+            // Insert form fields into the 'formfields' table
+            $this->db->insert_batch('formfields', $fieldsData);
+        } else {
+            // If form insertion failed, rollback the transaction
+            $this->db->trans_rollback();
+            return false; // Optionally return false to indicate failure
+        }
+
+        // Complete the transaction
         $this->db->trans_complete();
-    
-        return $this->db->trans_status(); // Returns TRUE if successful, FALSE otherwise
+
+        // Return the status of the transaction (TRUE if successful, FALSE otherwise)
+        return $this->db->trans_status();
     }
-    
-    
 
 
-    
+        //ACTIVITY DROPDOWN BASED ON LOGGED IN USER
 
-    public function fetch_users(){
+        public function get_filtered_activities($student_id)
+        {
+            $this->db->select('*');
+            $this->db->from('activity');
+            $this->db->where('org_id', NULL);
+            $this->db->where('dept_id', NULL);
+        
+            return $this->db->get()->result();
+        }
+        
+        
+
+    //========CREATE EVALUATION END
+    
+    // <====== ATTENDANCE ======>
+    public function get_department(){
         $this->db->select('*');
-        $this->db->from('users');
-        $this->db->join('department', 'department.dept_id = users.dept_id');
-        $this->db->join('attendance', 'attendance.student_id = users.student_id');
+        $this->db->from('department');
+
         $query = $this->db->get();
 
         return $query->result(); 
     }
+
+    public function get_organization(){
+        $this->db->select('*');
+        $this->db->from('organization');
+
+        $query = $this->db->get();
+
+        return $query->result(); 
+    }
+
+    public function fetch_users(){
+        $this->db->select('users.student_id, users.first_name, users.last_name, users.dept_id, department.dept_name, attendance.*, student_org.*');
+        $this->db->from('users');
+        $this->db->join('department', 'department.dept_id = users.dept_id', 'left');
+        $this->db->join('attendance', 'attendance.student_id = users.student_id', 'left');
+        $this->db->join('student_org', 'student_org.student_id = users.student_id', 'left');
+        
+        $query = $this->db->get();
+        return $query->result();
+    }
+
+    // GETTING THE SCHEDULE
+    public function get_activity_schedule($activity_id) {
+        $this->db->select('*');
+        $this->db->from('activity');
+        $this->db->where('activity_id', $activity_id);
+        $query = $this->db->get();
+    
+        return $query->row(); // Return a single row object
+    }
+
+    public function update_attendance($student_id, $activity_id, $update_data) {
+        // Ensure that $update_data is not empty before updating
+        if (!empty($update_data)) {
+            $this->db->where('student_id', $student_id);
+            $this->db->where('activity_id', $activity_id);
+            $this->db->update('attendance', $update_data);
+            
+            // Check if the update was successful
+            if ($this->db->affected_rows() > 0) {
+                return true; // Successfully updated
+            } else {
+                return false; // No changes were made or the record does not exist
+            }
+        }
+        return false; // No data to update
+    }
+    
+    public function get_attendance_record($student_id, $activity_id) {
+        $this->db->select('*');
+        $this->db->from('attendance');
+        $this->db->where('student_id', $student_id);
+        $this->db->where('activity_id', $activity_id);
+    
+        $query = $this->db->get(); // Execute query
+    
+        return $query->row(); // Return a single record (or use ->result() for multiple)
+    }
+    
+    public function update_fines($student_id, $activity_id, $update_fines) {
+        // Ensure that $update_data is not empty before updating
+        if (!empty($update_fines)) {
+            $this->db->where('student_id', $student_id);
+            $this->db->where('activity_id', $activity_id);
+            $this->db->update('fines', $update_fines);
+            
+            // Check if the update was successful
+            if ($this->db->affected_rows() > 0) {
+                return true; // Successfully updated
+            } else {
+                return false; // No changes were made or the record does not exist
+            }
+        }
+        return false; // No data to update
+    }
+    
+
+    // <======== FINES =========>
+
+    public function fetch_students(){
+        $this->db->select('users.student_id, users.first_name, users.last_name, users.dept_id, department.dept_name, fines.*, student_org.*');
+        $this->db->from('users');
+        $this->db->join('department', 'department.dept_id = users.dept_id', 'left');
+        $this->db->join('fines', 'fines.student_id = users.student_id', 'left');
+        $this->db->join('student_org', 'student_org.student_id = users.student_id', 'left');
+        
+        $query = $this->db->get();
+        return $query->result();
+    }
+
+    public function updateFineStatus($student_id, $activity_id, $status) {
+        $this->db->where('student_id', $student_id);
+        $this->db->where('activity_id', $activity_id); // Ensure correct activity
+        return $this->db->update('fines', ['is_paid' => $status]); // Update only one record
+    }
+
+    public function get_officer_dept(){
+        $this->db->select('*');
+        $this->db->from('department');
+        $this->db->join('users', 'department.dept_id = users.dept_id');
+        $this->db->where('users.role' , 'Officer');
+        $this->db->where('users.is_admin', 'Yes');
+        $this->db->where('users.is_officer_dept', 'Yes');
+
+        $query = $this->db->get();
+
+        return $query->result(); 
+    }
+
+    public function update_status_dept($student_id, $status) {
+        $this->db->where('student_id', $student_id);
+        return $this->db->update('users', ['is_admin' => $status]); // Update only one record
+    }
+
+    public function get_officer_org(){
+        $this->db->select('*');
+        $this->db->from('users');
+        $this->db->join('student_org', 'student_org.student_id = users.student_id');
+        $this->db->join('organization', 'organization.org_id = student_org.org_id');
+        $this->db->where('users.role' , 'Officer');
+        $this->db->where('users.is_admin', 'Yes');
+        $this->db->where('student_org.is_officer', 'Yes');
+
+        $query = $this->db->get();
+
+        return $query->result(); 
+    }
+
+    public function update_status_org($student_id, $status) {
+        $this->db->where('student_id', $student_id);
+        return $this->db->update('users', ['is_admin' => $status]); // Update only one record
+    }
+
+
+
+
+
+
+
+
+
 
     public function get_attendance($activity_id, $student_id) {
         return $this->db->get_where('attendance', [
@@ -461,6 +560,11 @@ class Admin_model extends CI_Model {
 
     public function save_attendance($data) {
         $this->db->insert('attendance', $data);
+    }
+    
+    
+    public function get_student_attendance($student_id) {
+        return $this->db->where('student_id', $student_id)->get('attendance')->row_array();
     }
     
 

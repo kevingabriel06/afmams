@@ -170,6 +170,9 @@
                     </a><!-- more inner pages--></li>
                     <li class="nav-item"><a class="nav-link" href="<?php echo site_url('admin/create-evaluation-form');?>">
                         <div class="d-flex align-items-center"><span class="nav-link-text ps-1">Evaluation Form</span></div>
+												</a><!-- more inner pages--></li>
+                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('admin/list-activity-evaluation'); ?>">
+                        <div class="d-flex align-items-center"><span class="nav-link-text ps-1">Evaluation Responses</span></div>
                       </a><!-- more inner pages--></li>
                     <li class="nav-item"><a class="nav-link" href="<?php echo site_url('admin/activity-list'); ?>">
                         <div class="d-flex align-items-center"><span class="nav-link-text ps-1">List of Excuse Letter</span></div>

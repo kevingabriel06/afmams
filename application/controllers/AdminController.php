@@ -292,21 +292,139 @@ class AdminController extends CI_Controller {
     }
 
 
-    public function create_evaluationform() {
-        $data['title'] = 'Create Evaluation Form';
-      
-        $student_id = $this->session->userdata('student_id');
-        
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users= $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
+//========CREATE EVALUATION START
+public function create_evaluationform() {
+    $data['title'] = 'Create Evaluation Form';
 
-        
-        $this->load->view('layout/header', $data);
-        $this->load->view('admin/activity/create-evaluation-form', $data);
-        $this->load->view('layout/footer', $data);
+    $this->load->model('Admin_model');
+    
+    
+    $student_id = $this->session->userdata('student_id');
+
+
+
+    // Fetch user roles
+    $users= $this->Admin_model->get_roles($student_id);
+    $data['role'] = $users['role'];
+
+    // Fetch activities based on user role
+    $data['activities'] = $this->Admin_model->get_filtered_activities($users['student_id']); 
+
+    $this->load->view('layout/header', $data);
+    $this->load->view('admin/activity/create-evaluation-form', $data);
+    $this->load->view('layout/footer', $data);
+}
+
+
+public function list_activity_evaluation()
+{
+    $data['title'] = 'Dashboard';
+
+    $student_id = $this->session->userdata('student_id');
+
+    // FETCHING DATA BASED ON THE ROLES - NECESSARY
+    $users = $this->admin->get_roles($student_id);
+    $data['role'] = $users['role'];
+
+    // Load the Activity model to fetch activities
+    $this->load->model('Admin_model');
+
+    // Fetch activities based on the logged-in user's role
+    if ($data['role'] == 'Admin') {
+        // For Admin, get all activities where org_id and dept_id are NULL
+        $activities = $this->admin->get_admin_activities();
+
+        // Map the status class to the activities
+        foreach ($activities as &$activity) {
+            $activity->status_class = $this->get_status_class($activity->status);
+        }
+
+        $data['activities'] = $activities;
+    } else {
+        $data['activities'] = []; // Default to empty if not an Admin
     }
 
+    // Pass data to the view
+    $this->load->view('layout/header', $data);
+    $this->load->view('admin/activity/list-activity-evaluation', $data);
+    $this->load->view('layout/footer', $data);
+}
+
+// create evaluation
+public function create_eval()
+{
+    // Get the form data from POST request
+    $formData = array(
+        'title' => $this->input->post('formtitle'),
+        'description' => $this->input->post('formdescription'),
+        'activity_id' => $this->input->post('activity'), // Include activity_id from the form
+        // Check if start_date is provided, otherwise use the current date and time
+        'start_date' => $this->input->post('startdate') ? date('Y-m-d H:i:s', strtotime($this->input->post('startdate'))) : date('Y-m-d H:i:s'),
+        // Check if end_date is provided, otherwise set it to 1 week from the start date
+        'end_date' => $this->input->post('enddate') ? date('Y-m-d H:i:s', strtotime($this->input->post('enddate'))) : date('Y-m-d H:i:s', strtotime('+1 week')),
+    );
+
+    // Get form fields data
+    $fields = $this->input->post('fields'); // Array of fields from the frontend
+
+    // Validate that fields is an array
+    if (is_array($fields) && count($fields) > 0) {
+        $fieldsData = array();
+
+        foreach ($fields as $index => $field) {
+            // Ensure required keys exist in the field data
+            $label = isset($field['label']) ? $field['label'] : '';
+            $type = isset($field['type']) ? $field['type'] : ''; 
+            $placeholder = isset($field['placeholder']) ? $field['placeholder'] : '';
+            $required = isset($field['required']) && $field['required'] ? 1 : 0; // 1 if required, 0 otherwise
+
+            // Validate that the label is not empty
+            if (!empty($label)) {
+                $fieldsData[] = array(
+                    'label' => $label,
+                    'type' => $type, // Use the type provided by the frontend
+                    'placeholder' => $placeholder,
+                    'required' => $required,
+                    'order' => $index + 1 // Order of the field
+                );
+            }
+        }
+
+        // Ensure at least one valid field is provided
+        if (!empty($fieldsData)) {
+            // Save the form and its fields
+            $this->db->trans_start(); // Start a transaction
+
+            // Insert the form data into the forms table
+            $this->db->insert('forms', $formData);
+            $formId = $this->db->insert_id(); // Get the last inserted form ID
+
+            // Insert the fields into the form_fields table
+            foreach ($fieldsData as &$fieldData) {
+                $fieldData['form_id'] = $formId; // Associate the field with the form
+            }
+
+            $this->db->insert_batch('formfields', $fieldsData); // Insert multiple fields in one query
+
+            $this->db->trans_complete(); // Complete the transaction
+
+            // Check if the transaction was successful
+            if ($this->db->trans_status() === FALSE) {
+                // Rollback the transaction if something went wrong
+                echo json_encode(['status' => 'error', 'message' => 'Failed to save the form. Please try again.']);
+            } else {
+                // Commit the transaction and return success
+                echo json_encode(['status' => 'success', 'message' => 'Form saved successfully.']);
+            }
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'No valid fields provided.']);
+        }
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid input data.']);
+    }
+}
+
+//========CREATE EVALUATION END
 
     //  <=== REVIEW EXCUSE LETTER SECTION ===>
 
@@ -393,7 +511,6 @@ class AdminController extends CI_Controller {
 
     // <===== COMMUNITY SECTION =====>
 
-    
     // VIEWING OF COMMUNITY SECTION
     public function community() {
         $data['title'] = 'Community';
@@ -556,9 +673,7 @@ class AdminController extends CI_Controller {
             echo json_encode(['status' => 'error', 'message' => 'Failed to delete post']);
         }
     }
-    
-    
-    
+
     // SHARING OF ACTIVITY TO THE FEED
     public function share() {
         // Only accept AJAX requests
@@ -673,144 +788,8 @@ class AdminController extends CI_Controller {
     }
 
 
-    // Try
-    public function getPostData($post_id) {
-        // Fetch the post data from the database
-        $post = $this->admin->getPostById($post_id);
-    
-        // If no post is found, return an error
-        if (!$post) {
-            header('Content-Type: application/json');
-            echo json_encode(['error' => 'Post not found']);
-            return;
-        }
-    
-        // Fetch comments for the post (assuming you have a CommentModel)
-        $comments = $this->admin->get_comments_by_post($post_id);
-    
-        // Combine post and comments into a single response
-        $response = [
-            'post_id' => $post['post_id'],
-            'first_name' => $post['first_name'],
-            'last_name' => $post['last_name'],
-            'profile_pic' => $post['profile_pic'],
-            'content' => $post['content'],
-            'created_at' => $post['created_at'],
-            'privacy' => $post['privacy'],
-            'org_id' => $post['org_id'],
-            'dept_id' => $post['dept_id'],
-            'org_name' => $post['org_name'],
-            'dept_name' => $post['dept_name'],
-            'like_count' => $post['like_count'],
-            'comments' => $comments,
-        ];
-    
-        // Return the response as JSON
-        header('Content-Type: application/json');
-        echo json_encode($response);
-    }
+    // <========= ATTENDANCE MONITORING ===========>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    // create evaluation
-    public function create()
-    {
-        // Get the form data from POST request
-        $formData = array(
-            'title' => $this->input->post('formtitle'),
-            'description' => $this->input->post('formdescription')
-        );
-
-        $fields = $this->input->post('fields'); // Array of fields from the frontend
-
-        // Validate that fields is an array
-        if (is_array($fields) && count($fields) > 0) {
-            $fieldsData = array();
-
-            foreach ($fields as $index => $field) {
-                // Ensure required keys exist in the field data
-                $label = isset($field['label']) ? $field['label'] : '';
-                $type = isset($field['type']) ? $field['type'] : ' '; 
-                $placeholder = isset($field['placeholder']) ? $field['placeholder'] : '';
-                $required = isset($field['required']) && $field['required'] ? 1 : 0; // 1 if required, 0 otherwise
-
-                // Validate that the label is not empty
-                if (!empty($label)) {
-                    $fieldsData[] = array(
-                        'label' => $label,
-                        'type' => $type, // Use the type provided by the frontend
-                        'placeholder' => $placeholder,
-                        'required' => $required,
-                        'order' => $index + 1 // Order of the field
-                    );
-                }
-            }
-
-            // Ensure at least one valid field is provided
-            if (!empty($fieldsData)) {
-                // Save the form and its fields
-                $result = $this->admin->create_form_with_fields($formData, $fieldsData);
-
-                if ($result) {
-                    echo json_encode(['status' => 'success', 'message' => 'Form saved successfully.']);
-                } else {
-                    echo json_encode(['status' => 'error', 'message' => 'Failed to save the form. Please try again.']);
-                }
-            } else {
-                echo json_encode(['status' => 'error', 'message' => 'No valid fields provided.']);
-            }
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Invalid input data.']);
-        }
-    }
-
-    
-    
-    // PROFILE SETTINGS ====>
-    public function profile_settings(){
-        $data['title'] = 'Profile Settings';
-
-        $student_id = $this->session->userdata('student_id');
-        
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users= $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
-
-
-        $this->load->view('layout/header', $data);
-        $this->load->view('admin/profile-settings', $data);
-        $this->load->view('layout/footer', $data);
-
-    }
-
-    public function manage_officers(){
-        $data['title'] = 'Manage Officers';
-
-        $student_id = $this->session->userdata('student_id');
-
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users= $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
-
-        $this->load->view('layout/header', $data);
-        $this->load->view('admin/manage-officer', $data);
-        $this->load->view('layout/footer', $data);
-    }
-
-    // ATTENDANCE MANAGEMENT
     public function list_activities_attendance(){
         $data['title'] = 'Manage Officers';
 
@@ -821,8 +800,8 @@ class AdminController extends CI_Controller {
         $data['role'] = $users['role'];
 
         // CROSS CHECKING OF THE WHERE THE USER IS ADMIN
-        $data['org'] = $this->admin->get_organizer_org();
-        $data['dept'] = $this->admin->get_organizer_dept();
+        $data['organization'] = $this->admin->admin_org();
+        $data['department'] = $this->admin->admin_dept();
 
         $data['activities'] = $this->admin->get_activities();
 
@@ -831,8 +810,27 @@ class AdminController extends CI_Controller {
         $this->load->view('layout/footer', $data);
     }
 
+    public function list_department($activity_id){
+        $data['title'] = 'List of Department';
+
+        $student_id = $this->session->userdata('student_id');
+
+        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
+        $users= $this->admin->get_roles($student_id);
+        $data['role'] = $users['role'];
+
+        // FETCHING ALL THE DEPARTMENT
+        $data['department'] = $this->admin->get_department();
+
+        $data['activity_id'] = $activity_id;
+
+        $this->load->view('layout/header', $data);
+        $this->load->view('admin/attendance/department', $data);
+        $this->load->view('layout/footer', $data);
+    }
+
     // SHOWING ATTENDANCE LIST
-    public function list_attendees($activity_id){
+    public function list_attendees($activity_id, $dept_id){
         $data['title'] = 'List of Attendees';
 
         $student_id = $this->session->userdata('student_id');
@@ -841,6 +839,15 @@ class AdminController extends CI_Controller {
         $users= $this->admin->get_roles($student_id);
         $data['role'] = $users['role'];
 
+        $data['dept_id'] = $dept_id;
+        $data['activity_id'] = $activity_id;
+        
+        // CHECKING WHERE THE USER ADMIN
+        $data['organization'] = $this->admin->admin_org();
+        $data['departments'] = $this->admin->admin_dept();
+
+        $data['department'] = $this->admin->get_department();
+
         $data['activities'] = $this->admin->fetch_application($activity_id);
 
         $data['students'] = $this->admin->fetch_users();
@@ -848,64 +855,6 @@ class AdminController extends CI_Controller {
         $this->load->view('layout/header', $data);
         $this->load->view('admin/attendance/listofattendees', $data);
         $this->load->view('layout/footer', $data);
-    }
-
-    // FINES MONITORING
-    public function list_activities_fines(){
-        $data['title'] = 'Manage Officers';
-
-        $student_id = $this->session->userdata('student_id');
-
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users= $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
-
-        // CROSS CHECKING OF THE WHERE THE USER IS ADMIN
-        $data['org'] = $this->admin->get_organizer_org();
-        $data['dept'] = $this->admin->get_organizer_dept();
-
-        $data['activities'] = $this->admin->get_activities();
-
-        $this->load->view('layout/header', $data);
-        $this->load->view('admin/fines/list-activities-fines', $data);
-        $this->load->view('layout/footer', $data);
-    }
-
-    //======> FINES
-    public function list_fines(){
-        $data['title'] = 'List of Fines';
-
-        $student_id = $this->session->userdata('student_id');
-        
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users= $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
-
-        $data['fines'] = $this->admin->fetch_fines();
-
-        $this->load->view('layout/header',$data);
-        $this->load->view('admin/fines/listoffines', $data);
-        $this->load->view('layout/footer', $data);
-
-    }
-
-    public function upload_image()
-    {
-        // Configuration for image upload
-        $config['upload_path'] = './uploads/face';
-        $config['allowed_types'] = 'jpg|jpeg|png';
-        $config['max_size'] = 2048; // 2MB max size
-
-        $this->upload->initialize($config);
-
-        if (!$this->upload->do_upload('imageUpload')) {
-            echo $this->upload->display_errors();
-        } else {
-            $data = $this->upload->data();
-            $image_path = $data['full_path'];
-            // Process the image or store path in the database
-            echo "Image uploaded successfully!";
-        }
     }
 
     public function scanning_qr($activity_id){
@@ -928,28 +877,338 @@ class AdminController extends CI_Controller {
     // SCANNING OF QR
     public function scan() {
 
+        date_default_timezone_set('Asia/Manila');
+
         // Validate input
         $this->form_validation->set_rules('student_id', 'Student ID', 'required');
         $this->form_validation->set_rules('activity_id', 'Activity', 'required');
+
         if ($this->form_validation->run() == FALSE) {
             $this->session->set_flashdata('error', validation_errors());
         }
         
-        // Retrieve student_id
         $student_id = $this->input->post('student_id');
         $activity_id = $this->input->post('activity_id');
-        
-      
-        // Create new attendance record
-        $data = [
-            'activity_id' => $activity_id,
-            'student_id' => $student_id,
-            'am_in' => date('Y-m-d H:i:s'),
-            'attendance_status' => 'Incomplete',
-        ];
-        $this->admin->save_attendance($data);
-        
+        $current_time = date('H:i:s');
+
+        // Fetch the activity schedule
+        $activity = $this->admin->get_activity_schedule($activity_id);
+        $attendance = $this->admin->get_attendance_record($student_id, $activity_id);
+
+        if (!$activity) {
+            $this->session->set_flashdata('error', 'Activity not found.');
+            return;
+        }
+
+        echo $activity->fines;
+
+        $update_data = [];
+        $update_fines = [];
+
+        // CHECKING THE SCHEDULE
+        if ($activity) {
+            // Half-day PM (if AM schedule is empty)
+            if (empty($activity->am_in) && empty($activity->am_out)) {
+                
+                if (empty($attendance->pm_in)) {
+                    // Handling am_in scan
+                    if (!empty($activity->pm_in)) {
+                        if ($current_time <= $activity->pm_in) {
+                            $update_data['pm_in'] =  date('Y-m-d H:i:s');
+                            $update_data['pm_in_status'] = 'Present';
+                            $update_fines['pm_in'] = '0';
+                        } elseif ($current_time > $activity->pm_in && $current_time <= $activity->pm_in_cut) {
+                            $update_data['pm_in'] =date('Y-m-d H:i:s');
+                            $update_data['pm_in_status'] = 'Late';
+                        } elseif ($current_time > $activity->pm_in_cut){
+                            $update_data['pm_in'] = date('Y-m-d H:i:s');
+                            $update_data['pm_in_status'] = 'Absent';
+                            $update_fines['pm_in'] = $activity->fines;
+                        }
+                    }
+                } else {
+                    // If pm_in_status is already recorded, process pm_out scan
+                    if (!empty($attendance->pm_in)) { 
+                        if ($current_time < $activity->pm_out) {
+                            // Early out before official out time
+                            $update_data['pm_out'] = date('Y-m-d H:i:s');
+                            $update_data['pm_out_status'] = 'Early Out';
+                            $update_fines['pm_out'] = $activity->fines;
+                        } elseif ($current_time >= $activity->pm_out && $current_time <= $activity->pm_out_cut) {
+                            // On time or within grace period
+                            $update_data['pm_out'] = date('Y-m-d H:i:s');
+                            $update_data['pm_out_status'] = 'Present';
+                            $update_fines['pm_out'] = "0";
+                        } elseif ($current_time > $activity->pm_out_cut) {
+                            // Late out
+                            $update_data['pm_out'] = date('Y-m-d H:i:s');
+                            $update_data['pm_out_status'] = 'Late Out';
+                        }
+                    }
+                }
+                
+                if ($attendance->pm_in_status == 'Present' && $attendance->pm_out_status == 'Present'){
+                    $update_data['attendance_status'] = 'Present';
+                }
+                elseif ($attendance->pm_in_status == 'Absent' && $attendance->pm_out_status == 'Absent'){
+                    $update_data['attendance_status'] = 'Absent';
+                }
+                else{
+                    $update_data['attendance_status'] = 'Incomplete';
+                }
+            }
+            // Half-day AM (if PM schedule is empty)
+            elseif (empty($activity->pm_in) && empty($activity->pm_out)) {
+                if (empty($attendance->am_in)) {
+                    // Handling am_in scan
+                    if (!empty($activity->am_in)) {
+                        if ($current_time <= $activity->am_in) {
+                            $update_data['am_in'] = date('Y-m-d H:i:s');
+                            $update_data['am_in_status'] = 'Present';
+                            $update_fines['am_in'] = '0';
+                        } elseif ($current_time > $activity->am_in && $current_time <= $activity->am_in_cut) {
+                            $update_data['am_in'] = date('Y-m-d H:i:s');
+                            $update_data['am_in_status'] = 'Late';
+                        } elseif ($current_time > $activity->am_in_cut){
+                            $update_data['am_in'] = date('Y-m-d H:i:s');
+                            $update_data['am_in_status'] = 'Absent';
+                            $update_fines['am_in'] = $activity->fines;
+                        }
+                    }
+                } else {
+                    // If am_in_status is already recorded, process am_out scan
+                    if (!empty($activity->am_in)) {
+                        if ($current_time < $activity->am_out) {
+                            // Early out before official out time
+                            $update_data['am_out'] = date('Y-m-d H:i:s');
+                            $update_data['am_out_status'] = 'Early Out';
+                            $update_fines['am_out'] = $activity->fines;
+                        } elseif ($current_time >= $activity->am_out && $current_time <= $activity->am_out_cut) {
+                            // On time or within grace period
+                            $update_data['am_out'] = date('Y-m-d H:i:s');
+                            $update_data['am_out_status'] = 'Present';
+                            $update_fines['am_out'] = '0';
+                        } elseif ($current_time > $activity->am_out_cut) {
+                            // Late out (if necessary to handle)
+                            $update_data['am_out'] = date('Y-m-d H:i:s');
+                            $update_data['am_out_status'] = 'Late Out';
+                        }
+                    }
+                }
+                
+                if ($attendance->am_in_status == 'Present' && $attendance->am_out_status == 'Present'){
+                    $update_data['attendance_status'] = 'Present';
+                }
+                elseif ($attendance->am_in_status == 'Absent' && $attendance->am_out_status == 'Absent'){
+                    $update_data['attendance_status'] = 'Absent';
+                }
+                else{
+                    $update_data['attendance_status'] = 'Incomplete';
+                }
+               
+            } 
+            // Whole-day event
+            else {
+
+                // RECORDING AM 
+
+                if (empty($attendance->am_in)) {
+                    // Handling am_in scan
+                    if ($current_time <= $activity->am_in) {
+                        $update_data['am_in'] = date('Y-m-d H:i:s');
+                        $update_data['am_in_status'] = 'Present';
+                        $update_fines['am_in'] = "0";
+                    } elseif ($current_time > $activity->am_in && $current_time <= $activity->am_in_cut) {
+                        $update_data['am_in'] = date('Y-m-d H:i:s');
+                        $update_data['am_in_status'] = 'Late';
+                    } elseif ($current_time > $activity->am_in_cut){
+                        $update_data['am_in'] = date('Y-m-d H:i:s');
+                        $update_data['am_in_status'] = 'Absent';
+                        $update_fines['am_in'] = $activity->fines;
+                    }
+                    
+                } elseif (!empty($attendance->am_in) && empty($attendance->am_out)) {
+                    // If am_in_status is already recorded, process am_out scan
+                    if ($current_time < $activity->am_out) {
+                        // Early out before official out time
+                        $update_data['am_out'] = date('Y-m-d H:i:s');
+                        $update_data['am_out_status'] = 'Early Out';
+                        $update_fines['am_out'] = $activity->fines;
+                    } elseif ($current_time >= $activity->am_out && $current_time <= $activity->am_out_cut) {
+                        // On time or within grace period
+                        $update_data['am_out'] = date('Y-m-d H:i:s');
+                        $update_data['am_out_status'] = 'Present';
+                        $update_fines['am_out'] = "0";
+                    } elseif ($current_time > $activity->am_out_cut) {
+                        // Late out (if necessary to handle)
+                        $update_data['am_out'] = date('Y-m-d H:i:s');
+                        $update_data['am_out_status'] = 'Late Out';
+                    }
+                    
+                } 
+                
+                if (!empty($attendance->am_out) && empty($attendance->pm_in)) {
+                    // Handling pm_in scan
+                    if ($current_time <= $activity->pm_in) {
+                        $update_data['pm_in'] =  date('Y-m-d H:i:s');
+                        $update_data['pm_in_status'] = 'Present';
+                        $update_fines['pm_in'] = "0";
+                    } elseif ($current_time > $activity->pm_in && $current_time <= $activity->pm_in_cut) {
+                        $update_data['pm_in'] =date('Y-m-d H:i:s');
+                        $update_data['pm_in_status'] = 'Late';
+                    } elseif ($current_time > $activity->pm_in_cut){
+                        $update_data['pm_in'] = date('Y-m-d H:i:s');
+                        $update_data['pm_in_status'] = 'Absent';
+                        $update_fines['pm_in'] = $activity->fines;
+                    }
+                } elseif (!empty($attendance->pm_in) && empty($attendance->pm_out)) {
+                    // If pm_in_status is already recorded, process pm_out scan
+                    if ($current_time < $activity->pm_out) {
+                        // Early out before official out time
+                        $update_data['pm_out'] = date('Y-m-d H:i:s');
+                        $update_data['pm_out_status'] = 'Early Out';
+                        $update_fines['pm_out'] = $activity->fines;
+                    } elseif ($current_time >= $activity->pm_out && $current_time <= $activity->pm_out_cut) {
+                        // On time or within grace period
+                        $update_data['pm_out'] = date('Y-m-d H:i:s');
+                        $update_data['pm_out_status'] = 'Present';
+                        $update_fines['pm_out'] = "0";
+                    } elseif ($current_time > $activity->pm_out_cut) {
+                        // Late out
+                        $update_data['pm_out'] = date('Y-m-d H:i:s');
+                        $update_data['pm_out_status'] = 'Late Out';
+                    }
+                }
+
+                if ($attendance->am_in_status == 'Present' && $attendance->am_out_status == 'Present' && $attendance->pm_in_status == 'Present' && $attendance->pm_out_status == 'Present'){
+                    $update_data['attendance_status'] = 'Present';
+                }
+                elseif ($attendance->am_in_status == 'Absent' && $attendance->am_out_status == 'Absent' && $attendance->pm_in_status == 'Absent' && $attendance->pm_out_status == 'Absent'){
+                    $update_data['attendance_status'] = 'Absent';
+                }
+                else{
+                    $update_data['attendance_status'] = 'Incomplete';
+                }
+
+            }
+
+            // Update attendance record
+            $this->admin->update_attendance($student_id, $activity_id, $update_data);
+
+            // Update fines
+            $this->admin->update_fines($student_id, $activity_id, $update_fines);
+            
+             // **New: Compute and Update Total Fine**
+            $this->compute_and_update_fine($student_id, $activity_id);
+            
+        }
     }
+
+    // Function to Compute and Update Total Fine
+    private function compute_and_update_fine($student_id, $activity_id) {
+        $this->db->query("
+            UPDATE fines
+            SET total_amount = (
+                COALESCE(am_in, 0) + COALESCE(am_out, 0) + 
+                COALESCE(pm_in, 0) + COALESCE(pm_out, 0)
+            )
+            WHERE student_id = ? AND activity_id = ?", 
+            [$student_id, $activity_id]
+        );
+    }
+
+   
+    // <====== FINES MONITORING =====>
+    public function list_activities_fines(){
+        $data['title'] = 'All Activities';
+
+        $student_id = $this->session->userdata('student_id');
+
+        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
+        $users= $this->admin->get_roles($student_id);
+        $data['role'] = $users['role'];
+
+        // CROSS CHECKING OF THE WHERE THE USER IS ADMIN
+        $data['organization'] = $this->admin->admin_org();
+        $data['department'] = $this->admin->admin_dept();
+
+        $data['activities'] = $this->admin->get_activities();
+
+        $this->load->view('layout/header', $data);
+        $this->load->view('admin/fines/list-activities-fines', $data);
+        $this->load->view('layout/footer', $data);
+    }
+
+    public function list_department_fines($activity_id){
+        $data['title'] = 'List of Department';
+
+        $student_id = $this->session->userdata('student_id');
+
+        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
+        $users= $this->admin->get_roles($student_id);
+        $data['role'] = $users['role'];
+
+        // FETCHING ALL THE DEPARTMENT
+        $data['department'] = $this->admin->get_department();
+
+        $data['activity_id'] = $activity_id;
+
+        $this->load->view('layout/header', $data);
+        $this->load->view('admin/fines/department', $data);
+        $this->load->view('layout/footer', $data);
+    }
+
+
+    //======> FINES
+    public function list_fines($activity_id, $dept_id){
+        $data['title'] = 'List of Fines';
+
+        $student_id = $this->session->userdata('student_id');
+        
+        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
+        $users= $this->admin->get_roles($student_id);
+        $data['role'] = $users['role'];
+
+        $data['dept_id'] = $dept_id;
+        $data['activity_id'] = $activity_id;
+        
+        // CHECKING WHERE THE USER ADMIN
+        $data['organization'] = $this->admin->admin_org();
+        $data['departments'] = $this->admin->admin_dept();
+
+        $data['department'] = $this->admin->get_department();
+
+        $data['activities'] = $this->admin->fetch_application($activity_id);
+
+        $data['fines'] = $this->admin->fetch_students();
+
+        $this->load->view('layout/header',$data);
+        $this->load->view('admin/fines/listoffines', $data);
+        $this->load->view('layout/footer', $data);
+
+    }
+
+    public function update_status() {
+        $input = json_decode(file_get_contents("php://input"), true);
+
+        // Ensure required parameters exist
+        if (!isset($input['student_id']) || !isset($input['activity_id']) || !isset($input['is_paid'])) {
+            echo json_encode(["success" => false, "message" => "Invalid request"]);
+            return;
+        }
+
+        $student_id = $input['student_id'];
+        $activity_id = $input['activity_id'];
+        $new_status = ($input['is_paid'] === "Yes") ? "Yes" : "No";
+
+        // Update only the specific record with both student_id & activity_id
+        if ($this->admin->updateFineStatus($student_id, $activity_id, $new_status)) {
+            echo json_encode(["success" => true, "message" => "Fine status updated"]);
+        } else {
+            echo json_encode(["success" => false, "message" => "Update failed"]);
+        }
+    }
+    
 
     // GETTING THE FACES 
     public function getFaces(){
@@ -965,54 +1224,280 @@ class AdminController extends CI_Controller {
         echo json_encode($faces);
     }
 
-    public function updateAttendance() {
-        // Get JSON input from the request
+
+    // <=========== OTHER PAGES ===========>
+
+    // PROFILE SETTINGS ====>
+    public function profile_settings(){
+        $data['title'] = 'Profile Settings';
+
+        $student_id = $this->session->userdata('student_id');
+        
+        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
+        $users= $this->admin->get_roles($student_id);
+        $data['role'] = $users['role'];
+
+
+        $this->load->view('layout/header', $data);
+        $this->load->view('admin/profile-settings', $data);
+        $this->load->view('layout/footer', $data);
+
+    }
+
+    
+    public function manage_officers(){
+        $data['title'] = 'Manage Officers';
+
+        $student_id = $this->session->userdata('student_id');
+
+        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
+        $users= $this->admin->get_roles($student_id);
+        $data['role'] = $users['role'];
+
+        // FETCHING ALL THE DEPARTMENT
+        $data['department'] = $this->admin->get_department();
+
+        // FETCHING ALL THE DEPARTMENT
+        $data['organization'] = $this->admin->get_organization();
+
+        $this->load->view('layout/header', $data);
+        $this->load->view('admin/manage-officer', $data);
+        $this->load->view('layout/footer', $data);
+    }
+
+    public function list_officers_dept($dept_id){
+        $data['title'] = 'List of Fines';
+
+        $student_id = $this->session->userdata('student_id');
+        
+        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
+        $users= $this->admin->get_roles($student_id);
+        $data['role'] = $users['role'];
+
+        // FETCHING ALL THE DEPARTMENT
+        $data['department'] = $this->admin->get_department();
+        $data['dept_id'] = $dept_id;
+
+        $data['officers'] = $this->admin->get_officer_dept();
+        
+
+        $this->load->view('layout/header',$data);
+        $this->load->view('admin/manage-department', $data);
+        $this->load->view('layout/footer', $data);
+
+    }
+
+    public function update_status_dept() {
         $input = json_decode(file_get_contents("php://input"), true);
 
-        if (!isset($input['registrationNumber']) || !isset($input['timestamp']) || !isset($input['activityId'])) {
-            $this->output
-                ->set_content_type('application/json')
-                ->set_status_header(400)
-                ->set_output(json_encode(['error' => 'Invalid request data']));
+        // Ensure required parameters exist
+        if (!isset($input['student_id']) || !isset($input['is_admin'])) {
+            echo json_encode(["success" => false, "message" => "Invalid request"]);
             return;
         }
 
-        $registrationNumber = $input['registrationNumber'];
-        $timestamp = $input['timestamp'];
-        $activityId = $input['activityId'];
+        $student_id = $input['student_id'];
+        $new_status = ($input['is_admin'] === "Yes") ? "Yes" : "No";
 
-        // Update or Insert attendance record
-        $data = [
-            'student_id' => $registrationNumber,
-            'activity_id' => $activityId,
-            'am_in' => $timestamp
-        ];
-
-        // Check if the record already exists
-        $this->db->where('student_id', $registrationNumber);
-        $this->db->where('activity_id', $activityId);
-        $query = $this->db->get('attendance');
-
-        if ($query->num_rows() > 0) {
-            // Update existing record
-            $this->db->where('student_id', $registrationNumber);
-            $this->db->where('activity_id', $activityId);
-            $update = $this->db->update('attendance', ['am_in' => $timestamp]);
+        // Update only the specific record with both student_id & activity_id
+        if ($this->admin->update_status_dept($student_id, $new_status)) {
+            echo json_encode(["success" => true, "message" => "Update admin updated"]);
         } else {
-            // Insert new record
-            $update = $this->db->insert('attendance', $data);
-        }
-
-        if ($update) {
-            $this->output
-                ->set_content_type('application/json')
-                ->set_output(json_encode(["status" => "success", "message" => "Attendance recorded"]));
-        } else {
-            $this->output
-                ->set_content_type('application/json')
-                ->set_status_header(500)
-                ->set_output(json_encode(["status" => "error", "message" => "Failed to record"]));
+            echo json_encode(["success" => false, "message" => "Update failed"]);
         }
     }
+
+    public function list_officers_org($org_id){
+        $data['title'] = 'List of Fines';
+
+        $student_id = $this->session->userdata('student_id');
+        
+        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
+        $users= $this->admin->get_roles($student_id);
+        $data['role'] = $users['role'];
+
+        // FETCHING ALL THE DEPARTMENT
+        $data['organization'] = $this->admin->get_organization();
+        $data['org_id'] = $org_id;
+
+        $data['officers'] = $this->admin->get_officer_org();
+        
+
+        $this->load->view('layout/header',$data);
+        $this->load->view('admin/manage-organization', $data);
+        $this->load->view('layout/footer', $data);
+
+    }
+
+    public function update_status_org() {
+        $input = json_decode(file_get_contents("php://input"), true);
+
+        // Ensure required parameters exist
+        if (!isset($input['student_id']) || !isset($input['is_admin'])) {
+            echo json_encode(["success" => false, "message" => "Invalid request"]);
+            return;
+        }
+
+        $student_id = $input['student_id'];
+        $new_status = ($input['is_admin'] === "Yes") ? "Yes" : "No";
+
+        // Update only the specific record with both student_id & activity_id
+        if ($this->admin->update_status_org($student_id, $new_status)) {
+            echo json_encode(["success" => true, "message" => "Update admin updated"]);
+        } else {
+            echo json_encode(["success" => false, "message" => "Update failed"]);
+        }
+    }
+
+    public function updateAttendance() {
+        date_default_timezone_set('Asia/Manila');
+    
+        // Validate input
+        $this->form_validation->set_rules('student', 'Registration Number', 'required');
+        $this->form_validation->set_rules('activityId', 'Activity ID', 'required');
+    
+        if ($this->form_validation->run() == FALSE) {
+            $this->output
+                ->set_content_type('application/json')
+                ->set_status_header(400)
+                ->set_output(json_encode(['error' => validation_errors()]));
+            return;
+        }
+    
+        $student_id = $this->input->post('registrationNumber');
+        $activity_id = $this->input->post('activityId');
+        $current_time = date('H:i:s');
+    
+        // Fetch the activity schedule and existing attendance
+        $activity = $this->admin->get_activity_schedule($activity_id);
+        $attendance = $this->admin->get_attendance_record($student_id, $activity_id);
+    
+        if (!$activity) {
+            $this->output
+                ->set_content_type('application/json')
+                ->set_status_header(404)
+                ->set_output(json_encode(['error' => 'Activity not found']));
+            return;
+        }
+    
+        $update_data = [];
+        $update_fines = [];
+    
+        // **Determine if the event is AM, PM, or Whole-Day**
+        if (empty($activity->am_in) && empty($activity->am_out)) {
+            // **PM-Only Event**
+            if (empty($attendance->pm_in)) {
+                if ($current_time <= $activity->pm_in) {
+                    $update_data['pm_in'] = date('Y-m-d H:i:s');
+                    $update_data['pm_in_status'] = 'Present';
+                    $update_fines['pm_in'] = '0';
+                } elseif ($current_time > $activity->pm_in && $current_time <= $activity->pm_in_cut) {
+                    $update_data['pm_in'] = date('Y-m-d H:i:s');
+                    $update_data['pm_in_status'] = 'Late';
+                } else {
+                    $update_data['pm_in'] = date('Y-m-d H:i:s');
+                    $update_data['pm_in_status'] = 'Absent';
+                    $update_fines['pm_in'] = $activity->fines;
+                }
+            } elseif (!empty($attendance->pm_in) && empty($attendance->pm_out)) {
+                if ($current_time < $activity->pm_out) {
+                    $update_data['pm_out'] = date('Y-m-d H:i:s');
+                    $update_data['pm_out_status'] = 'Early Out';
+                    $update_fines['pm_out'] = $activity->fines;
+                } elseif ($current_time >= $activity->pm_out && $current_time <= $activity->pm_out_cut) {
+                    $update_data['pm_out'] = date('Y-m-d H:i:s');
+                    $update_data['pm_out_status'] = 'Present';
+                    $update_fines['pm_out'] = '0';
+                } else {
+                    $update_data['pm_out'] = date('Y-m-d H:i:s');
+                    $update_data['pm_out_status'] = 'Late Out';
+                }
+            }
+    
+        } elseif (empty($activity->pm_in) && empty($activity->pm_out)) {
+            // **AM-Only Event**
+            if (empty($attendance->am_in)) {
+                if ($current_time <= $activity->am_in) {
+                    $update_data['am_in'] = date('Y-m-d H:i:s');
+                    $update_data['am_in_status'] = 'Present';
+                    $update_fines['am_in'] = '0';
+                } elseif ($current_time > $activity->am_in && $current_time <= $activity->am_in_cut) {
+                    $update_data['am_in'] = date('Y-m-d H:i:s');
+                    $update_data['am_in_status'] = 'Late';
+                } else {
+                    $update_data['am_in'] = date('Y-m-d H:i:s');
+                    $update_data['am_in_status'] = 'Absent';
+                    $update_fines['am_in'] = $activity->fines;
+                }
+            } elseif (!empty($attendance->am_in) && empty($attendance->am_out)) {
+                if ($current_time < $activity->am_out) {
+                    $update_data['am_out'] = date('Y-m-d H:i:s');
+                    $update_data['am_out_status'] = 'Early Out';
+                    $update_fines['am_out'] = $activity->fines;
+                } elseif ($current_time >= $activity->am_out && $current_time <= $activity->am_out_cut) {
+                    $update_data['am_out'] = date('Y-m-d H:i:s');
+                    $update_data['am_out_status'] = 'Present';
+                    $update_fines['am_out'] = '0';
+                } else {
+                    $update_data['am_out'] = date('Y-m-d H:i:s');
+                    $update_data['am_out_status'] = 'Late Out';
+                }
+            }
+    
+        } else {
+            // **Whole-Day Event**
+            if (empty($attendance->am_in)) {
+                if ($current_time <= $activity->am_in) {
+                    $update_data['am_in'] = date('Y-m-d H:i:s');
+                    $update_data['am_in_status'] = 'Present';
+                    $update_fines['am_in'] = '0';
+                } elseif ($current_time > $activity->am_in && $current_time <= $activity->am_in_cut) {
+                    $update_data['am_in'] = date('Y-m-d H:i:s');
+                    $update_data['am_in_status'] = 'Late';
+                } else {
+                    $update_data['am_in'] = date('Y-m-d H:i:s');
+                    $update_data['am_in_status'] = 'Absent';
+                    $update_fines['am_in'] = $activity->fines;
+                }
+            } elseif (!empty($attendance->am_in) && empty($attendance->am_out)) {
+                if ($current_time < $activity->am_out) {
+                    $update_data['am_out'] = date('Y-m-d H:i:s');
+                    $update_data['am_out_status'] = 'Early Out';
+                    $update_fines['am_out'] = $activity->fines;
+                } elseif ($current_time >= $activity->am_out && $current_time <= $activity->am_out_cut) {
+                    $update_data['am_out'] = date('Y-m-d H:i:s');
+                    $update_data['am_out_status'] = 'Present';
+                    $update_fines['am_out'] = '0';
+                } else {
+                    $update_data['am_out'] = date('Y-m-d H:i:s');
+                    $update_data['am_out_status'] = 'Late Out';
+                }
+            }
+    
+            if (!empty($attendance->am_out) && empty($attendance->pm_in)) {
+                if ($current_time <= $activity->pm_in) {
+                    $update_data['pm_in'] = date('Y-m-d H:i:s');
+                    $update_data['pm_in_status'] = 'Present';
+                    $update_fines['pm_in'] = '0';
+                } elseif ($current_time > $activity->pm_in && $current_time <= $activity->pm_in_cut) {
+                    $update_data['pm_in'] = date('Y-m-d H:i:s');
+                    $update_data['pm_in_status'] = 'Late';
+                } else {
+                    $update_data['pm_in'] = date('Y-m-d H:i:s');
+                    $update_data['pm_in_status'] = 'Absent';
+                    $update_fines['pm_in'] = $activity->fines;
+                }
+            }
+        }
+    
+        // Update attendance and fines
+        $this->admin->update_attendance($student_id, $activity_id, $update_data);
+        $this->admin->update_fines($student_id, $activity_id, $update_fines);
+    
+        $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode(['status' => 'success', 'message' => 'Attendance recorded successfully']));
+    }
+    
     
 }
