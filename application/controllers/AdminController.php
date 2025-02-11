@@ -1,6 +1,17 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
+/**
+ * Class StudentController
+ * @property Student_model $Student_model
+ * @property Admin_model $Admin_model
+ * @property CI_Input $input
+ * @property CI_Session $session
+ * @property CI_Upload $upload
+ * @property CI_Form_validation $form_validation
+ * @property CI_DB_query_builder $db <-- Add this line
+ */
+
 class AdminController extends CI_Controller {
 
 
@@ -8,6 +19,7 @@ class AdminController extends CI_Controller {
     {
         parent::__construct();
         $this->load->model('Admin_model', 'admin');
+        $this->load->model('Student_model');
 
         if(!$this->session->userdata('student_id'))
         {
@@ -15,12 +27,19 @@ class AdminController extends CI_Controller {
         }
     }
 
+
+    
+
 	public function admin_dashboard()
 	{
 
         $data['title'] = 'Dashboard';
 
         $student_id = $this->session->userdata('student_id');
+        // Fetch student profile picture
+        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
+        // Ensure a default profile picture if none exists
+        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
 
         // FETCHING DATA BASED ON THE ROLES - NECESSARRY
         $users= $this->admin->get_roles($student_id);
@@ -32,6 +51,12 @@ class AdminController extends CI_Controller {
 		$this->load->view('layout/footer', $data);
 	}
 
+
+    
+
+
+    
+
     // <========= THIS PART IS FOR THE CREATE ACTIVITY =====>
 
 
@@ -40,6 +65,12 @@ class AdminController extends CI_Controller {
         $data['title'] = 'Create Activity';
    
         $student_id = $this->session->userdata('student_id');
+
+        
+        // Fetch student profile picture
+        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
+        // Ensure a default profile picture if none exists
+        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
         
         // FETCHING DATA BASED ON THE ROLES - NECESSARRY
         $users= $this->admin->get_roles($student_id);
@@ -229,6 +260,11 @@ class AdminController extends CI_Controller {
         $data['title'] = 'List of Activities';
         
         $student_id = $this->session->userdata('student_id');
+
+        // Fetch student profile picture
+        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
+        // Ensure a default profile picture if none exists
+        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
         
         // FETCHING DATA BASED ON THE ROLES - NECESSARRY
         $users= $this->admin->get_roles($student_id);
@@ -301,6 +337,11 @@ public function create_evaluationform() {
     
     $student_id = $this->session->userdata('student_id');
 
+    // Fetch student profile picture
+    $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
+    // Ensure a default profile picture if none exists
+    $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
+
 
 
     // Fetch user roles
@@ -322,12 +363,17 @@ public function list_activity_evaluation()
 
     $student_id = $this->session->userdata('student_id');
 
+    // Fetch student profile picture
+    $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
+    // Ensure a default profile picture if none exists
+    $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
+
     // FETCHING DATA BASED ON THE ROLES - NECESSARY
     $users = $this->admin->get_roles($student_id);
     $data['role'] = $users['role'];
 
     // Load the Activity model to fetch activities
-    $this->load->model('Admin_model');
+    $this->load->model('Admin_model', 'admin');
 
     // Fetch activities based on the logged-in user's role
     if ($data['role'] == 'Admin') {
@@ -335,7 +381,7 @@ public function list_activity_evaluation()
         $activities = $this->admin->get_admin_activities();
 
         // Map the status class to the activities
-        foreach ($activities as &$activity) {
+        foreach ($activities as $activity) {
             $activity->status_class = $this->get_status_class($activity->status);
         }
 
@@ -348,6 +394,17 @@ public function list_activity_evaluation()
     $this->load->view('layout/header', $data);
     $this->load->view('admin/activity/list-activity-evaluation', $data);
     $this->load->view('layout/footer', $data);
+}
+
+// Helper function to get status class
+public function get_status_class($status) {
+    $status_classes = [
+        'Completed' => 'success',
+        'Ongoing' => 'info',
+        'Upcoming' => 'danger',
+    ];
+
+    return isset($status_classes[$status]) ? $status_classes[$status] : 'secondary'; // Default to 'secondary' if no status is found
 }
 
 // create evaluation
@@ -433,6 +490,11 @@ public function create_eval()
         $data['title'] = 'List of Activity for Excuse Letter';
         
         $student_id = $this->session->userdata('student_id');
+
+        // Fetch student profile picture
+        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
+        // Ensure a default profile picture if none exists
+        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
         
         // FETCHING DATA BASED ON THE ROLES - NECESSARRY
         $users= $this->admin->get_roles($student_id);
@@ -456,6 +518,11 @@ public function create_eval()
     
 
         $student_id = $this->session->userdata('student_id');
+
+        // Fetch student profile picture
+        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
+        // Ensure a default profile picture if none exists
+        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
         
         // FETCHING DATA BASED ON THE ROLES - NECESSARRY
         $users= $this->admin->get_roles($student_id);
@@ -474,6 +541,11 @@ public function create_eval()
         $data['title'] = 'Review Excuse Letter';
         
         $student_id = $this->session->userdata('student_id');
+
+        // Fetch student profile picture
+        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
+        // Ensure a default profile picture if none exists
+        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
         
         // FETCHING DATA BASED ON THE ROLES - NECESSARRY
         $users= $this->admin->get_roles($student_id);
@@ -516,6 +588,11 @@ public function create_eval()
         $data['title'] = 'Community';
 
         $student_id = $this->session->userdata('student_id');
+
+        // Fetch student profile picture
+        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
+        // Ensure a default profile picture if none exists
+        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
         
         // FETCHING DATA BASED ON THE ROLES - NECESSARRY
         $users= $this->admin->get_roles($student_id);
@@ -621,7 +698,8 @@ public function create_eval()
                         'message' => 'Comment Saved Successfully',
                         'comments_count' => $comments_count,
                         'new_comment' => array( // Make sure this is an array with expected keys
-                            'name' => $new_comment->name ?? 'Unknown',
+                            'first_name' => $new_comment->first_name ?? 'Unknown',
+                            'last_name' => $new_comment->last_name ?? 'Unknown',
                             'profile_pic' => base_url('assets/profile/') . ($new_comment->profile_pic ?? 'default.jpg'),
                             'content' => $new_comment->content ?? '',
                         )
@@ -795,6 +873,11 @@ public function create_eval()
 
         $student_id = $this->session->userdata('student_id');
 
+        // Fetch student profile picture
+        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
+        // Ensure a default profile picture if none exists
+        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
+
         // FETCHING DATA BASED ON THE ROLES - NECESSARRY
         $users= $this->admin->get_roles($student_id);
         $data['role'] = $users['role'];
@@ -814,6 +897,11 @@ public function create_eval()
         $data['title'] = 'List of Department';
 
         $student_id = $this->session->userdata('student_id');
+
+        // Fetch student profile picture
+        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
+        // Ensure a default profile picture if none exists
+        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
 
         // FETCHING DATA BASED ON THE ROLES - NECESSARRY
         $users= $this->admin->get_roles($student_id);
@@ -1123,6 +1211,10 @@ public function create_eval()
         $data['title'] = 'All Activities';
 
         $student_id = $this->session->userdata('student_id');
+        // Fetch student profile picture
+        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
+        // Ensure a default profile picture if none exists
+        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
 
         // FETCHING DATA BASED ON THE ROLES - NECESSARRY
         $users= $this->admin->get_roles($student_id);
@@ -1232,6 +1324,11 @@ public function create_eval()
         $data['title'] = 'Profile Settings';
 
         $student_id = $this->session->userdata('student_id');
+
+        // Fetch student profile picture
+        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
+        // Ensure a default profile picture if none exists
+        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
         
         // FETCHING DATA BASED ON THE ROLES - NECESSARRY
         $users= $this->admin->get_roles($student_id);

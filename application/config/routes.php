@@ -60,16 +60,37 @@ $route['officer/dashboard/(:any)'] = 'OfficerController/officer_dashboard/$1';
 
 
 //STUDENT ROUTES
-$route['student/home'] = 'StudentController/student_dashboard';
-$route['student/excuse-application'] = 'StudentController/excuse_application';
-$route['student/attendance-history'] = 'StudentController/attendance_history';
-$route['student/list-activity'] = 'StudentController/list_activity';
+$route['student/home/(:any)'] = 'StudentController/student_dashboard/$1';
+$route['student/like-post/(:any)'] = 'StudentController/like_post/$1'; // Route for liking a post
+$route['student/unlike-post/(:any)'] = 'StudentController/unlike_post/$1'; // Route for unliking a post
+$route['student/add-comment']['post'] = 'StudentController/add_comment'; // Route for adding of comment
+
+//count the number who clicked attend
+
+$route['student/express-interest'] = 'StudentController/express_interest';
+
+
+$route['student/excuse-application/submit'] = 'StudentController/submit_application';
+$route['student/excuse-application/(:any)'] = 'StudentController/excuse_application/$1';
+$route['student/attendance-history/(:any)'] = 'StudentController/attendance_history/$1';
+$route['student/list-activity/(:any)'] = 'StudentController/list_activity/$1';
+$route['student/activity-details/(:any)'] = 'StudentController/activity_details/$1';
 $route['student/summary-fines'] = 'StudentController/summary_fines';
-$route['student/evaluation-form'] = 'StudentController/evaluation_form';
-$route['student/profile-settings'] = 'StudentController/profile_settings';
+
+$route['student/evaluation-form/(:any)'] = 'StudentController/evaluation_form/$1';
+$route['student/evaluation-form-questions/(:num)'] = 'StudentController/evaluation_form_questions/$1';
+$route['student/evaluation-form-submit/(:num)'] = 'StudentController/submit/$1';
+$route['student/evaluation-answers/(:num)'] = 'StudentController/view_evaluation_answers/$1';
+
+$route['student/profile-settings/(:any)'] = 'StudentController/profile_settings/$1';
+$route['student/update_profile_pic'] = 'StudentController/update_profile_pic';
+//update profile details
+$route['student/update-profile/(:any)'] = 'StudentController/update_profile/$1';
+
+$route['about'] = 'StudentController/about_page';
+
 $route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;
-
 
 //ADMIN ROUTES
 $route['admin/dashboard'] = 'AdminController/admin_dashboard';

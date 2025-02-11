@@ -92,7 +92,7 @@
             <div class="navbar-vertical-content scrollbar">
               <ul class="navbar-nav flex-column mb-3" id="navbarVerticalNav">
                 <!-- dashboard -->
-                <a class="nav-link" href="<?php echo site_url('student/home') ?>" role="button">
+                <a class="nav-link" href="<?php echo site_url('student/home/'. $this->session->userdata('student_id')); ?>" role="button">
                     <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-home"></span></span><span class="nav-link-text ps-1">Home</span></div>
                 </a>
                 <!-- menu options -->
@@ -103,7 +103,7 @@
                       <hr class="mb-0 navbar-vertical-divider" />
                     </div>
                   </div><!-- Attendance pages-->
-                  <a class="nav-link" href="<?php echo site_url('student/attendance-history') ;?>" role="button">
+                  <a class="nav-link" href="<?php echo site_url('student/attendance-history/'. $this->session->userdata('student_id')); ?>" role="button">
                     <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-calendar-alt"></span></span><span class="nav-link-text ps-1">Attendance History</span></div>
                   </a><!-- Fines pages-->
                   <a class="nav-link" href="<?php echo site_url('student/summary-fines') ?>" role="button">
@@ -114,19 +114,19 @@
                     <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fab fa-buromobelexperte"></span></span><span class="nav-link-text ps-1">Activity</span></div>
                   </a>
                   <ul class="nav collapse" id="activity">
-                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('student/list-activity');?>">
+                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('student/list-activity/'. $this->session->userdata('student_id')); ?>">
                         <div class="d-flex align-items-center"><span class="nav-link-text ps-1">List of Activity</span></div>
                       </a><!-- more inner pages--></li>
-                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('student/evaluation-form');?>">
+                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('student/evaluation-form/'. $this->session->userdata('student_id')); ?>">
                         <div class="d-flex align-items-center"><span class="nav-link-text ps-1">Evaluation Form</span></div>
                       </a><!-- more inner pages--></li>
-                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('student/excuse-application'); ?>">
+                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('student/excuse-application/'. $this->session->userdata('student_id')); ?>" >
                         <div class="d-flex align-items-center"><span class="nav-link-text ps-1">Excuse Application</span></div>
                       </a><!-- more inner pages--></li>
                   </ul><!-- parent pages-->
                 </li>
                 <!-- about page -->
-                <a class="nav-link" href="../app/calendar.html" role="button">
+                <a class="nav-link" href="<?php echo site_url('about') ?>" role="button">
                     <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-info-circle"></span></span><span class="nav-link-text ps-1">About</span></div>
                 </a>
               </ul>
@@ -301,8 +301,8 @@
                 </div>
               </li>
               <li class="nav-item dropdown"><a class="nav-link pe-0 ps-2" id="navbarDropdownUser" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  <div class="avatar avatar-xl">
-                    <img class="rounded-circle" src="../assets/img/team/3-thumb.png" alt="" />
+              <div class="avatar avatar-xl">
+                    <img class="rounded-circle" src="<?= base_url('assets/profile/' . ($profile_pic ? $profile_pic : 'default.jpg')) ?>" alt="" />
                   </div>
                 </a>
                 <!-- student -->
@@ -311,7 +311,7 @@
                   <div class="bg-white dark__bg-1000 rounded-2 py-2">
                     <a class="dropdown-item fw-bold text-warning"><span>Student Account</span></a>
                     <div class="dropdown-divider"></div>
-                    <a class="dropdown-item" href="<?php echo site_url('student/profile-settings') ; ?>">Profile Settings</a>
+                    <a class="dropdown-item" href="<?php echo site_url('student/profile-settings/'. $this->session->userdata('student_id')); ?>" >Profile Settings</a>
                     <div class="dropdown-divider"></div>
                     <a class="dropdown-item" href="<?php echo site_url('logout'); ?>">Logout</a>
                   </div>
@@ -322,7 +322,7 @@
                   <div class="bg-white dark__bg-1000 rounded-2 py-2">
                     <a class="dropdown-item fw-bold text-warning"><span>Admin Account</span></a>
                     <div class="dropdown-divider"></div>
-                    <a class="dropdown-item" href="<?php echo site_url('admin/profile-settings') ; ?>">Profile Settings</a>
+                    <a class="dropdown-item" href="<?php echo site_url('student/profile-settings/'. $this->session->userdata('student_id')); ?>" >Profile Settings</a>
                     <a class="dropdown-item" href="<?php echo site_url('admin/manage-officers') ;?> ">Manage Officers</a>
                     <div class="dropdown-divider"></div>
                     <a class="dropdown-item" href="<?php echo site_url('logout'); ?>">Logout</a>
@@ -333,7 +333,7 @@
                   <div class="bg-white dark__bg-1000 rounded-2 py-2">
                     <a class="dropdown-item fw-bold text-warning"><span>Officer Account</span></a>
                     <div class="dropdown-divider"></div>
-                    <a class="dropdown-item" href="<?php echo site_url('admin/profile-settings') ; ?>">Profile Settings</a>
+                    <a class="dropdown-item" href="<?php echo site_url('student/profile-settings/'. $this->session->userdata('student_id')); ?>" >Profile Settings</a>
                     <div class="dropdown-divider"></div>
                     <a class="dropdown-item" href="<?php echo site_url('logout'); ?>">Logout</a>
                   </div>

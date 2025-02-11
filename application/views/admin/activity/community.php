@@ -226,7 +226,7 @@
                                             </div>
                                             <div class="flex-1 ms-2 fs-10">
                                                 <p class="mb-1 bg-200 rounded-3 p-2">
-                                                    <a class="fw-semi-bold" href="#!"><?= htmlspecialchars($comment->name); ?></a>
+                                                    <a class="fw-semi-bold" href="#!"><?= htmlspecialchars($comment->first_name." ".$comment->last_name); ?></a>
                                                     <?= htmlspecialchars($comment->content); ?>
                                                 </p>
                                             </div>
@@ -397,7 +397,7 @@
                                             </div>
                                             <div class="flex-1 ms-2 fs-10">
                                                 <p class="mb-1 bg-200 rounded-3 p-2">
-                                                    <a class="fw-semi-bold" href="#!"><?= htmlspecialchars($comment->name); ?></a>
+                                                    <a class="fw-semi-bold" href="#!"><?= htmlspecialchars($comment->first_name." ".$comment->last_name); ?></a>
                                                     <?= htmlspecialchars($comment->content); ?>
                                                 </p>
                                             </div>
@@ -720,7 +720,7 @@
                             </div>
                             <div class="flex-1 ms-2 fs-10">
                                 <p class="mb-1 bg-200 rounded-3 p-2">
-                                    <a class="fw-semi-bold" href="#">${response.new_comment.name}</a> 
+                                    <a class="fw-semi-bold" href="#">${response.new_comment.first_name} ${response.new_comment.last_name}</a>
                                     ${response.new_comment.content}
                                 </p>
                             </div>

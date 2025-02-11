@@ -260,7 +260,7 @@ class Admin_model extends CI_Model {
 
     // FETCH COMMENTS BY POST ID
     public function get_comments_by_post($post_id) {
-        $this->db->select('comment.*, users.name, users.profile_pic');
+        $this->db->select('comment.*, users.*');
         $this->db->from('comment');
         $this->db->join('users', 'users.student_id = comment.student_id');
         $this->db->where('comment.post_id', $post_id);
@@ -270,7 +270,7 @@ class Admin_model extends CI_Model {
     }
 
     public function get_latest_comment($post_id) {
-        $this->db->select('c.*, s.name, s.profile_pic');
+        $this->db->select('c.*, s.*');
         $this->db->from('comment c');
         $this->db->join('users s', 'c.student_id = s.student_id', 'left');
         $this->db->where('c.post_id', $post_id);
@@ -396,6 +396,84 @@ class Admin_model extends CI_Model {
             return $this->db->get()->result();
         }
         
+        	//====EVALUATION RESPONSES START
+
+			// Function to fetch activities for Admin (where org_id and dept_id are NULL) || used for list activity evaluations
+			public function get_admin_activities() {
+				$this->db->select('activity_id, activity_title, status, activity_image');
+				$this->db->from('activity');
+				$this->db->where('org_id', NULL);
+				$this->db->where('dept_id', NULL);
+				$query = $this->db->get();
+
+				// Return the result as an array of objects
+				return $query->result();
+			}
+
+
+			// When activity is clicked, forms are fetched
+			public function get_forms_by_activity($activity_id)
+			{
+				$this->db->where('activity_id', $activity_id);
+				$query = $this->db->get('forms');
+				return $query->result();  // Return forms for the specific activity
+			}
+
+
+			// FOR VIEW RESPONSE BUTTON
+			public function get_responses_by_form($form_id)
+				{
+					$this->db->where('form_id', $form_id);
+					$query = $this->db->get('evaluation_responses');
+					return $query->result();  // This should now include 'evaluation_response_id'
+				}
+
+
+			public function get_student_by_id($student_id)
+			{
+				$this->db->where('student_id', $student_id);
+				$query = $this->db->get('users');
+				return $query->row();  // Return a single user record
+			}
+
+
+			//FETCH FORM ANSWERS WHEN CLICKING VIEW RESPONSE BUTTON
+
+			public function get_form_by_id($form_id)
+			{
+				// Select form details based on form_id
+				$this->db->where('form_id', $form_id);
+				$query = $this->db->get('forms');
+				
+				return $query->row();  // Return a single row (form details)
+			}
+
+
+			public function get_answers_by_evaluation_response($evaluation_response_id)
+			{
+				// Select the answer, label (question), type (question type), and form_id
+				$this->db->select('response_answer.answer, formfields.label, formfields.type, formfields.form_id');
+				$this->db->from('response_answer');
+				$this->db->join('formfields', 'formfields.form_fields_id = response_answer.form_fields_id');
+				$this->db->where('response_answer.evaluation_response_id', $evaluation_response_id);
+				$query = $this->db->get();
+
+				return $query->result();  // Return all answers for the evaluation response
+			}
+
+
+
+			public function get_activity_by_id($activity_id)
+				{
+					$this->db->where('activity_id', $activity_id);
+					$query = $this->db->get('activity'); // Assuming your table name is 'activities'
+
+					return $query->row(); // Returns a single activity
+				}
+
+
+	//====EVALUATION RESPONSES END
+
         
 
     //========CREATE EVALUATION END

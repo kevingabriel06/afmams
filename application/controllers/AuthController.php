@@ -36,7 +36,7 @@ class AuthController extends CI_Controller {
 
             } else if ($user->role == 'Student') {
                 $this->session->set_userdata('student_id', $user->student_id);
-                redirect('student/home'); // Redirect to the admin dashboard
+                redirect('student/home/' . $student_id); // Redirect to the admin dashboard
 
             } else if ($user->role == 'Officer') {
                 $this->session->set_userdata('student_id', $user->student_id);

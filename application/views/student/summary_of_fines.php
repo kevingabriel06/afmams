@@ -1,5 +1,5 @@
 
-	 <div class="card mb-3">
+<div class="card mb-3">
 	<!-- Header for Summary of Fines -->
         <div class="card">
             <div class="card-header">
@@ -157,31 +157,67 @@
     </div>
 
     <!-- Payment Modal -->
-    <div class="modal fade" id="payModal" tabindex="-1" aria-labelledby="payModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title" id="payModalLabel">Payment Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="paymentForm">
-                        <div class="mb-3">
-                            <label for="paymentAmount" class="form-label">Amount to Pay</label>
-                            <input type="text" class="form-control" id="paymentAmount" readonly value="">
-                        </div>
-                        <div class="mb-3">
-                            <label for="paymentMethod" class="form-label">Payment Method</label>
-                            <select class="form-select" id="paymentMethod">
-                                <option selected disabled>Select a method</option>
-                                <option value="cash">Cash</option>
-                                <option value="card">Credit/Debit Card</option>
-                                <option value="online">Online Banking</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-success">Confirm Payment</button>
-                    </form>
-                </div>
+   <!-- Payment Modal -->
+<div class="modal fade" id="payModal" tabindex="-1" aria-labelledby="payModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="payModalLabel">Payment Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="paymentForm">
+                    <div class="mb-3">
+                        <label for="paymentAmount" class="form-label">Amount to Pay</label>
+                        <input type="text" class="form-control" id="paymentAmount" readonly value="">
+                    </div>
+                    <div class="mb-3">
+                        <label for="paymentMethod" class="form-label">Payment Method</label>
+                        <select class="form-select" id="paymentMethod" onchange="checkPaymentMethod()">
+                            <option selected disabled>Select a method</option>
+                            <option value="cash">Cash</option>
+                            <option value="gcash">GCash</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-success">Confirm Payment</button>
+                </form>
             </div>
         </div>
     </div>
+</div>
+
+<!-- Cash Payment Instructions Modal -->
+<!-- Cash Payment Instructions Modal -->
+<div class="modal fade" id="cashInstructionsModal" tabindex="-1" aria-labelledby="cashInstructionsLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white"> <!-- Changed bg-warning to bg-primary -->
+			<h5 class="modal-title" style="color: white;" id="cashInstructionsLabel">Cash Payment Instructions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ol>
+                    <li>Go to the school cashier's office.</li>
+                    <li>Inform them about your payment details.</li>
+                    <li>Provide your student ID for verification.</li>
+                    <li>Pay the required amount in cash.</li>
+                    <li>Obtain the official receipt as proof of payment.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- <-- for how to pay thru cash -->
+<script>
+function checkPaymentMethod() {
+    var paymentMethod = document.getElementById('paymentMethod').value;
+    
+    if (paymentMethod === 'cash') {
+        var cashInstructionsModal = new bootstrap.Modal(document.getElementById('cashInstructionsModal'));
+        cashInstructionsModal.show();
+    }
+}
+</script>
+

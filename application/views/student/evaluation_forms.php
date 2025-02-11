@@ -1,8 +1,10 @@
 <div class="container mb-3">
-    <div class="row">
+    <div class="row" style="display: flex; flex-wrap: wrap;">
         <!-- FETCHING ALL THE AVAILABLE AND OPEN FORMS -->
-        <div class="col-md-6">
-            <div class="card mb-4" onclick="toggleScroll(this)">
+		<?php if (!empty($evaluation_forms)): ?>
+    <?php foreach ($evaluation_forms as $form): ?>
+        <div class="col-md-6" style="display: flex; justify-content: stretch; margin-bottom: 1rem;">
+            <div class="card" style="display: flex; flex-direction: column; flex-grow: 1; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
                 <div class="card-header">
                     <div class="row flex-between-center">
                         <div class="col-4 col-sm-auto d-flex align-items-center pe-0">
@@ -11,116 +13,223 @@
                     </div>
                 </div>
                 <div class="border"></div>
-                <div class="card-body p-4">
+                <div class="card-body p-4" style="flex-grow: 1; overflow-y: auto; max-height: 350px;">
                     <div class="mb-3">
                         <i class="fas fa-calendar-check me-2"></i>
                         <strong class="text-muted">Form Title:</strong>
-                        <span>Event Feedback</span>
+                        <span><?= $form->form_title; ?></span>
                     </div>
                     <div class="mb-3">
                         <i class="fas fa-users me-2"></i>
                         <strong class="text-muted">From:</strong>
-                        <span>JPCS</span>
+                        <span><?= $form->organizer; ?></span>
                     </div>
                     <div class="mb-3">
                         <i class="fas fa-info-circle me-2"></i>
                         <strong class="text-muted">Description:</strong>
-                        <p>This evaluation is for the "Event Feedback" form. Please provide your feedback to help us improve future events. Thank you!</p>
+                        <p><?= $form->form_description; ?></p>
                     </div>
                     <div class="mb-3">
                         <i class="fas fa-clock me-2"></i>
                         <strong class="text-muted">Duration:</strong>
-                        <span>October 22, 2015, 8:00 PM - November 5, 2015, 5:00 PM</span>
+                        <span><?= date('F d, Y, h:i A', strtotime($form->start_date)) . ' - ' . date('F d, Y, h:i A', strtotime($form->end_date)); ?></span>
                     </div>
                     <div class="d-flex justify-content-center mt-4">
-                        <button class="btn btn-primary w-100" onclick="alert('Form opened for evaluation!')">Open Form</button>
+                        <!-- Disable button if the form is closed -->
+                        <a href="<?= $form->is_form_open ? base_url('student/evaluation-form-questions/' . $form->form_id) : '#'; ?>" class="btn btn-primary w-100" style="margin-top: auto;" <?= !$form->is_form_open ? 'disabled' : ''; ?>>
+                            <?= !$form->is_form_open ? 'Form Closed' : 'Open Form'; ?>
+                        </a>
                     </div>
                 </div>
             </div>
         </div>
+    <?php endforeach; ?>
+<?php else: ?>
+    <p>No available evaluation forms at the moment.</p>
+<?php endif; ?>
 
-        <!-- fetching all the evaluation form answered in talble form -->
-        <div class="container">
-            <div class="row">
-                <!-- Table -->
-                <div class="col-lg-12" id="tableColumn" style="overflow-x: auto;">
-                    <div class="card" id="customersTable" data-list='{"valueNames":["name","email","phone","address","joined"],"page":10,"pagination":true}'>
-                        <div class="card-header">
-                            <div class="row flex-between-center">
-                                <div class="col-4 col-sm-auto d-flex align-items-center pe-0">
-                                    <h5 class="fs-9 mb-0 text-nowrap py-2 py-xl-0">Evaluation Form</h5>
-                                </div>
-                                <div class="col-8 col-sm-auto text-end ps-2">
-                                    <div class="d-none" id="table-customers-actions"></div>
-                                    <div id="table-customers-replace-element">
-                                    <!-- Filter button -->
-                                    <button class="btn btn-falcon-default btn-sm mx-2" type="button" id="filterButton">
-                                        <span class="fas fa-filter" data-fa-transform="shrink-3 down-2"></span>
-                                        <span class="d-none d-sm-inline-block ms-1">Filter</span>
-                                    </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive" id="attendanceTable">
-                                <table class="table table-sm table-striped fs-10 mb-0 overflow-hidden">
-                                <thead class="bg-200">
-                                    <tr>
-                                        <th class="text-900 align-middle white-space-wrap" data-sort="id-number" style="min-width: 150px;">Activity</th>
-                                        <th class="text-900 sort pe-1 align-middle white-space-wrap" data-sort="name">Organizer</th>
-                                        <th class="text-900 align-middle white-space-wrap" data-sort="date">Date</th>
-                                        <th class="text-900 align-middle white-space-wrap" data-sort="status">Status</th>
-                                        <th class="align-middle no-sort"></th>
-                                    </tr>
-                                </thead>
-                                <tbody class="list" id="table-customers-body">
-                                <tr class="btn-reveal-trigger"> 
-                                    <td class="id-number align-middle white-space-wrap py-2">
-                                        <a href="#">
-                                            <div class="d-flex align-items-center">
-                                                <div class="flex-1">
-                                                    <h5 class="mb-0 fs-10">TAGISLAKASAN</h5>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </td>
-                                    <td class="name align-middle py-2">
-                                        STUDENT PARLIAMENT
-                                    </td>
-                                    <td class="date align-middle py-2">
-                                        September 1, 2025
-                                    </td>
-                                    <td class="status align-middle white-space-wrap py-2">      
-                                        <span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Answered<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span>
-                                </td>
 
-                                    <td class="align-middle white-space-nowrap py-2 text-end">
-                                    <div class="dropdown font-sans-serif position-static"><button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button" id="customer-dropdown-0" data-bs-toggle="dropdown" data-boundary="window" aria-haspopup="true" aria-expanded="false"><span class="fas fa-ellipsis-h fs-10"></span></button>
-                                        <div class="dropdown-menu dropdown-menu-end border py-0" aria-labelledby="customer-dropdown-0">
-                                        <div class="py-2"><a class="dropdown-item" href="#!">View Form</a></div>
-                                        </div>
-                                    </div>
-                                    </td>
+
+    </div>
+</div>
+
+
+
+<!-- FETCHING ALL THE EVALUATION FORMS ANSWERED IN TABLE FORMAT -->
+<div class="container mb-4">
+    <div class="row">
+        <div class="col-lg-12" id="tableColumn" style="overflow-x: auto;">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="fs-9 mb-0">Evaluation Forms Answered</h5>
+                    <!-- Filter Button to Open Modal -->
+                    <button class="btn btn-sm btn-falcon-default ms-2" type="button" data-bs-toggle="modal" data-bs-target="#filterModal">
+                        <span class="fas fa-filter"></span>
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped fs-10 mb-0">
+                            <thead class="bg-200">
+                                <tr>
+                                    <th>Activity</th>
+                                    <th>Organizer</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
                                 </tr>
-                                    
-                                    
-                                </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div class="card-footer d-flex align-items-center justify-content-center">
-                            <button class="btn btn-sm btn-falcon-default me-1" type="button" title="Previous" data-list-pagination="prev">
-                                <span class="fas fa-chevron-left"></span>
-                            </button>
-                            <ul class="pagination mb-0"></ul>
-                            <button class="btn btn-sm btn-falcon-default ms-1" type="button" title="Next" data-list-pagination="next">
-                                <span class="fas fa-chevron-right"></span>
-                            </button>
-                        </div>
+                            </thead>
+                            <tbody id="evaluation-table-body">
+								<?php if (!empty($answered_forms)): ?>
+									<?php foreach ($answered_forms as $answered): ?>
+										<tr>
+											<td>
+												<a href="<?= base_url('student/evaluation-answers/' . $answered->form_id); ?>">
+													<?= $answered->activity_title; ?>
+												</a>
+											</td>
+											<td><?= $answered->organizer; ?></td>
+											<td><?= date('F d, Y', strtotime($answered->answered_date)); ?></td>
+											<td>
+												<span class="badge rounded-pill d-block p-2" style="color: #155724; background-color: #d4edda;">
+													<i class="fas fa-check-circle me-2"></i> Answered
+												</span>
+											</td>
+
+											<td>
+												<a class="btn btn-sm btn-primary" href="<?= base_url('student/evaluation-answers/' . $answered->form_id); ?>">View Form</a>
+											</td>
+										</tr>
+									<?php endforeach; ?>
+								<?php else: ?>
+									<tr>
+										<td colspan="5" class="text-center" id="noDataMessage" style="display: none;">No evaluations available in this filter.</td>
+									</tr>
+								<?php endif; ?>
+							</tbody>
+
+                        </table>
+
+						<!-- No Data Message -->
+						<div id="noDataMessage" style="display: none; text-align: center; color: red;">
+                        No activities found for the selected filter.
+                    </div>
+
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- MODAL FILTER -->
+<div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="filterModalLabel">Filter Activities</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Semester Filter -->
+                <div class="mb-3">
+                    <label for="semester-filter" class="form-label">Select Semester</label>
+                    <select id="semester-filter" class="form-select">
+                        <option value="" selected>All Semesters</option>
+                        <option value="1">First Semester</option>
+                        <option value="2">Second Semester</option>
+                    </select>
+                </div>
+                <!-- Year Filter with Range -->
+                <div class="mb-3">
+                    <label for="year-filter" class="form-label">Select Academic Year</label>
+                    <select id="year-filter" class="form-select">
+                        <option value="" selected>All Years</option>
+                        <option value="2024">2024-2025</option>
+                        <option value="2025">2025-2026</option>
+                        <option value="2026">2026-2027</option>
+                        <option value="2027">2027-2028</option>
+                        <option value="2028">2028-2029</option>
+                    </select>
+                </div>  
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    // Process each row and add data attributes for filtering
+    var rows = document.querySelectorAll("#evaluation-table-body tr");
+
+    rows.forEach(function(row) {
+        var dateText = row.cells[2].textContent.trim(); // Assuming Date is in the 3rd column
+        var dateParts = dateText.split(","); // Split on comma, since the date format is "Month Day, Year"
+        var month = new Date(dateParts[0] + " 1").getMonth() + 1; // Get the month
+        var year = parseInt(dateParts[1].trim()); // Get the year
+
+        var semester = "";
+        var academicYear = "";
+
+        // Determine Semester
+        if (month >= 8 && month <= 12) {
+            semester = "1"; // First Semester
+            academicYear = year; // Fall semester, academic year starts this year
+        } else if (month >= 1 && month <= 7) {
+            semester = "2"; // Second Semester
+            academicYear = year - 1; // Spring semester belongs to the previous academic year
+        }
+
+        // Assign data attributes to row for filtering
+        row.setAttribute("data-semester", semester);
+        row.setAttribute("data-year", academicYear);
+    });
+});
+
+// Function to filter based on selected semester and academic year
+// Function to filter based on selected semester and academic year
+function applyFilters() {
+    var selectedSemester = document.getElementById("semester-filter").value;
+    var selectedYear = document.getElementById("year-filter").value;
+    var rows = document.querySelectorAll("#evaluation-table-body tr");
+    var noDataMessage = document.getElementById("noDataMessage");
+    var filteredRows = 0;
+
+    rows.forEach(function(row) {
+        var rowSemester = row.getAttribute("data-semester");
+        var rowYear = row.getAttribute("data-year");
+
+        var semesterMatch = !selectedSemester || rowSemester === selectedSemester;
+        var yearMatch = !selectedYear || rowYear === selectedYear;
+
+        if (semesterMatch && yearMatch) {
+            row.style.display = "";
+            filteredRows++;
+        } else {
+            row.style.display = "none";
+        }
+    });
+
+    // Show "No evaluations available in this filter" message if no rows match the filter
+    if (filteredRows === 0) {
+        noDataMessage.style.display = "block";
+    } else {
+        noDataMessage.style.display = "none";
+    }
+
+    // Close the modal
+    var modalElement = document.getElementById("filterModal");
+    var modalInstance = bootstrap.Modal.getInstance(modalElement); // Correct way to get the instance
+    modalInstance.hide(); // Close modal
+}
+
+
+
+
+</script>
+
