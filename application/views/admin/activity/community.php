@@ -465,7 +465,7 @@
                                         </h6>
                                         <p class="mb-1"> Organized by
                                             <?php
-                                            if ($activity->dept_id == '0' && $activity->org_id == '0') {
+                                            if (empty($activity->dept_id) && empty($activity->org_id)) {
                                                 echo htmlspecialchars("Institution");
                                             } elseif (empty($activity->dept_id)) {
                                                 echo htmlspecialchars($activity->org_name);
@@ -532,7 +532,7 @@
                             </h6>
                             <p class="mb-1">Organized by
                                 <?php
-                                if ($activity->dept_id == '0' && $activity->org_id == '0') {
+                                if (empty($activity->dept_id) && empty($activity->org_id)) {
                                     echo htmlspecialchars("Institution");
                                 } elseif (empty($activity->dept_id)) {
                                     echo htmlspecialchars($activity->org_name);

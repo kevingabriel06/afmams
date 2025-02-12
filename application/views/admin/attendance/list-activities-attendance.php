@@ -48,7 +48,7 @@
                         <tbody class="list" id="table-ticket-body">
                             <?php foreach ($activities as $activity) : ?>
                                 <!-- ADMIN -->
-                                <?php if ($role == 'Admin' && $activity->dept_id == '0' && $activity->org_id == '0') : ?>
+                                <?php if ($role == 'Admin' && empty($activity->dept_id) && empty($activity->org_id)) : ?>
                                     <?php
                                     $startDate = new DateTime($activity->start_date);
                                     $month = $startDate->format('m');

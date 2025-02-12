@@ -1,4 +1,4 @@
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
 <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
@@ -344,7 +344,7 @@
                     <h5 class="mb-1">Upload Photos</h5>
                 </div>
                 <div class="fallback">
-                    <input id="fileInput" type="file" name="image" required />
+                    <input id="fileInput" type="file" name="image"/>
 
                     <div class="invalid-feedback">Upload a cover image.</div>
                 </div>
@@ -388,6 +388,9 @@
         </div>
     </div>
 </div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
 
 <script>
     // SCRIPT FOR FIELDS INPUTTED NUMBERS
@@ -884,6 +887,7 @@
 
     // UDPDATING OF ACTIVITY
     $(document).ready(function() {
+        console.log(typeof jQuery);
         // Set Alertify default position to top-right
         alertify.set('notifier', 'position', 'top-right');
 
@@ -966,5 +970,4 @@
             });
         });
     });
-
 </script>

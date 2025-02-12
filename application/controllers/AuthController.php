@@ -1,5 +1,5 @@
 <?php
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
 /**
  * Class LoginController
@@ -8,14 +8,17 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * @property CI_Session $session
  * @property CI_Form_validation $form_validation
  */
-class AuthController extends CI_Controller { 
+class AuthController extends CI_Controller
+{
 
-    public function __construct() {
+    public function __construct()
+    {
         parent::__construct();
         $this->load->model('Auth_model', 'auth'); // Load the LoginModel
     }
 
-    public function login() {
+    public function login()
+    {
         // Set validation rules
         $this->form_validation->set_rules('student_id', 'Student ID', 'required');
         $this->form_validation->set_rules('password', 'Password', 'required');
@@ -50,7 +53,8 @@ class AuthController extends CI_Controller {
         }
     }
 
-    public function logout() {
+    public function logout()
+    {
         $this->session->sess_destroy();
         redirect('login'); // Redirect to login page
     }

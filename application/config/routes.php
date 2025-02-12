@@ -114,9 +114,9 @@ $route['admin/fines/update_status']['post'] = 'AdminController/update_status';
 
 //<======= CREATION ACTIVITY ======>
 $route['admin/create-activity'] ='AdminController/create_activity'; // VIEW CREATE ACTIVITY PAGE
-$route['admin/create-activity/add']['POST'] = 'AdminController/save_activity' ; // SAVING ACTIVITY TO DATABASE
+$route['admin/create-activity/add']['post'] = 'AdminController/save_activity' ; // SAVING ACTIVITY TO DATABASE
 $route['admin/edit-activity/(:num)'] ='AdminController/edit_activity/$1'; // VIEW EDIT ACTIVITY PAGE
-$route['admin/edit-activity/update']['POST'] ='AdminController/update_activity'; // UPDATING ACTIVITY TO DATABASE
+$route['admin/edit-activity/update']='AdminController/update_activity'; // UPDATING ACTIVITY TO DATABASE
 $route['admin/list-of-activity'] = 'AdminController/list_activity'; // List of activity
 $route['admin/activity-details/(:num)'] = 'AdminController/activity_details/$1'; // Activity Details
 $route['admin/activity-details/activity-share']['post'] = 'AdminController/share_activity'; // Sharing activity to community
@@ -143,7 +143,11 @@ $route['admin/community/share-activity']['post'] = 'AdminController/share'; // R
 $route['admin/community/delete-post']['post'] = 'AdminController/delete_post'; // Route for deleting post
 
 // PROFILE SETTINGS ========>
-$route['admin/profile-settings'] = 'AdminController/profile_settings';
+//PROFILE UPDATES
+$route['admin/profile-settings/(:any)'] = 'AdminController/profile_settings/$1';
+$route['admin/update_profile_pic'] = 'AdminController/update_profile_pic';
+//update profile details
+$route['admin/update-profile/(:any)'] = 'AdminController/update_profile/$1';
 $route['admin/manage-officers'] = 'AdminController/manage_officers';
 $route['admin/manage-officers-department/(:num)'] = 'AdminController/list_officers_dept/$1';
 $route['admin/manage-officers-department/update_status']['post'] = 'AdminController/update_status_dept';

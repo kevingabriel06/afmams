@@ -34,7 +34,7 @@
         <div class="container-fluid">
             <div class="row min-vh-100 bg-100">
                 <div class="col-6 d-none d-lg-block position-relative">
-                    <div class="bg-holder" style="background-image:url(<?= base_url('assets/img/generic/14.jpg'); ?>); background-position: 50% 20%;"></div>
+                    <div class="bg-holder" style="background-image:url(<?= base_url('assets/images/materials/login.png'); ?>); background-position: 50% 20%;"></div>
                 </div>
                 <div class="col-sm-10 col-md-6 px-sm-0 align-self-center mx-auto py-5">
                     <div class="row justify-content-center g-0">

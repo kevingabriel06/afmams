@@ -117,13 +117,13 @@
                     <div class="col-sm-6 mb-3">
                         <label class="form-label" for="dept">Organizer</label>
                         <select class="form-control" id="dept" name="dept" onchange="toggleFields()">
-                            <option value="0">Student Parliament</option>
+                            <option value="">Student Parliament</option>
                         </select>
                     </div>
                     <div class="col-sm-6 mb-3" hidden>
                         <label class="form-label" for="org">Organization</label>
                         <select class="form-control" id="org" name="org" onchange="toggleFields()">
-                            <option value="0">Select an Organization</option>
+                            <option value="">Select an Organization</option>
                         </select>
                     </div>
                 <?php endif; ?>

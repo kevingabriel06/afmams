@@ -67,7 +67,7 @@
                         <tbody class="list" id="table-ticket-body">
                             <?php foreach ($officers as $officer) : ?>
                                 <?php if($officer->org_id == $org_id):?>
-                                    <tr class="fines-row">
+                                    <tr class="users-row" data-is-admin="<?php echo $officer->is_admin ;?>">
                                         <td class="student_id align-middle text-nowrap px-5 py-2">
                                             <h6 class="mb-0">
                                                 <?php echo htmlspecialchars($officer->student_id); ?>
@@ -84,7 +84,7 @@
                                                 <span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Organization Admin
                                                     <span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span>
                                                 </span>
-                                            <?php elseif ($fine->is_admin === 'No'): ?>
+                                            <?php elseif ($officer->is_admin === 'No'): ?>
                                                 <span class="badge badge rounded-pill d-block p-2 badge-subtle-danger">Organization Officer
                                                     <span class="ms-1 fas fa-redo" data-fa-transform="shrink-2"></span>
                                                 </span>
@@ -130,7 +130,7 @@
                             <?php endforeach; ?>
 
                             <!-- "No activities listed" Row -->
-                            <tr id="no-attendance-row" style="display: none;">
+                            <tr id="no-user-row" style="display: none;">
                                 <td colspan="3" class="text-center text-muted fs-8 fw-bold py-2 bg-light">
                                     <span class="fa fa-user-slash fa-2x text-muted"></span>
                                     <h5 class="mt-2 mb-1">No student listed.</h5>
@@ -154,6 +154,32 @@
                     <button class="btn btn-sm btn-falcon-default ms-1" type="button" title="Next" data-list-pagination="next">
                         <span class="fas fa-chevron-right"></span>
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Modal -->
+    <div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="filterModalLabel">Filter by Admin Status</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <label for="is_admin">Select Status:</label>
+                        <select id="is_admin" class="form-select">
+                            <option value="">All</option>
+                            <option value="Yes">Organization Admin</option>
+                            <option value="No">Organization Officer</option>
+                        </select>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="applyFilter()">Apply Filter</button>
                 </div>
             </div>
         </div>
@@ -220,36 +246,30 @@
             });
         });
 
-        function applyFilters() {
-            // Get selected values from the modal filters
-            var status = document.getElementById("status-filter").value;
+        function applyFilter() {
+            // Get selected value from the dropdown
+            var adminFilter = document.getElementById("is_admin").value;
 
-            // Get all activity rows
-            var activityRows = document.querySelectorAll(".fines-row");
-            var noActivityRow = document.getElementById("no-attendance-row");
+            // Get all user rows
+            var userRows = document.querySelectorAll(".users-row");
+            var noUserRow = document.getElementById("no-user-row");
             var filteredRows = 0;
 
-            // Loop through each activity row
-            activityRows.forEach(function(row) {
-                var rowStatus = row.getAttribute("data-status"); // Add status attribute in PHP
+            // Loop through each user row
+            userRows.forEach(function(row) {
+                var rowAdminStatus = row.getAttribute("data-is-admin");
 
-                // Check if the row matches the selected filters
-                if (
-                    (status === "" || status === rowStatus)
-                ) {
-                    row.style.display = ""; // Show the row if it matches
+                // Check if the row matches the selected filter
+                if (adminFilter === "" || adminFilter === rowAdminStatus) {
+                    row.style.display = ""; // Show row if it matches
                     filteredRows++;
                 } else {
-                    row.style.display = "none"; // Hide the row if it doesn't match
+                    row.style.display = "none"; // Hide row if it doesn't match
                 }
             });
 
-            // Show or hide the "No activities listed" row
-            if (filteredRows === 0) {
-                noActivityRow.style.display = ""; // Show the no activity row
-            } else {
-                noActivityRow.style.display = "none"; // Hide the no activity row
-            }
+            // Show or hide the "No users found" row
+            noUserRow.style.display = filteredRows === 0 ? "" : "none";
 
             // Close the modal properly
             var modalElement = document.getElementById("filterModal");

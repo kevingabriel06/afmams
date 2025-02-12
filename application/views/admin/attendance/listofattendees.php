@@ -24,7 +24,7 @@
                 <div class="d-lg-flex justify-content-between">
                     <div class="row flex-between-center gy-2 px-x1">
                         <div class="col-auto pe-0">
-                            <h5 class="mb-0">All Excuse Form</h5>
+                            
                         </div>
                     </div>
 
@@ -104,6 +104,10 @@
                                                     <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">Incomplete
                                                         <span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span>
                                                     </span>
+                                                <?php else: ?>
+                                                    <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">Default
+                                                        <span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span>
+                                                    </span>
                                                 <?php endif; ?>
                                             </td>
                                         </tr>
@@ -143,6 +147,10 @@
                                                 </span>
                                             <?php elseif ($student->attendance_status === 'Incomplete'): ?>
                                                 <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">Incomplete
+                                                    <span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span>
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">Default
                                                     <span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span>
                                                 </span>
                                             <?php endif; ?>
@@ -185,6 +193,10 @@
                                                 <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">Incomplete
                                                     <span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span>
                                                 </span>
+                                            <?php else: ?>
+                                                <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">Default
+                                                    <span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span>
+                                                </span>    
                                             <?php endif; ?>
                                         </td>
                                     <?php endif;?>

@@ -121,9 +121,10 @@
         </div>
         <div class="col-md-auto mt-4 mt-md-0">
           <button class="btn btn-falcon-default btn-sm me-2" type="button">
-            <span class="fas fa-users text-danger me-1"></span> 235 Attendees
+            <span class="fas fa-users text-danger me-1"></span>
+            <?= isset($attendee_count) ? $attendee_count : '0' ?> Registered Attendees
           </button>
-          <?php if ($activity['org_id'] == '0' && $activity['dept_id'] == '0') :?>
+          <?php if (empty($activity['org_id']) && empty($activity['dept_id'])) :?>
             <?php if ($activity['status'] == 'Upcoming' || $activity['status'] == 'Ongoing') : ?>
               <?php if ($activity['is_shared'] == 'No') :?>
                 <button id="share" class="btn btn-falcon-default btn-sm me-2" type="button">
@@ -135,7 +136,7 @@
               </a>
             <?php endif ;?>
           <?php endif ;?>
-          <?php if ($activity['org_id'] == '0' && $activity['dept_id'] == '0') :?>
+          <?php if (empty($activity['org_id']) && empty($activity['dept_id'])) :?>
             <?php if ($activity['status'] == 'Ongoing') : ?> 
             <a class="btn btn-falcon-primary btn-sm px-4 px-sm-5" href="<?php echo site_url('admin/activity/scan-qr/'.$activity['activity_id']); ?>">Scan QR</a>
             <?php endif; ?>

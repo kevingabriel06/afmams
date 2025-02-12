@@ -322,7 +322,7 @@
                   <div class="bg-white dark__bg-1000 rounded-2 py-2">
                     <a class="dropdown-item fw-bold text-warning"><span>Admin Account</span></a>
                     <div class="dropdown-divider"></div>
-                    <a class="dropdown-item" href="<?php echo site_url('student/profile-settings/'. $this->session->userdata('student_id')); ?>" >Profile Settings</a>
+                    <a class="dropdown-item" href="<?php echo site_url('admin/profile-settings/'. $this->session->userdata('student_id')); ?>" >Profile Settings</a>
                     <a class="dropdown-item" href="<?php echo site_url('admin/manage-officers') ;?> ">Manage Officers</a>
                     <div class="dropdown-divider"></div>
                     <a class="dropdown-item" href="<?php echo site_url('logout'); ?>">Logout</a>
@@ -333,7 +333,7 @@
                   <div class="bg-white dark__bg-1000 rounded-2 py-2">
                     <a class="dropdown-item fw-bold text-warning"><span>Officer Account</span></a>
                     <div class="dropdown-divider"></div>
-                    <a class="dropdown-item" href="<?php echo site_url('student/profile-settings/'. $this->session->userdata('student_id')); ?>" >Profile Settings</a>
+                    <a class="dropdown-item" href="<?php echo site_url('admin/profile-settings/'. $this->session->userdata('student_id')); ?>" >Profile Settings</a>
                     <div class="dropdown-divider"></div>
                     <a class="dropdown-item" href="<?php echo site_url('logout'); ?>">Logout</a>
                   </div>

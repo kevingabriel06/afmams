@@ -70,7 +70,9 @@ class Admin_model extends CI_Model {
         ];
     
         // Insert the data into the database
-        return $this->db->insert('activity', $data);
+        $this->db->insert('activity', $data);
+        
+        return $this->db->insert_id();
     }
 
     // UPDATING ACTIVITY TO DATABASE *
@@ -588,7 +590,6 @@ class Admin_model extends CI_Model {
         $this->db->from('department');
         $this->db->join('users', 'department.dept_id = users.dept_id');
         $this->db->where('users.role' , 'Officer');
-        $this->db->where('users.is_admin', 'Yes');
         $this->db->where('users.is_officer_dept', 'Yes');
 
         $query = $this->db->get();
@@ -607,7 +608,6 @@ class Admin_model extends CI_Model {
         $this->db->join('student_org', 'student_org.student_id = users.student_id');
         $this->db->join('organization', 'organization.org_id = student_org.org_id');
         $this->db->where('users.role' , 'Officer');
-        $this->db->where('users.is_admin', 'Yes');
         $this->db->where('student_org.is_officer', 'Yes');
 
         $query = $this->db->get();
