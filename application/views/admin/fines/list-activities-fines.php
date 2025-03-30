@@ -125,7 +125,7 @@
                                                     <img class="rounded-circle" src="<?php echo base_url('assets/coverEvent/') . $activity->activity_image; ?>" alt="" />
                                                 </div>
                                                 <a class="ms-3 text-decoration-none text-dark fw-semibold d-block link-hover"
-                                                    href="<?php echo site_url('admin/list-attendees/' . $activity->activity_id .'/'.'0'); ?>">
+                                                    href="<?php echo site_url('admin/list-fines/' . $activity->activity_id .'/'.$department->dept_id); ?>">
                                                     <?php echo $activity->activity_title; ?>
                                                 </a>
                                             </div>

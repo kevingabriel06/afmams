@@ -3,7 +3,7 @@
 <div class="card mb-3 mb-lg-0">
     <!-- Card Header with Filter Button -->
     <div class="card-header bg-body-tertiary d-flex justify-content-between">
-        <h5 class="mb-0">Activities</h5>
+        <h5 class="mb-0">List of Activities</h5>
         <button class="btn btn-falcon-default btn-sm mx-2" type="button" data-bs-toggle="modal" data-bs-target="#filterModal">
             <span class="fas fa-filter" data-fa-transform="shrink-3 down-2"></span>
             <span class="d-none d-sm-inline-block ms-1">Filter</span>
@@ -28,19 +28,25 @@
                             <option value="2nd-semester">2nd Semester</option>
                         </select>
                     </div>
-                    <!-- Year Filter with Range -->
+
+                    <!-- Year Picker for Academic Year -->
                     <div class="mb-3">
-                        <label for="year-filter" class="form-label">Year Range</label>
-                        <select id="year-filter" class="form-select">
-                            <option value="" selected>Select Academic Year</option>
-                            <option value="2024-2025">2024-2025</option>
-                            <option value="2025-2026">2025-2026</option>
-                            <option value="2026-2027">2026-2027</option>
-                            <option value="2027-2028">2027-2028</option>
-                            <option value="2028-2029">2028-2029</option>
-                        </select>
+                        <label for="year-picker" class="form-label">Academic Year</label>
+                        <div class="input-group">
+                            <select id="start-year" class="form-select">
+                                <option value="" selected>Select Start Year</option>
+                            </select>
+                            <span class="input-group-text">-</span>
+                            <select id="end-year" class="form-select">
+                                <option value="" selected>Select End Year</option>
+                            </select>
+                        </div>
+                        <div class="invalid-feedback">
+                            Please select a valid academic year range with a 1-year difference.
+                        </div>
                     </div>
                 </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     <button type="button" class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
@@ -49,189 +55,142 @@
         </div>
     </div>
 
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const currentYear = new Date().getFullYear();
+            const startYearDropdown = $('#start-year');
+            const endYearDropdown = $('#end-year');
+            const yearFilter = document.getElementById("year-filter");
+
+            // Populate Start Year dropdown dynamically from current year down to 1900
+            for (let year = currentYear; year >= 1900; year--) {
+                startYearDropdown.append(new Option(year, year));
+            }
+
+            // Update End Year based on selected Start Year
+            startYearDropdown.on('change', function() {
+                const selectedStartYear = parseInt(this.value);
+                endYearDropdown.empty().append(new Option("Select End Year", "", true, true)); // Reset options
+
+                if (selectedStartYear) {
+                    // End year is exactly one year after the start year
+                    endYearDropdown.append(new Option(selectedStartYear + 1, selectedStartYear + 1));
+                }
+            });
+
+            // Apply filters based on selected semester and academic year
+            window.applyFilters = function() {
+                const selectedStartYear = parseInt($('#start-year').val());
+                const selectedEndYear = parseInt($('#end-year').val());
+                const selectedSemester = $('#semester-filter').val();
+                let startDate, endDate;
+
+                // Validate year range (must be exactly a one-year difference)
+                if (!selectedStartYear || !selectedEndYear || selectedEndYear - selectedStartYear !== 1) {
+                    $('#start-year, #end-year').addClass('is-invalid');
+                    alert("Please select a valid academic year range with a one-year difference.");
+                    return;
+                } else {
+                    $('#start-year, #end-year').removeClass('is-invalid');
+                }
+
+                // Define date range based on selected semester
+                if (selectedSemester === "1st-semester") {
+                    startDate = new Date(selectedStartYear, 7, 1); // August 1, start year
+                    endDate = new Date(selectedStartYear, 11, 31); // December 31, start year
+                } else if (selectedSemester === "2nd-semester") {
+                    startDate = new Date(selectedEndYear, 0, 1); // January 1, end year
+                    endDate = new Date(selectedEndYear, 6, 31); // July 31, end year
+                } else {
+                    // Default to full academic year
+                    startDate = new Date(selectedStartYear, 0, 1);
+                    endDate = new Date(selectedEndYear, 11, 31);
+                }
+
+                filterActivitiesByDateRange(startDate, endDate);
+            };
+
+            // Function to filter activities based on the selected date range
+            function filterActivitiesByDateRange(startDate, endDate) {
+                let activities = document.querySelectorAll('.activity');
+                let hasVisibleActivity = false;
+
+                activities.forEach(activity => {
+                    let activityDateStr = activity.getAttribute('data-start-date');
+                    if (!activityDateStr) return;
+
+                    let activityDate = new Date(activityDateStr);
+
+                    if (activityDate >= startDate && activityDate <= endDate) {
+                        activity.style.display = 'block';
+                        hasVisibleActivity = true;
+                    } else {
+                        activity.style.display = 'none';
+                    }
+                });
+
+                toggleNoActivityMessage(hasVisibleActivity);
+
+                // Close the filter modal after applying filters
+                let filterModal = document.getElementById('filterModal');
+                if (filterModal) {
+                    let modalInstance = bootstrap.Modal.getInstance(filterModal);
+                    if (modalInstance) modalInstance.hide();
+                }
+            }
+        });
+    </script>
+
+
+
+
     <div class="card-body fs-10">
         <div class="row">
             <?php foreach ($activities as $activity): ?>
-                <?php if ($role == 'Admin'): ?>
-                    <div class="col-md-6 h-100 activity" data-start-date="<?php echo $activity->start_date; ?>">
-                        <div class="d-flex btn-reveal-trigger">
-                            <div class="calendar">
+                <div class="col-md-6 h-100 activity" data-start-date="<?php echo $activity->start_date; ?>">
+                    <div class="d-flex btn-reveal-trigger">
+                        <div class="calendar">
+                            <?php
+                            $start_date = strtotime($activity->start_date);
+                            $month = date('M', $start_date); // e.g., Mar
+                            $day = date('j', $start_date);   // e.g., 26
+                            $year = date('y', $start_date);  // e.g., 24
+                            ?>
+                            <span class="calendar-month"><?php echo $month; ?></span>
+                            <span class="calendar-day"><?php echo $day; ?></span>
+                            <span class="calendar-year" hidden><?php echo $year; ?></span>
+                        </div>
+                        <div class="flex-1 position-relative ps-3">
+                            <p class="mb-1" hidden><?php echo htmlspecialchars($activity->activity_id); ?></p>
+                            <h6 class="fs-9 mb-0">
+                                <a href="<?php echo site_url('admin/activity-details/' . $activity->activity_id); ?>">
+                                    <?php echo htmlspecialchars($activity->activity_title); ?>
+                                    <?php if ($activity->registration_fee == '0'): ?>
+                                        <span class="badge badge-subtle-success rounded-pill">Free</span>
+                                    <?php endif; ?>
+                                    <?php if ($activity->status == 'Completed'): ?>
+                                        <span class="badge badge-subtle-success rounded-pill">Completed</span>
+                                    <?php elseif ($activity->status == 'Ongoing'): ?>
+                                        <span class="badge badge-subtle-warning rounded-pill">Ongoing</span>
+                                    <?php elseif ($activity->status == 'Upcoming'): ?>
+                                        <span class="badge badge-subtle-danger rounded-pill">Upcoming</span>
+                                    <?php endif; ?>
+                                </a>
+                            </h6>
+                            <p class="mb-1">Organized by <?php echo $activity->organizer; ?></p>
+                            <p class="text-1000 mb-0">Time: <?php echo date("h:i A", strtotime($activity->first_schedule)); ?></p>
+                            <p class="text-1000 mb-0">Duration:
                                 <?php
-                                $start_date = strtotime($activity->start_date);
-                                $month = date('M', $start_date); // e.g., Mar
-                                $day = date('j', $start_date);   // e.g., 26
-                                $year = date('y', $start_date);  // e.g., 24
+                                echo date('M j, Y', strtotime($activity->start_date)) . ' - ' . date('M j, Y', strtotime($activity->end_date));
                                 ?>
-                                <span class="calendar-month"><?php echo $month; ?></span>
-                                <span class="calendar-day"><?php echo $day; ?></span>
-                                <span class="calendar-year" hidden><?php echo $year; ?></span>
-                            </div>
-                            <div class="flex-1 position-relative ps-3">
-                                <p class="mb-1" hidden><?php echo htmlspecialchars($activity->activity_id); ?></p>
-                                <h6 class="fs-9 mb-0">
-                                    <a href="<?php echo site_url('admin/activity-details/' . $activity->activity_id); ?>">
-                                        <?php echo htmlspecialchars($activity->activity_title); ?>
-                                        <?php if ($activity->registration_fee == '0'): ?>
-                                            <span class="badge badge-subtle-success rounded-pill">Free</span>
-                                        <?php endif; ?>
-                                        <?php if ($activity->status == 'Completed'): ?>
-                                            <span class="badge badge-subtle-success rounded-pill">Completed</span>
-                                        <?php elseif ($activity->status == 'Ongoing'): ?>
-                                            <span class="badge badge-subtle-warning rounded-pill">Ongoing</span>
-                                        <?php elseif ($activity->status == 'Upcoming'): ?>
-                                            <span class="badge badge-subtle-danger rounded-pill">Upcoming</span>
-                                        <?php endif; ?>
-                                    </a>
-                                </h6>
-                                <p class="mb-1">Organized by
-                                    <?php
-                                    $displayText = "Institution"; // Default text
-                                    if (!empty($activity->dept_id)) {
-                                        $displayText = htmlspecialchars($activity->dept_name);
-                                    } elseif (!empty($activity->org_id)) {
-                                        $displayText = htmlspecialchars($activity->org_name);
-                                    }
-                                    ?>
-                                    <a href="#!" class="text-700"><?php echo $displayText; ?></a>
-                                </p>
-                                <p class="text-1000 mb-0">Time:
-                                    <?php
-                                    $start_time = !empty($activity->am_in) ? date('h:i A', strtotime($activity->am_in)) : (!empty($activity->pm_in) ? date('h:i A', strtotime($activity->pm_in)) : 'N/A');
-                                    echo $start_time;
-                                    ?>
-                                </p>
-                                <p class="text-1000 mb-0">Duration:
-                                    <?php
-                                    echo date('M j, Y', strtotime($activity->start_date)) . ' - ' . date('M j, Y', strtotime($activity->end_date));
-                                    ?>
-                                </p>
-                                <div class="border-bottom border-dashed my-3"></div>
-                            </div>
+                            </p>
+                            <div class="border-bottom border-dashed my-3"></div>
                         </div>
                     </div>
-                <?php elseif (
-                    $role == 'Officer' &&
-                    isset($activity, $department) &&
-                    is_object($activity) && is_object($department) &&
-                    isset($activity->dept_id, $department->dept_id) &&
-                    $activity->dept_id == $department->dept_id &&
-                    empty($activity->org_id)
-                ): ?>
-                    <div class="col-md-6 h-100 activity" data-start-date="<?php echo $activity->start_date; ?>">
-                        <div class="d-flex btn-reveal-trigger">
-                            <div class="calendar">
-                                <?php
-                                $start_date = strtotime($activity->start_date);
-                                $month = date('M', $start_date);
-                                $day = date('j', $start_date);
-                                $year = date('y', $start_date);
-                                ?>
-                                <span class="calendar-month"><?php echo $month; ?></span>
-                                <span class="calendar-day"><?php echo $day; ?></span>
-                                <span class="calendar-year" hidden><?php echo $year; ?></span>
-                            </div>
-                            <div class="flex-1 position-relative ps-3">
-                                <p class="mb-1" hidden><?php echo htmlspecialchars($activity->activity_id); ?></p>
-                                <h6 class="fs-9 mb-0">
-                                    <a href="<?php echo site_url('admin/activity-details/' . $activity->activity_id); ?>">
-                                        <?php echo htmlspecialchars($activity->activity_title); ?>
-                                        <?php if ($activity->registration_fee == '0'): ?>
-                                            <span class="badge badge-subtle-success rounded-pill">Free</span>
-                                        <?php endif; ?>
-                                        <?php if ($activity->status == 'Completed'): ?>
-                                            <span class="badge badge-subtle-success rounded-pill">Completed</span>
-                                        <?php elseif ($activity->status == 'Ongoing'): ?>
-                                            <span class="badge badge-subtle-warning rounded-pill">Ongoing</span>
-                                        <?php elseif ($activity->status == 'Upcoming'): ?>
-                                            <span class="badge badge-subtle-danger rounded-pill">Upcoming</span>
-                                        <?php endif; ?>
-                                    </a>
-                                </h6>
-                                <p class="mb-1">Organized by
-                                    <a href="#!" class="text-700"><?php echo htmlspecialchars($activity->dept_name); ?></a>
-                                </p>
-                                <p class="text-1000 mb-0">Time:
-                                    <?php
-                                    if (!empty($activity->am_in)) {
-                                        $start_time = date('h:i A', strtotime($activity->am_in));
-                                    } else {
-                                        $start_time = !empty($activity->pm_in) ? date('h:i A', strtotime($activity->pm_in)) : 'N/A';
-                                    }
-                                    echo $start_time;
-                                    ?>
-                                </p>
-                                <p class="text-1000 mb-0">Duration:
-                                    <?php
-                                    echo date('M j, Y', strtotime($activity->start_date)) . ' - ' . date('M j, Y', strtotime($activity->end_date));
-                                    ?>
-                                </p>
-                                <div class="border-bottom border-dashed my-3"></div>
-                            </div>
-                        </div>
-                    </div>
-                <?php elseif (
-                    $role == 'Officer' &&
-                    isset($activity, $organization) &&
-                    is_object($activity) && is_object($organization) &&
-                    isset($activity->org_id, $organization->org_id) &&
-                    $activity->org_id == $organization->org_id &&
-                    empty($activity->dept_id)
-                ): ?>
-                    <div class="col-md-6 h-100 activity" data-start-date="<?php echo $activity->start_date; ?>">
-                        <div class="d-flex btn-reveal-trigger">
-                            <div class="calendar">
-                                <?php
-                                $start_date = strtotime($activity->start_date);
-                                $month = date('M', $start_date);
-                                $day = date('j', $start_date);
-                                $year = date('y', $start_date);
-                                ?>
-                                <span class="calendar-month"><?php echo $month; ?></span>
-                                <span class="calendar-day"><?php echo $day; ?></span>
-                                <span class="calendar-year" hidden><?php echo $year; ?></span>
-                            </div>
-                            <div class="flex-1 position-relative ps-3">
-                                <p class="mb-1" hidden><?php echo htmlspecialchars($activity->activity_id); ?></p>
-                                <h6 class="fs-9 mb-0">
-                                    <a href="<?php echo site_url('admin/activity-details/' . $activity->activity_id); ?>">
-                                        <?php echo htmlspecialchars($activity->activity_title); ?>
-                                        <?php if ($activity->registration_fee == '0'): ?>
-                                            <span class="badge badge-subtle-success rounded-pill">Free</span>
-                                        <?php endif; ?>
-                                        <?php if ($activity->status == 'Completed'): ?>
-                                            <span class="badge badge-subtle-success rounded-pill">Completed</span>
-                                        <?php elseif ($activity->status == 'Ongoing'): ?>
-                                            <span class="badge badge-subtle-warning rounded-pill">Ongoing</span>
-                                        <?php elseif ($activity->status == 'Upcoming'): ?>
-                                            <span class="badge badge-subtle-danger rounded-pill">Upcoming</span>
-                                        <?php endif; ?>
-                                    </a>
-                                </h6>
-                                <p class="mb-1">Organized by
-                                    <a href="#!" class="text-700"><?php echo htmlspecialchars($activity->org_name); ?></a>
-                                </p>
-                                <p class="text-1000 mb-0">Time:
-                                    <?php
-                                    if (!empty($activity->am_in)) {
-                                        $start_time = date('h:i A', strtotime($activity->am_in));
-                                    } else {
-                                        $start_time = !empty($activity->pm_in) ? date('h:i A', strtotime($activity->pm_in)) : 'N/A';
-                                    }
-                                    echo $start_time;
-                                    ?>
-                                </p>
-                                <p class="text-1000 mb-0">Duration:
-                                    <?php
-                                    echo date('M j, Y', strtotime($activity->start_date)) . ' - ' . date('M j, Y', strtotime($activity->end_date));
-                                    ?>
-                                </p>
-                                <div class="border-bottom border-dashed my-3"></div>
-                            </div>
-                        </div>
-                    </div>
-                <?php endif; ?>
+                </div>
             <?php endforeach; ?>
-            
+
             <!-- No Activities Message -->
             <div id="no-activity" class="card-body text-center" style="display: none">
                 <span class="fas fa-calendar-times fa-3x text-muted"></span> <!-- Calendar icon -->
@@ -245,133 +204,60 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        let currentDate = new Date();
-        let currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-based
-        let currentYear = currentDate.getFullYear();
+        displayPastAndNext15DaysActivities();
+    });
+
+    function displayPastAndNext15DaysActivities() {
+        let today = new Date();
+
+        // Define past 15 days range
+        let past15Days = new Date();
+        past15Days.setDate(today.getDate() - 15);
+
+        // Define next 15 days range
+        let next15Days = new Date();
+        next15Days.setDate(today.getDate() + 15);
+
         let activities = document.querySelectorAll(".activity");
-        let hasActivities = false;
+        let hasPastActivities = false;
+        let hasUpcomingActivities = false;
 
         activities.forEach(function(activity) {
             let startDate = activity.getAttribute("data-start-date");
 
             if (startDate) {
                 let activityDate = new Date(startDate);
-                let activityMonth = activityDate.getMonth() + 1;
-                let activityYear = activityDate.getFullYear();
 
-                if (activityMonth === currentMonth && activityYear === currentYear) {
-                    hasActivities = true; // At least one activity matches
+                if (activityDate >= past15Days && activityDate < today) {
+                    activity.classList.add("past-activity"); // Style for past activities
+                    activity.style.display = "block";
+                    hasPastActivities = true;
+                } else if (activityDate >= today && activityDate <= next15Days) {
+                    activity.classList.add("upcoming-activity"); // Style for upcoming activities
+                    activity.style.display = "block";
+                    hasUpcomingActivities = true;
                 } else {
-                    activity.style.display = "none"; // Hide other activities
+                    activity.style.display = "none";
                 }
             }
         });
 
-        // If no activities are found, display a message
-        if (!hasActivities) {
-            let noActivityMessage = document.createElement("p");
-            noActivityMessage.textContent = "No activities for this month.";
-            noActivityMessage.style.textAlign = "center";
-            noActivityMessage.style.fontWeight = "bold";
-            noActivityMessage.style.color = "gray";
+        toggleNoActivityMessage(hasPastActivities, hasUpcomingActivities);
+    }
 
-            document.getElementById("activity-container").appendChild(noActivityMessage);
-        }
-    });
 
-    // Apply filters based on the selected semester and year range
-    function applyFilters() {
-        let semester = document.getElementById('semester-filter').value;
-        let yearRange = document.getElementById('year-filter').value;
+    function formatDateToYMD(date) {
+        let year = date.getFullYear();
+        let month = String(date.getMonth() + 1).padStart(2, '0'); // Ensure 2-digit month
+        let day = String(date.getDate()).padStart(2, '0'); // Ensure 2-digit day
+        return `${year}-${month}-${day}`;
+    }
 
-        // Extract start and end years from the selected range
-        let [startYear, endYear] = yearRange.split('-').map(Number);
-
-        let startDate, endDate;
-
-        // Define date range based on semester selection
-        if (semester === "1st-semester") {
-            startDate = new Date(startYear, 7, 1); // August 1, startYear
-            endDate = new Date(startYear, 11, 31); // December 31, startYear
-        } else if (semester === "2nd-semester") {
-            startDate = new Date(endYear, 0, 1); // January 1, endYear
-            endDate = new Date(endYear, 6, 31); // July 31, endYear
-        } else {
-            startDate = new Date(startYear, 0, 1); // Default to January 1 of start year
-            endDate = new Date(endYear, 11, 31); // Default to December 31 of end year
-        }
-
-        // Get all activity elements
-        let activities = document.querySelectorAll('.activity');
-
-        let hasVisibleActivity = false; // Track if any activity matches the filter
-
-        activities.forEach(activity => {
-            let activityDateStr = activity.getAttribute('data-start-date'); // Assuming data-start-date is added to div
-            if (!activityDateStr) return; // Skip if no date is found
-
-            let activityDate = new Date(activityDateStr);
-
-            // Show/hide based on date range
-            if (activityDate >= startDate && activityDate <= endDate) {
-                activity.style.display = 'block';
-                hasVisibleActivity = true; // Activity is visible
-            } else {
-                activity.style.display = 'none'; // Activity is hidden
-            }
-        });
-
-        // Show/hide "No activities listed" message based on `hasVisibleActivity`
+    // Show/hide "No activities found" message
+    function toggleNoActivityMessage(hasActivities) {
         let noActivityMessage = document.getElementById('no-activity');
         if (noActivityMessage) {
-            noActivityMessage.style.display = hasVisibleActivity ? 'none' : 'block';
-        }
-
-        // Close the modal after applying filters
-        var filterModal = document.getElementById('filterModal');
-        var modalInstance = bootstrap.Modal.getInstance(filterModal);
-        modalInstance.hide();
-    }
-
-    // Function to filter activities for the current month by default (not used here)
-    function isCurrentMonth(date, currentDate) {
-        const firstDayOfCurrentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-        const lastDayOfCurrentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-
-        return date >= firstDayOfCurrentMonth && date <= lastDayOfCurrentMonth;
-    }
-
-    // Main function to filter activities based on a date range (this may not be necessary with the above)
-    function filterActivities(startMonth, startYear, endMonth, endYear) {
-        let activities = document.querySelectorAll('.activity');
-        let hasVisibleActivity = false;
-
-        activities.forEach(activity => {
-            let activityDateStr = activity.getAttribute('data-start-date');
-            if (!activityDateStr) return; // Skip if no date is found
-
-            let activityDate = new Date(activityDateStr);
-            let activityMonth = activityDate.getMonth(); // 0-11 for months (January = 0)
-            let activityYear = activityDate.getFullYear(); // 4-digit year
-
-            // Check if the activity is within the date range
-            if (
-                (activityYear > startYear || (activityYear === startYear && activityMonth >= startMonth)) &&
-                (activityYear < endYear || (activityYear === endYear && activityMonth <= endMonth))
-            ) {
-                activity.style.display = 'block';
-                hasVisibleActivity = true; // Set to true if at least one activity is visible
-            } else {
-                activity.style.display = 'none';
-            }
-        });
-
-        // Show/hide the "No activities listed" message based on `hasVisibleActivity`
-        let noActivityMessage = document.getElementById('no-activity');
-        if (noActivityMessage) {
-            noActivityMessage.style.display = hasVisibleActivity ? 'none' : 'block';
+            noActivityMessage.style.display = hasActivities ? 'none' : 'block';
         }
     }
-
-
 </script>

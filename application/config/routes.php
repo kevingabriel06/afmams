@@ -1,5 +1,5 @@
 <?php
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
 /*
 | -------------------------------------------------------------------------
@@ -60,7 +60,7 @@ $route['officer/dashboard/(:any)'] = 'OfficerController/officer_dashboard/$1';
 
 
 //STUDENT ROUTES
-$route['student/home/(:any)'] = 'StudentController/student_dashboard/$1';
+$route['student/home'] = 'StudentController/student_dashboard';
 $route['student/like-post/(:any)'] = 'StudentController/like_post/$1'; // Route for liking a post
 $route['student/unlike-post/(:any)'] = 'StudentController/unlike_post/$1'; // Route for unliking a post
 $route['student/add-comment']['post'] = 'StudentController/add_comment'; // Route for adding of comment
@@ -99,30 +99,37 @@ $route['admin/dashboard'] = 'AdminController/admin_dashboard';
 $route['admin/list-activities-attendance'] = 'AdminController/list_activities_attendance';
 $route['admin/list-department/(:num)'] = 'AdminController/list_department/$1';
 $route['admin/list-attendees/(:num)/(:num)'] = 'AdminController/list_attendees/$1/$2';
-$route['admin/activity/scan-qr/(:num)'] = 'AdminController/scanning_qr/$1';
+$route['admin/activity/scan-qr/time-in/(:num)'] = 'AdminController/scanning_qr/$1';
+$route['admin/activity/scan-qr/time-out/(:num)'] = 'AdminController/scanning_qr/$1';
+$route['admin/activity/face-recognition/(:num)'] = 'AdminController/face_recognition/$1';
 $route['admin/activity/scan-qr-code'] = 'AdminController/scan';
 $route['admin/attendance/get-faces'] = 'AdminController/getFaces';
 $route['admin/attendance/detect'] = 'AdminController/updateAttendance';
 
 
 //FINES MONITORING
-$route['admin/list-activities-fines'] = 'AdminController/list_activities_fines';
-$route['admin/list-department-fines/(:num)'] = 'AdminController/list_department_fines/$1';
-$route['admin/list-fines/(:num)/(:num)'] = 'AdminController/list_fines/$1/$2';
+// $route['admin/list-activities-fines'] = 'AdminController/list_activities_fines';
+// $route['admin/list-department-fines/(:num)'] = 'AdminController/list_department_fines/$1';
+//$route['admin/list-fines/(:num)/(:num)'] = 'AdminController/list_fines/$1/$2';
+$route['admin/list-fines'] = 'AdminController/list_fines';
 $route['admin/fines/update_status']['post'] = 'AdminController/update_status';
 
 
 //<======= CREATION ACTIVITY ======>
-$route['admin/create-activity'] ='AdminController/create_activity'; // VIEW CREATE ACTIVITY PAGE
-$route['admin/create-activity/add']['post'] = 'AdminController/save_activity' ; // SAVING ACTIVITY TO DATABASE
-$route['admin/edit-activity/(:num)'] ='AdminController/edit_activity/$1'; // VIEW EDIT ACTIVITY PAGE
-$route['admin/edit-activity/update']='AdminController/update_activity'; // UPDATING ACTIVITY TO DATABASE
+$route['admin/create-activity'] = 'AdminController/create_activity'; // VIEW CREATE ACTIVITY PAGE
+$route['admin/create-activity/add']['post'] = 'AdminController/save_activity'; // SAVING ACTIVITY TO DATABASE
+$route['admin/edit-activity/(:num)'] = 'AdminController/edit_activity/$1'; // VIEW EDIT ACTIVITY PAGE
+$route['admin/edit-activity/update/(:num)'] = 'AdminController/update_activity/$1'; // UPDATING ACTIVITY TO DATABASE
+$route['admin/delete-schedule/(:num)'] = 'AdminController/delete_schedule/$1';
 $route['admin/list-of-activity'] = 'AdminController/list_activity'; // List of activity
 $route['admin/activity-details/(:num)'] = 'AdminController/activity_details/$1'; // Activity Details
 $route['admin/activity-details/activity-share']['post'] = 'AdminController/share_activity'; // Sharing activity to community
 
 $route['admin/create-evaluation-form'] = 'AdminController/create_evaluationform';
 $route['admin/create-evaluation-form/create']['post'] = 'AdminController/create_eval';
+$route['admin/edit-evaluation-form/(:num)'] = 'AdminController/edit_evaluationform/$1';
+$route['admin/edit-evaluation-form/update/(:num)'] = 'AdminController/update_eval/$1';
+$route['admin/view-evaluation-form/(:num)'] = 'AdminController/view_evaluationform/$1';
 $route['admin/list-activity-evaluation'] = 'AdminController/list_activity_evaluation';
 $route['admin/list-evaluation-answers/(:num)'] = 'AdminController/list_evaluation_answers/$1';
 $route['admin/list-evaluation-answers/view_response/(:num)'] = 'AdminController/view_response/$1';
@@ -153,4 +160,3 @@ $route['admin/manage-officers-department/(:num)'] = 'AdminController/list_office
 $route['admin/manage-officers-department/update_status']['post'] = 'AdminController/update_status_dept';
 $route['admin/manage-officers-organization/(:num)'] = 'AdminController/list_officers_org/$1';
 $route['admin/manage-officers-organization/update_status']['post'] = 'AdminController/update_status_org';
-

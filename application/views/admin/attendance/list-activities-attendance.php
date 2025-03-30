@@ -2,14 +2,14 @@
 
 <div class="row gx-3">
     <div class="col-xxl-10 col-xl-12">
-        <div class="card" id="ticketsTable"
-            data-list='{"valueNames":["activity","status"],"page":11,"pagination":true,"fallback":"tickets-table-fallback"}'>
+        <div class="card" id="attendanceTable"
+            data-list='{"valueNames":["activity","status"],"page":11,"pagination":true,"fallback":"attendance-table-fallback"}'>
 
             <div class="card-header border-bottom border-200 px-0">
                 <div class="d-lg-flex justify-content-between">
                     <div class="row flex-between-center gy-2 px-x1">
                         <div class="col-auto pe-0">
-                            <h5 class="mb-0">All Activities</h5>
+                            <h5 class="mb-0">Attendance - All Activities</h5>
                         </div>
                     </div>
 
@@ -41,106 +41,41 @@
                     <table class="table table-hover table-striped overflow-hidden">
                         <thead class="bg-200">
                             <tr>
-                                <th class="text-900 px-6 py-2">Activity</th>
-                                <th class="text-900 px-7 py-2">Status</th>
+                                <th scope="col" class="text-900 px-6 py-2">Activity</th>
+                                <th scope="col" class="text-900 px-7 py-2">Status</th>
                             </tr>
                         </thead>
                         <tbody class="list" id="table-ticket-body">
                             <?php foreach ($activities as $activity) : ?>
-                                <!-- ADMIN -->
-                                <?php if ($role == 'Admin' && empty($activity->dept_id) && empty($activity->org_id)) : ?>
-                                    <?php
-                                    $startDate = new DateTime($activity->start_date);
-                                    $month = $startDate->format('m');
-                                    $year = $startDate->format('Y');
-                                    $semester = ($month >= 8 && $month <= 12) ? '1st-semester' : '2nd-semester';
-                                    $academicYear = ($semester === '1st-semester') ? $year . '-' . ($year + 1) : ($year - 1) . '-' . $year;
-                                    ?>
-                                    <tr class="activity-row" data-semester="<?php echo $semester; ?>" data-academic-year="<?php echo $academicYear; ?>" data-start-date="<?php echo $activity->start_date; ?>" data-status="<?php echo $activity->status; ?>">
-                                        <td class="align-middle text-nowrap px-6 py-2">
-                                            <div class="d-flex align-items-center">
-                                                <div class="avatar avatar-xl">
-                                                    <img class="rounded-circle" src="<?php echo base_url('assets/coverEvent/') . $activity->activity_image; ?>" alt="" />
-                                                </div>
-                                                <a class="ms-3 text-decoration-none text-dark fw-semibold d-block link-hover"
-                                                    href="<?php echo site_url('admin/list-department/' . $activity->activity_id); ?>">
-                                                    <?php echo $activity->activity_title; ?>
-                                                </a>
+                                <?php
+                                $startDate = new DateTime($activity->start_date);
+                                $month = $startDate->format('m');
+                                $year = $startDate->format('Y');
+                                $semester = ($month >= 8 && $month <= 12) ? '1st-semester' : '2nd-semester';
+                                $academicYear = ($semester === '1st-semester') ? $year . '-' . ($year + 1) : ($year - 1) . '-' . $year;
+                                ?>
+                                <tr class="activity-row" data-semester="<?php echo $semester; ?>" data-academic-year="<?php echo $academicYear; ?>" data-start-date="<?php echo $activity->start_date; ?>" data-status="<?php echo $activity->status; ?>">
+                                    <td class="align-middle text-nowrap px-6 py-2 activity">
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar avatar-xl">
+                                                <img class="rounded-circle" src="<?php echo base_url('assets/coverEvent/') . $activity->activity_image; ?>" alt="" />
                                             </div>
-                                        </td>
-                                        <td class="px-7 py-2">
-                                            <?php if ($activity->status === 'Completed'): ?>
-                                                <span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Completed<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span>
-                                            <?php elseif ($activity->status === 'Upcoming'): ?>
-                                                <span class="badge badge rounded-pill d-block p-2 badge-subtle-danger">Upcoming<span class="ms-1 fas fa-redo" data-fa-transform="shrink-2"></span></span>
-                                            <?php elseif ($activity->status === 'Ongoing'): ?>
-                                                <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">Ongoing<span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span></span>
-                                            <?php endif; ?>
-                                        </td>
-                                    </tr>
-                                <!-- ORGANIZATION -->
-                                <?php elseif ($role == 'Officer' && isset($activity, $organization) && is_object($activity) && is_object($organization) && isset($activity->org_id, $organization->org_id) && $activity->org_id == $organization->org_id && empty($activity->dept_id)): ?>
-                                    <?php
-                                    $startDate = new DateTime($activity->start_date);
-                                    $month = $startDate->format('m');
-                                    $year = $startDate->format('Y');
-                                    $semester = ($month >= 8 && $month <= 12) ? '1st-semester' : '2nd-semester';
-                                    $academicYear = ($semester === '1st-semester') ? $year . '-' . ($year + 1) : ($year - 1) . '-' . $year;
-                                    ?>
-                                    <tr class="activity-row" data-semester="<?php echo $semester; ?>" data-academic-year="<?php echo $academicYear; ?>" data-start-date="<?php echo $activity->start_date; ?>" data-status="<?php echo $activity->status; ?>">
-                                        <td class="align-middle text-nowrap px-6 py-2">
-                                            <div class="d-flex align-items-center">
-                                                <div class="avatar avatar-xl">
-                                                    <img class="rounded-circle" src="<?php echo base_url('assets/coverEvent/') . $activity->activity_image; ?>" alt="" />
-                                                </div>
-                                                <a class="ms-3 text-decoration-none text-dark fw-semibold d-block link-hover"
-                                                    href="<?php echo site_url('admin/list-department/' . $activity->activity_id); ?>">
-                                                    <?php echo $activity->activity_title; ?>
-                                                </a>
-                                            </div>
-                                        </td>
-                                        <td class="px-7 py-2">
-                                            <?php if ($activity->status === 'Completed'): ?>
-                                                <span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Completed<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span>
-                                            <?php elseif ($activity->status === 'Upcoming'): ?>
-                                                <span class="badge badge rounded-pill d-block p-2 badge-subtle-danger">Upcoming<span class="ms-1 fas fa-redo" data-fa-transform="shrink-2"></span></span>
-                                            <?php elseif ($activity->status === 'Ongoing'): ?>
-                                                <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">Ongoing<span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span></span>
-                                            <?php endif; ?>
-                                        </td>
-                                    </tr>
-                                <!-- DEPARtMENT -->
-                                <?php elseif ($role == 'Officer' && isset($activity, $department) && is_object($activity) && is_object($department) && isset($activity->dept_id, $department->dept_id) && $activity->dept_id == $department->dept_id && empty($activity->org_id)): ?>
-                                    <?php
-                                    $startDate = new DateTime($activity->start_date);
-                                    $month = $startDate->format('m');
-                                    $year = $startDate->format('Y');
-                                    $semester = ($month >= 8 && $month <= 12) ? '1st-semester' : '2nd-semester';
-                                    $academicYear = ($semester === '1st-semester') ? $year . '-' . ($year + 1) : ($year - 1) . '-' . $year;
-                                    ?>
-                                    <tr class="activity-row" data-semester="<?php echo $semester; ?>" data-academic-year="<?php echo $academicYear; ?>" data-start-date="<?php echo $activity->start_date; ?>" data-status="<?php echo $activity->status; ?>">
-                                        <td class="align-middle text-nowrap px-6 py-2">
-                                            <div class="d-flex align-items-center">
-                                                <div class="avatar avatar-xl">
-                                                    <img class="rounded-circle" src="<?php echo base_url('assets/coverEvent/') . $activity->activity_image; ?>" alt="" />
-                                                </div>
-                                                <a class="ms-3 text-decoration-none text-dark fw-semibold d-block link-hover"
-                                                    href="<?php echo site_url('admin/list-attendees/' . $activity->activity_id .'/'.'0'); ?>">
-                                                    <?php echo $activity->activity_title; ?>
-                                                </a>
-                                            </div>
-                                        </td>
-                                        <td class="px-7 py-2">
-                                            <?php if ($activity->status === 'Completed'): ?>
-                                                <span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Completed<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span>
-                                            <?php elseif ($activity->status === 'Upcoming'): ?>
-                                                <span class="badge badge rounded-pill d-block p-2 badge-subtle-danger">Upcoming<span class="ms-1 fas fa-redo" data-fa-transform="shrink-2"></span></span>
-                                            <?php elseif ($activity->status === 'Ongoing'): ?>
-                                                <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">Ongoing<span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span></span>
-                                            <?php endif; ?>
-                                        </td>
-                                    </tr>
-                                <?php endif; ?>
+                                            <a class="ms-3 text-decoration-none text-dark fw-semibold d-block link-hover"
+                                                href="<?php echo site_url('admin/list-attendees/' . $activity->activity_id); ?>">
+                                                <?php echo $activity->activity_title; ?>
+                                            </a>
+                                        </div>
+                                    </td>
+                                    <td class="text-nowrap px-7 py-2 status">
+                                        <?php if ($activity->status === 'Completed'): ?>
+                                            <span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Completed<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span>
+                                        <?php elseif ($activity->status === 'Upcoming'): ?>
+                                            <span class="badge badge rounded-pill d-block p-2 badge-subtle-danger">Upcoming<span class="ms-1 fas fa-redo" data-fa-transform="shrink-2"></span></span>
+                                        <?php elseif ($activity->status === 'Ongoing'): ?>
+                                            <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">Ongoing<span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span></span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
                             <?php endforeach; ?>
 
                             <!-- "No activities listed" Row -->
@@ -152,7 +87,7 @@
                             </tr>
                         </tbody>
                     </table>
-                    <div class="text-center d-none" id="tickets-table-fallback">
+                    <div class="text-center d-none" id="attendance-table-fallback">
                         <span class="fas fa-calendar-times fa-2x text-muted"></span> <!-- Calendar icon -->
                         <p class="fw-bold fs-8 mt-3">No Activity Found</p>
                     </div>
@@ -270,19 +205,4 @@
                 modal.hide();
             }
         }
-
-        // FOR SEARCH
-        document.addEventListener("DOMContentLoaded", function() {
-            var options = {
-                valueNames: ["activity", "status"],
-                page: 11,
-                pagination: true
-            };
-
-            var excuseList = new List("ticketsTable", options);
-
-            document.getElementById("searchInput").addEventListener("keyup", function() {
-                excuseList.search(this.value);
-            });
-        });
     </script>

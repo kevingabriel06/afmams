@@ -2,13 +2,7 @@
 
 <div class="card mb-3 mb-lg-0">
     <div class="card-header bg-body-tertiary d-flex justify-content-between">
-        <h5 class="mb-0"><?php echo $activities['activity_title']; ?> - Fines List of
-            <?php foreach ($department as $dept): ?>
-                <?php if ($dept_id == $dept->dept_id): ?>
-                    <?php echo $dept->dept_name; ?>
-                <?php endif; ?>
-            <?php endforeach; ?>
-        </h5>
+        <h5 class="mb-0">All Fines</h5>
     </div>
 </div>
 
@@ -34,7 +28,7 @@
                                 <form>
                                     <div class="input-group input-search-width">
                                         <input id="searchInput" class="form-control form-control-sm shadow-none search"
-                                            type="search" placeholder="Search by Activity" aria-label="search" />
+                                            type="search" placeholder="Search by Name" aria-label="search" />
                                         <button class="btn btn-sm btn-outline-secondary border-300 hover-border-secondary" type="button">
                                             <span class="fa fa-search fs-10"></span>
                                         </button>
@@ -58,361 +52,47 @@
                     <table class="table table-hover table-striped overflow-hidden">
                         <thead class="bg-200">
                             <tr>
-                                <th class="text-900 px-6 py-2">Student ID</th>
-                                <th class="text-900 px-6 py-2">Name</th>
-                                <th class="text-900 px-7 py-2">Status</th>
-                                <th class="text-900 px-7 py-2">Action</th>
+                                <th scope="col" class="text-nowrap">Student ID</th>
+                                <th scope="col">Name</th>
+                                <th scope="col">Department</th>
+                                <th scope="col">Events</th>
+                                <th scope="col">Amount</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Action</th>
                             </tr>
                         </thead>
                         <tbody class="list" id="table-ticket-body">
-                            <?php foreach ($fines as $fine) : ?>
-                                <?php if ($role = 'Officer' && !empty($organization->org_id) && empty($departments->dept_id)) : ?>
-                                    <?php if (
-                                        isset($activities['activity_id']) &&
-                                        $activities['activity_id'] == $fine->activity_id &&
-                                        $fine->dept_id == $dept_id &&
-                                        $fine->org_id == $organization->org_id
-                                    ): ?>
-                                        <tr class="fines-row"
-                                            data-student-id="<?php echo htmlspecialchars($fine->student_id); ?>"
-                                            data-name="<?php echo htmlspecialchars($fine->first_name . ' ' . $fine->last_name); ?>"
-                                            data-status="<?php echo htmlspecialchars($fine->is_paid); ?>"
-                                            data-am-in="<?php echo htmlspecialchars($fine->am_in ?? 'N/A'); ?>"
-                                            data-am-out="<?php echo htmlspecialchars($fine->am_out ?? 'N/A'); ?>"
-                                            data-pm-in="<?php echo htmlspecialchars($fine->pm_in ?? 'N/A'); ?>"
-                                            data-pm-out="<?php echo htmlspecialchars($fine->pm_out ?? 'N/A'); ?>"
-                                            data-total-amount="<?php echo htmlspecialchars($fine->total_amount ?? 'N/A'); ?>">
-
-                                            <!-- Modal Trigger ONLY on Student ID -->
-                                            <td class="student_id align-middle text-nowrap px-6 py-2">
-                                                <h6 class="mb-0">
-                                                    <a href="#" class="modal-trigger" data-bs-toggle="modal"
-                                                        data-bs-target="#attendanceModal"
-                                                        data-student-id="<?php echo htmlspecialchars($fine->student_id); ?>"
-                                                        data-name="<?php echo htmlspecialchars($fine->first_name . ' ' . $fine->last_name); ?>"
-                                                        data-status="<?php echo htmlspecialchars($fine->is_paid); ?>"
-                                                        data-am-in="<?php echo htmlspecialchars($fine->am_in ?? 'N/A'); ?>"
-                                                        data-am-out="<?php echo htmlspecialchars($fine->am_out ?? 'N/A'); ?>"
-                                                        data-pm-in="<?php echo htmlspecialchars($fine->pm_in ?? 'N/A'); ?>"
-                                                        data-pm-out="<?php echo htmlspecialchars($fine->pm_out ?? 'N/A'); ?>"
-                                                        data-total-amount="<?php echo htmlspecialchars($fine->total_amount ?? 'N/A'); ?>">
-                                                        <?php echo htmlspecialchars($fine->student_id); ?>
-                                                    </a>
-                                                </h6>
-                                            </td>
-
-                                            <!-- Modal Trigger ONLY on Name -->
-                                            <td class="name px-6 py-2">
-                                                <h6 class="mb-0">
-                                                    <a href="#" class="modal-trigger" data-bs-toggle="modal"
-                                                        data-bs-target="#attendanceModal"
-                                                        data-student-id="<?php echo htmlspecialchars($fine->student_id); ?>"
-                                                        data-name="<?php echo htmlspecialchars($fine->first_name . ' ' . $fine->last_name); ?>"
-                                                        data-status="<?php echo htmlspecialchars($fine->is_paid); ?>"
-                                                        data-am-in="<?php echo htmlspecialchars($fine->am_in ?? 'N/A'); ?>"
-                                                        data-am-out="<?php echo htmlspecialchars($fine->am_out ?? 'N/A'); ?>"
-                                                        data-pm-in="<?php echo htmlspecialchars($fine->pm_in ?? 'N/A'); ?>"
-                                                        data-pm-out="<?php echo htmlspecialchars($fine->pm_out ?? 'N/A'); ?>"
-                                                        data-total-amount="<?php echo htmlspecialchars($fine->total_amount ?? 'N/A'); ?>">
-                                                        <?php echo htmlspecialchars($fine->first_name . ' ' . $fine->last_name); ?>
-                                                    </a>
-                                                </h6>
-                                            </td>
-
-                                            <td class="status px-7 py-2">
-                                                <?php if ($fine->is_paid === 'Yes'): ?>
-                                                    <span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Paid
-                                                        <span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span>
-                                                    </span>
-                                                <?php elseif ($fine->is_paid === 'No'): ?>
-                                                    <span class="badge badge rounded-pill d-block p-2 badge-subtle-danger">Unpaid
-                                                        <span class="ms-1 fas fa-redo" data-fa-transform="shrink-2"></span>
-                                                    </span>
-                                                <?php elseif ($fine->is_paid === 'No Fines'): ?>
-                                                    <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">No Fines
-                                                        <span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span>
-                                                    </span>
-                                                <?php endif; ?>
-                                            </td>
-
-                                            <!-- Action Dropdown -->
-                                            <td class="text-center align-middle px-6 py-2 position-relative">
-                                                <div class="dropdown font-sans-serif btn-reveal-trigger">
-                                                    <button class="btn btn-link text-600 btn-sm dropdown-toggle dropdown-caret-none btn-reveal"
-                                                        type="button"
-                                                        id="actionDropdown<?php echo $fine->student_id; ?>"
-                                                        data-bs-toggle="dropdown"
-                                                        aria-haspopup="true"
-                                                        aria-expanded="false">
-                                                        <span class="fas fa-ellipsis-h fs-10"></span>
-                                                    </button>
-
-                                                    <!-- Dropdown Menu -->
-                                                    <div class="dropdown-menu dropdown-menu-end py-3"
-                                                        aria-labelledby="actionDropdown<?php echo $fine->student_id; ?>"
-                                                        style="z-index: 1055; position: absolute;">
-
-                                                        <?php if ($fine->is_paid == 'No Fines'): ?>
-                                                            <a class="dropdown-item text-success">
-                                                                <i class="fas fa-check-circle"></i> No Fines
-                                                            </a>
-                                                        <?php else : ?>
-                                                            <?php if ($fine->is_paid === 'No'): ?>
-                                                                <a class="dropdown-item text-success mark-as-paid"
-                                                                    href="#"
-                                                                    data-student-id="<?php echo $fine->student_id; ?>"
-                                                                    data-activity-id="<?php echo $fine->activity_id; ?>"
-                                                                    data-status="Yes">
-                                                                    <i class="fas fa-check-circle"></i> Mark as Paid
-                                                                </a>
-                                                            <?php elseif ($fine->is_paid === 'Yes'): ?>
-                                                                <a class="dropdown-item text-warning mark-as-unpaid"
-                                                                    href="#"
-                                                                    data-student-id="<?php echo $fine->student_id; ?>"
-                                                                    data-activity-id="<?php echo $fine->activity_id; ?>"
-                                                                    data-status="No">
-                                                                    <i class="fas fa-times-circle"></i> Mark as Unpaid
-                                                                </a>
-                                                            <?php endif; ?>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                </div>
-                                            </td>
-
-
-
-
-                                        </tr>
-                                    <?php endif; ?>
-                                <?php elseif ($role = 'Admin') : ?>
-                                    <?php if (
-                                        isset($activities['activity_id']) &&
-                                        $activities['activity_id'] == $fine->activity_id &&
-                                        $fine->dept_id == $dept_id
-                                    ): ?>
-                                        <tr class="fines-row"
-                                            data-student-id="<?php echo htmlspecialchars($fine->student_id); ?>"
-                                            data-name="<?php echo htmlspecialchars($fine->first_name . ' ' . $fine->last_name); ?>"
-                                            data-status="<?php echo htmlspecialchars($fine->is_paid); ?>"
-                                            data-am-in="<?php echo htmlspecialchars($fine->am_in ?? 'N/A'); ?>"
-                                            data-am-out="<?php echo htmlspecialchars($fine->am_out ?? 'N/A'); ?>"
-                                            data-pm-in="<?php echo htmlspecialchars($fine->pm_in ?? 'N/A'); ?>"
-                                            data-pm-out="<?php echo htmlspecialchars($fine->pm_out ?? 'N/A'); ?>"
-                                            data-total-amount="<?php echo htmlspecialchars($fine->total_amount ?? 'N/A'); ?>">
-
-                                            <!-- Modal Trigger ONLY on Student ID -->
-                                            <td class="student_id align-middle text-nowrap px-6 py-2">
-                                                <h6 class="mb-0">
-                                                    <a href="#" class="modal-trigger" data-bs-toggle="modal"
-                                                        data-bs-target="#attendanceModal"
-                                                        data-student-id="<?php echo htmlspecialchars($fine->student_id); ?>"
-                                                        data-name="<?php echo htmlspecialchars($fine->first_name . ' ' . $fine->last_name); ?>"
-                                                        data-status="<?php echo htmlspecialchars($fine->is_paid); ?>"
-                                                        data-am-in="<?php echo htmlspecialchars($fine->am_in ?? 'N/A'); ?>"
-                                                        data-am-out="<?php echo htmlspecialchars($fine->am_out ?? 'N/A'); ?>"
-                                                        data-pm-in="<?php echo htmlspecialchars($fine->pm_in ?? 'N/A'); ?>"
-                                                        data-pm-out="<?php echo htmlspecialchars($fine->pm_out ?? 'N/A'); ?>"
-                                                        data-total-amount="<?php echo htmlspecialchars($fine->total_amount ?? 'N/A'); ?>">
-                                                        <?php echo htmlspecialchars($fine->student_id); ?>
-                                                    </a>
-                                                </h6>
-                                            </td>
-
-                                            <!-- Modal Trigger ONLY on Name -->
-                                            <td class="name px-6 py-2">
-                                                <h6 class="mb-0">
-                                                    <a href="#" class="modal-trigger" data-bs-toggle="modal"
-                                                        data-bs-target="#attendanceModal"
-                                                        data-student-id="<?php echo htmlspecialchars($fine->student_id); ?>"
-                                                        data-name="<?php echo htmlspecialchars($fine->first_name . ' ' . $fine->last_name); ?>"
-                                                        data-status="<?php echo htmlspecialchars($fine->is_paid); ?>"
-                                                        data-am-in="<?php echo htmlspecialchars($fine->am_in ?? 'N/A'); ?>"
-                                                        data-am-out="<?php echo htmlspecialchars($fine->am_out ?? 'N/A'); ?>"
-                                                        data-pm-in="<?php echo htmlspecialchars($fine->pm_in ?? 'N/A'); ?>"
-                                                        data-pm-out="<?php echo htmlspecialchars($fine->pm_out ?? 'N/A'); ?>"
-                                                        data-total-amount="<?php echo htmlspecialchars($fine->total_amount ?? 'N/A'); ?>">
-                                                        <?php echo htmlspecialchars($fine->first_name . ' ' . $fine->last_name); ?>
-                                                    </a>
-                                                </h6>
-                                            </td>
-
-                                            <td class="status px-7 py-2">
-                                                <?php if ($fine->is_paid === 'Yes'): ?>
-                                                    <span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Paid
-                                                        <span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span>
-                                                    </span>
-                                                <?php elseif ($fine->is_paid === 'No'): ?>
-                                                    <span class="badge badge rounded-pill d-block p-2 badge-subtle-danger">Unpaid
-                                                        <span class="ms-1 fas fa-redo" data-fa-transform="shrink-2"></span>
-                                                    </span>
-                                                <?php elseif ($fine->is_paid === 'No Fines'): ?>
-                                                    <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">No Fines
-                                                        <span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span>
-                                                    </span>
-                                                <?php endif; ?>
-                                            </td>
-
-                                            <!-- Action Dropdown -->
-                                            <td class="text-center align-middle px-6 py-2 position-relative">
-                                                <div class="dropdown font-sans-serif btn-reveal-trigger">
-                                                    <button class="btn btn-link text-600 btn-sm dropdown-toggle dropdown-caret-none btn-reveal"
-                                                        type="button"
-                                                        id="actionDropdown<?php echo $fine->student_id; ?>"
-                                                        data-bs-toggle="dropdown"
-                                                        aria-haspopup="true"
-                                                        aria-expanded="false">
-                                                        <span class="fas fa-ellipsis-h fs-10"></span>
-                                                    </button>
-
-                                                    <!-- Dropdown Menu -->
-                                                    <div class="dropdown-menu dropdown-menu-end py-3"
-                                                        aria-labelledby="actionDropdown<?php echo $fine->student_id; ?>"
-                                                        style="z-index: 1055; position: absolute;">
-
-                                                        <?php if ($fine->is_paid == 'No Fines'): ?>
-                                                            <a class="dropdown-item text-success">
-                                                                <i class="fas fa-check-circle"></i> No Fines
-                                                            </a>
-                                                        <?php else : ?>
-                                                            <?php if ($fine->is_paid === 'No'): ?>
-                                                                <a class="dropdown-item text-success mark-as-paid"
-                                                                    href="#"
-                                                                    data-student-id="<?php echo $fine->student_id; ?>"
-                                                                    data-activity-id="<?php echo $fine->activity_id; ?>"
-                                                                    data-status="Yes">
-                                                                    <i class="fas fa-check-circle"></i> Mark as Paid
-                                                                </a>
-                                                            <?php elseif ($fine->is_paid === 'Yes'): ?>
-                                                                <a class="dropdown-item text-warning mark-as-unpaid"
-                                                                    href="#"
-                                                                    data-student-id="<?php echo $fine->student_id; ?>"
-                                                                    data-activity-id="<?php echo $fine->activity_id; ?>"
-                                                                    data-status="No">
-                                                                    <i class="fas fa-times-circle"></i> Mark as Unpaid
-                                                                </a>
-                                                            <?php endif; ?>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    <?php endif; ?>
-                                <?php else: ?>
-                                    <?php if (
-                                        isset($activities['activity_id']) &&
-                                        $activities['activity_id'] == $fine->activity_id &&
-                                        $fine->dept_id == $dept_id
-                                    ): ?>
-                                        <tr class="fines-row"
-                                            data-student-id="<?php echo htmlspecialchars($fine->student_id); ?>"
-                                            data-name="<?php echo htmlspecialchars($fine->first_name . ' ' . $fine->last_name); ?>"
-                                            data-status="<?php echo htmlspecialchars($fine->is_paid); ?>"
-                                            data-am-in="<?php echo htmlspecialchars($fine->am_in ?? 'N/A'); ?>"
-                                            data-am-out="<?php echo htmlspecialchars($fine->am_out ?? 'N/A'); ?>"
-                                            data-pm-in="<?php echo htmlspecialchars($fine->pm_in ?? 'N/A'); ?>"
-                                            data-pm-out="<?php echo htmlspecialchars($fine->pm_out ?? 'N/A'); ?>"
-                                            data-total-amount="<?php echo htmlspecialchars($fine->total_amount ?? 'N/A'); ?>">
-
-                                            <!-- Modal Trigger ONLY on Student ID -->
-                                            <td class="student_id align-middle text-nowrap px-6 py-2">
-                                                <h6 class="mb-0">
-                                                    <a href="#" class="modal-trigger" data-bs-toggle="modal"
-                                                        data-bs-target="#attendanceModal"
-                                                        data-student-id="<?php echo htmlspecialchars($fine->student_id); ?>"
-                                                        data-name="<?php echo htmlspecialchars($fine->first_name . ' ' . $fine->last_name); ?>"
-                                                        data-status="<?php echo htmlspecialchars($fine->is_paid); ?>"
-                                                        data-am-in="<?php echo htmlspecialchars($fine->am_in ?? 'N/A'); ?>"
-                                                        data-am-out="<?php echo htmlspecialchars($fine->am_out ?? 'N/A'); ?>"
-                                                        data-pm-in="<?php echo htmlspecialchars($fine->pm_in ?? 'N/A'); ?>"
-                                                        data-pm-out="<?php echo htmlspecialchars($fine->pm_out ?? 'N/A'); ?>"
-                                                        data-total-amount="<?php echo htmlspecialchars($fine->total_amount ?? 'N/A'); ?>">
-                                                        <?php echo htmlspecialchars($fine->student_id); ?>
-                                                    </a>
-                                                </h6>
-                                            </td>
-
-                                            <!-- Modal Trigger ONLY on Name -->
-                                            <td class="name px-6 py-2">
-                                                <h6 class="mb-0">
-                                                    <a href="#" class="modal-trigger" data-bs-toggle="modal"
-                                                        data-bs-target="#attendanceModal"
-                                                        data-student-id="<?php echo htmlspecialchars($fine->student_id); ?>"
-                                                        data-name="<?php echo htmlspecialchars($fine->first_name . ' ' . $fine->last_name); ?>"
-                                                        data-status="<?php echo htmlspecialchars($fine->is_paid); ?>"
-                                                        data-am-in="<?php echo htmlspecialchars($fine->am_in ?? 'N/A'); ?>"
-                                                        data-am-out="<?php echo htmlspecialchars($fine->am_out ?? 'N/A'); ?>"
-                                                        data-pm-in="<?php echo htmlspecialchars($fine->pm_in ?? 'N/A'); ?>"
-                                                        data-pm-out="<?php echo htmlspecialchars($fine->pm_out ?? 'N/A'); ?>"
-                                                        data-total-amount="<?php echo htmlspecialchars($fine->total_amount ?? 'N/A'); ?>">
-                                                        <?php echo htmlspecialchars($fine->first_name . ' ' . $fine->last_name); ?>
-                                                    </a>
-                                                </h6>
-                                            </td>
-
-                                            <td class="status px-7 py-2">
-                                                <?php if ($fine->is_paid === 'Yes'): ?>
-                                                    <span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Paid
-                                                        <span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span>
-                                                    </span>
-                                                <?php elseif ($fine->is_paid === 'No'): ?>
-                                                    <span class="badge badge rounded-pill d-block p-2 badge-subtle-danger">Unpaid
-                                                        <span class="ms-1 fas fa-redo" data-fa-transform="shrink-2"></span>
-                                                    </span>
-                                                <?php elseif ($fine->is_paid === 'No Fines'): ?>
-                                                    <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">No Fines
-                                                        <span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span>
-                                                    </span>
-                                                <?php endif; ?>
-                                            </td>
-
-                                            <!-- Action Dropdown -->
-                                            <td class="text-center align-middle px-6 py-2 position-relative">
-                                                <div class="dropdown font-sans-serif btn-reveal-trigger">
-                                                    <button class="btn btn-link text-600 btn-sm dropdown-toggle dropdown-caret-none btn-reveal"
-                                                        type="button"
-                                                        id="actionDropdown<?php echo $fine->student_id; ?>"
-                                                        data-bs-toggle="dropdown"
-                                                        aria-haspopup="true"
-                                                        aria-expanded="false">
-                                                        <span class="fas fa-ellipsis-h fs-10"></span>
-                                                    </button>
-
-                                                    <!-- Dropdown Menu -->
-                                                    <div class="dropdown-menu dropdown-menu-end py-3"
-                                                        aria-labelledby="actionDropdown<?php echo $fine->student_id; ?>"
-                                                        style="z-index: 1055; position: absolute;">
-
-                                                        <?php if ($fine->is_paid == 'No Fines'): ?>
-                                                            <a class="dropdown-item text-success">
-                                                                <i class="fas fa-check-circle"></i> No Fines
-                                                            </a>
-                                                        <?php else : ?>
-                                                            <?php if ($fine->is_paid === 'No'): ?>
-                                                                <a class="dropdown-item text-success mark-as-paid"
-                                                                    href="#"
-                                                                    data-student-id="<?php echo $fine->student_id; ?>"
-                                                                    data-activity-id="<?php echo $fine->activity_id; ?>"
-                                                                    data-status="Yes">
-                                                                    <i class="fas fa-check-circle"></i> Mark as Paid
-                                                                </a>
-                                                            <?php elseif ($fine->is_paid === 'Yes'): ?>
-                                                                <a class="dropdown-item text-warning mark-as-unpaid"
-                                                                    href="#"
-                                                                    data-student-id="<?php echo $fine->student_id; ?>"
-                                                                    data-activity-id="<?php echo $fine->activity_id; ?>"
-                                                                    data-status="No">
-                                                                    <i class="fas fa-times-circle"></i> Mark as Unpaid
-                                                                </a>
-                                                            <?php endif; ?>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    <?php endif; ?>
-                                <?php endif; ?>
-                            <?php endforeach; ?>
-
+                            <tr class="attendance-row">
+                                <td class="text-nowrap id">21-03529</td>
+                                <td class="text-nowrap name">Ricky Antony</td>
+                                <td class="text-nowrap department">Bachewlor of Science in Information System</td>
+                                <td class="text-nowrap">March 8, 2025 | 8:00 AM</td>
+                                <td class="text-nowrap">March 8, 2025 | 12:00 PM</td>
+                                <td class="status"><span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Completed<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span></td>
+                                </td>
+                                <td>
+                                    <div class="dropdown font-sans-serif position-static"><button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button" data-bs-toggle="dropdown" data-boundary="window" aria-haspopup="true" aria-expanded="false"><span class="fas fa-ellipsis-h fs-10"></span></button>
+                                        <div class="dropdown-menu dropdown-menu-end border py-0">
+                                            <div class="py-2"><a class="dropdown-item" href="#!">Edit</a><a class="dropdown-item text-danger" href="#!">Delete</a></div>
+                                        </div>
+                                    </div>
+                            </tr>
+                            <tr class="attendance-row">
+                                <td class="text-nowrap id">21-03529</td>
+                                <td class="text-nowrap name">Ricky Antony</td>
+                                <td class="text-nowrap department">Bachewlor of Science in Information System</td>
+                                <td class="text-nowrap">March 8, 2025 | 8:00 AM</td>
+                                <td class="text-nowrap">March 8, 2025 | 12:00 PM</td>
+                                <td class="status"><span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Completed<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span></td>
+                                </td>
+                                <td>
+                                    <div class="dropdown font-sans-serif position-static"><button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button" data-bs-toggle="dropdown" data-boundary="window" aria-haspopup="true" aria-expanded="false"><span class="fas fa-ellipsis-h fs-10"></span></button>
+                                        <div class="dropdown-menu dropdown-menu-end border py-0">
+                                            <div class="py-2"><a class="dropdown-item" href="#!">Edit</a><a class="dropdown-item text-danger" href="#!">Delete</a></div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
                             <!-- "No activities listed" Row -->
                             <tr id="no-attendance-row" style="display: none;">
                                 <td colspan="3" class="text-center text-muted fs-8 fw-bold py-2 bg-light">

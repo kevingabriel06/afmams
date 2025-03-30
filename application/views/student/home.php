@@ -40,13 +40,13 @@
                       <span class="fas fa-users"></span>
                     <?php endif; ?>
                     &bull;
-                    <?php if (empty($post->org_id) && empty($post->dept_id)): ?>
-                      <?php echo htmlspecialchars("Student Parliament"); ?>
-                    <?php elseif (empty($post->org_id)) : ?>
-                      <?php echo htmlspecialchars($post->dept_name); ?>
-                    <?php elseif (empty($post->dept_id)) : ?>
-                      <?php echo htmlspecialchars($post->org_name); ?>
-                    <?php endif; ?>
+                    <!-- <//?php if (empty($post->org_id) && empty($post->dept_id)): ?>
+                      <//?php echo htmlspecialchars("Student Parliament"); ?>
+                    <//?php elseif (empty($post->org_id)) : ?>
+                      <//?php echo htmlspecialchars($post->dept_name); ?>
+                    <//?php elseif (empty($post->dept_id)) : ?>
+                      <//?php echo htmlspecialchars($post->org_name); ?>
+                    <//?php endif; ?> -->
                   </p>
                 </div>
               </div>
@@ -110,11 +110,11 @@
                 </button>
               <?php else: ?>
                 <button class="btn-like rounded-2 d-flex align-items-center me-3" data-post-id="<?= $post->post_id; ?>" style="background: transparent; border: none; padding: 0;">
-<button class="rounded-2 d-flex align-items-center me-3" id="btn-like" data-post-id="<?= $post->post_id; ?>" style="background: transparent; border: none; padding: 0;">
-                  <img src="<?= base_url(); ?>assets/img/icons/spot-illustrations/like-inactive.png" width="20" alt="Like Icon" />
-                  <span class="ms-1">Like</span>
-                </button>
-              <?php endif; ?>
+                  <button class="rounded-2 d-flex align-items-center me-3" id="btn-like" data-post-id="<?= $post->post_id; ?>" style="background: transparent; border: none; padding: 0;">
+                    <img src="<?= base_url(); ?>assets/img/icons/spot-illustrations/like-inactive.png" width="20" alt="Like Icon" />
+                    <span class="ms-1">Like</span>
+                  </button>
+                <?php endif; ?>
             </div>
             <div class="col-auto">
               <button class="rounded-2 d-flex align-items-center me-3" href="#!" style="background: transparent; border: none; padding: 0;">
@@ -198,7 +198,7 @@
         });
       });
 
-      
+
       // FOR COMMENT SECTION
 
       // FOR COMMENT SECTION
@@ -380,13 +380,13 @@
               <p class="mb-1">
                 Organized by
                 <?php
-                if (is_null($activity['dept_id']) && is_null($activity['org_id'])) {
-                  echo 'Student Parliament';
-                } elseif (!is_null($activity['org_id'])) {
-                  echo $activity['org_name'];
-                } elseif (!is_null($activity['dept_id'])) {
-                  echo $activity['dept_name'];
-                }
+                // if (is_null($activity['dept_id']) && is_null($activity['org_id'])) {
+                //   echo 'Student Parliament';
+                // } elseif (!is_null($activity['org_id'])) {
+                //   echo $activity['org_name'];
+                // } elseif (!is_null($activity['dept_id'])) {
+                //   echo $activity['dept_name'];
+                // }
                 ?>
               </p>
 
@@ -419,34 +419,34 @@
   $(document).ready(function() {
     // Event listener for the Like button
     $('.btn-like').click(function() {
-        var post_id = $(this).data('post-id'); // Get the post ID
-        var button = $(this); // Store reference to button
+      var post_id = $(this).data('post-id'); // Get the post ID
+      var button = $(this); // Store reference to button
 
-        // Send AJAX request to like/unlike the post
-        $.ajax({
-            url: '<?= site_url("student/like-post/") ?>' + post_id, // Send to controller
-            type: 'POST',
-            dataType: 'json', // Ensure response is JSON
-            success: function(response) {
-                if (response && response.like_img && response.like_text) {
-                    // Update the button icon and text based on response
-                    button.find('img').attr('src', response.like_img);
-                    button.find('span').text(response.like_text);
-                } else {
-                    alert('Error: Unable to process your request.');
-                }
+      // Send AJAX request to like/unlike the post
+      $.ajax({
+        url: '<?= site_url("student/like-post/") ?>' + post_id, // Send to controller
+        type: 'POST',
+        dataType: 'json', // Ensure response is JSON
+        success: function(response) {
+          if (response && response.like_img && response.like_text) {
+            // Update the button icon and text based on response
+            button.find('img').attr('src', response.like_img);
+            button.find('span').text(response.like_text);
+          } else {
+            alert('Error: Unable to process your request.');
+          }
 
-                // Update the like count dynamically
-                $('#like-count-' + post_id).text(response.new_like_count + ' Likes');
-            },
-            error: function(xhr, status, error) {
-                console.error("AJAX Error:", status, error);
-                console.error("Response:", xhr.responseText);
-                alert('Something went wrong, please try again later.');
-            }
-        });
+          // Update the like count dynamically
+          $('#like-count-' + post_id).text(response.new_like_count + ' Likes');
+        },
+        error: function(xhr, status, error) {
+          console.error("AJAX Error:", status, error);
+          console.error("Response:", xhr.responseText);
+          alert('Something went wrong, please try again later.');
+        }
+      });
     });
-});
+  });
 </script>
 
 <style>

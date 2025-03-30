@@ -34,17 +34,25 @@ class AuthController extends CI_Controller
             $user = $this->auth->login($student_id, $password);
 
             if ($user->role == 'Admin') {
-                $this->session->set_userdata('student_id', $user->student_id);
+                $this->session->set_userdata([
+                    'student_id' => $user->student_id,
+                    'role' => $user->role
+                ]);
                 redirect('admin/dashboard'); // Redirect to the admin dashboard
 
             } else if ($user->role == 'Student') {
-                $this->session->set_userdata('student_id', $user->student_id);
+                $this->session->set_userdata([
+                    'student_id' => $user->student_id,
+                    'role' => $user->role
+                ]);
                 redirect('student/home/' . $student_id); // Redirect to the admin dashboard
 
             } else if ($user->role == 'Officer') {
-                $this->session->set_userdata('student_id', $user->student_id);
+                $this->session->set_userdata([
+                    'student_id' => $user->student_id,
+                    'role' => $user->role
+                ]);
                 redirect('admin/dashboard'); // Redirect to the admin dashboard
-
             } else {
                 // Handle login failure
                 $this->session->set_flashdata('error', 'Invalid Student ID or Password');
@@ -53,6 +61,15 @@ class AuthController extends CI_Controller
         }
     }
 
+    private function set_session($id_number, $username, $email, $user_type)
+    {
+        $this->session->set_userdata([
+            'id_number' => $id_number,
+            'username' => $username,
+            'email' => $email,
+            'user_type' => $user_type
+        ]);
+    }
     public function logout()
     {
         $this->session->sess_destroy();

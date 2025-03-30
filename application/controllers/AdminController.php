@@ -36,14 +36,9 @@ class AdminController extends CI_Controller
         $data['title'] = 'Dashboard';
 
         $student_id = $this->session->userdata('student_id');
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
 
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
 
 
         $this->load->view('layout/header', $data);
@@ -52,12 +47,7 @@ class AdminController extends CI_Controller
     }
 
 
-
-
-
-
-
-    // <========= THIS PART IS FOR THE CREATE ACTIVITY =====>
+    // <========= THIS PART IS FOR THE MANAGEMENT OF ACTIVITY =====>
 
 
     // VIEWING OF CREATE ACTIVITY PAGE
@@ -67,254 +57,164 @@ class AdminController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
+        $data['users'] = $this->admin->get_student($student_id);
 
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
-
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
-
-        // WHERE THE USER BELONGS
-        $data['organization'] = $this->admin->admin_org();
-        $data['department'] = $this->admin->admin_dept();
+        $data['dept'] = $this->admin->get_department(); // this is the audience
 
         $this->load->view('layout/header', $data);
         $this->load->view('admin/activity/create-activity', $data);
         $this->load->view('layout/footer', $data);
     }
 
-    // SAVING OF ACTIVITY TO DATABASE
     public function save_activity()
     {
-        // Check if the form is submitted
         if ($this->input->post()) {
-            // Set validation rules
-            $this->form_validation->set_rules(
-                'title',
-                'Activity',
-                'is_unique[activity.activity_title]',
-                ['is_unique' => 'The {field} must be unique. This title is already taken.']
-            );
+            // Set Validation Rules
+            $this->form_validation->set_rules('title', 'Activity Title', 'required|is_unique[activity.activity_title]', [
+                'required'   => 'The {field} is required.',
+                'is_unique'  => 'The {field} must be unique. This title is already taken.'
+            ]);
+            $this->form_validation->set_rules('date_start', 'Start Date', 'required');
+            $this->form_validation->set_rules('date_end', 'End Date', 'required');
+            $this->form_validation->set_rules('start_datetime[]', 'Start Date & Time', 'required');
+            $this->form_validation->set_rules('end_datetime[]', 'End Date & Time', 'required');
+            $this->form_validation->set_rules('session_type[]', 'Session Type', 'required');
 
-            // Check if validation passes
+            // Run Validation
             if ($this->form_validation->run() == FALSE) {
-                // If validation fails, return validation errors
-                echo json_encode([
-                    'status' => 'error',
-                    'errors' => validation_errors()
-                ]);
+                echo json_encode(['status' => 'error', 'errors' => validation_errors()]);
                 return;
             }
 
-            // If validation passes, proceed to save the data
+
+            // Prepare Activity Data
             $data = [
-                'activity_title' => $this->input->post('title'),
-                'start_date' => $this->input->post('date_start'),
-                'end_date' => $this->input->post('date_end'),
+                'activity_title'        => $this->input->post('title'),
+                'start_date'            => $this->input->post('date_start'),
+                'end_date'              => $this->input->post('date_end'),
+                'description'           => $this->input->post('description'),
                 'registration_deadline' => $this->input->post('registration_deadline'),
-                'registration_fee' => $this->input->post('registration_fee'),
-                'dept_id' => $this->input->post('dept'),
-                'org_id' => $this->input->post('org'),
-                'am_in' => $this->input->post('am_in'),
-                'am_out' => $this->input->post('am_out'),
-                'pm_in' => $this->input->post('pm_in'),
-                'pm_out' => $this->input->post('pm_out'),
-                'description' => $this->input->post('description'),
-                'privacy' => $this->input->post('privacy'),
-                'fines' => $this->input->post('fines'),
+                'registration_fee'      => str_replace(",", "", $this->input->post('registration_fee')),
+                'organizer'             => 'Student Parliament',
+                'fines'                 => str_replace(",", "", $this->input->post('fines')),
+                'audience'              => $this->input->post('audience'),
+                'created_at'            => date('Y-m-d H:i:s')
             ];
 
-            // Handle Image Upload
-            if (!empty($_FILES['image']['name'])) {
-                $config = [
-                    'upload_path' => './assets/coverEvent',
-                    'allowed_types' => 'gif|jpg|jpeg|png',
-                    'max_size' => 2048
-                ];
-                $this->load->library('upload', $config);
-
-                if ($this->upload->do_upload('image')) {
-                    $uploadData = $this->upload->data();
-                    $data['activity_image'] = $uploadData['file_name'];
-                } else {
-                    echo json_encode([
-                        'status' => 'error',
-                        'errors' => $this->upload->display_errors()
-                    ]);
+            // Handle Cover Image Upload
+            if (!empty($_FILES['coverUpload']['name'])) {
+                $coverImage = $this->upload_file('coverUpload', './assets/coverEvent');
+                if (!$coverImage['status']) {
+                    echo json_encode(['status' => 'error', 'errors' => $coverImage['error']]);
                     return;
                 }
+                $data['activity_image'] = $coverImage['file_name'];
+            }
+
+            // Handle QR Code Upload
+            if (!empty($_FILES['qrcode']['name'])) {
+                $qrCode = $this->upload_file('qrcode', './assets/qrcodeRegistration');
+                if (!$qrCode['status']) {
+                    echo json_encode(['status' => 'error', 'errors' => $qrCode['error']]);
+                    return;
+                }
+                $data['qr_code'] = $qrCode['file_name'];
             }
 
             // Insert Activity and Get ID
             $activity_id = $this->admin->save_activity($data);
-
             if (!$activity_id) {
-                echo json_encode([
-                    'status' => 'error',
-                    'errors' => 'Failed to Save Activity'
-                ]);
+                echo json_encode(['status' => 'error', 'errors' => 'Failed to Save Activity']);
                 return;
             }
 
-            // Determine which students to fetch based on input conditions
-            $this->db->select('student_id');
+            // Fetch Input Data
+            $start_datetimes = $this->input->post('start_datetime') ?? [];
+            $end_datetimes = $this->input->post('end_datetime') ?? [];
+            $session_types = $this->input->post('session_type') ?? [];
 
-            if (empty($data['dept_id'])) {
-                // Get all students in the same org_id
-                $this->db->from('student_org');
-                $this->db->where('org_id', $data['org_id']);
-            } elseif (empty($data['org_id'])) {
-                // Get all students in the same dept_id
-                $this->db->from('users');
-                $this->db->where('dept_id', $data['dept_id']);
-            } elseif (empty($data['dept_id']) && empty($data['org_id'])){
-                // Get all students in the same org_id and dept_id
-                $this->db->from('users');
+            // Prepare Schedule Data
+            $schedules = [];
+            foreach ($start_datetimes as $i => $start_datetime) {
+                $schedules[] = [
+                    'activity_id'  => $activity_id,
+                    'date_time_in' => date('Y-m-d H:i:s', strtotime($start_datetime)),
+                    'date_time_out' => date('Y-m-d H:i:s', strtotime($end_datetimes[$i])),
+                    'slot_name'    => $session_types[$i],
+                    'created_at'   => date('Y-m-d H:i:s')
+                ];
             }
 
-            $students = $this->db->get()->result();
+            // Save Schedules
+            $this->admin->save_schedules($schedules);
 
-            // Insert into attendance and fines tables
-            foreach ($students as $student) {
-                $this->db->insert('attendance', [
-                    'activity_id' => $activity_id,
-                    'student_id' => $student->student_id
-                ]);
+            // Assign Students to Activity
+            $this->assign_students_to_activity($activity_id, $data);
 
-                $this->db->insert('fines', [
-                    'activity_id' => $activity_id,
-                    'student_id' => $student->student_id
-                ]);
-            }
-
-            // Return success response
+            // Return Success Response
             echo json_encode([
-                'status' => 'success',
-                'message' => 'Activity Saved Successfully',
+                'status'   => 'success',
+                'message'  => 'Activity Saved Successfully',
                 'redirect' => site_url('admin/list-of-activity')
             ]);
         }
     }
 
-
-    // EDITING OF ACTIVITY TO DATABASE
-    public function edit_activity($activity_id)
+    private function upload_file($field_name, $upload_path)
     {
-        $data['title'] = 'Edit Activity';
+        $config = [
+            'upload_path' => $upload_path,
+            'allowed_types' => 'gif|jpg|jpeg|png',
+            'max_size' => 2048
+        ];
+        $this->load->library('upload', $config);
 
-        $student_id = $this->session->userdata('student_id');
-
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
-
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
-
-        // WHERE THE USER BELONGS
-        $data['organization'] = $this->admin->admin_org();
-        $data['department'] = $this->admin->admin_dept();
-
-        $data['activity'] = $this->admin->get_activity($activity_id);
-
-        $this->load->view('layout/header', $data);
-        $this->load->view('admin/activity/edit-activity', $data);
-        $this->load->view('layout/footer', $data);
+        if ($this->upload->do_upload($field_name)) {
+            return ['status' => true, 'file_name' => $this->upload->data('file_name')];
+        } else {
+            return ['status' => false, 'error' => $this->upload->display_errors()];
+        }
     }
 
-     public function update_activity() {
+    // this is the default it is for the student parliament
+    private function assign_students_to_activity($activity_id, $data)
+    {
+        $this->db->select('student_id');
 
-        $this->form_validation->set_rules('title', 'Activity Title', 'required');
-        $this->form_validation->set_rules('date_start', 'Start Date', 'required');
-        $this->form_validation->set_rules('date_end', 'End Date', 'required');
-
-        $activity_id = $this->input->post('activity_id');
-
-        if ($this->form_validation->run() == FALSE) {
-            $response = [
-                'status' => 'error',
-                'errors' => validation_errors()
-            ];
-            echo json_encode($response);
-            return;
+        if ($data['audience'] == 0) {
+            $this->db->from('users');
+        } else {
+            $this->db->from('users');
+            $this->db->where('dept_id', $data['audience']);
         }
 
-        $data = array(
-            'activity_title' => $this->input->post('title', TRUE),
-            'start_date' => $this->input->post('date_start', TRUE),
-            'end_date' => $this->input->post('date_end', TRUE),
-            'registration_deadline' => $this->input->post('registration_deadline', TRUE),
-            'registration_fee' => $this->input->post('registration_fee', TRUE),
-            'dept_id' => $this->input->post('dept', TRUE),
-            'org_id' => $this->input->post('org', TRUE),
-            'am_in' => $this->input->post('am_in', TRUE),
-            'am_out' => $this->input->post('am_out', TRUE),
-            'pm_in' => $this->input->post('pm_in', TRUE),
-            'pm_out' => $this->input->post('pm_out', TRUE),
-            'am_in_cut' => $this->input->post('am_in_cut', TRUE),
-            'am_out_cut' => $this->input->post('am_out_cut', TRUE),
-            'pm_in_cut' => $this->input->post('pm_in_cut', TRUE),
-            'pm_out_cut' => $this->input->post('pm_out_cut', TRUE),
-            'description' => $this->input->post('description', TRUE),
-            'privacy' => $this->input->post('privacy', TRUE),
-            'fines' => $this->input->post('fines', TRUE)
-        );
+        $students = $this->db->get()->result();
 
-        if (!empty($_FILES['image']['name'])) {
-            $config = [
-                'upload_path' => './assets/coverEvent',
-                'allowed_types' => 'gif|jpg|jpeg|png',
-                'max_size' => 2048,
-                'file_name' => uniqid() . '_' . $_FILES['image']['name']
-            ];
-            $this->load->library('upload', $config);
+        foreach ($students as $student) {
+            $this->db->insert('attendance', [
+                'activity_id' => $activity_id,
+                'student_id' => $student->student_id
+            ]);
 
-            if ($this->upload->do_upload('image')) {
-                $uploadData = $this->upload->data();
-                $data['activity_image'] = $uploadData['file_name'];
-            } else {
-                echo json_encode(['status' => 'error', 'errors' => $this->upload->display_errors()]);
-                return;
-            }
+            $this->db->insert('fines', [
+                'activity_id' => $activity_id,
+                'student_id' => $student->student_id
+            ]);
         }
-
-        $result = $this->admin->update_activity($activity_id, $data);
-
-        echo json_encode(
-            $result ? 
-            ['status' => 'success', 'message' => 'Activity Updated Successfully', 'redirect' => site_url("admin/activity-details/$activity_id")] :
-            ['status' => 'error', 'errors' => 'Failed to Update Activity']
-        );
     }
-    
-    // FETCHING ACTIVITY BASED ON WHERE THE USER IS ADMIN
+
+    // FETCHING ACTIVITY BASED ON WHERE THE USER IS ADMIN (STUDENT PARLIAMENT)
     public function list_activity()
     {
         $data['title'] = 'List of Activities';
 
         $student_id = $this->session->userdata('student_id');
 
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
-
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
-
-        // ORGANIZATION AND DEPT ID OF THE ADMIN
-        $data['organization'] = $this->admin->admin_org();
-        $data['department'] = $this->admin->admin_dept();
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
 
         // GETTING OF THE ACTIVITY FROM THE DATABASE
         $data['activities'] = $this->admin->get_activities();
-
 
         $this->load->view('layout/header', $data);
         $this->load->view('admin/activity/list-activities', $data);
@@ -328,21 +228,11 @@ class AdminController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
-
-
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
-
-        // CROSS CHECKING OF THE WHERE THE USER IS ADMIN
-        $data['organization'] = $this->admin->admin_org_id();
-        $data['department'] = $this->admin->admin_dept_id();
+        $data['users'] = $this->admin->get_student($student_id);
 
         $data['activity'] = $this->admin->get_activity($activity_id); // SPECIFIC ACTIVITY
+        $data['schedules'] = $this->admin->get_schedule($activity_id); // GETTING OF SCHEDULE
+
         $data['activities'] = $this->admin->get_activities(); // FOR UPCOMING ACTIVITY PART
 
         $this->load->view('layout/header', $data);
@@ -373,75 +263,408 @@ class AdminController extends CI_Controller
         }
     }
 
+    // EDITING OF ACTIVITY TO DATABASE
+    public function edit_activity($activity_id)
+    {
+        $data['title'] = 'Edit Activity';
 
-    //========CREATE EVALUATION START
+        $student_id = $this->session->userdata('student_id');
+
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
+
+        $data['activity'] = $this->admin->get_activity($activity_id);
+        $data['schedules'] = $this->admin->get_schedule($activity_id);
+        $data['dept'] = $this->admin->get_department();
+
+        $this->load->view('layout/header', $data);
+        $this->load->view('admin/activity/edit-activity', $data);
+        $this->load->view('layout/footer', $data);
+    }
+
+    public function delete_schedule($id)
+    {
+
+        if ($this->admin->delete_schedule($id)) {
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false]);
+        }
+    }
+
+    public function update_activity($activity_id)
+    {
+        if ($this->input->post()) {
+            // Set Validation Rules
+            $this->form_validation->set_rules('date_start', 'Start Date', 'required');
+            $this->form_validation->set_rules('date_end', 'End Date', 'required');
+            $this->form_validation->set_rules('start_datetime[]', 'Start Date & Time', 'required');
+            $this->form_validation->set_rules('end_datetime[]', 'End Date & Time', 'required');
+            $this->form_validation->set_rules('session_type[]', 'Session Type', 'required');
+
+            // Run Validation
+            if ($this->form_validation->run() == FALSE) {
+                echo json_encode(['status' => 'error', 'errors' => validation_errors()]);
+                return;
+            }
+
+            // Check if Activity Exists
+            $activity = $this->admin->get_activity($activity_id);
+            if (!$activity) {
+                echo json_encode(['status' => 'error', 'errors' => 'Activity not found.']);
+                return;
+            }
+
+            // Prepare Activity Data
+            $data = [
+                'activity_title'        => $this->input->post('title'),
+                'start_date'            => $this->input->post('date_start'),
+                'end_date'              => $this->input->post('date_end'),
+                'description'           => $this->input->post('description'),
+                'registration_deadline' => $this->input->post('registration_deadline'),
+                'registration_fee'      => str_replace(",", "", $this->input->post('registration_fee')),
+                'organizer'             => 'Student Parliament',
+                'fines'                 => str_replace(",", "", $this->input->post('fines')),
+                'audience'              => $this->input->post('audience')
+            ];
+
+            // Handle Cover Image Upload
+            if (!empty($_FILES['coverUpload']['name'])) {
+                $coverImage = $this->upload_file('coverUpload', './assets/coverEvent');
+                if (!$coverImage['status']) {
+                    echo json_encode(['status' => 'error', 'errors' => $coverImage['error']]);
+                    return;
+                }
+                $data['activity_image'] = $coverImage['file_name'];
+            }
+
+            // Handle QR Code Upload
+            if (!empty($_FILES['qrcode']['name'])) {
+                $qrCode = $this->upload_file('qrcode', './assets/qrcodeRegistration');
+                if (!$qrCode['status']) {
+                    echo json_encode(['status' => 'error', 'errors' => $qrCode['error']]);
+                    return;
+                }
+                $data['qr_code'] = $qrCode['file_name'];
+            }
+
+            // Update Activity
+            $this->admin->update_activity($activity_id, $data);
+
+            // Fetch Input Data
+            $start_datetimes = $this->input->post('start_datetime') ?? [];
+            $start_cutoff = $this->input->post('start_cutoff') ?? [];
+            $end_datetimes = $this->input->post('end_datetime') ?? [];
+            $end_cutoff = $this->input->post('end_cutoff') ?? [];
+            $session_types = $this->input->post('session_type') ?? [];
+            $schedule_ids = $this->input->post('timeslot_id') ?? [];
+
+            // Update or Insert Schedules
+            foreach ($start_datetimes as $i => $start_datetime) {
+                // Ensure array indexes exist before accessing them
+                $start_cutoff = $start_cutoff[$i] ?? null;
+                $end_datetime = $end_datetimes[$i] ?? null;
+                $end_cutoff = $end_cutoff[$i] ?? null;
+                $session_type = $session_types[$i] ?? null;
+                $schedule_id = $schedule_ids[$i] ?? null;
+
+                // Prepare schedule data
+                $schedule_data = [
+                    'activity_id'  => $activity_id,
+                    'date_time_in' => date('Y-m-d H:i:s', strtotime($start_datetime)),
+                    'date_cut_in' => date('Y-m-d H:i:s', strtotime($start_cutoff)),
+                    'date_time_out' => date('Y-m-d H:i:s', strtotime($end_datetime)),
+                    'date_cut_out' => date('Y-m-d H:i:s', strtotime($end_cutoff)),
+                    'slot_name'    => $session_type
+                ];
+
+                if (!empty($schedule_id)) {
+                    // Update existing schedule
+                    $this->admin->update_schedule($schedule_id, $schedule_data);
+                } else {
+                    // Insert new schedule with created_at timestamp
+                    $schedule_data['created_at'] = date('Y-m-d H:i:s');
+
+                    $this->admin->save_schedule($schedule_data);
+                }
+            }
+
+            // Return Success Response
+            echo json_encode([
+                'status'   => 'success',
+                'message'  => 'Activity Updated Successfully',
+                'redirect' => site_url('admin/list-of-activity')
+            ]);
+        }
+    }
+
+    // END EDITING OF ACTIVITY
+
+    // START OF EVALUATION
+    public function list_activity_evaluation()
+    {
+        $data['title'] = 'List of Evaluation';
+
+        $student_id = $this->session->userdata('student_id');
+
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
+
+        // GET THE EVALUATION FOR STUDENT PARLIAMENT
+        $data['evaluation'] = $this->admin->evaluation_form();
+
+        // Pass data to the view
+        $this->load->view('layout/header', $data);
+        $this->load->view('admin/activity/eval_list-activity-evaluation', $data);
+        $this->load->view('layout/footer', $data);
+    }
+
+    // START CREATE EVALUATION
     public function create_evaluationform()
     {
         $data['title'] = 'Create Evaluation Form';
 
-        $this->load->model('Admin_model');
-
-
         $student_id = $this->session->userdata('student_id');
 
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
-
-
-
-        // Fetch user roles
-        $users = $this->Admin_model->get_roles($student_id);
-        $data['role'] = $users['role'];
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
 
         // Fetch activities based on user role
-        $data['activities'] = $this->Admin_model->get_filtered_activities($users['student_id']);
+        $data['activities'] = $this->admin->activity_organized();
 
         $this->load->view('layout/header', $data);
-        $this->load->view('admin/activity/create-evaluation-form', $data);
+        $this->load->view('admin/activity/eval_create-evaluation-form', $data);
         $this->load->view('layout/footer', $data);
     }
 
-
-    public function list_activity_evaluation()
+    // Controller function to create an evaluation form
+    public function create_eval()
     {
-        $data['title'] = 'Dashboard';
+        // Validate basic form inputs from the POST request
+        $this->form_validation->set_rules('activity', 'Activity', 'required');
+        $this->form_validation->set_rules('formtitle', 'Form Title', 'required');
+        $this->form_validation->set_rules('formdescription', 'Form Description', 'required');
+
+        if ($this->form_validation->run() === FALSE) {
+            echo json_encode(['success' => false, 'message' => validation_errors()]);
+            return;
+        }
+
+        // Prepare form data from POST request
+        $formData = array(
+            'title'       => $this->input->post('formtitle'),
+            'form_description' => $this->input->post('formdescription'),
+            'activity_id' => $this->input->post('activity'),
+            'start_date_evaluation'  => $this->input->post('startdate') ?: date('Y-m-d H:i:s'),
+            'end_date_evaluation'    => $this->input->post('enddate') ?: date('Y-m-d H:i:s', strtotime('+1 week')),
+        );
+
+        // Handle Cover Image Upload
+        if (!empty($_FILES['coverUpload']['name'])) {
+            $coverImage = $this->upload_file('coverUpload', './assets/theme_evaluation');
+            if (!$coverImage['status']) {
+                echo json_encode(['success' => false, 'message' => $coverImage['error']]);
+                return;
+            }
+            $formData['cover_theme'] = $coverImage['file_name'];
+        }
+
+        // Decode fields JSON (ensuring proper format)
+        $fields = json_decode($this->input->post('fields'), true);
+
+        // Validate and check if fields are properly sent
+        if (!is_array($fields) || count($fields) === 0) {
+            echo json_encode(['success' => false, 'message' => 'Please provide at least one form field.']);
+            return;
+        }
+
+        $this->db->trans_start(); // Start transaction
+
+        $formId = $this->admin->saveForm($formData); // Save form data and get form ID
+
+        if (!$formId) {
+            $this->db->trans_rollback(); // Rollback if form insert fails
+            echo json_encode(['success' => false, 'message' => 'Failed to create the form.']);
+            return;
+        }
+
+        // Prepare and save form fields with related form_id
+        $fieldData = [];
+        foreach ($fields as $index => $field) {
+            $fieldData[] = array(
+                'form_id'     => $formId,
+                'label'       => $field['label'] ?? '',
+                'type'        => $field['type'] ?? '',
+                'placeholder' => $field['placeholder'] ?? null,
+                'required'    => !empty($field['required']) ? 1 : 0,
+                'order'       => $index + 1,
+            );
+        }
+
+        if (!empty($fieldData)) {
+            $this->admin->saveFormFields($fieldData); // Save form fields
+        }
+
+        $this->db->trans_complete(); // Complete transaction
+
+        if ($this->db->trans_status() === FALSE) {
+            echo json_encode(['success' => false, 'message' => 'Failed to create the form.']);
+        } else {
+            echo json_encode([
+                'success' => true,
+                'message' => 'Form created successfully.',
+                'redirect_url' => site_url('admin/list-activity-evaluation')
+            ]);
+        }
+    }
+
+
+    // START EDITING EVALUATION
+    public function edit_evaluationform($form_id)
+    {
+        $data['title'] = 'Edit Evaluation Form';
 
         $student_id = $this->session->userdata('student_id');
 
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
 
-        // FETCHING DATA BASED ON THE ROLES - NECESSARY
-        $users = $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
+        // Fetch activities based on user role
+        $data['activities'] = $this->admin->activity_organized();
+        $data['forms'] = $this->admin->get_evaluation_by_id($form_id);
 
-        // Load the Activity model to fetch activities
-        $this->load->model('Admin_model', 'admin');
+        $form_data = $this->admin->get_evaluation_by_id($form_id);
+        $data['form_data'] = $form_data;
 
-        // Fetch activities based on the logged-in user's role
-        if ($data['role'] == 'Admin') {
-            // For Admin, get all activities where org_id and dept_id are NULL
-            $activities = $this->admin->get_admin_activities();
-
-            // Map the status class to the activities
-            foreach ($activities as $activity) {
-                $activity->status_class = $this->get_status_class($activity->status);
-            }
-
-            $data['activities'] = $activities;
-        } else {
-            $data['activities'] = []; // Default to empty if not an Admin
-        }
-
-        // Pass data to the view
         $this->load->view('layout/header', $data);
-        $this->load->view('admin/activity/list-activity-evaluation', $data);
+        $this->load->view('admin/activity/eval_edit-evaluation-form', $data);
         $this->load->view('layout/footer', $data);
     }
+
+    // UPDATE EVALUATION
+    public function update_eval($form_id)
+    {
+        // Validate form ID
+        if (!$form_id) {
+            echo json_encode(['success' => false, 'message' => 'Invalid form ID.']);
+            return;
+        }
+
+        // Validate input fields
+        $this->form_validation->set_rules('formtitle', 'Form Title', 'required');
+        $this->form_validation->set_rules('formdescription', 'Form Description', 'required');
+
+        if ($this->form_validation->run() === FALSE) {
+            echo json_encode(['success' => false, 'message' => strip_tags(validation_errors())]);
+            return;
+        }
+
+        // Prepare form data
+        $formData = [
+            'activity_id' => $this->input->post('activity'),
+            'title' => $this->input->post('formtitle'),
+            'form_description' => $this->input->post('formdescription'),
+            'start_date_evaluation' => $this->input->post('startdate'),
+            'end_date_evaluation' => $this->input->post('enddate'),
+        ];
+
+        // Handle Cover Image Upload (if new file is uploaded)
+        if (!empty($_FILES['coverUpload']['name'])) {
+            $coverImage = $this->upload_file('coverUpload', './assets/theme_evaluation');
+            if (!$coverImage['status']) {
+                echo json_encode(['success' => false, 'message' => $coverImage['error']]);
+                return;
+            }
+            $formData['cover_theme'] = $coverImage['file_name'];
+        }
+
+        // Retrieve form fields (ensure correct format)
+        $fields = json_decode($this->input->post('fields'), true);
+        if (!is_array($fields)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid form fields data.']);
+            return;
+        }
+
+        // Start database transaction
+        $this->db->trans_start();
+
+        // Update main form data
+        $this->db->where('form_id', $form_id)->update('forms', $formData);
+
+        // Fetch existing field IDs from database
+        $existingFields = $this->db->select('form_fields_id')->where('form_id', $form_id)->get('formfields')->result_array();
+        $existingFieldIds = array_column($existingFields, 'form_fields_id');
+
+        $updatedFieldIds = []; // Track updated/new fields
+
+        foreach ($fields as $index => $field) {
+            $fieldId = $field['form_fields_id'] ?? null;
+
+            $fieldData = [
+                'form_id'     => $form_id,
+                'label'       => $field['label'],
+                'type'        => $field['type'],
+                'placeholder' => $field['placeholder'] ?? null,
+                'required'    => !empty($field['required']) ? 1 : 0,
+                'order'       => $index + 1,
+            ];
+
+            if ($fieldId && in_array($fieldId, $existingFieldIds)) {
+                // Update existing field
+                $this->db->where('form_fields_id', $fieldId)->update('formfields', $fieldData);
+                $updatedFieldIds[] = $fieldId;
+            } else {
+                // Insert new field
+                $this->db->insert('formfields', $fieldData);
+                $updatedFieldIds[] = $this->db->insert_id();
+            }
+        }
+
+        // Identify and delete removed fields
+        $fieldsToDelete = array_diff($existingFieldIds, $updatedFieldIds);
+        if (!empty($fieldsToDelete)) {
+            $this->db->where_in('form_fields_id', $fieldsToDelete)->delete('formfields');
+        }
+
+        // Commit transaction
+        $this->db->trans_complete();
+
+        // Check transaction status
+        if ($this->db->trans_status() === FALSE) {
+            echo json_encode(['success' => false, 'message' => 'Failed to update the form.']);
+        } else {
+            echo json_encode([
+                'success' => true,
+                'message' => 'Form updated successfully.',
+                'redirect' => site_url('admin/list-activity-evaluation'),
+            ]);
+        }
+    }
+
+    public function view_evaluationform($form_id)
+    {
+        $data['title'] = 'Edit Evaluation Form';
+
+        $student_id = $this->session->userdata('student_id');
+
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
+
+        // Fetch activities based on user role
+        $data['activities'] = $this->admin->activity_organized();
+        $data['forms'] = $this->admin->get_evaluation_by_id($form_id);
+
+        $form_data = $this->admin->get_evaluation_by_id($form_id);
+        $data['form_data'] = $form_data;
+
+        $this->load->view('layout/header', $data);
+        $this->load->view('admin/activity/eval_view-evaluation-form', $data);
+        $this->load->view('layout/footer', $data);
+    }
+
+    //	END EVALUATION FROM
+
+
 
     // Helper function to get status class
     public function get_status_class($status)
@@ -455,83 +678,108 @@ class AdminController extends CI_Controller
         return isset($status_classes[$status]) ? $status_classes[$status] : 'secondary'; // Default to 'secondary' if no status is found
     }
 
-    // create evaluation
-    public function create_eval()
+
+
+
+    public function list_evaluation_answers($activity_id)
     {
-        // Get the form data from POST request
-        $formData = array(
-            'title' => $this->input->post('formtitle'),
-            'description' => $this->input->post('formdescription'),
-            'activity_id' => $this->input->post('activity'), // Include activity_id from the form
-            // Check if start_date is provided, otherwise use the current date and time
-            'start_date' => $this->input->post('startdate') ? date('Y-m-d H:i:s', strtotime($this->input->post('startdate'))) : date('Y-m-d H:i:s'),
-            // Check if end_date is provided, otherwise set it to 1 week from the start date
-            'end_date' => $this->input->post('enddate') ? date('Y-m-d H:i:s', strtotime($this->input->post('enddate'))) : date('Y-m-d H:i:s', strtotime('+1 week')),
-        );
+        // Load necessary models
+        $this->load->model('Admin_model');
 
-        // Get form fields data
-        $fields = $this->input->post('fields'); // Array of fields from the frontend
+        $student_id = $this->session->userdata('student_id');
 
-        // Validate that fields is an array
-        if (is_array($fields) && count($fields) > 0) {
-            $fieldsData = array();
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $users = $this->admin->get_student($student_id);
+        $data['role'] = $users['role'];
+        $data['profile_pic'] = $users['profile_pic'];
 
-            foreach ($fields as $index => $field) {
-                // Ensure required keys exist in the field data
-                $label = isset($field['label']) ? $field['label'] : '';
-                $type = isset($field['type']) ? $field['type'] : '';
-                $placeholder = isset($field['placeholder']) ? $field['placeholder'] : '';
-                $required = isset($field['required']) && $field['required'] ? 1 : 0; // 1 if required, 0 otherwise
+        //  Fetch the specific activity instead of all activities
+        $activity = $this->admin->get_activity_by_id($activity_id);
 
-                // Validate that the label is not empty
-                if (!empty($label)) {
-                    $fieldsData[] = array(
-                        'label' => $label,
-                        'type' => $type, // Use the type provided by the frontend
-                        'placeholder' => $placeholder,
-                        'required' => $required,
-                        'order' => $index + 1 // Order of the field
-                    );
-                }
-            }
-
-            // Ensure at least one valid field is provided
-            if (!empty($fieldsData)) {
-                // Save the form and its fields
-                $this->db->trans_start(); // Start a transaction
-
-                // Insert the form data into the forms table
-                $this->db->insert('forms', $formData);
-                $formId = $this->db->insert_id(); // Get the last inserted form ID
-
-                // Insert the fields into the form_fields table
-                foreach ($fieldsData as &$fieldData) {
-                    $fieldData['form_id'] = $formId; // Associate the field with the form
-                }
-
-                $this->db->insert_batch('formfields', $fieldsData); // Insert multiple fields in one query
-
-                $this->db->trans_complete(); // Complete the transaction
-
-                // Check if the transaction was successful
-                if ($this->db->trans_status() === FALSE) {
-                    // Rollback the transaction if something went wrong
-                    echo json_encode(['status' => 'error', 'message' => 'Failed to save the form. Please try again.']);
-                } else {
-                    // Commit the transaction and return success
-                    echo json_encode(['status' => 'success', 'message' => 'Form saved successfully.']);
-                }
-            } else {
-                echo json_encode(['status' => 'error', 'message' => 'No valid fields provided.']);
-            }
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Invalid input data.']);
+        if (!$activity) {
+            show_404(); // Show a 404 error if the activity is not found
         }
+
+        //  Fetch forms for the specific activity
+        $forms = $this->admin->get_forms_by_activity($activity_id);
+
+        // Initialize an array to hold form responses
+        $form_responses = [];
+
+        foreach ($forms as $form) {
+            $responses = $this->admin->get_responses_by_form($form->form_id);
+
+            foreach ($responses as $response) {
+                // Get student information
+                $student = $this->admin->get_student_by_id($response->student_id);
+
+                $form_responses[] = [
+                    'form_id' => $form->form_id,
+                    'form_title' => $form->title,
+                    'student_name' => $student->first_name . ' ' . $student->last_name,
+                    'submitted_at' => $response->submitted_at,
+                    'evaluation_response_id' => $response->evaluation_response_id,
+                ];
+            }
+        }
+
+        //  Pass correct data to the view
+        $data['form_responses'] = $form_responses;
+        $data['activity_id'] = $activity_id;
+        $data['activity'] = $activity; //  Pass the specific activity to the view
+        $data['activities'] = [$activity]; //  Make it an array to avoid foreach() errors
+
+        // Load views
+        $this->load->view('layout/header', $data);
+        $this->load->view('admin/activity/list-evaluation-answers', $data);
+        $this->load->view('layout/footer', $data);
     }
 
-    //========CREATE EVALUATION END
 
-    //  <=== REVIEW EXCUSE LETTER SECTION ===>
+
+    // In your AdminController.php
+
+    public function view_response($evaluation_response_id)
+    {
+        // Load necessary models
+        $this->load->model('Admin_model');
+        $student_id = $this->session->userdata('student_id');
+
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $users = $this->admin->get_student($student_id);
+        $data['role'] = $users['role'];
+        $data['profile_pic'] = $users['profile_pic'];
+
+        // Get answers for the given evaluation_response_id
+        $answers = $this->admin->get_answers_by_evaluation_response($evaluation_response_id);
+        $data['answers'] = $answers;
+
+        // Check if answers have form_id and fetch form details
+        if (!empty($answers) && isset($answers[0]->form_id)) {
+            $form_id = $answers[0]->form_id;  // Get form_id from the first answer
+            $form = $this->admin->get_form_by_id($form_id);  // Fetch form details using form_id
+            $data['form'] = $form;
+        } else {
+            // If no answers or form_id, handle the case
+            $data['form'] = null;
+        }
+
+        // Pass evaluation_response_id to the view
+        $data['evaluation_response_id'] = $evaluation_response_id;
+
+        // Load the views
+        $this->load->view('layout/header', $data);
+        $this->load->view('admin/activity/evaluation_responses_page', $data);
+        $this->load->view('layout/footer', $data);
+    }
+
+
+    //	========= EVALUATION RESPONSES END
+
+
+
+
+    //  START EXCUSE LETTER SECTION
 
     // FETCHING ACTIVITY
     public function list_activity_excuse()
@@ -540,23 +788,13 @@ class AdminController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
-
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
-
-        // CROSS CHECKING OF THE WHERE THE USER IS ADMIN
-        $data['organization'] = $this->admin->admin_org();
-        $data['department'] = $this->admin->admin_dept();
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
 
         $data['activities'] = $this->admin->get_activities();
 
         $this->load->view('layout/header', $data);
-        $this->load->view('admin/activity/list-activities-excuseletter', $data);
+        $this->load->view('admin/activity/exc_list-activities-excuseletter', $data);
         $this->load->view('layout/footer', $data);
     }
 
@@ -568,20 +806,14 @@ class AdminController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
-
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
 
         $data['activities'] = $this->admin->fetch_application($activity_id);
         $data['letters'] = $this->admin->fetch_letters();
 
         $this->load->view('layout/header', $data);
-        $this->load->view('admin/activity/list-excuse-letter', $data);
+        $this->load->view('admin/activity/exc_list-excuse-letter', $data);
         $this->load->view('layout/footer', $data);
     }
 
@@ -592,19 +824,13 @@ class AdminController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
-
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
 
         $data['excuse'] = $this->admin->review_letter($excuse_id);
 
         $this->load->view('layout/header', $data);
-        $this->load->view('admin/activity/excuse-letter', $data);
+        $this->load->view('admin/activity/exc_excuse-letter', $data);
         $this->load->view('layout/footer', $data);
     }
 
@@ -626,9 +852,9 @@ class AdminController extends CI_Controller
         $result = $this->admin->updateApprovalStatus($data);
 
         if ($result) {
-            echo json_encode(['success' => true]);
+            echo json_encode(['success' => true, 'message' => 'Approval status updated successfully.']);
         } else {
-            echo json_encode(['success' => false]);
+            echo json_encode(['success' => false, 'message' => 'Failed to update approval statu']);
         }
     }
 
@@ -641,14 +867,8 @@ class AdminController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
-
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
 
         // GETTING USER INFORMATION
         $data['authors'] = $this->admin->get_user();
@@ -837,9 +1057,11 @@ class AdminController extends CI_Controller
     // ADDING OF POST
     public function add_post()
     {
+
         $student_id = $this->session->userdata('student_id');
-        $dept_id = $this->admin->admin_dept_id();
-        $org_id = $this->admin->admin_org_id();
+
+        $dept = $this->admin->admin_dept();
+        $org = $this->admin->admin_org();
 
         // Check if the form is submitted
         if ($this->input->post()) {
@@ -862,8 +1084,8 @@ class AdminController extends CI_Controller
                 'student_id' => $student_id,
                 'content' => $this->input->post('content'),
                 'privacy' => $this->input->post('privacyStatus'),
-                'dept_id' => $dept_id,
-                'org_id' => $org_id,
+                'dept_id' => !empty($dept->dept_id) ? $dept->dept_id : NULL,
+                'org_id' => !empty($org->org_id) ? $org->org_id : NULL,
             ];
 
             // Handle file upload if an image is provided
@@ -931,14 +1153,8 @@ class AdminController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
-
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
 
         // CROSS CHECKING OF THE WHERE THE USER IS ADMIN
         $data['organization'] = $this->admin->admin_org();
@@ -957,14 +1173,8 @@ class AdminController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
-
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
 
         // FETCHING ALL THE DEPARTMENT
         $data['department'] = $this->admin->get_department();
@@ -983,14 +1193,8 @@ class AdminController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
-
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
 
         $data['dept_id'] = $dept_id;
         $data['activity_id'] = $activity_id;
@@ -1016,19 +1220,30 @@ class AdminController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
 
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
+        $data['activity'] = $this->admin->get_activity($activity_id);
+        $data['schedule'] = $this->admin->get_schedule($activity_id);
+
+        $this->load->view('layout/header', $data);
+        $this->load->view('admin/attendance/scanqr', $data);
+        $this->load->view('layout/footer', $data);
+    }
+
+    public function face_recognition($activity_id)
+    {
+        $data['title'] = 'Face Recognition';
+
+        $student_id = $this->session->userdata('student_id');
+
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
 
         $data['activity'] = $this->admin->get_activity($activity_id);
 
         $this->load->view('layout/header', $data);
-        $this->load->view('admin/attendance/scanqr', $data);
+        $this->load->view('admin/attendance/face', $data);
         $this->load->view('layout/footer', $data);
     }
 
@@ -1269,78 +1484,53 @@ class AdminController extends CI_Controller
 
 
     // <====== FINES MONITORING =====>
-    public function list_activities_fines()
-    {
-        $data['title'] = 'All Activities';
+    // public function list_activities_fines()
+    // {
+    //     $data['title'] = 'All Activities';
 
-        $student_id = $this->session->userdata('student_id');
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
+    //     // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+    //     $data['users'] = $this->admin->get_student($student_id);
 
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
+    //     // CROSS CHECKING OF THE WHERE THE USER IS ADMIN
+    //     $data['organization'] = $this->admin->admin_org();
+    //     $data['department'] = $this->admin->admin_dept();
 
-        // CROSS CHECKING OF THE WHERE THE USER IS ADMIN
-        $data['organization'] = $this->admin->admin_org();
-        $data['department'] = $this->admin->admin_dept();
+    //     $data['activities'] = $this->admin->get_activities();
 
-        $data['activities'] = $this->admin->get_activities();
+    //     $this->load->view('layout/header', $data);
+    //     $this->load->view('admin/fines/list-activities-fines', $data);
+    //     $this->load->view('layout/footer', $data);
+    // }
 
-        $this->load->view('layout/header', $data);
-        $this->load->view('admin/fines/list-activities-fines', $data);
-        $this->load->view('layout/footer', $data);
-    }
+    // public function list_department_fines($activity_id)
+    // {
+    //     $data['title'] = 'List of Department';
 
-    public function list_department_fines($activity_id)
-    {
-        $data['title'] = 'List of Department';
+    //     $student_id = $this->session->userdata('student_id');
 
-        $student_id = $this->session->userdata('student_id');
+    //     // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+    //     $data['users'] = $this->admin->get_student($student_id);
 
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
+    //     // FETCHING ALL THE DEPARTMENT
+    //     $data['department'] = $this->admin->get_department();
 
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
+    //     $data['activity_id'] = $activity_id;
 
-
-        // FETCHING ALL THE DEPARTMENT
-        $data['department'] = $this->admin->get_department();
-
-        $data['activity_id'] = $activity_id;
-
-        $this->load->view('layout/header', $data);
-        $this->load->view('admin/fines/department', $data);
-        $this->load->view('layout/footer', $data);
-    }
+    //     $this->load->view('layout/header', $data);
+    //     $this->load->view('admin/fines/department', $data);
+    //     $this->load->view('layout/footer', $data);
+    // }
 
 
     //======> FINES
-    public function list_fines($activity_id, $dept_id)
+    public function list_fines()
     {
         $data['title'] = 'List of Fines';
 
         $student_id = $this->session->userdata('student_id');
 
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
-
-
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
-
-
-        $data['dept_id'] = $dept_id;
-        $data['activity_id'] = $activity_id;
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
 
         // CHECKING WHERE THE USER ADMIN
         $data['organization'] = $this->admin->admin_org();
@@ -1348,7 +1538,7 @@ class AdminController extends CI_Controller
 
         $data['department'] = $this->admin->get_department();
 
-        $data['activities'] = $this->admin->fetch_application($activity_id);
+        //$data['activities'] = $this->admin->fetch_application($activity_id);
 
         $data['fines'] = $this->admin->fetch_students();
 
@@ -1425,7 +1615,7 @@ class AdminController extends CI_Controller
         }
 
         // Fetch User Role
-        $users = $this->Student_model->get_roles($student_id);
+        $data['users'] = $this->admin->get_student($student_id);
         $data['role'] = $users['role'];
 
         // Pass student_id to the view
@@ -1590,14 +1780,8 @@ class AdminController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
-
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
 
         // FETCHING ALL THE DEPARTMENT
         $data['department'] = $this->admin->get_department();
@@ -1616,14 +1800,8 @@ class AdminController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
-
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
 
         // FETCHING ALL THE DEPARTMENT
         $data['department'] = $this->admin->get_department();
@@ -1664,14 +1842,8 @@ class AdminController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->admin->get_roles($student_id);
-        $data['role'] = $users['role'];
-
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
 
         // FETCHING ALL THE DEPARTMENT
         $data['organization'] = $this->admin->get_organization();
@@ -1711,7 +1883,7 @@ class AdminController extends CI_Controller
         date_default_timezone_set('Asia/Manila');
 
         // Validate input
-        $this->form_validation->set_rules('student', 'Registration Number', 'required');
+        $this->form_validation->set_rules('student_id', 'Student Number', 'required');
         $this->form_validation->set_rules('activityId', 'Activity ID', 'required');
 
         if ($this->form_validation->run() == FALSE) {
@@ -1722,7 +1894,7 @@ class AdminController extends CI_Controller
             return;
         }
 
-        $student_id = $this->input->post('registrationNumber');
+        $student_id = $this->input->post('student_id');
         $activity_id = $this->input->post('activityId');
         $current_time = date('H:i:s');
 

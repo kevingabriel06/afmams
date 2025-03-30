@@ -17,14 +17,14 @@
 
 <div class="row gx-3">
     <div class="col-xxl-10 col-xl-12">
-        <div class="card" id="ticketsTable"
-            data-list='{"valueNames":["name","status"],"page":11,"pagination":true,"fallback":"tickets-table-fallback"}'>
+        <div class="card" id="attendanceTable"
+            data-list='{"valueNames":["id", "name", "department", "status"],"page":11,"pagination":true,"fallback":"attendance-table-fallback"}'>
 
             <div class="card-header border-bottom border-200 px-0">
                 <div class="d-lg-flex justify-content-between">
                     <div class="row flex-between-center gy-2 px-x1">
                         <div class="col-auto pe-0">
-                            
+
                         </div>
                     </div>
 
@@ -59,149 +59,24 @@
                     <table class="table table-hover table-striped overflow-hidden">
                         <thead class="bg-200">
                             <tr>
-                                <th class="text-900 px-6 py-2">Student ID</th>
-                                <th class="text-900 px-6 py-2">Name</th>
-                                <th class="text-900 px-7 py-2">Status</th>
+                                <th scope="col" class="text-nowrap">Student ID</th>
+                                <th scope="col">Name</th>
+                                <th scope="col">Department</th>
+                                <th scope="col">Time In</th>
+                                <th scope="col">Time Out</th>
+                                <th scope="col">Status</th>
                             </tr>
                         </thead>
                         <tbody class="list" id="table-ticket-body">
-                            <?php foreach ($students as $student) : ?>
-                                <?php if($role = 'Officer' && !empty($organization->org_id) && empty($departments->dept_id)) :?>
-                                    <?php if (
-                                        isset($activities['activity_id']) && 
-                                        $activities['activity_id'] == $student->activity_id && 
-                                        $student->dept_id == $dept_id && 
-                                        $student->org_id == $organization->org_id
-                                    ): ?>
-                                        <tr class="attendance-row"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#attendanceModal"
-                                            data-student-id="<?php echo htmlspecialchars($student->student_id); ?>"
-                                            data-name="<?php echo htmlspecialchars($student->first_name . ' ' . $student->last_name); ?>"
-                                            data-department="<?php echo htmlspecialchars($student->dept_name); ?>"
-                                            data-status="<?php echo htmlspecialchars($student->attendance_status); ?>"
-                                            data-am-in="<?php echo htmlspecialchars($student->am_in ?? 'N/A'); ?>"
-                                            data-am-out="<?php echo htmlspecialchars($student->am_out ?? 'N/A'); ?>"
-                                            data-pm-in="<?php echo htmlspecialchars($student->pm_in ?? 'N/A'); ?>"
-                                            data-pm-out="<?php echo htmlspecialchars($student->pm_out ?? 'N/A'); ?>">
-
-                                            <td class="student_id align-middle text-nowrap px-6 py-2">
-                                                <h6 class="mb-0"><?php echo htmlspecialchars($student->student_id); ?></h6>
-                                            </td>
-                                            <td class="name px-6 py-2">
-                                                <h6 class="mb-0"><?php echo htmlspecialchars($student->first_name . ' ' . $student->last_name); ?></h6>
-                                            </td>
-                                            <td class="status px-7 py-2">
-                                                <?php if ($student->attendance_status === 'Present'): ?>
-                                                    <span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Present
-                                                        <span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span>
-                                                    </span>
-                                                <?php elseif ($student->attendance_status === 'Absent'): ?>
-                                                    <span class="badge badge rounded-pill d-block p-2 badge-subtle-danger">Absent
-                                                        <span class="ms-1 fas fa-redo" data-fa-transform="shrink-2"></span>
-                                                    </span>
-                                                <?php elseif ($student->attendance_status === 'Incomplete'): ?>
-                                                    <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">Incomplete
-                                                        <span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span>
-                                                    </span>
-                                                <?php else: ?>
-                                                    <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">Default
-                                                        <span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span>
-                                                    </span>
-                                                <?php endif; ?>
-                                            </td>
-                                        </tr>
-                                    <?php endif;?>
-                                <?php elseif ($role = 'Admin') :?>
-                                    <?php if (
-                                        isset($activities['activity_id']) && 
-                                        $activities['activity_id'] == $student->activity_id && 
-                                        $student->dept_id == $dept_id
-                                    ): ?>
-                                    <tr class="attendance-row"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#attendanceModal"
-                                        data-student-id="<?php echo htmlspecialchars($student->student_id); ?>"
-                                        data-name="<?php echo htmlspecialchars($student->first_name . ' ' . $student->last_name); ?>"
-                                        data-department="<?php echo htmlspecialchars($student->dept_name); ?>"
-                                        data-status="<?php echo htmlspecialchars($student->attendance_status); ?>"
-                                        data-am-in="<?php echo htmlspecialchars($student->am_in ?? 'N/A'); ?>"
-                                        data-am-out="<?php echo htmlspecialchars($student->am_out ?? 'N/A'); ?>"
-                                        data-pm-in="<?php echo htmlspecialchars($student->pm_in ?? 'N/A'); ?>"
-                                        data-pm-out="<?php echo htmlspecialchars($student->pm_out ?? 'N/A'); ?>">
-
-                                        <td class="student_id align-middle text-nowrap px-6 py-2">
-                                            <h6 class="mb-0"><?php echo htmlspecialchars($student->student_id); ?></h6>
-                                        </td>
-                                        <td class="name px-6 py-2">
-                                            <h6 class="mb-0"><?php echo htmlspecialchars($student->first_name . ' ' . $student->last_name); ?></h6>
-                                        </td>
-                                        <td class="status px-7 py-2">
-                                            <?php if ($student->attendance_status === 'Present'): ?>
-                                                <span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Present
-                                                    <span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span>
-                                                </span>
-                                            <?php elseif ($student->attendance_status === 'Absent'): ?>
-                                                <span class="badge badge rounded-pill d-block p-2 badge-subtle-danger">Absent
-                                                    <span class="ms-1 fas fa-redo" data-fa-transform="shrink-2"></span>
-                                                </span>
-                                            <?php elseif ($student->attendance_status === 'Incomplete'): ?>
-                                                <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">Incomplete
-                                                    <span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span>
-                                                </span>
-                                            <?php else: ?>
-                                                <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">Default
-                                                    <span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span>
-                                                </span>
-                                            <?php endif; ?>
-                                        </td>
-                                    <?php endif;?>
-                                <?php else: ?>
-                                    <?php if (
-                                        isset($activities['activity_id']) && 
-                                        $activities['activity_id'] == $student->activity_id && 
-                                        $student->dept_id == $dept_id
-                                    ): ?>
-                                    <tr class="attendance-row"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#attendanceModal"
-                                        data-student-id="<?php echo htmlspecialchars($student->student_id); ?>"
-                                        data-name="<?php echo htmlspecialchars($student->first_name . ' ' . $student->last_name); ?>"
-                                        data-department="<?php echo htmlspecialchars($student->dept_name); ?>"
-                                        data-status="<?php echo htmlspecialchars($student->attendance_status); ?>"
-                                        data-am-in="<?php echo htmlspecialchars($student->am_in ?? 'N/A'); ?>"
-                                        data-am-out="<?php echo htmlspecialchars($student->am_out ?? 'N/A'); ?>"
-                                        data-pm-in="<?php echo htmlspecialchars($student->pm_in ?? 'N/A'); ?>"
-                                        data-pm-out="<?php echo htmlspecialchars($student->pm_out ?? 'N/A'); ?>">
-
-                                        <td class="student_id align-middle text-nowrap px-6 py-2">
-                                            <h6 class="mb-0"><?php echo htmlspecialchars($student->student_id); ?></h6>
-                                        </td>
-                                        <td class="name px-6 py-2">
-                                            <h6 class="mb-0"><?php echo htmlspecialchars($student->first_name . ' ' . $student->last_name); ?></h6>
-                                        </td>
-                                        <td class="status px-7 py-2">
-                                            <?php if ($student->attendance_status === 'Present'): ?>
-                                                <span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Present
-                                                    <span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span>
-                                                </span>
-                                            <?php elseif ($student->attendance_status === 'Absent'): ?>
-                                                <span class="badge badge rounded-pill d-block p-2 badge-subtle-danger">Absent
-                                                    <span class="ms-1 fas fa-redo" data-fa-transform="shrink-2"></span>
-                                                </span>
-                                            <?php elseif ($student->attendance_status === 'Incomplete'): ?>
-                                                <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">Incomplete
-                                                    <span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span>
-                                                </span>
-                                            <?php else: ?>
-                                                <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">Default
-                                                    <span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span>
-                                                </span>    
-                                            <?php endif; ?>
-                                        </td>
-                                    <?php endif;?>
-                                <?php endif;?>  
-                            <?php endforeach; ?>
+                            <tr class="attendance-row">
+                                <td class="text-nowrap id">21-03529</td>
+                                <td class="text-nowrap name">Ricky Antony</td>
+                                <td class="text-nowrap department">Bachewlor of Science in Information System</td>
+                                <td class="text-nowrap">March 8, 2025 | 8:00 AM</td>
+                                <td class="text-nowrap">March 8, 2025 | 12:00 PM</td>
+                                <td class="status"><span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Completed<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span></td>
+                                </td>
+                            </tr>
 
                             <!-- "No activities listed" Row -->
                             <tr id="no-attendance-row" style="display: none;">
@@ -212,7 +87,7 @@
                             </tr>
                         </tbody>
                     </table>
-                    <div class="text-center d-none" id="tickets-table-fallback">
+                    <div class="text-center d-none" id="attendance-table-fallback">
                         <span class="fa fa-user-slash fa-2x text-muted"></span>
                         <p class="fw-bold fs-8 mt-3">No Student Found</p>
                     </div>
@@ -234,7 +109,7 @@
     </div>
 
 
-   <!-- Attendance Details Modal -->
+    <!-- Attendance Details Modal -->
     <div class="modal fade" id="attendanceModal" tabindex="-1" aria-labelledby="attendanceModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -274,10 +149,10 @@
 
     <!-- JavaScript to Populate and Display Attendance -->
     <script>
-       document.addEventListener("DOMContentLoaded", function () {
+        document.addEventListener("DOMContentLoaded", function() {
             var attendanceModal = document.getElementById("attendanceModal");
 
-            attendanceModal.addEventListener("show.bs.modal", function (event) {
+            attendanceModal.addEventListener("show.bs.modal", function(event) {
                 var button = event.relatedTarget; // Button that triggered the modal
 
                 // Extract data attributes
@@ -321,8 +196,6 @@
                 }
             });
         });
-
-
     </script>
 
 
@@ -393,19 +266,4 @@
                 modal.hide();
             }
         }
-
-        // FOR SEARCH
-        document.addEventListener("DOMContentLoaded", function() {
-            var options = {
-                valueNames: ["name", "status"],
-                page: 11,
-                pagination: true
-            };
-
-            var excuseList = new List("ticketsTable", options);
-
-            document.getElementById("searchInput").addEventListener("keyup", function() {
-                excuseList.search(this.value);
-            });
-        });
     </script>
