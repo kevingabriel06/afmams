@@ -9,44 +9,351 @@ class Student_model extends CI_Model
         $this->load->database();
     }
 
-    // CHECKING OF ROLES FOR DISPLAYING DIFFERENT PARTS OF SYSTEM
-    public function get_roles($student_id)
-    {
-        $this->db->select('role');
-        $this->db->from('users');
-        $this->db->where('student_id', $student_id);
-        $query = $this->db->get();
 
-        return $query->row_array(); // Ensure it returns an array
+    // CHECKING OF ROLES FOR DISPLAYING DIFFERENT PARTS OF SYSTEM
+    public function get_student($student_id)
+    {
+        $student_id = $this->session->userdata('student_id');
+
+        return $this->db->get_where('users', ['student_id' => $student_id])->row_array();
     }
 
+    // START HOME
+
+    // FECTCHING WHO IS THE AUTHOR OF THE POST
+    public function get_user()
+    {
+
+        $student_id = $this->session->userdata('student_id');
+
+        if ($student_id) {
+            $this->db->select('*');
+            $this->db->from('users');
+            $this->db->where('student_id', $student_id);
+
+            $query = $this->db->get();
+
+            if ($query->num_rows() > 0) {
+                return $query->row();
+            } else {
+                return null;
+            }
+        } else {
+            // If student_id is not set in the session
+            return null;
+        }
+    }
+
+    public function get_all_posts($limit, $offset)
+    {
+        // 1. Get the logged-in student's ID
+        $student_id = $this->session->userdata('student_id');
+
+        // 2. Fetch user's dept_id
+        $user = $this->db->select('dept_id')
+            ->from('users')
+            ->where('student_id', $student_id)
+            ->get()
+            ->row();
+
+        $user_dept_id = $user ? $user->dept_id : null;
+
+        // 3. Fetch all orgs that the student belongs to
+        $orgs = $this->db->select('org_id')
+            ->from('student_org')
+            ->where('student_id', $student_id)
+            ->get()
+            ->result();
+
+        // Convert to a flat array of org_ids
+        $org_ids = array_map(function ($org) {
+            return $org->org_id;
+        }, $orgs);
+
+        // 4. Main query
+        $this->db->select('*');
+        $this->db->from('post');
+        $this->db->join('users', 'post.student_id = users.student_id', 'left');
+        $this->db->join('department', 'department.dept_id = post.dept_id', 'left');
+        $this->db->join('organization', 'organization.org_id = post.org_id', 'left');
+
+        // 5. Filter: show public OR private posts that match dept/org
+        $this->db->group_start();
+        $this->db->where('post.privacy', 'public');
+
+        if (!empty($org_ids) || $user_dept_id) {
+            $this->db->or_group_start();
+            $this->db->where('post.privacy', 'private');
+
+            $this->db->group_start();
+            if (!empty($org_ids)) {
+                $this->db->where_in('post.org_id', $org_ids);
+            }
+            if ($user_dept_id) {
+                $this->db->or_where('post.dept_id', $user_dept_id);
+            }
+            $this->db->group_end();
+            $this->db->group_end();
+        }
+
+        $this->db->group_end();
+
+        $this->db->order_by('post.post_id', 'DESC');
+        $this->db->limit($limit, $offset);
+
+        $query = $this->db->get();
+        return $query->result();
+    }
+
+
+
+    public function get_shared_activities($limit, $offset)
+    {
+        // Get logged-in student ID
+        $student_id = $this->session->userdata('student_id');
+
+        // Get the student's department and name
+        $user = $this->db->select('users.dept_id, department.dept_name')
+            ->from('users')
+            ->join('department', 'users.dept_id = department.dept_id')
+            ->where('student_id', $student_id)
+            ->get()
+            ->row();
+
+        $user_dept_id = $user ? $user->dept_id : null;
+        $user_dept_name = $user ? $user->dept_name : null;
+
+        // Get all orgs the student belongs to
+        $orgs = $this->db->select('student_org.org_id, organization.org_name')
+            ->from('student_org')
+            ->join('organization', 'student_org.org_id = organization.org_id')
+            ->where('student_id', $student_id)
+            ->get()
+            ->result();
+
+        $org_ids = array_map(function ($org) {
+            return $org->org_id;
+        }, $orgs);
+
+        $org_names = array_map(function ($org) {
+            return $org->org_name;
+        }, $orgs);
+
+        // Start the query for activities
+        $this->db->select('*');
+        $this->db->from('activity');
+        $this->db->where('is_shared', 'Yes');  // Ensure the activity is shared
+
+        // Filter for public activities: organizer = "Student Parliament" and audience = "All"
+        $this->db->group_start();
+        $this->db->where('organizer', 'Student Parliament');
+        $this->db->where('audience', 'All');
+        $this->db->group_end();
+
+        // Filter for private activities: audience matches the student's department or organization
+        $this->db->or_group_start();
+        $this->db->where('audience', $user_dept_name);  // Check if audience matches the department
+        if (!empty($org_names)) {
+            $this->db->or_where_in('audience', $org_names);  // Check if audience matches the organizations the student belongs to
+        }
+        $this->db->group_end();
+
+        // Add pagination (LIMIT and OFFSET)
+        $this->db->limit($limit, $offset);
+
+        $query = $this->db->get();
+        return $query->result();
+    }
+
+    // UPCOMING ACTIVITY
+    public function get_activities_upcoming()
+    {
+        // Get logged-in student ID
+        $student_id = $this->session->userdata('student_id');
+
+        // Get the student's department and name
+        $user = $this->db->select('users.dept_id, department.dept_name')
+            ->from('users')
+            ->join('department', 'users.dept_id = department.dept_id')
+            ->where('student_id', $student_id)
+            ->get()
+            ->row();
+
+        $user_dept_name = $user ? $user->dept_name : null;
+
+        // Get all orgs the student belongs to
+        $orgs = $this->db->select('student_org.org_id, organization.org_name')
+            ->from('student_org')
+            ->join('organization', 'student_org.org_id = organization.org_id')
+            ->where('student_id', $student_id)
+            ->get()
+            ->result();
+
+        $org_names = array_map(function ($org) {
+            return $org->org_name;
+        }, $orgs);
+
+        // Fetch upcoming activities
+        $this->db->select('*');
+        $this->db->from('activity');
+        $this->db->where('status', 'Upcoming');
+
+        // Check if the audience is the student's department or if the student belongs to the organization of the activity
+        $this->db->group_start();
+        $this->db->or_where('audience', 'All'); // Student Parliament activities
+        $this->db->or_where('audience', $user_dept_name); // Department-specific activities
+        $this->db->or_where_in('audience', $org_names); // Activities related to the student's organizations
+        $this->db->group_end();
+
+        // Execute the query
+        $query = $this->db->get();
+        return $query->result();
+    }
+
+
+    // LIKES FUNCTIONALITY
+    public function like_post($post_id, $student_id)
+    {
+        // Insert a like into the database
+        $data = [
+            'post_id' => $post_id,
+            'student_id' => $student_id
+        ];
+        $this->db->insert('likes', $data); // Assuming a 'likes' table exists
+        $this->update_like_count($post_id); // Update like count in the post table
+    }
+
+    public function unlike_post($post_id, $student_id)
+    {
+        // Remove the like from the database
+        $this->db->delete('likes', ['post_id' => $post_id, 'student_id' => $student_id]);
+        $this->update_like_count($post_id); // Update like count in the post table
+    }
+
+    // ADDING OF COMMENTS
+    public function add_comment($data = null)
+    {
+        $data = [
+            'post_id' => $this->input->post('post_id'),
+            'student_id' => $this->session->userdata('student_id'),
+            'content' => $this->input->post('comment'),
+            'created_at' => date('Y-m-d H:i:s') // Use PHP's date() function directly
+        ];
+
+        return $this->db->insert('comment', $data);  // Assuming 'comments' is the correct table name
+    }
+
+    // DELETION OF POST
+    public function delete_post($post_id)
+    {
+        $this->db->where('post_id', $post_id)->delete('comment');
+        $this->db->where('post_id', $post_id)->delete('likes');
+        $this->db->where('post_id', $post_id);
+        return $this->db->delete('post'); // Assuming your table name is 'posts'
+    }
+
+    public function get_likes_by_post($post_id)
+    {
+        // Query to get the users who liked the post
+        $this->db->select('users.first_name, users.last_name, profile_pic');
+        $this->db->from('likes');
+        $this->db->join('users', 'users.student_id = likes.student_id');
+        $this->db->where('likes.post_id', $post_id);
+        $query = $this->db->get();
+
+        // Return the result as an array of objects
+        return $query->result();
+    }
+
+    // GETTING LIKE COUNT
+    public function get_like_count($post_id)
+    {
+        // Get the current like count for the post
+        $this->db->where('post_id', $post_id);
+        $this->db->from('likes');
+        return $this->db->count_all_results();
+    }
+
+    // COUNTING THE COMMENTS
+    public function get_comment_count($post_id)
+    {
+        $this->db->where('post_id', $post_id);
+        $this->db->from('comment'); // Ensure this matches your table name
+        return $this->db->count_all_results();
+    }
+
+    // CHECK THE USER IF ALREADY LIKE THE POST
+    public function user_has_liked($post_id, $student_id)
+    {
+        // Check if the user has already liked the post
+        $this->db->where('post_id', $post_id);
+        $this->db->where('student_id', $student_id);
+        $query = $this->db->get('likes');
+        return $query->num_rows() > 0;
+    }
+
+    // UPDATING LIKE COUNT
+    public function update_like_count($post_id)
+    {
+        // Update the like count for the post in the 'posts' table
+        $like_count = $this->get_like_count($post_id);
+        $this->db->where('post_id', $post_id);
+        $this->db->update('post', ['like_count' => $like_count]);
+    }
+
+    // FETCH COMMENTS BY POST ID
+    public function get_comments_by_post($post_id)
+    {
+        $this->db->select('comment.*, users.*');
+        $this->db->from('comment');
+        $this->db->join('users', 'users.student_id = comment.student_id');
+        $this->db->where('comment.post_id', $post_id);
+        $this->db->order_by('comment.created_at', 'DESC');
+
+        return $this->db->get()->result(); // Return comments
+    }
+
+    public function get_latest_comment($post_id)
+    {
+        $this->db->select('c.*, s.*');
+        $this->db->from('comment c');
+        $this->db->join('users s', 'c.student_id = s.student_id', 'left');
+        $this->db->where('c.post_id', $post_id);
+        $this->db->order_by('c.created_at', 'DESC'); // Assuming you have a created_at column
+        $this->db->limit(1); // Get only the latest comment
+
+        $query = $this->db->get();
+        return $query->row(); // Return a single comment object
+    }
+
+    // END HOME
 
     //POST LIKES, COMMENTS START
 
 
-    // Insert like for a post and update the like_count in the post table
-    public function like_post($post_id, $student_id)
-    {
-        // Check if the user already liked the post
-        $this->db->where('post_id', $post_id);
-        $this->db->where('student_id', $student_id);
-        $query = $this->db->get('likes');
+    // // Insert like for a post and update the like_count in the post table
+    // public function like_post($post_id, $student_id)
+    // {
+    //     // Check if the user already liked the post
+    //     $this->db->where('post_id', $post_id);
+    //     $this->db->where('student_id', $student_id);
+    //     $query = $this->db->get('likes');
 
-        if ($query->num_rows() == 0) {
-            // Insert a like if the user hasn't already liked the post
-            $data = array(
-                'post_id' => $post_id,
-                'student_id' => $student_id,
-                'liked_at' => date('Y-m-d H:i:s')
-            );
-            $this->db->insert('likes', $data);
+    //     if ($query->num_rows() == 0) {
+    //         // Insert a like if the user hasn't already liked the post
+    //         $data = array(
+    //             'post_id' => $post_id,
+    //             'student_id' => $student_id,
+    //             'liked_at' => date('Y-m-d H:i:s')
+    //         );
+    //         $this->db->insert('likes', $data);
 
-            // Increment the like_count in the 'post' table
-            $this->db->set('like_count', 'like_count + 1', FALSE)
-                ->where('post_id', $post_id)
-                ->update('post');
-        }
-    }
+    //         // Increment the like_count in the 'post' table
+    //         $this->db->set('like_count', 'like_count + 1', FALSE)
+    //             ->where('post_id', $post_id)
+    //             ->update('post');
+    //     }
+    // }
 
 
 

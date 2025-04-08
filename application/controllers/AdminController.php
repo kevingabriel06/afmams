@@ -20,7 +20,6 @@ class AdminController extends CI_Controller
     {
         parent::__construct();
         $this->load->model('Admin_model', 'admin');
-        $this->load->model('Student_model');
 
         if (!$this->session->userdata('student_id')) {
             redirect(site_url('login'));
@@ -861,50 +860,145 @@ class AdminController extends CI_Controller
     // <===== COMMUNITY SECTION =====>
 
     // VIEWING OF COMMUNITY SECTION
+    // public function community()
+    // {
+    //     $data['title'] = 'Community';
+
+    //     $student_id = $this->session->userdata('student_id');
+
+    //     // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+    //     $data['users'] = $this->admin->get_student($student_id);
+
+    //     // GETTING USER INFORMATION
+    //     $data['authors'] = $this->admin->get_user();
+
+    //     // CHECKING WHICH THE USER BELONGS FOR DEPT AND ORG
+    //     $data['organization'] = $this->admin->get_student_organizations($student_id);
+    //     $data['department'] = $this->admin->get_student_department($student_id);
+
+    //     // POST DETAILS
+    //     $data['posts'] = $this->admin->get_all_posts();
+
+    //     // FETCH LIKE COUNTS FOR EACH POST
+    //     foreach ($data['posts'] as &$post) {
+    //         $post->like_count = $this->admin->get_like_count($post->post_id);
+    //         $post->user_has_liked_post = $this->admin->user_has_liked($post->post_id, $student_id);
+    //         $post->comments_count = $this->admin->get_comment_count($post->post_id);
+    //     }
+
+    //     // FETCH 2 COMMENTS ONLY IN A POST
+    //     foreach ($data['posts'] as &$post) {
+    //         $post->comments = $this->admin->get_comments_by_post($post->post_id);
+    //     }
+
+    //     // FETCHING ACTVITIES UPCOMING
+    //     $data['activities'] = $this->admin->get_activities();
+
+    //     // Merge and sort by date (latest first)
+    //     $data['feed'] = array_merge($data['posts'], $data['activities']);
+    //     usort($data['feed'], function ($a, $b) {
+    //         return strtotime($b->created_at) - strtotime($a->created_at);
+    //     });
+
+
+    //     // AMDIN SHARING OF ACTIVITY 
+    //     $data['org_id'] = $this->admin->admin_org_id();
+    //     $data['dept_id'] = $this->admin->admin_dept_id();
+
+
+    //     // Load the views
+    //     $this->load->view('layout/header', $data);
+    //     $this->load->view('admin/activity/community', $data);
+    //     $this->load->view('layout/footer', $data);
+    // }
+
     public function community()
     {
         $data['title'] = 'Community';
-
         $student_id = $this->session->userdata('student_id');
 
-        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        // FETCH USER DATA
         $data['users'] = $this->admin->get_student($student_id);
-
-        // GETTING USER INFORMATION
         $data['authors'] = $this->admin->get_user();
 
-        // CHECKING WHICH THE USER BELONGS FOR DEPT AND ORG
-        $data['organization'] = $this->admin->get_student_organizations($student_id);
-        $data['department'] = $this->admin->get_student_department($student_id);
+        // Get offset and limit from AJAX request
+        $limit = $this->input->post('limit') ?: 5;
+        $offset = $this->input->post('offset') ?: 0;
 
-        // POST DETAILS
-        $data['posts'] = $this->admin->get_all_posts();
-
-        // FETCH LIKE COUNTS FOR EACH POST
+        // GET LIMITED POSTS
+        $data['posts'] = $this->admin->get_all_posts($limit, $offset);
         foreach ($data['posts'] as &$post) {
             $post->like_count = $this->admin->get_like_count($post->post_id);
             $post->user_has_liked_post = $this->admin->user_has_liked($post->post_id, $student_id);
             $post->comments_count = $this->admin->get_comment_count($post->post_id);
-        }
-
-        // FETCH 2 COMMENTS ONLY IN A POST
-        foreach ($data['posts'] as &$post) {
             $post->comments = $this->admin->get_comments_by_post($post->post_id);
+            $post->type = 'post';
         }
 
-        // FETCHING ACTVITIES UPCOMING
-        $data['activities'] = $this->admin->get_activities();
+        // GET LIMITED ACTIVITIES
+        $data['activities'] = $this->admin->get_shared_activities($limit, $offset);
+        foreach ($data['activities'] as &$activity) {
+            $activity->type = 'activity';
+        }
+
+        // MERGE POSTS & ACTIVITIES BEFORE PAGINATION
+        $merged_feed = array_merge($data['posts'], $data['activities']);
+
+        // SORT MERGED DATA BY DATE
+        usort($merged_feed, function ($a, $b) {
+            // For activities, use 'updated_at', for posts, use 'created_at'
+            $a_date = isset($a->updated_at) ? $a->updated_at : (isset($a->created_at) ? $a->created_at : '');
+            $b_date = isset($b->updated_at) ? $b->updated_at : (isset($b->created_at) ? $b->created_at : '');
+
+            return strtotime($b_date) - strtotime($a_date);
+        });
+
+        //Apply pagination on the merged feed (with proper offset and limit)
+        $data['feed'] = array_slice($merged_feed, $offset, $limit);
+
+        // Activity to post and show to the upcoming section
+        $data['activities_upcoming'] = $this->admin->get_activities_upcoming();
+
+        // AJAX Request: Return only the next batch
+        if ($this->input->is_ajax_request()) {
+            $this->load->view('admin/activity/community_feed', $data);
+        } else {
+            // FULL PAGE LOAD
+            $this->load->view('layout/header', $data);
+            $this->load->view('admin/activity/community', $data);
+            $this->load->view('layout/footer', $data);
+        }
+    }
 
 
-        // AMDIN SHARING OF ACTIVITY 
-        $data['org_id'] = $this->admin->admin_org_id();
-        $data['dept_id'] = $this->admin->admin_dept_id();
+    // Method to fetch likes by post ID and return the list of users who liked
+    public function view_likes($post_id)
+    {
+        // Fetch the likes data for the given post ID
+        $likes = $this->admin->get_likes_by_post($post_id);
 
+        // Generate HTML to return as a response
+        $output = '';
+        if ($likes) {
+            // Generate HTML for the list of likes
+            foreach ($likes as $like) {
+                echo '<li class="d-flex align-items-center mt-2">';
+                echo '    <div class="avatar avatar-xl position-relative">';
+                echo '        <img class="rounded-circle" src="' . base_url('assets/profile/') . ($like->profile_pic ? $like->profile_pic : 'default.jpg') . '" alt="Profile Picture" />';
+                echo '        <div class="position-absolute top-0 start-50 translate-middle-x" style="width: 1rem; height: 1rem; margin-top: 60%; margin-left: 40%;">';
+                echo '            <img src="' . base_url('assets/img/icons/spot-illustrations/like-active.png') . '" class="w-100 h-100" alt="Heart Icon" />';
+                echo '        </div>';
+                echo '    </div>';
+                echo '    <div class="ms-3 flex-grow-1">';
+                echo '        <h6 class="fw-semi-bold mb-0">' . htmlspecialchars($like->first_name . " " . $like->last_name) . '</h6>';
+                echo '    </div>';
+                echo '</li>';
+            }
+        } else {
+            $output = '<li>No likes yet.</li>';
+        }
 
-        // Load the views
-        $this->load->view('layout/header', $data);
-        $this->load->view('admin/activity/community', $data);
-        $this->load->view('layout/footer', $data);
+        echo $output; // Output the HTML response
     }
 
     // LIKING OF POST
@@ -1529,23 +1623,38 @@ class AdminController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
-        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
         $data['users'] = $this->admin->get_student($student_id);
 
-        // CHECKING WHERE THE USER ADMIN
-        $data['organization'] = $this->admin->admin_org();
-        $data['departments'] = $this->admin->admin_dept();
-
-        $data['department'] = $this->admin->get_department();
-
-        //$data['activities'] = $this->admin->fetch_application($activity_id);
-
-        $data['fines'] = $this->admin->fetch_students();
+        $data['fines'] = $this->admin->flash_fines();
 
         $this->load->view('layout/header', $data);
         $this->load->view('admin/fines/listoffines', $data);
         $this->load->view('layout/footer', $data);
     }
+
+    public function confirm_payment()
+    {
+        $student_id = $this->input->post('student_id');
+        $total_fines = $this->input->post('total_fines');
+        $mode_of_payment = $this->input->post('mode_of_payment');
+        $reference_number = $this->input->post('reference_number');
+
+        // Check if the reference number matches the expected one
+        $match = $this->admin->verify_reference($student_id, $reference_number);
+
+        // Update status depending on whether it matched
+        $this->admin->update_payment_status($student_id, $reference_number, $mode_of_payment);
+
+        if ($match) {
+            echo json_encode(['status' => 'success', 'message' => 'Payment confirmed.']);
+        } else {
+            echo json_encode([
+                'status' => 'processing',
+                'message' => 'Contact the student. Reference doesn\'t match. Payment is on hold.'
+            ]);
+        }
+    }
+
 
     public function update_status()
     {

@@ -61,9 +61,10 @@ $route['officer/dashboard/(:any)'] = 'OfficerController/officer_dashboard/$1';
 
 //STUDENT ROUTES
 $route['student/home'] = 'StudentController/student_dashboard';
-$route['student/like-post/(:any)'] = 'StudentController/like_post/$1'; // Route for liking a post
-$route['student/unlike-post/(:any)'] = 'StudentController/unlike_post/$1'; // Route for unliking a post
-$route['student/add-comment']['post'] = 'StudentController/add_comment'; // Route for adding of comment
+$route['student/home/like-post/(:num)'] = 'StudentController/like_post/$1'; // Route for liking a post
+$route['student/view_likes/(:num)'] = 'StudentController/view_likes/$1'; // Route for the viewing of user who like the post
+$route['student/home/unlike-post/(:num)'] = 'StudentController/unlike_post/$1'; // Route for unliking a post
+$route['student/home/add-comment']['post'] = 'StudentController/add_comment'; // Route for adding of comment
 
 //count the number who clicked attend
 
@@ -112,6 +113,7 @@ $route['admin/attendance/detect'] = 'AdminController/updateAttendance';
 // $route['admin/list-department-fines/(:num)'] = 'AdminController/list_department_fines/$1';
 //$route['admin/list-fines/(:num)/(:num)'] = 'AdminController/list_fines/$1/$2';
 $route['admin/list-fines'] = 'AdminController/list_fines';
+$route['admin/fines-payment/confirm'] = 'AdminController/confirm_payment';
 $route['admin/fines/update_status']['post'] = 'AdminController/update_status';
 
 
@@ -142,7 +144,9 @@ $route['admin/review-excuse-letter/update']['POST'] = 'AdminController/updateApp
 
 // <===== COMMUNITY SECTION =======>
 $route['admin/community'] = 'AdminController/community';
+//$route['admin/community/posts']['post'] = 'AdminController/fetch_more_posts';
 $route['admin/community/like-post/(:num)'] = 'AdminController/like_post/$1'; // Route for liking a post
+$route['admin/view_likes/(:num)'] = 'AdminController/view_likes/$1'; // Route for the viewing of user who like the post
 $route['admin/community/unlike-post/(:num)'] = 'AdminController/unlike_post/$1'; // Route for unliking a post
 $route['admin/community/add-comment']['post'] = 'AdminController/add_comment'; // Route for adding of comment
 $route['admin/community/add-post']['post'] = 'AdminController/add_post'; // Route for adding of post

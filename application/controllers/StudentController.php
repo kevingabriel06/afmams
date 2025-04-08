@@ -26,91 +26,120 @@ class StudentController extends CI_Controller
         $this->load->model('Student_model', 'student');
         $this->load->helper('url');
 
-
-        // Check if the user is logged in
-        $student_id = $this->session->userdata('student_id');
-
-        if (!$student_id) {
-            // If not logged in, redirect to the login page
-            redirect('login');  // Redirects the user to the login page
-        }
-
-        // Optional: Check if the logged-in user is an student
-        $user = $this->student->get_roles($student_id);
-        if ($user['role'] != 'Student') {
-            // If not an admin, redirect to login page
-            redirect('login');
+        // CHECK IF THERE'S A STUDENT LOGIN
+        if (!$this->session->userdata('student_id')) {
+            redirect(site_url('login'));
         }
     }
 
     public function student_dashboard()
     {
-        $data['title'] = 'Student Home';
-
+        $data['title'] = 'Community';
         $student_id = $this->session->userdata('student_id');
 
-        // Fetch roles
-        $data['users'] = $this->student->get_roles($student_id);
+        // FETCH USER DATA
+        $data['users'] = $this->student->get_student($student_id);
+        $data['authors'] = $this->student->get_user();
 
-        // Fetch student activities
-        $data['activities'] = $this->student->get_student_activities($student_id);
-        $data['posts'] = $this->student->getFilteredPosts($student_id);
-        $data['upcoming_activities'] = $this->student->get_upcoming_activities($student_id);
+        // Get offset and limit from AJAX request
+        $limit = $this->input->post('limit') ?: 5;
+        $offset = $this->input->post('offset') ?: 0;
 
-        // FETCH LIKE COUNTS FOR EACH POST
+        // GET LIMITED POSTS
+        $data['posts'] = $this->student->get_all_posts($limit, $offset);
         foreach ($data['posts'] as &$post) {
-            $post->like_count = $this->admin->get_like_count($post->post_id);
-            $post->user_has_liked_post = $this->admin->user_has_liked($post->post_id, $student_id);
-            $post->comments_count = $this->admin->get_comment_count($post->post_id);
+            $post->like_count = $this->student->get_like_count($post->post_id);
+            $post->user_has_liked_post = $this->student->user_has_liked($post->post_id, $student_id);
+            $post->comments_count = $this->student->get_comment_count($post->post_id);
+            $post->comments = $this->student->get_comments_by_post($post->post_id);
+            $post->type = 'post';
         }
 
-        // FETCH 2 COMMENTS ONLY IN A POST
-        foreach ($data['posts'] as &$post) {
-            $post->comments = $this->admin->get_comments_by_post($post->post_id);
-        }
-
-        // Loop through activities and check if the student has expressed interest || for count attendees
+        // GET LIMITED ACTIVITIES
+        $data['activities'] = $this->student->get_shared_activities($limit, $offset);
         foreach ($data['activities'] as &$activity) {
-            // Use checkInterest method to check if the student has attended or expressed interest in the activity
-            $activity['has_attended'] = $this->student->checkInterest($activity['activity_id'], $student_id);
+            $activity->type = 'activity';
         }
 
-        // Pass the student_id to the view
-        $data['student_id'] = $student_id;
+        // MERGE POSTS & ACTIVITIES BEFORE PAGINATION
+        $merged_feed = array_merge($data['posts'], $data['activities']);
 
-        // Load header and views
-        $this->load->view('layout/header', $data);
-        $this->load->view('student/home', $data);
-        $this->load->view('layout/footer');
+        // SORT MERGED DATA BY DATE
+        usort($merged_feed, function ($a, $b) {
+            // For activities, use 'updated_at', for posts, use 'created_at'
+            $a_date = isset($a->updated_at) ? $a->updated_at : (isset($a->created_at) ? $a->created_at : '');
+            $b_date = isset($b->updated_at) ? $b->updated_at : (isset($b->created_at) ? $b->created_at : '');
+
+            return strtotime($b_date) - strtotime($a_date);
+        });
+
+        //Apply pagination on the merged feed (with proper offset and limit)
+        $data['feed'] = array_slice($merged_feed, $offset, $limit);
+
+        // Activity to post and show to the upcoming section
+        $data['activities_upcoming'] = $this->student->get_activities_upcoming();
+
+        // AJAX Request: Return only the next batch
+        if ($this->input->is_ajax_request()) {
+            $this->load->view('student/home_feed', $data);
+        } else {
+            // FULL PAGE LOAD
+            $this->load->view('layout/header', $data);
+            $this->load->view('student/home', $data);
+            $this->load->view('layout/footer', $data);
+        }
     }
 
+    // Method to fetch likes by post ID and return the list of users who liked
+    public function view_likes($post_id)
+    {
+        // Fetch the likes data for the given post ID
+        $likes = $this->student->get_likes_by_post($post_id);
 
-    //POST LIKES, COMMENTS CONTROLLERS START
+        // Generate HTML to return as a response
+        $output = '';
+        if ($likes) {
+            // Generate HTML for the list of likes
+            foreach ($likes as $like) {
+                echo '<li class="d-flex align-items-center mt-2">';
+                echo '    <div class="avatar avatar-xl position-relative">';
+                echo '        <img class="rounded-circle" src="' . base_url('assets/profile/') . ($like->profile_pic ? $like->profile_pic : 'default.jpg') . '" alt="Profile Picture" />';
+                echo '        <div class="position-absolute top-0 start-50 translate-middle-x" style="width: 1rem; height: 1rem; margin-top: 60%; margin-left: 40%;">';
+                echo '            <img src="' . base_url('assets/img/icons/spot-illustrations/like-active.png') . '" class="w-100 h-100" alt="Heart Icon" />';
+                echo '        </div>';
+                echo '    </div>';
+                echo '    <div class="ms-3 flex-grow-1">';
+                echo '        <h6 class="fw-semi-bold mb-0">' . htmlspecialchars($like->first_name . " " . $like->last_name) . '</h6>';
+                echo '    </div>';
+                echo '</li>';
+            }
+        } else {
+            $output = '<li>No likes yet.</li>';
+        }
 
-    // LIKING OF POST
+        echo $output; // Output the HTML response
+    }
 
     // LIKING OF POST
     public function like_post($post_id)
     {
         $student_id = $this->session->userdata('student_id');
 
-        $this->load->model('Admin_model', 'admin');
-
         // Check if the user already liked the post
-        if ($this->admin->user_has_liked($post_id, $student_id)) {
+        if ($this->student->user_has_liked($post_id, $student_id)) {
             // User already liked, so we will "unlike" the post
-            $this->admin->unlike_post($post_id, $student_id);
+            $this->student->unlike_post($post_id, $student_id);
             $like_img = base_url() . 'assets/img/icons/spot-illustrations/like-inactive.png';
             $like_text = 'Like';
         } else {
             // User has not liked the post yet, so we will "like" the post
-            $this->admin->like_post($post_id, $student_id);
+            $this->student->like_post($post_id, $student_id);
             $like_img = base_url() . 'assets/img/icons/spot-illustrations/like-active.png';
             $like_text = 'Liked';
         }
 
         // Get the updated like count
-        $new_like_count = $this->admin->get_like_count($post_id);
+        $new_like_count = $this->student->get_like_count($post_id);
 
         // Return the response
         echo json_encode([
@@ -123,7 +152,6 @@ class StudentController extends CI_Controller
     // ADDING COMMENTS
     public function add_comment()
     {
-        $this->load->model('Admin_model', 'admin');
         if ($this->input->post()) {
             // Set validation rules
             $this->form_validation->set_rules('comment', 'Comment', 'required');
@@ -141,15 +169,15 @@ class StudentController extends CI_Controller
                     'student_id' => $this->session->userdata('student_id')
                 );
 
-                $result = $this->admin->add_comment($data);
+                $result = $this->student->add_comment($data);
                 if ($result) {
                     $post_id = $this->input->post('post_id');
 
                     // Fetch updated comment count
-                    $comments_count = $this->admin->get_comment_count($post_id);
+                    $comments_count = $this->student->get_comment_count($post_id);
 
                     // Fetch the newly added comment only
-                    $new_comment = $this->admin->get_latest_comment($post_id); // Ensure this function fetches only the latest
+                    $new_comment = $this->student->get_latest_comment($post_id); // Ensure this function fetches only the latest
 
                     // Ensure correct JSON response
                     $response = array(
@@ -157,7 +185,8 @@ class StudentController extends CI_Controller
                         'message' => 'Comment Saved Successfully',
                         'comments_count' => $comments_count,
                         'new_comment' => array( // Make sure this is an array with expected keys
-                            'name' => $new_comment->name ?? 'Unknown',
+                            'first_name' => $new_comment->first_name ?? 'Unknown',
+                            'last_name' => $new_comment->last_name ?? 'Unknown',
                             'profile_pic' => base_url('assets/profile/') . ($new_comment->profile_pic ?? 'default.jpg'),
                             'content' => $new_comment->content ?? '',
                         )
@@ -173,6 +202,133 @@ class StudentController extends CI_Controller
 
         echo json_encode($response);
     }
+
+
+    // public function student_dashboard()
+    // {
+    //     $data['title'] = 'Student Home';
+
+    //     $student_id = $this->session->userdata('student_id');
+
+    //     // Fetch roles
+    //     $data['users'] = $this->student->get_roles($student_id);
+
+    //     // Fetch student activities
+    //     $data['activities'] = $this->student->get_student_activities($student_id);
+    //     $data['posts'] = $this->student->getFilteredPosts($student_id);
+    //     $data['upcoming_activities'] = $this->student->get_upcoming_activities($student_id);
+
+    //     // FETCH LIKE COUNTS FOR EACH POST
+    //     foreach ($data['posts'] as &$post) {
+    //         $post->like_count = $this->admin->get_like_count($post->post_id);
+    //         $post->user_has_liked_post = $this->admin->user_has_liked($post->post_id, $student_id);
+    //         $post->comments_count = $this->admin->get_comment_count($post->post_id);
+    //     }
+
+    //     // FETCH 2 COMMENTS ONLY IN A POST
+    //     foreach ($data['posts'] as &$post) {
+    //         $post->comments = $this->admin->get_comments_by_post($post->post_id);
+    //     }
+
+    //     // Loop through activities and check if the student has expressed interest || for count attendees
+    //     foreach ($data['activities'] as &$activity) {
+    //         // Use checkInterest method to check if the student has attended or expressed interest in the activity
+    //         $activity['has_attended'] = $this->student->checkInterest($activity['activity_id'], $student_id);
+    //     }
+
+    //     // Pass the student_id to the view
+    //     $data['student_id'] = $student_id;
+
+    //     // Load header and views
+    //     $this->load->view('layout/header', $data);
+    //     $this->load->view('student/home', $data);
+    //     $this->load->view('layout/footer');
+    // }
+
+    // LIKING OF POST
+    // public function like_post($post_id)
+    // {
+    //     $student_id = $this->session->userdata('student_id');
+
+    //     $this->load->model('Admin_model', 'admin');
+
+    //     // Check if the user already liked the post
+    //     if ($this->admin->user_has_liked($post_id, $student_id)) {
+    //         // User already liked, so we will "unlike" the post
+    //         $this->admin->unlike_post($post_id, $student_id);
+    //         $like_img = base_url() . 'assets/img/icons/spot-illustrations/like-inactive.png';
+    //         $like_text = 'Like';
+    //     } else {
+    //         // User has not liked the post yet, so we will "like" the post
+    //         $this->admin->like_post($post_id, $student_id);
+    //         $like_img = base_url() . 'assets/img/icons/spot-illustrations/like-active.png';
+    //         $like_text = 'Liked';
+    //     }
+
+    //     // Get the updated like count
+    //     $new_like_count = $this->admin->get_like_count($post_id);
+
+    //     // Return the response
+    //     echo json_encode([
+    //         'like_img' => $like_img,
+    //         'like_text' => $like_text,
+    //         'new_like_count' => $new_like_count
+    //     ]);
+    // }
+
+    // // ADDING COMMENTS
+    // public function add_comment()
+    // {
+    //     $this->load->model('Admin_model', 'admin');
+    //     if ($this->input->post()) {
+    //         // Set validation rules
+    //         $this->form_validation->set_rules('comment', 'Comment', 'required');
+
+    //         if ($this->form_validation->run() == FALSE) {
+    //             $response = [
+    //                 'status' => 'error',
+    //                 'errors' => validation_errors()
+    //             ];
+    //         } else {
+    //             // Prepare data for insertion
+    //             $data = array(
+    //                 'post_id' => $this->input->post('post_id'),
+    //                 'content' => $this->input->post('comment'),
+    //                 'student_id' => $this->session->userdata('student_id')
+    //             );
+
+    //             $result = $this->admin->add_comment($data);
+    //             if ($result) {
+    //                 $post_id = $this->input->post('post_id');
+
+    //                 // Fetch updated comment count
+    //                 $comments_count = $this->admin->get_comment_count($post_id);
+
+    //                 // Fetch the newly added comment only
+    //                 $new_comment = $this->admin->get_latest_comment($post_id); // Ensure this function fetches only the latest
+
+    //                 // Ensure correct JSON response
+    //                 $response = array(
+    //                     'status' => 'success',
+    //                     'message' => 'Comment Saved Successfully',
+    //                     'comments_count' => $comments_count,
+    //                     'new_comment' => array( // Make sure this is an array with expected keys
+    //                         'name' => $new_comment->name ?? 'Unknown',
+    //                         'profile_pic' => base_url('assets/profile/') . ($new_comment->profile_pic ?? 'default.jpg'),
+    //                         'content' => $new_comment->content ?? '',
+    //                     )
+    //                 );
+    //             } else {
+    //                 $response = array(
+    //                     'status' => 'error',
+    //                     'errors' => 'Failed to Save Comment'
+    //                 );
+    //             }
+    //         }
+    //     }
+
+    //     echo json_encode($response);
+    // }
 
 
 

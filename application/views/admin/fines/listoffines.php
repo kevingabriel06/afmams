@@ -2,7 +2,7 @@
 
 <div class="card mb-3 mb-lg-0">
     <div class="card-header bg-body-tertiary d-flex justify-content-between">
-        <h5 class="mb-0">All Fines</h5>
+        <h5 class="mb-0">Summary of Fines</h5>
     </div>
 </div>
 
@@ -55,51 +55,14 @@
                                 <th scope="col" class="text-nowrap">Student ID</th>
                                 <th scope="col">Name</th>
                                 <th scope="col">Department</th>
-                                <th scope="col">Events</th>
-                                <th scope="col">Amount</th>
+                                <!-- Dynamic Event Columns will be added here -->
+                                <th scope="col" class="text-nowrap">Total Fines</th>
                                 <th scope="col">Status</th>
                                 <th scope="col">Action</th>
                             </tr>
                         </thead>
                         <tbody class="list" id="table-ticket-body">
-                            <tr class="attendance-row">
-                                <td class="text-nowrap id">21-03529</td>
-                                <td class="text-nowrap name">Ricky Antony</td>
-                                <td class="text-nowrap department">Bachewlor of Science in Information System</td>
-                                <td class="text-nowrap">March 8, 2025 | 8:00 AM</td>
-                                <td class="text-nowrap">March 8, 2025 | 12:00 PM</td>
-                                <td class="status"><span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Completed<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span></td>
-                                </td>
-                                <td>
-                                    <div class="dropdown font-sans-serif position-static"><button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button" data-bs-toggle="dropdown" data-boundary="window" aria-haspopup="true" aria-expanded="false"><span class="fas fa-ellipsis-h fs-10"></span></button>
-                                        <div class="dropdown-menu dropdown-menu-end border py-0">
-                                            <div class="py-2"><a class="dropdown-item" href="#!">Edit</a><a class="dropdown-item text-danger" href="#!">Delete</a></div>
-                                        </div>
-                                    </div>
-                            </tr>
-                            <tr class="attendance-row">
-                                <td class="text-nowrap id">21-03529</td>
-                                <td class="text-nowrap name">Ricky Antony</td>
-                                <td class="text-nowrap department">Bachewlor of Science in Information System</td>
-                                <td class="text-nowrap">March 8, 2025 | 8:00 AM</td>
-                                <td class="text-nowrap">March 8, 2025 | 12:00 PM</td>
-                                <td class="status"><span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Completed<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span></td>
-                                </td>
-                                <td>
-                                    <div class="dropdown font-sans-serif position-static"><button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button" data-bs-toggle="dropdown" data-boundary="window" aria-haspopup="true" aria-expanded="false"><span class="fas fa-ellipsis-h fs-10"></span></button>
-                                        <div class="dropdown-menu dropdown-menu-end border py-0">
-                                            <div class="py-2"><a class="dropdown-item" href="#!">Edit</a><a class="dropdown-item text-danger" href="#!">Delete</a></div>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                            <!-- "No activities listed" Row -->
-                            <tr id="no-attendance-row" style="display: none;">
-                                <td colspan="3" class="text-center text-muted fs-8 fw-bold py-2 bg-light">
-                                    <span class="fa fa-user-slash fa-2x text-muted"></span>
-                                    <h5 class="mt-2 mb-1">No student listed.</h5>
-                                </td>
-                            </tr>
+                            <!-- Dynamic Rows will be generated here -->
                         </tbody>
                     </table>
                     <div class="text-center d-none" id="tickets-table-fallback">
@@ -108,6 +71,514 @@
                     </div>
                 </div>
             </div>
+
+            <script>
+                // Convert PHP fines data to JSON
+                const finesData = <?= json_encode($fines, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+
+                // Extract unique events
+                const events = [...new Map(finesData.map(fine => [fine.activity_id, {
+                    id: fine.activity_id,
+                    name: fine.activity_title
+                }])).values()];
+
+                // Group fines by student
+                const studentsMap = new Map();
+
+                finesData.forEach(fine => {
+                    if (!studentsMap.has(fine.student_id)) {
+                        studentsMap.set(fine.student_id, {
+                            id: fine.student_id,
+                            name: `${fine.first_name} ${fine.last_name}`,
+                            department: fine.dept_name,
+                            fines: [],
+                            status: fine.fines_status,
+                            mode_payment: fine.mode_payment,
+                            total_fines: fine.total_fines,
+                            reference: fine.reference_number_admin,
+                            receipt: fine.receipt,
+                            changes: fine.remarks
+                        });
+                    }
+
+                    studentsMap.get(fine.student_id).fines.push({
+                        eventId: fine.activity_id,
+                        fine: fine.fines_amount,
+                        reason: fine.fines_reason,
+                        event_date: fine.start_date,
+                        title: fine.activity_title
+                    });
+                });
+
+                const studentsData = Array.from(studentsMap.values());
+
+                // Populate dynamic event headers
+                const eventsHeader = document.querySelector('thead tr');
+                events.forEach(event => {
+                    const th = document.createElement('th');
+                    th.className = 'text-nowrap';
+                    th.scope = 'col';
+                    th.innerHTML = event.name;
+                    eventsHeader.insertBefore(th, eventsHeader.children[eventsHeader.children.length - 3]);
+                });
+
+                // Populate student rows
+                const tableBody = document.getElementById('table-ticket-body');
+                studentsData.forEach(student => {
+                    const row = document.createElement('tr');
+
+                    row.innerHTML = `
+            <td class="text-nowrap">${student.id}</td>
+            <td class="text-nowrap">${student.name}</td>
+            <td class="text-nowrap">${student.department}</td>
+        `;
+
+                    // Fill in fines per event
+                    events.forEach(event => {
+                        const fine = student.fines.find(f => f.eventId === event.id);
+                        const cell = document.createElement('td');
+                        cell.className = 'text-nowrap';
+                        cell.innerHTML = fine ? `₱${fine.fine}` : "₱0";
+                        row.appendChild(cell);
+                    });
+
+                    // Total Fines
+                    const totalCell = document.createElement('td');
+                    totalCell.className = 'text-nowrap';
+                    totalCell.innerHTML = `₱${student.total_fines}`;
+                    row.appendChild(totalCell);
+
+                    // Status Badge
+                    const statusCell = document.createElement('td');
+                    statusCell.className = 'text-nowrap';
+
+                    let badgeClass = 'badge rounded-pill badge-subtle-secondary';
+                    let iconClass = 'fas fa-question-circle';
+
+                    switch (student.status.toLowerCase()) {
+                        case 'paid':
+                            badgeClass = 'badge rounded-pill badge-subtle-success';
+                            iconClass = 'fas fa-check-circle';
+                            break;
+                        case 'unpaid':
+                            badgeClass = 'badge rounded-pill badge-subtle-danger';
+                            iconClass = 'fas fa-times-circle';
+                            break;
+                        case 'pending':
+                            badgeClass = 'badge rounded-pill badge-subtle-warning';
+                            iconClass = 'fas fa-clock';
+                            break;
+                    }
+
+                    statusCell.innerHTML = `
+            <span class="${badgeClass}">
+                ${student.status} <i class="${iconClass}"></i>
+            </span>
+        `;
+                    row.appendChild(statusCell);
+
+                    // Action Dropdown
+                    const actionCell = document.createElement('td');
+                    actionCell.innerHTML = `
+            <div class="dropdown font-sans-serif position-static">
+                <button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button"
+                    data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <span class="fas fa-ellipsis-h fs-10"></span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-end border py-0">
+                    <div class="py-2">
+                        <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#paymentModal" data-student-id="${student.id}">Confirm Payment</a>
+                        <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" data-student-id="${student.id}">View Details</a>
+                        <a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#editFinesModal" data-student-id="${student.id}">Edit Fines</a>
+                    </div>
+                </div>
+            </div>
+        `;
+                    row.appendChild(actionCell);
+                    tableBody.appendChild(row);
+                });
+
+                document.addEventListener('DOMContentLoaded', () => {
+                    const paymentModal = document.getElementById('paymentModal');
+                    const breakdownTable = document.querySelector("#finesBreakdownTable tbody");
+                    const receiptSection = paymentModal.querySelector('#receiptSection');
+                    const receiptImage = paymentModal.querySelector('#receiptImage');
+                    const baseImageUrl = "<?= base_url('assets/receipt/') ?>";
+
+                    paymentModal.addEventListener('show.bs.modal', event => {
+                        const studentId = event.relatedTarget.getAttribute('data-student-id');
+                        const student = studentsData.find(s => s.id == studentId);
+
+                        if (student) {
+                            paymentModal.querySelector('#modalStudentId').value = student.id;
+                            paymentModal.querySelector('#modalTotalFines').value = `₱${student.total_fines}`;
+                            paymentModal.querySelector('#modalModePayment').value = student.mode_payment || '';
+                            paymentModal.querySelector('#modeOfPayment').value = student.mode_payment || '';
+
+                            if (student.receipt) {
+                                receiptImage.src = baseImageUrl + student.receipt;
+                                receiptSection.classList.remove('d-none');
+                            } else {
+                                receiptImage.src = "";
+                                receiptSection.classList.add('d-none');
+                            }
+
+                            breakdownTable.innerHTML = '';
+                            student.fines.forEach((fine, i) => {
+                                breakdownTable.innerHTML += `
+                        <tr>
+                            <td>${i + 1}</td>
+                            <td>${fine.reason}</td>
+                            <td>₱${fine.fine}</td>
+                            <td>${fine.title}</td>
+                            <td>${fine.event_date}</td>
+                        </tr>`;
+                            });
+                        }
+                    });
+
+                    paymentModal.addEventListener('hidden.bs.modal', () => {
+                        ['#modalStudentId', '#modalTotalFines', '#modalModePayment', '#modeOfPayment', '#referenceNumber'].forEach(id => {
+                            paymentModal.querySelector(id).value = '';
+                        });
+                        receiptImage.src = "";
+                        receiptSection.classList.add('d-none');
+                    });
+
+                    const viewDetailsModal = document.getElementById('viewDetailsModal');
+                    const baseReceiptUrl = "<?= base_url('assets/receipt/') ?>";
+
+                    viewDetailsModal.addEventListener('show.bs.modal', event => {
+                        const studentId = event.relatedTarget.getAttribute('data-student-id');
+                        const student = studentsData.find(s => s.id == studentId);
+
+                        if (student) {
+                            document.getElementById('viewName').textContent = student.name;
+                            document.getElementById('viewDepartment').textContent = student.department;
+                            document.getElementById('viewTotalFines').textContent = `${student.total_fines}`;
+                            document.getElementById('viewReferenceNumber').textContent = student.reference;
+
+                            const receiptImage = document.getElementById('viewReceiptImage');
+                            const receiptContainer = document.getElementById('viewReceiptImageContainer');
+
+                            if (student.receipt) {
+                                receiptImage.src = baseReceiptUrl + student.receipt;
+                                receiptImage.alt = `Receipt of ${student.name}`;
+                                receiptImage.classList.remove('d-none');
+                                receiptContainer.classList.remove('d-none');
+                            } else {
+                                receiptImage.src = "";
+                                receiptImage.alt = "";
+                                receiptImage.classList.add('d-none');
+                                receiptContainer.classList.add('d-none');
+                            }
+
+                            const finesBody = document.getElementById('viewFinesTableBody');
+                            finesBody.innerHTML = '';
+                            student.fines.forEach((fine, i) => {
+                                finesBody.innerHTML += `
+                        <tr>
+                            <td>${i + 1}</td>
+                            <td>${fine.reason}</td>
+                            <td>₱${fine.fine}</td>
+                            <td>${fine.title}</td>
+                            <td>${fine.event_date}</td>
+                        </tr>`;
+                            });
+                        }
+                    });
+                });
+
+                document.addEventListener('DOMContentLoaded', () => {
+                    const editFinesModal = document.getElementById('editFinesModal');
+                    const editFinesTableBody = document.getElementById('editFinesTableBody');
+                    const editFinesForm = document.getElementById('editFinesForm');
+
+                    if (editFinesModal) {
+                        editFinesModal.addEventListener('show.bs.modal', function(event) {
+                            const trigger = event.relatedTarget;
+                            if (!trigger) return;
+
+                            const studentId = trigger.getAttribute('data-student-id');
+                            const student = studentsData.find(s => s.id == studentId);
+
+                            if (student) {
+                                document.getElementById('editStudentId').value = student.id;
+                                editFinesTableBody.innerHTML = '';
+
+                                student.fines.forEach((fine, i) => {
+                                    const row = document.createElement('tr');
+                                    row.innerHTML = `
+                                    <td>${i + 1}</td>
+<td>${fine.title}</td>
+<td>
+    <select name="reason[]" class="form-control">
+        <option value="Absent" ${fine.reason === 'Absent' ? 'selected' : ''}>Absent</option>
+        <option value="Incomplete" ${fine.reason === 'Incomplete' ? 'selected' : ''}>Incomplete</option>
+        <option value="Present" ${fine.reason === 'Present' ? 'selected' : ''}>Present</option>
+    </select>
+</td>
+<td><input type="number" step="0.01" name="amount[]" class="form-control" value="${fine.fine}"></td>
+<td><input type="text" name="changes[]" class="form-control" value="${fine.changes}"></td>
+<input type="hidden" name="event_id[]" value="${fine.eventId}">
+                    `;
+                                    editFinesTableBody.appendChild(row);
+                                });
+                            }
+                        });
+                    }
+
+                    if (editFinesForm) {
+                        editFinesForm.addEventListener('submit', function(e) {
+                            e.preventDefault();
+
+                            const formData = new FormData(this);
+                            const studentId = formData.get("student_id");
+                            const reasons = formData.getAll("reason[]");
+                            const amounts = formData.getAll("amount[]");
+                            const eventIds = formData.getAll("event_id[]");
+                            const changes = formData.getAll("changes[]");
+
+                            console.log('Edited Fines:', {
+                                studentId,
+                                reasons,
+                                amounts,
+                                eventIds
+                            });
+
+                            alert('Fines updated (dummy success). You can hook this to a real backend call.');
+
+                            const modalInstance = bootstrap.Modal.getInstance(editFinesModal);
+                            if (modalInstance) {
+                                modalInstance.hide();
+                            }
+                        });
+                    }
+                });
+            </script>
+
+
+            <div class="modal fade" id="editFinesModal" tabindex="-1" aria-labelledby="editFinesModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="editFinesModalLabel">Edit Fines</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form id="editFinesForm">
+                            <div class="modal-body">
+                                <input type="hidden" id="editStudentId" name="student_id">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-sm">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th class="text-nowrap">#</th>
+                                                <th class="text-nowrap">Event</th>
+                                                <th class="text-nowrap">Reason</th>
+                                                <th class="text-nowrap">Amount (₱)</th>
+                                                <th class="text-nowrap">Reason for Change</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="editFinesTableBody">
+                                            <!-- JS fills this -->
+                                        </tbody>
+                                    </table>
+
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="submit" class="btn btn-primary">Save Changes</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- View Details -->
+            <div class="modal fade" id="viewDetailsModal" tabindex="-1" aria-labelledby="viewDetailsModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="viewDetailsModalLabel">View Details</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+
+                        <div class="modal-body">
+                            <p><strong>Name:</strong> <span id="viewName"></span></p>
+                            <p><strong>Department:</strong> <span id="viewDepartment"></span></p>
+                            <p><strong>Total Fines:</strong> ₱<span id="viewTotalFines"></span></p>
+                            <p><strong>Reference Number:</strong> <span id="viewReferenceNumber"></span></p>
+                            <div id="viewReceiptImageContainer" class="mt-3 d-none">
+                                <p><strong>Receipt:</strong></p>
+                                <img id="viewReceiptImage" src="" alt="Receipt" class="img-fluid rounded border" style="max-height: 400px;">
+                            </div>
+
+                            <hr>
+                            <h6>Fines Breakdown</h6>
+                            <table class="table table-bordered table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Reason</th>
+                                        <th>Amount</th>
+                                        <th>Event</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="viewFinesTableBody"></tbody>
+                            </table>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+
+
+
+
+            <!-- Payment Modal -->
+            <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <form action="your-payment-handler.php" method="POST" class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="paymentModalLabel">Confirm Payment</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+
+                        <div class="modal-body">
+                            <input type="hidden" name="student_id" id="modalStudentId">
+
+                            <!-- Total Fines -->
+                            <div class="mb-3">
+                                <label for="modalTotalFines" class="form-label">Total Fines</label>
+                                <input type="text" class="form-control" id="modalTotalFines" name="total_fines" readonly>
+                            </div>
+
+                            <!-- Fines Breakdown Table -->
+                            <div class="mb-3">
+                                <label class="form-label">Fines Breakdown</label>
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-sm" id="finesBreakdownTable">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Remarks</th>
+                                                <th>Amount</th>
+                                                <th>Activity</th>
+                                                <th>Date</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Rows will be inserted via JS -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Payment Input Fields -->
+                            <div class="mb-3">
+                                <label for="modeOfPayment" class="form-label">Mode of Payment</label>
+                                <select class="form-select" name="mode_of_payment" id="modeOfPayment" required>
+                                    <option value="" id="modalModePayment" selected disabled>Select Mode of Payment</option>
+                                    <option value="Online Payment">Online Payment</option>
+                                    <option value="Cash">Cash</option>
+                                </select>
+                            </div>
+
+
+                            <div class="mb-3">
+                                <label for="referenceNumber" class="form-label">Reference Number</label>
+                                <input type="text" class="form-control" name="reference_number" id="referenceNumber" placeholder="Enter reference number" required>
+                            </div>
+                            <!-- Receipt Preview (Initially Hidden) -->
+                            <div class="mt-4" id="receiptSection">
+                                <h6>Payment Receipt</h6>
+                                <div class="mb-3">
+                                    <img id="receiptImage" src="" alt="Receipt" class="img-fluid mb-3" style="max-height: 150px; width: auto;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-success">Confirm Payment</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Include SweetAlert2 CDN if not already added -->
+            <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+            <script>
+                $(document).ready(function() {
+                    $('#paymentModal form').submit(function(e) {
+                        e.preventDefault();
+                        let formData = $(this).serialize();
+
+                        $.ajax({
+                            url: "<?php echo site_url('admin/fines-payment/confirm'); ?>",
+                            method: "POST",
+                            data: formData,
+                            dataType: "json",
+                            success: function(response) {
+                                if (response.status === 'success') {
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: 'Payment Confirmed',
+                                        text: response.message,
+                                        confirmButtonColor: '#3085d6',
+                                        confirmButtonText: 'OK'
+                                    }).then(() => {
+                                        $('#paymentModal').modal('hide');
+                                        location.reload();
+                                    });
+                                } else if (response.status === 'processing') {
+                                    Swal.fire({
+                                        icon: 'info',
+                                        title: 'Under Review',
+                                        text: response.message,
+                                        confirmButtonColor: '#3085d6',
+                                        confirmButtonText: 'OK'
+                                    }).then(() => {
+                                        $('#paymentModal').modal('hide');
+                                        location.reload();
+                                    });
+                                } else {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Error',
+                                        text: response.message || 'Something went wrong!',
+                                    });
+                                }
+                            },
+                            error: function() {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Server Error',
+                                    text: 'An error occurred while processing the payment.',
+                                });
+                            }
+                        });
+                    });
+                });
+            </script>
+
+
+
+
+
+
+
 
             <div class="card-footer">
                 <div class="d-flex justify-content-center">

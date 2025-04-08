@@ -224,8 +224,7 @@ class Admin_model extends CI_Model
         return $this->db->affected_rows() > 0;
     }
 
-
-
+    // END FOR THE EXCUSE APPLICATION
 
 
 
@@ -314,7 +313,7 @@ class Admin_model extends CI_Model
 
     // END OF EVALUATION 
 
-
+    // START COMMUNITY SECTION
 
 
 
@@ -389,7 +388,7 @@ class Admin_model extends CI_Model
 
 
 
-    //  <=== QUERY FOR COMMUNITY SECTION ===>
+    //  START COMMUNITY SECTION ===>
 
     // FETCHING USER TABLE BY STUDENT ID
     public function get_user()
@@ -416,7 +415,7 @@ class Admin_model extends CI_Model
     }
 
     // GETTING POST DETAILS AND AUTHOR *
-    public function get_all_posts()
+    public function get_all_posts($limit, $offset)
     {
         $this->db->select('*');
         $this->db->from('post');
@@ -424,6 +423,31 @@ class Admin_model extends CI_Model
         $this->db->join('department', 'department.dept_id = post.dept_id', 'left');
         $this->db->join('organization', 'organization.org_id = post.org_id', 'left');
         $this->db->order_by('post.post_id', 'DESC');
+
+        // Add LIMIT and OFFSET for pagination
+        $this->db->limit($limit, $offset);
+
+        $query = $this->db->get();
+        return $query->result();
+    }
+
+    public function get_activities_upcoming()
+    {
+        $this->db->select('*');
+        $this->db->from('activity');
+        $this->db->where('status', 'Upcoming');
+
+        $query = $this->db->get();
+        return $query->result();
+    }
+
+    public function get_shared_activities($limit, $offset)
+    {
+        $this->db->select('*');
+        $this->db->from('activity');
+        $this->db->where('is_shared', 'Yes');
+        $this->db->order_by('updated_at', 'DESC'); // Sort by newest activity first
+        $this->db->limit($limit, $offset); // Apply pagination
 
         $query = $this->db->get();
         return $query->result();
@@ -474,6 +498,19 @@ class Admin_model extends CI_Model
         $this->db->where('post_id', $post_id)->delete('likes');
         $this->db->where('post_id', $post_id);
         return $this->db->delete('post'); // Assuming your table name is 'posts'
+    }
+
+    public function get_likes_by_post($post_id)
+    {
+        // Query to get the users who liked the post
+        $this->db->select('users.first_name, users.last_name, profile_pic');
+        $this->db->from('likes');
+        $this->db->join('users', 'users.student_id = likes.student_id');
+        $this->db->where('likes.post_id', $post_id);
+        $query = $this->db->get();
+
+        // Return the result as an array of objects
+        return $query->result();
     }
 
     // GETTING LIKE COUNT
@@ -537,6 +574,99 @@ class Admin_model extends CI_Model
         return $query->row(); // Return a single comment object
     }
 
+    // END COMMUNITY SECTION
+
+
+    // START FINES
+
+
+    public function get_activity_fines()
+    {
+        $this->db->where('organizer', 'Student Parliament'); // Apply WHERE condition before fetching
+        return $this->db->get('activity')->result_array(); // Fetch all events
+    }
+
+    public function get_students()
+    {
+        return $this->db->get('users')->result_array(); // Fetch all students
+    }
+
+    public function get_fines()
+    {
+        return $this->db->get('fines')->result_array(); // Fetch all fines
+    }
+
+    public function flash_fines()
+    {
+        $this->db->select('*');
+        $this->db->from('fines_summary');
+        $this->db->join('users', 'users.student_id = fines_summary.student_id'); // Fixed join condition
+        $this->db->join('department', 'department.dept_id = users.dept_id');
+        $this->db->join('fines', 'fines.student_id = fines_summary.student_id'); // Ensures fines are matched by both activity_id and student_id
+        $this->db->join('activity', 'activity.activity_id = fines.activity_id'); // Fixed join condition
+        $this->db->where('activity.organizer', 'Student Parliament'); // Apply correct where condition
+        $this->db->order_by('users.student_id, activity.activity_id'); // Order by student and then event/activity
+
+        $query = $this->db->get();
+        return $query->result_array(); // Return result as an array
+    }
+
+    public function verify_reference($student_id, $reference_number)
+    {
+        $this->db->where('student_id', $student_id);
+        $query = $this->db->get('fines_summary');
+
+        if ($query->num_rows() > 0) {
+            $row = $query->row();
+            // Check if the reference number matches
+            return $row->reference_number_students === $reference_number;
+        }
+
+        return false;
+    }
+
+    public function update_payment_status($student_id, $reference_number, $mode_of_payment)
+    {
+        // Check reference match
+        $this->db->where('student_id', $student_id);
+        $summary = $this->db->get('fines_summary')->row();
+
+        if ($summary &&  $summary->reference_number_students === $reference_number) {
+            // Reference number matched – mark as Paid
+            $this->db->where('student_id', $student_id);
+            $this->db->update('fines_summary', [
+                'mode_payment' => $mode_of_payment,
+                'reference_number_admin' => $reference_number,
+                'fines_status' => 'Paid'
+            ]);
+
+            $this->db->where('student_id', $student_id);
+            $this->db->update('fines', ['status' => 'Paid']);
+        } else {
+            // Reference number mismatched or not yet assigned – mark as Processing
+            $this->db->where('student_id', $student_id);
+            $this->db->update('fines_summary', [
+                'mode_payment' => $mode_of_payment,
+                'reference_number_admin' => $reference_number,
+                'fines_status' => 'Pending'
+            ]);
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // FETCHING ORGANIZATION WHERE THE STUDENT BELONG *
     public function get_student_organizations($student_id)
     {
@@ -547,6 +677,12 @@ class Admin_model extends CI_Model
         $query = $this->db->get();
         return $query->result(); // Returns an array of objects
     }
+
+
+
+
+
+
 
     // FETCHING DEPARTMENT WHERE THE STUDENT BELONG *
     public function get_student_department($student_id)
