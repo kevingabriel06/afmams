@@ -1,5 +1,8 @@
 <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
 
+<!-- Include SweetAlert2 CDN if not already added -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <div class="card mb-3 mb-lg-0">
     <div class="card-header bg-body-tertiary d-flex justify-content-between">
         <h5 class="mb-0">Summary of Fines</h5>
@@ -516,9 +519,6 @@
                 </div>
             </div>
 
-            <!-- Include SweetAlert2 CDN if not already added -->
-            <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
             <script>
                 $(document).ready(function() {
                     $('#paymentModal form').submit(function(e) {
@@ -572,12 +572,6 @@
                     });
                 });
             </script>
-
-
-
-
-
-
 
 
             <div class="card-footer">

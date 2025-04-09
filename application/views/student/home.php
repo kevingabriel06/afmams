@@ -254,9 +254,32 @@
                                     <!-- Action Button -->
                                     <div class="col-md-auto d-none d-md-block">
                                         <?php if ($item->registration_fee == '0'): ?>
-                                            <button class="btn btn-falcon-default btn-sm px-4" type="button">Attend</button>
+                                            <?php if ($item->attendees_status == 'Attending'): ?>
+                                                <button class="btn btn-falcon-default btn-sm px-4 cancel-button"
+                                                    data-activity-id="<?= $item->activity_id ?>"
+                                                    data-student-id="<?= $this->session->userdata('student_id') ?>"
+                                                    data-status="<?php echo $item->attendees_status; ?>">
+                                                    Cancel
+                                                </button>
+                                            <?php else: ?>
+                                                <button class="btn btn-falcon-default btn-sm px-4 attend-button"
+                                                    data-activity-id="<?= $item->activity_id ?>"
+                                                    data-student-id="<?= $this->session->userdata('student_id') ?>"
+                                                    data-status="<?php echo $item->attendees_status; ?>">
+                                                    Attend
+                                                </button>
+                                            <?php endif; ?>
                                         <?php else: ?>
-                                            <button class="btn btn-falcon-default btn-sm px-4" type="button">Register</button>
+                                            <button
+                                                class=" btn btn-falcon-default btn-sm px-4 open-registration-modal"
+                                                type="button"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#registrationModal"
+                                                data-activity-id="<?php echo $item->activity_id; ?>"
+                                                data-registration-fee="<?php echo $item->registration_fee; ?>"
+                                                data-status="<?php echo $item->registration_status; ?>">
+                                                Register
+                                            </button>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -329,80 +352,204 @@
     </style>
 </div>
 
-<!-- Registration Modal -->
-<div class="modal fade" id="registrationModal" tabindex="-1" aria-labelledby="registrationModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="registrationModalLabel">Register for Activity</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="registrationForm" enctype="multipart/form-data">
-                    <input type="hidden" id="modal_activity_id" name="activity_id">
-                    <input type="hidden" id="modal_student_id" name="student_id">
-
-                    <div class="mb-3">
-                        <label for="reference_number" class="form-label">GCash Reference Number</label>
-                        <input type="text" class="form-control" id="reference_number" name="reference_number" required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="amount" class="form-label">Amount Paid</label>
-                        <input type="number" class="form-control" id="amount" name="amount" required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="payment_type" class="form-label">Payment Type</label>
-                        <select class="form-control" id="payment_type" name="payment_type" required>
-                            <option value="" selected disabled>Select Payment Type</option>
-                            <option value="cash">Cash</option>
-                            <option value="ecash">E-Cash (e.g.,GCash/PayMaya)</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="gcash_receipt" class="form-label">Upload Payment Screenshot</label>
-                        <input type="file" class="form-control" id="gcash_receipt" name="gcash_receipt" accept="image/*" required>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary">Submit Registration</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- script for registration start -->
 <script>
-    $(document).ready(function() {
-        // Function to toggle required fields based on payment type
-        function toggleRequiredFields() {
-            var paymentType = $('#payment_type').val();
+    $('.attend-button').on('click', function() {
+        const button = $(this);
+        const activityId = button.data('activity-id');
+        const studentId = button.data('student-id');
+        const currentStatus = button.data('status'); // Either "Attending" or null/empty
 
-            if (paymentType === "cash") {
-                $('#reference_number').prop('required', false).val(''); // Clear field
-                $('#gcash_receipt').prop('required', false);
-            } else {
-                $('#reference_number').prop('required', true);
-                $('#gcash_receipt').prop('required', true);
+        let confirmText = currentStatus === "Attending" ?
+            "Do you want to cancel your attendance?" :
+            "Do you want to mark yourself as attending this event?";
+
+        Swal.fire({
+            title: 'Are you sure?',
+            text: confirmText,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: "<?= site_url('student/attend'); ?>", // Ensure your URL is correct here
+                    type: "POST",
+                    data: {
+                        activity_id: activityId,
+                        student_id: studentId,
+                        status: currentStatus === "Attending" ? "Cancelled" : "Attending"
+                    },
+                    dataType: "json",
+                    success: function(response) {
+                        if (response.status === "success") {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success',
+                                text: response.message
+                            }).then(() => {
+                                // Optionally, update button text or hide the button
+                                location.reload(); // Reload the page to reflect changes
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'info',
+                                title: 'Notice',
+                                text: response.message
+                            });
+                        }
+                    },
+                    error: function() {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Something went wrong while updating your attendance.'
+                        });
+                    }
+                });
             }
-        }
+        });
+    });
 
-        // Run function when payment type is changed
-        $('#payment_type').change(function() {
-            toggleRequiredFields();
+    $('.cancel-button').on('click', function() {
+        const activityId = $(this).data('activity-id');
+        const studentId = $(this).data('student-id');
+
+        // Confirm before canceling
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "Do you want to cancel your attendance for this event?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Cancel Attendance',
+            cancelButtonText: 'No, Keep Attendance',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: "<?= site_url('student/cancel'); ?>",
+                    type: "POST",
+                    data: {
+                        activity_id: activityId,
+                        student_id: studentId
+                    },
+                    dataType: "json",
+                    success: function(response) {
+                        if (response.status === "success") {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Attendance Cancelled',
+                                text: response.message
+                            }).then(() => {
+                                // Optionally, update button text or hide the button
+                                location.reload(); // Reload the page to reflect changes
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: response.message
+                            });
+                        }
+                    },
+                    error: function() {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Failed to cancel attendance.'
+                        });
+                    }
+                });
+            }
+        });
+    });
+
+    // SCRIPT FOR THE RECEIPT REGISTRATION
+    document.addEventListener("DOMContentLoaded", function() {
+        const uploadContainer = document.getElementById("receipt-upload-container");
+        const uploadInput = document.getElementById("receipt-upload");
+
+        // Trigger file upload when clicking on the preview area
+        uploadContainer.addEventListener("click", function() {
+            uploadInput.click();
         });
 
-        // Handle form submission
-        $('#registrationForm').submit(function(e) {
-            e.preventDefault();
-            toggleRequiredFields(); // Ensure correct validation before submitting
+        // Preview the uploaded receipt image
+        uploadInput.addEventListener("change", function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById("receipt-preview").src = e.target.result;
+                    document.getElementById("receipt-preview").classList.remove("d-none");
+                    document.getElementById("receipt-placeholder").classList.add("d-none");
+                };
+                reader.readAsDataURL(file);
+            }
+        });
 
-            var formData = new FormData(this);
+        const registrationModal = document.getElementById('registrationModal');
+        const modalActivityIdInput = document.getElementById('modal_activity_id');
+        const modalRegistrationInput = document.getElementById('modal_amount');
+        const modalStatusInput = document.getElementById('modal_status');
+        const registrationForm = document.getElementById('registrationForm');
+        const statusMessage = document.getElementById('status-message');
+
+        // === Register Button Click Handler ===
+        document.querySelectorAll(".open-registration-modal").forEach(button => {
+            button.addEventListener("click", function() {
+                const activityId = this.getAttribute("data-activity-id");
+                const registration = this.getAttribute("data-registration-fee");
+                const status = this.getAttribute("data-status");
+
+                modalActivityIdInput.value = activityId;
+                modalRegistrationInput.value = registration;
+                modalStatusInput.value = status;
+
+                if (status === "Pending") {
+                    registrationForm.classList.add("d-none");
+                    statusMessage.classList.remove("d-none", "alert-success");
+                    statusMessage.classList.add("alert-warning");
+                    statusMessage.innerText = "Your registration is pending. Please wait for the admin to verify.";
+                } else if (status === "Verified") {
+                    registrationForm.classList.add("d-none");
+                    statusMessage.classList.remove("d-none", "alert-info");
+                    statusMessage.classList.add("alert-success");
+                    statusMessage.innerText = "You are registered to this activity.";
+                } else {
+                    registrationForm.classList.remove("d-none");
+                    statusMessage.classList.add("d-none");
+                    statusMessage.innerText = "";
+                }
+            });
+        });
+
+        // === Reset modal on close ===
+        registrationModal.addEventListener('hidden.bs.modal', function() {
+            registrationForm.reset();
+            receiptPreview.src = "";
+            receiptPreview.classList.add("d-none");
+            receiptPlaceholder.classList.remove("d-none");
+            registrationForm.classList.remove('d-none');
+            statusMessage.classList.add('d-none');
+            statusMessage.innerText = "";
+        });
+    });
+
+    // REGISTRATION INSERT
+    $(document).ready(function() {
+
+        // Handle form submission via AJAX with SweetAlert
+        $('#registrationForm').on('submit', function(e) {
+            e.preventDefault();
+
+            const form = $(this);
+            const formData = new FormData(this);
+            const submitButton = form.find('button[type="submit"]');
+            submitButton.prop('disabled', true);
 
             $.ajax({
-                url: "<?= base_url('student/register'); ?>",
+                url: "<?= site_url('student/register'); ?>",
                 type: "POST",
                 data: formData,
                 contentType: false,
@@ -410,30 +557,52 @@
                 dataType: "json",
                 success: function(response) {
                     if (response.status === "success") {
-                        alert(response.message);
-                        $('#registrationModal').modal('hide');
-                        location.reload();
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Registration Successful!',
+                            text: response.message,
+                            confirmButtonColor: '#3085d6',
+                            confirmButtonText: 'OK'
+                        }).then(() => {
+                            location.reload(); // Reload after the user clicks OK
+                        });
                     } else {
-                        alert(response.message);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Oops!',
+                            text: response.message
+                        });
                     }
                 },
                 error: function() {
-                    alert("An error occurred while submitting the registration.");
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Submission Failed',
+                        text: 'An error occurred while submitting the registration.'
+                    });
+                },
+                complete: function() {
+                    submitButton.prop('disabled', false);
                 }
             });
         });
 
-        // Pass data to modal when clicking "Register"
-        $('.attend-button').click(function() {
-            var activityId = $(this).data('activity-id');
-            var studentId = $(this).data('student-id');
+        // Handle modal open with data passed
+        $('.attend-button').on('click', function() {
+            const activityId = $(this).data('activity-id');
+            const studentId = $(this).data('student-id');
 
             $('#modal_activity_id').val(activityId);
             $('#modal_student_id').val(studentId);
         });
 
-        // Ensure correct validation when modal is opened
-        toggleRequiredFields();
+        // Reset modal when closed
+        $('#registrationModal').on('hidden.bs.modal', function() {
+            $('#registrationForm')[0].reset();
+            $('#receipt-preview').addClass('d-none').attr('src', '');
+            $('#receipt-placeholder').removeClass('d-none');
+        });
+
     });
 </script>
 
@@ -489,9 +658,7 @@
             window.scrollTo(0, 0);
         };
     });
-</script>
 
-<script>
     $(document).ready(function() {
         // Event listener for the Like button
         $('[id^=btn-like]').click(function() {
@@ -546,11 +713,7 @@
         updateLikeList(postId); // Refresh likes before showing modal
         $('#likesModal-' + postId).modal('show');
     }
-</script>
 
-
-<!-- ========= JAVASCRIPT  ======== -->
-<script>
     // FOR COMMENT SECTION
     $(document).on('submit', 'form[id^="commentForm"]', function(e) {
         e.preventDefault();
@@ -640,7 +803,6 @@
         }
     });
 
-
     // DISPLAYING EXCERPT AND VIEWING OF POST
     $(document).on('click', '.view-more', function() {
         var container = $(this).closest('.card-body');
@@ -674,6 +836,67 @@
         });
     });
 </script>
+
+<!-- Registration Modal -->
+<div class="modal fade" id="registrationModal" tabindex="-1" aria-labelledby="registrationModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="registrationModalLabel">Register for Activity</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Status Message (conditionally shown) -->
+                <div id="status-message" class="alert d-none"></div>
+
+                <form id="registrationForm" enctype="multipart/form-data">
+                    <input type="text" id="modal_activity_id" name="activity_id">
+                    <input type="text" id="modal_status" name="status">
+                    <input type="text" id="modal_student_id" value="<?php echo $this->session->userdata('student_id'); ?>" name="student_id">
+
+                    <!-- Reference Number -->
+                    <div class="mb-3">
+                        <label for="reference_number" class="form-label">Reference Number</label>
+                        <input type="text" class="form-control" id="reference_number" name="reference_number" required>
+                    </div>
+
+                    <!-- Amount Paid -->
+                    <div class="mb-3">
+                        <label for="amount" class="form-label">Amount Paid</label>
+                        <input type="text" class="form-control" id="modal_amount" name="amount" readonly>
+                    </div>
+
+
+                    <!-- Payment Type -->
+                    <div class="mb-3">
+                        <label for="payment_type" class="form-label">Payment Type</label>
+                        <select class="form-control" id="payment_type" name="payment_type" required>
+                            <option value="" selected disabled>Select Payment Type</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Online Payment">Online Payment</option>
+                        </select>
+                    </div>
+
+                    <!-- Receipt Upload Section -->
+                    <div class="mb-3">
+                        <label class="form-label" for="receipt-upload">Payment Screenshot</label>
+                        <div class="border p-3 d-flex justify-content-center align-items-center"
+                            style="height: 50%; cursor: pointer;" id="receipt-upload-container">
+                            <img id="receipt-preview" src="" alt="Receipt Preview" class="img-fluid d-none" style="max-height: 50%;" />
+                            <i id="receipt-placeholder" class="fas fa-plus text-muted" style="font-size: 2rem;"></i>
+                        </div>
+                        <input type="file" id="receipt-upload" name="receipt" accept="image/*" class="d-none" />
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="btn btn-primary w-100">Submit Registration</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========= JAVASCRIPT  ======== -->
 
 <style>
     /* Set fixed size for the image */

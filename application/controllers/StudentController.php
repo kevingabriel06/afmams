@@ -59,22 +59,29 @@ class StudentController extends CI_Controller
         $data['activities'] = $this->student->get_shared_activities($limit, $offset);
         foreach ($data['activities'] as &$activity) {
             $activity->type = 'activity';
+            $activity->registration_status = $this->student->get_registration_status_for_activity($activity->activity_id);
+            $activity->attendees_status = $this->student->get_attendees_free_event($activity->activity_id);
         }
 
         // MERGE POSTS & ACTIVITIES BEFORE PAGINATION
         $merged_feed = array_merge($data['posts'], $data['activities']);
 
-        // SORT MERGED DATA BY DATE
+        // Remove duplicates by checking unique post/activity ID (you can use any unique field like post ID or activity ID)
+        $merged_feed = array_map("unserialize", array_unique(array_map("serialize", $merged_feed)));
+
+        // SORT MERGED DATA BY DATE (created_at for posts, updated_at for activities)
         usort($merged_feed, function ($a, $b) {
-            // For activities, use 'updated_at', for posts, use 'created_at'
+            // Determine the date field based on whether it's a post or activity
             $a_date = isset($a->updated_at) ? $a->updated_at : (isset($a->created_at) ? $a->created_at : '');
             $b_date = isset($b->updated_at) ? $b->updated_at : (isset($b->created_at) ? $b->created_at : '');
 
+            // Return comparison result based on dates
             return strtotime($b_date) - strtotime($a_date);
         });
 
-        //Apply pagination on the merged feed (with proper offset and limit)
-        $data['feed'] = array_slice($merged_feed, $offset, $limit);
+        // Apply pagination on the merged feed (with proper offset and limit)
+        $data['feed'] = array_slice($merged_feed, 0, $limit);
+
 
         // Activity to post and show to the upcoming section
         $data['activities_upcoming'] = $this->student->get_activities_upcoming();
@@ -203,157 +210,183 @@ class StudentController extends CI_Controller
         echo json_encode($response);
     }
 
+    // REGISTRATION
+    public function register()
+    {
 
-    // public function student_dashboard()
-    // {
-    //     $data['title'] = 'Student Home';
+        // Set validation rules
+        $this->form_validation->set_rules('student_id', 'Student ID', 'required');
+        $this->form_validation->set_rules('activity_id', 'Activity ID', 'required');
+        $this->form_validation->set_rules('payment_type', 'Payment Type', 'required|in_list[Cash,Online Payment]');
+        $this->form_validation->set_rules('amount', 'Amount Paid', 'required|numeric');
 
-    //     $student_id = $this->session->userdata('student_id');
+        // Additional rule for Online Payment: reference number required
+        if ($this->input->post('payment_type') === 'Online Payment') {
+            $this->form_validation->set_rules('reference_number', 'Reference Number', 'required');
+        }
 
-    //     // Fetch roles
-    //     $data['users'] = $this->student->get_roles($student_id);
+        // Run validation
+        if ($this->form_validation->run() == FALSE) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => validation_errors()
+            ]);
+            return;
+        }
 
-    //     // Fetch student activities
-    //     $data['activities'] = $this->student->get_student_activities($student_id);
-    //     $data['posts'] = $this->student->getFilteredPosts($student_id);
-    //     $data['upcoming_activities'] = $this->student->get_upcoming_activities($student_id);
+        $student_id       = $this->input->post('student_id');
+        $activity_id      = $this->input->post('activity_id');
+        $payment_type     = $this->input->post('payment_type');
+        $reference_number = $this->input->post('reference_number');
+        $amount_paid      = $this->input->post('amount');
+        $gcash_receipt    = null;
 
-    //     // FETCH LIKE COUNTS FOR EACH POST
-    //     foreach ($data['posts'] as &$post) {
-    //         $post->like_count = $this->admin->get_like_count($post->post_id);
-    //         $post->user_has_liked_post = $this->admin->user_has_liked($post->post_id, $student_id);
-    //         $post->comments_count = $this->admin->get_comment_count($post->post_id);
-    //     }
+        // Handle file upload (optional for Cash, required for Online Payment)
+        if (!empty($_FILES['receipt']['name'])) {
+            $config['upload_path']   = './assets/registration_receipt/';
+            $config['allowed_types'] = 'jpg|jpeg|png';
+            $config['max_size']      = 2048; // 2MB
+            $config['file_name']     = 'proof_' . time() . '_' . $student_id;
 
-    //     // FETCH 2 COMMENTS ONLY IN A POST
-    //     foreach ($data['posts'] as &$post) {
-    //         $post->comments = $this->admin->get_comments_by_post($post->post_id);
-    //     }
+            $this->load->library('upload', $config);
+            $this->upload->initialize($config);
 
-    //     // Loop through activities and check if the student has expressed interest || for count attendees
-    //     foreach ($data['activities'] as &$activity) {
-    //         // Use checkInterest method to check if the student has attended or expressed interest in the activity
-    //         $activity['has_attended'] = $this->student->checkInterest($activity['activity_id'], $student_id);
-    //     }
+            if (!$this->upload->do_upload('receipt')) {
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => strip_tags($this->upload->display_errors())
+                ]);
+                return;
+            }
 
-    //     // Pass the student_id to the view
-    //     $data['student_id'] = $student_id;
+            $upload_data   = $this->upload->data();
+            $gcash_receipt = $upload_data['file_name'];
+        }
 
-    //     // Load header and views
-    //     $this->load->view('layout/header', $data);
-    //     $this->load->view('student/home', $data);
-    //     $this->load->view('layout/footer');
-    // }
+        // If Online Payment and no receipt uploaded
+        if ($payment_type === 'Online Payment' && $gcash_receipt === null) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Gcash receipt image is required for Online Payment.'
+            ]);
+            return;
+        }
 
-    // LIKING OF POST
-    // public function like_post($post_id)
-    // {
-    //     $student_id = $this->session->userdata('student_id');
+        // Prepare data
+        $data = [
+            'student_id'       => $student_id,
+            'activity_id'      => $activity_id,
+            'payment_type'     => $payment_type,
+            'reference_number' => ($payment_type === 'Cash') ? null : $reference_number,
+            'amount_paid'      => $amount_paid,
+            'receipt'          => $gcash_receipt,
+            'registration_status' => 'Pending',
+            'registered_at'    => date('Y-m-d H:i:s'),
+        ];
 
-    //     $this->load->model('Admin_model', 'admin');
+        if ($this->student->insert_registration($data)) {
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Registration submitted successfully!'
+            ]);
+        } else {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Database error. Please try again.'
+            ]);
+        }
+    }
 
-    //     // Check if the user already liked the post
-    //     if ($this->admin->user_has_liked($post_id, $student_id)) {
-    //         // User already liked, so we will "unlike" the post
-    //         $this->admin->unlike_post($post_id, $student_id);
-    //         $like_img = base_url() . 'assets/img/icons/spot-illustrations/like-inactive.png';
-    //         $like_text = 'Like';
-    //     } else {
-    //         // User has not liked the post yet, so we will "like" the post
-    //         $this->admin->like_post($post_id, $student_id);
-    //         $like_img = base_url() . 'assets/img/icons/spot-illustrations/like-active.png';
-    //         $like_text = 'Liked';
-    //     }
+    // FOR FREE EVENT 
+    public function attend_free_event()
+    {
+        $activity_id = $this->input->post('activity_id');
+        $student_id = $this->input->post('student_id');
 
-    //     // Get the updated like count
-    //     $new_like_count = $this->admin->get_like_count($post_id);
+        // Check if the student is already marked as attending
+        $exists = $this->db->get_where('attendees', [
+            'activity_id' => $activity_id,
+            'student_id' => $student_id
+        ])->row();
 
-    //     // Return the response
-    //     echo json_encode([
-    //         'like_img' => $like_img,
-    //         'like_text' => $like_text,
-    //         'new_like_count' => $new_like_count
-    //     ]);
-    // }
+        if ($exists) {
+            // If the status is already 'Attending', return a message
+            if ($exists->attendees_status === 'Attending') {
+                echo json_encode(['status' => 'info', 'message' => 'You are already marked as attending.']);
+            } else {
+                // Update the status to 'Attending' if it's not already marked as such
+                $this->db->where('activity_id', $activity_id);
+                $this->db->where('student_id', $student_id);
+                $this->db->update('attendees', ['attendees_status' => 'Attending']);
 
-    // // ADDING COMMENTS
-    // public function add_comment()
-    // {
-    //     $this->load->model('Admin_model', 'admin');
-    //     if ($this->input->post()) {
-    //         // Set validation rules
-    //         $this->form_validation->set_rules('comment', 'Comment', 'required');
+                echo json_encode(['status' => 'success', 'message' => 'Your attendance has been updated to attending.']);
+            }
+        } else {
+            // If the student is not found in the attendees table, insert a new record
+            $this->db->insert('attendees', [
+                'activity_id' => $activity_id,
+                'student_id' => $student_id,
+                'attendees_status' => 'Attending'
+            ]);
 
-    //         if ($this->form_validation->run() == FALSE) {
-    //             $response = [
-    //                 'status' => 'error',
-    //                 'errors' => validation_errors()
-    //             ];
-    //         } else {
-    //             // Prepare data for insertion
-    //             $data = array(
-    //                 'post_id' => $this->input->post('post_id'),
-    //                 'content' => $this->input->post('comment'),
-    //                 'student_id' => $this->session->userdata('student_id')
-    //             );
+            echo json_encode(['status' => 'success', 'message' => 'You are now marked as attending.']);
+        }
+    }
 
-    //             $result = $this->admin->add_comment($data);
-    //             if ($result) {
-    //                 $post_id = $this->input->post('post_id');
+    public function cancelAttendance()
+    {
+        // Get POST data
+        $activityId = $this->input->post('activity_id');
+        $studentId = $this->input->post('student_id');
 
-    //                 // Fetch updated comment count
-    //                 $comments_count = $this->admin->get_comment_count($post_id);
+        // Check if the attendance record exists and the status is 'Attending'
+        $this->db->where('activity_id', $activityId);
+        $this->db->where('student_id', $studentId);
+        $attendance = $this->db->get('attendees')->row();  // Fetch the record
 
-    //                 // Fetch the newly added comment only
-    //                 $new_comment = $this->admin->get_latest_comment($post_id); // Ensure this function fetches only the latest
+        if ($attendance && $attendance->attendees_status === 'Attending') {
+            // Update status to 'Cancelled'
+            $this->db->where('activity_id', $activityId);
+            $this->db->where('student_id', $studentId);
+            $updateStatus = $this->db->update('attendees', [
+                'attendees_status' => 'Cancelled'
+            ]);
 
-    //                 // Ensure correct JSON response
-    //                 $response = array(
-    //                     'status' => 'success',
-    //                     'message' => 'Comment Saved Successfully',
-    //                     'comments_count' => $comments_count,
-    //                     'new_comment' => array( // Make sure this is an array with expected keys
-    //                         'name' => $new_comment->name ?? 'Unknown',
-    //                         'profile_pic' => base_url('assets/profile/') . ($new_comment->profile_pic ?? 'default.jpg'),
-    //                         'content' => $new_comment->content ?? '',
-    //                     )
-    //                 );
-    //             } else {
-    //                 $response = array(
-    //                     'status' => 'error',
-    //                     'errors' => 'Failed to Save Comment'
-    //                 );
-    //             }
-    //         }
-    //     }
-
-    //     echo json_encode($response);
-    // }
-
-
-
-    //POST LIKES, COMMENTS CONTROLLERS END 
+            if ($updateStatus) {
+                // Return success response
+                echo json_encode([
+                    'status' => 'success',
+                    'message' => 'Your attendance has been cancelled successfully.'
+                ]);
+            } else {
+                // Return failure response
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'Failed to cancel your attendance. Please try again.'
+                ]);
+            }
+        } else {
+            // If attendance doesn't exist or is not marked as 'Attending'
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'You are not attending this event or your attendance has already been cancelled.'
+            ]);
+        }
+    }
 
 
     public function attendance_history()
     {
         $data['title'] = 'Attendance History';
-        $this->load->model('Student_model');
 
         $student_id = $this->session->userdata('student_id');
 
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
-
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->Student_model->get_roles($student_id);
-        $data['role'] = $users['role'];
+        // FETCH USER DATA
+        $data['users'] = $this->student->get_student($student_id);
 
         // Get the attendance data for the student
 
-        $data['attendances'] = $this->Student_model->get_attendance_history($student_id);
+        // $data['attendances'] = $this->student->get_attendance_history($student_id);
 
 
         $this->load->view('layout/header', $data);
@@ -366,21 +399,14 @@ class StudentController extends CI_Controller
     public function summary_fines()
     {
         $data['title'] = 'Summary of Fines';
-        $this->load->model('Student_model');
 
         $student_id = $this->session->userdata('student_id');
 
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
-
-        // FETCHING DATA BASED ON THE ROLES - NECESSARRY
-        $users = $this->Student_model->get_roles($student_id);
-        $data['role'] = $users['role'];
+        // FETCH USER DATA
+        $data['users'] = $this->student->get_student($student_id);
 
         $this->load->view('layout/header', $data);
-        $this->load->view('student/summary_of_fines', $data);
+        $this->load->view('student/summary_fines', $data);
         $this->load->view('layout/footer', $data);
     }
 
@@ -392,23 +418,11 @@ class StudentController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
-
-        $student_details = $this->Student_model->get_student_details($student_id);
-
-        // FETCHING DATA BASED ON THE ROLES - NECESSARY
-        $users = $this->Student_model->get_roles($student_id);
-        $data['role'] = isset($users['role']) ? $users['role'] : 'student'; // Default role as 'student'
-
-        // Check if dept_id exists in $users to avoid "Undefined index" error
-        $dept_id = isset($users['dept_id']) ? $users['dept_id'] : null;
+        // FETCH USER DATA
+        $data['users'] = $this->student->get_student($student_id);
 
         // Fetch activities based on department or organization membership
-        $activities = $this->Student_model->get_activities_for_users($student_id, $student_details['dept_id']);
-        $data['activities'] = $activities;
+        $data['activities'] = $this->student->get_activities_for_users();
 
         $this->load->view('layout/header', $data);
         $this->load->view('student/list-activity', $data);

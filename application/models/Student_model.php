@@ -105,6 +105,51 @@ class Student_model extends CI_Model
         return $query->result();
     }
 
+    public function get_registration_status_for_activity($activity_id)
+    {
+        // Get the currently logged-in student's ID
+        $student_id = $this->session->userdata('student_id');
+
+        // Fetch the registration status for the student and the specific activity
+        $this->db->select('registrations.registration_status');
+        $this->db->from('registrations');
+        $this->db->where('registrations.student_id', $student_id);
+        $this->db->where('registrations.activity_id', $activity_id); // Filter by specific activity
+
+        // Execute the query
+        $query = $this->db->get();
+
+        // Check if any registration exists for this student and activity
+        if ($query->num_rows() > 0) {
+            return $query->row()->registration_status; // Return the registration status
+        } else {
+            return null; // If no registration found, return null
+        }
+    }
+
+    // ATTENDEES STATUS
+    public function get_attendees_free_event($activity_id)
+    {
+        // Get the currently logged-in student's ID
+        $student_id = $this->session->userdata('student_id');
+
+        // Fetch the registration status for the student and the specific activity
+        $this->db->select('attendees.attendees_status');
+        $this->db->from('attendees');
+        $this->db->where('attendees.student_id', $student_id);
+        $this->db->where('attendees.activity_id', $activity_id); // Filter by specific activity
+
+        // Execute the query
+        $query = $this->db->get();
+
+        // Check if any registration exists for this student and activity
+        if ($query->num_rows() > 0) {
+            return $query->row()->attendees_status; // Return the registration status
+        } else {
+            return null; // If no registration found, return null
+        }
+    }
+
 
 
     public function get_shared_activities($limit, $offset)
@@ -243,15 +288,6 @@ class Student_model extends CI_Model
         return $this->db->insert('comment', $data);  // Assuming 'comments' is the correct table name
     }
 
-    // DELETION OF POST
-    public function delete_post($post_id)
-    {
-        $this->db->where('post_id', $post_id)->delete('comment');
-        $this->db->where('post_id', $post_id)->delete('likes');
-        $this->db->where('post_id', $post_id);
-        return $this->db->delete('post'); // Assuming your table name is 'posts'
-    }
-
     public function get_likes_by_post($post_id)
     {
         // Query to get the users who liked the post
@@ -327,6 +363,12 @@ class Student_model extends CI_Model
     }
 
     // END HOME
+
+    // START REGISTRATION
+    public function insert_registration($data)
+    {
+        return $this->db->insert('registrations', $data);
+    }
 
     //POST LIKES, COMMENTS START
 
@@ -438,63 +480,58 @@ class Student_model extends CI_Model
         return $attendances;
     }
 
-
-    //LIST OF ACTIVITY
-    public function get_activities_for_users($student_id, $dept_id)
+    // LIST OF ACTIVITY
+    public function get_activities_for_users()
     {
-        // Get the organizations the student belongs to
-        $this->db->select('org_id');
-        $this->db->from('student_org');
-        $this->db->where('student_id', $student_id);
-        $query = $this->db->get();
-        $org_ids = array_column($query->result_array(), 'org_id');
+        // Get logged-in student ID
+        $student_id = $this->session->userdata('student_id');
 
-        // Subquery: Get private activities where org_id and dept_id are NULL
-        $this->db->select('activity_id');
+        // Get the student's department and name
+        $user = $this->db->select('users.dept_id, department.dept_name')
+            ->from('users')
+            ->join('department', 'users.dept_id = department.dept_id')
+            ->where('student_id', $student_id)
+            ->get()
+            ->row();
+
+        $user_dept_name = $user ? $user->dept_name : null;
+
+        // Get all orgs the student belongs to
+        $orgs = $this->db->select('student_org.org_id, organization.org_name')
+            ->from('student_org')
+            ->join('organization', 'student_org.org_id = organization.org_id')
+            ->where('student_id', $student_id)
+            ->get()
+            ->result();
+
+        $org_names = array_map(function ($org) {
+            return $org->org_name;
+        }, $orgs);
+
+        // Fetch upcoming activities
+        $this->db->select('activity.*, MIN(ats.date_time_in) as first_schedule');
         $this->db->from('activity');
-        $this->db->where('dept_id IS NULL');
-        $this->db->where('org_id IS NULL');
-        $this->db->where('privacy', 'private');
-        $subquery = $this->db->get_compiled_select();
+        $this->db->join('activity_time_slots ats', 'activity.activity_id = ats.activity_id', 'LEFT');
 
-        // Fetch activities with status and formatted dates
-        $this->db->select('a.activity_id, a.activity_title, a.start_date, a.end_date, a.registration_fee, a.am_in, a.activity_image, 
-                        a.status,
-                        COALESCE(d.dept_name, o.org_name, "Student Parliament") AS organizer,
-                        DATE_FORMAT(a.start_date, "%b %d, %Y") AS activity_date, 
-                        DATE_FORMAT(a.start_date, "%h:%i %p") AS start_time,
-                        DATE_FORMAT(a.end_date, "%h:%i %p") AS end_time,
-                        CASE 
-                            WHEN a.start_date > CURDATE() THEN 1  -- Upcoming
-                            WHEN a.start_date <= CURDATE() AND a.end_date >= CURDATE() THEN 2  -- Ongoing
-                            ELSE 3  -- Completed
-                        END AS activity_order');
-        $this->db->from('activity a');
-        $this->db->join('department d', 'd.dept_id = a.dept_id', 'left');
-        $this->db->join('organization o', 'o.org_id = a.org_id', 'left');
-
+        // Filter by audience
         $this->db->group_start();
-        $this->db->where('a.privacy', 'public');
-        $this->db->or_group_start();
-        $this->db->where('a.dept_id IS NULL');
-        $this->db->where('a.org_id IS NULL');
-        $this->db->where('a.privacy', 'public');
-        $this->db->group_end();
-        $this->db->or_where('a.dept_id', $dept_id);
-        if (!empty($org_ids)) {
-            $this->db->or_where_in('a.org_id', $org_ids);
+        $this->db->or_where('activity.audience', 'All'); // Student Parliament activities
+        if ($user_dept_name) {
+            $this->db->or_where('activity.audience', $user_dept_name); // Department-specific activities
+        }
+        if (!empty($org_names)) {
+            $this->db->or_where_in('activity.audience', $org_names); // Activities related to the student's organizations
         }
         $this->db->group_end();
 
-        $this->db->where("a.activity_id NOT IN ($subquery)", null, false);
+        // Group by activity to allow aggregation
+        $this->db->group_by('activity.activity_id');
 
-        // Sorting logic to ensure upcoming first, then ongoing, then completed activities
-        $this->db->order_by('activity_order', 'ASC'); // Sort by activity order: upcoming, ongoing, completed
-        $this->db->order_by('a.start_date', 'ASC'); // Secondary sort by start_date for tie-breaking within each category
-
+        // Execute the query
         $query = $this->db->get();
-        return $query->result_array();
+        return $query->result();
     }
+
 
 
 

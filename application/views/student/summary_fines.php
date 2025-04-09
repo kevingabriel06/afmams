@@ -1,6 +1,6 @@
 <div class="card mb-3 mb-lg-0">
     <div class="card-header bg-body-tertiary d-flex justify-content-between">
-        <h5 class="mb-0">Attendance History</h5>
+        <h5 class="mb-0">Summary of Fines</h5>
     </div>
 </div>
 

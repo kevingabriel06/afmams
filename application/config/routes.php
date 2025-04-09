@@ -65,18 +65,31 @@ $route['student/home/like-post/(:num)'] = 'StudentController/like_post/$1'; // R
 $route['student/view_likes/(:num)'] = 'StudentController/view_likes/$1'; // Route for the viewing of user who like the post
 $route['student/home/unlike-post/(:num)'] = 'StudentController/unlike_post/$1'; // Route for unliking a post
 $route['student/home/add-comment']['post'] = 'StudentController/add_comment'; // Route for adding of comment
+$route['student/register']['post'] = 'StudentController/register';
+$route['student/attend']['post'] = 'StudentController/attend_free_event';
+$route['student/cancel']['post'] = 'StudentController/cancelAttendance';
+
 
 //count the number who clicked attend
 
 $route['student/express-interest'] = 'StudentController/express_interest';
 
+// ATTENDANCE
+$route['student/attendance-history'] = 'StudentController/attendance_history';
+
+// FINES
+$route['student/summary-fines'] = 'StudentController/summary_fines';
+
+
+// ACTIVITY
+$route['student/list-activity'] = 'StudentController/list_activity';
 
 $route['student/excuse-application/submit'] = 'StudentController/submit_application';
 $route['student/excuse-application/(:any)'] = 'StudentController/excuse_application/$1';
-$route['student/attendance-history/(:any)'] = 'StudentController/attendance_history/$1';
-$route['student/list-activity/(:any)'] = 'StudentController/list_activity/$1';
+
+
 $route['student/activity-details/(:any)'] = 'StudentController/activity_details/$1';
-$route['student/summary-fines'] = 'StudentController/summary_fines';
+
 
 $route['student/evaluation-form/(:any)'] = 'StudentController/evaluation_form/$1';
 $route['student/evaluation-form-questions/(:num)'] = 'StudentController/evaluation_form_questions/$1';

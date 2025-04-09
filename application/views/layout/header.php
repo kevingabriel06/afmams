@@ -93,8 +93,8 @@
           <div class="collapse navbar-collapse" id="navbarVerticalCollapse">
             <div class="navbar-vertical-content scrollbar">
               <ul class="navbar-nav flex-column mb-3" id="navbarVerticalNav">
-                <!-- dashboard -->
-                <a class="nav-link" href="<?php echo site_url('student/home/' . $this->session->userdata('student_id')); ?>" role="button">
+                <!-- Home -->
+                <a class="nav-link" href="<?php echo site_url('student/home'); ?>" role="button">
                   <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-home"></span></span><span class="nav-link-text ps-1">Home</span></div>
                 </a>
                 <!-- menu options -->
@@ -105,7 +105,7 @@
                       <hr class="mb-0 navbar-vertical-divider" />
                     </div>
                   </div><!-- Attendance pages-->
-                  <a class="nav-link" href="<?php echo site_url('student/attendance-history/' . $this->session->userdata('student_id')); ?>" role="button">
+                  <a class="nav-link" href="<?php echo site_url('student/attendance-history'); ?>" role="button">
                     <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-calendar-alt"></span></span><span class="nav-link-text ps-1">Attendance History</span></div>
                   </a><!-- Fines pages-->
                   <a class="nav-link" href="<?php echo site_url('student/summary-fines') ?>" role="button">
@@ -116,13 +116,13 @@
                     <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fab fa-buromobelexperte"></span></span><span class="nav-link-text ps-1">Activity</span></div>
                   </a>
                   <ul class="nav collapse" id="activity">
-                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('student/list-activity/' . $this->session->userdata('student_id')); ?>">
+                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('student/list-activity'); ?>">
                         <div class="d-flex align-items-center"><span class="nav-link-text ps-1">List of Activity</span></div>
                       </a><!-- more inner pages--></li>
-                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('student/evaluation-form/' . $this->session->userdata('student_id')); ?>">
+                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('student/evaluation-form'); ?>">
                         <div class="d-flex align-items-center"><span class="nav-link-text ps-1">Evaluation Form</span></div>
                       </a><!-- more inner pages--></li>
-                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('student/excuse-application/' . $this->session->userdata('student_id')); ?>">
+                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('student/excuse-application'); ?>">
                         <div class="d-flex align-items-center"><span class="nav-link-text ps-1">Excuse Application</span></div>
                       </a><!-- more inner pages--></li>
                   </ul><!-- parent pages-->
