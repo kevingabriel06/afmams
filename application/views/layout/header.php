@@ -122,8 +122,8 @@
                     <li class="nav-item"><a class="nav-link" href="<?php echo site_url('student/evaluation-form'); ?>">
                         <div class="d-flex align-items-center"><span class="nav-link-text ps-1">Evaluation Form</span></div>
                       </a><!-- more inner pages--></li>
-                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('student/excuse-application'); ?>">
-                        <div class="d-flex align-items-center"><span class="nav-link-text ps-1">Excuse Application</span></div>
+                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('student/excuse-application/list'); ?>">
+                        <div class="d-flex align-items-center"><span class="nav-link-text ps-1">List Excuse Application</span></div>
                       </a><!-- more inner pages--></li>
                   </ul><!-- parent pages-->
                 </li>

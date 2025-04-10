@@ -532,44 +532,155 @@ class Student_model extends CI_Model
         return $query->result();
     }
 
+    // FETCHING SPECIFIC ACTIVITY USING ACTIVITY ID 
+    public function get_activity($activity_id)
+    {
+        $this->db->select('a.*, MIN(ats.date_time_in) as first_schedule, MAX(ats.date_time_out) as last_schedule');
+        $this->db->from('activity a');
+        $this->db->join('activity_time_slots ats', 'ats.activity_id = a.activity_id', 'left');
+        $this->db->group_by('a.activity_id');
 
+        if ($activity_id !== null) {
+            $this->db->where('a.activity_id', $activity_id);
+            return $this->db->get()->row_array(); // Fetch single record
+        }
 
+        $query = $this->db->get();
+        return $query->result(); // Fetch multiple records
+    }
 
+    // SCHEDULED OF ACTIVITY
+    public function get_schedule($activity_id)
+    {
+        $this->db->select('*');
+        $this->db->from('activity_time_slots ats');
+        $this->db->where('ats.activity_id', $activity_id);
 
+        $query = $this->db->get();
+        return $query->result_array(); // Fetch all schedules
+    }
 
+    // COUNT ATTENDEES (FREE EVENT)
+    public function count_attendees($activity_id)
+    {
+        $this->db->select('COUNT(*) as count');
+        $this->db->from('attendees');
+        $this->db->where('activity_id', $activity_id);
+        $this->db->where('attendees_status', 'Attending');
+
+        $query = $this->db->get();
+        return $query->row()->count;
+    }
+
+    // COUNT REGISTERED
+    public function count_registered($activity_id)
+    {
+        $this->db->select('COUNT(*) as count');
+        $this->db->from('registrations');
+        $this->db->where('activity_id', $activity_id);
+        $this->db->where('registration_status', 'Verified');
+
+        $query = $this->db->get();
+        return $query->row()->count;
+    }
 
     //EXCUSE APPLICATION
 
     //get users table data to pre-populate some fields
 
-    public function get_student_details($student_id)
+    public function get_student_details()
     {
-        // Query to fetch student details from the 'users' table
-        $this->db->select('first_name, last_name, dept_id'); // Select necessary fields
+        $student_id = $this->session->userdata('student_id');
+
+        $this->db->select('*');
+        $this->db->from('users');
+        $this->db->join('department', 'users.dept_id = department.dept_id', 'left');
         $this->db->where('student_id', $student_id);
-        $query = $this->db->get('users'); // Assuming 'users' is the table name
 
-        if ($query->num_rows() > 0) {
-            $student = $query->row_array();
+        $query = $this->db->get();
+        return $query->row(); // Use ->row_array() if you want an associative array
+    }
 
-            // Get the department name using dept_id from the 'department' table
-            $this->db->select('dept_name');
-            $this->db->where('dept_id', $student['dept_id']);
-            $department_query = $this->db->get('department'); // Assuming 'department' is the table name
+    public function applications()
+    {
+        $student_id = $this->session->userdata('student_id');
 
-            if ($department_query->num_rows() > 0) {
-                $student['department_name'] = $department_query->row_array()['dept_name']; // Fetch department name
-            } else {
-                $student['department_name'] = ''; // No department found
-            }
+        $this->db->select('activity.*, ea.*, ea.status AS exStatus');
+        $this->db->from('excuse_application ea');
+        $this->db->join('activity', 'activity.activity_id = ea.activity_id');
+        $this->db->where('ea.student_id', $student_id);
 
-            return $student;
-        } else {
-            return false; // If no data found
+        $query = $this->db->get();
+        return $query->result(); // Return all matching applications
+    }
+
+    public function get_activities_for_users_excuse_application()
+    {
+        // Get logged-in student ID
+        $student_id = $this->session->userdata('student_id');
+
+        // Get the student's department and name
+        $user = $this->db->select('users.dept_id, department.dept_name')
+            ->from('users')
+            ->join('department', 'users.dept_id = department.dept_id')
+            ->where('student_id', $student_id)
+            ->get()
+            ->row();
+
+        $user_dept_name = $user ? $user->dept_name : null;
+
+        // Get all orgs the student belongs to
+        $orgs = $this->db->select('student_org.org_id, organization.org_name')
+            ->from('student_org')
+            ->join('organization', 'student_org.org_id = organization.org_id')
+            ->where('student_id', $student_id)
+            ->get()
+            ->result();
+
+        $org_names = array_map(function ($org) {
+            return $org->org_name;
+        }, $orgs);
+
+        // Fetch upcoming activities that exist in excuse_application but where the student has not passed an excuse
+        $this->db->select('activity.*');
+        $this->db->from('activity');
+        $this->db->join('excuse_application', 'excuse_application.activity_id = activity.activity_id', 'inner');
+        $this->db->where('activity.status', 'Upcoming');
+
+        // Filter by audience
+        $this->db->group_start();
+        $this->db->or_where('activity.audience', 'All');
+        if ($user_dept_name) {
+            $this->db->or_where('activity.audience', $user_dept_name);
         }
+        if (!empty($org_names)) {
+            $this->db->or_where_in('activity.audience', $org_names);
+        }
+        $this->db->group_end();
+
+        // Ensure the student has not passed the excuse application for this activity
+        $this->db->where('excuse_application.student_id', $student_id);
+        //$this->db->where('excuse_application.status !=', 'Approved'); // Check for activities where the excuse is not approved
+
+        // Optional: Remove duplicates
+        $this->db->group_by('excuse_application.activity_id, excuse_application.student_id');
+
+        // Execute the query
+        $query = $this->db->get();
+        return $query->result();
     }
 
 
+    public function insert_application($data)
+    {
+        // Data should include 'student_id', 'activity_id', 'subject', 'content', 'document', 'status'
+        $this->db->insert('excuse_application', $data); // Insert the data into the 'applications' table
+        if ($this->db->affected_rows() > 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
 
     //EXCUSE APPLICATION DROPDOWN
 
@@ -645,12 +756,6 @@ class Student_model extends CI_Model
 
 
 
-    //EXCUSE APPLICATION SUBMIT TO DATABASE
-    public function insert_application($data)
-    {
-        // Insert the data into the 'excuse_application' table
-        return $this->db->insert('excuse_application', $data);
-    }
 
 
 
@@ -668,6 +773,55 @@ class Student_model extends CI_Model
         return $query->row(); // Make sure this is an object
     }
 
+    // EVALUATION FORMS
+    public function forms()
+    {
+        // Get logged-in student ID
+        $student_id = $this->session->userdata('student_id');
+
+        // Get the student's department and name
+        $user = $this->db->select('users.dept_id, department.dept_name')
+            ->from('users')
+            ->join('department', 'users.dept_id = department.dept_id')
+            ->where('student_id', $student_id)
+            ->get()
+            ->row();
+
+        $user_dept_name = $user ? $user->dept_name : null;
+
+        // Get all orgs the student belongs to
+        $orgs = $this->db->select('student_org.org_id, organization.org_name')
+            ->from('student_org')
+            ->join('organization', 'student_org.org_id = organization.org_id')
+            ->where('student_id', $student_id)
+            ->get()
+            ->result();
+
+        $org_names = array_map(function ($org) {
+            return $org->org_name;
+        }, $orgs);
+
+        // Fetch upcoming activities that exist in excuse_application but where the student has not passed an excuse
+        $this->db->select('activity.*, forms.*');
+        $this->db->from('activity');
+        $this->db->join('forms', 'forms.activity_id = activity.activity_id', 'inner');
+
+        // Filter by audience
+        $this->db->group_start();
+        $this->db->or_where('activity.audience', 'All');
+        if ($user_dept_name) {
+            $this->db->or_where('activity.audience', $user_dept_name);
+        }
+        if (!empty($org_names)) {
+            $this->db->or_where_in('activity.audience', $org_names);
+        }
+        $this->db->group_end();
+
+        // Execute the query
+        $query = $this->db->get();
+        return $query->result();
+    }
+
 
 
 
@@ -676,7 +830,7 @@ class Student_model extends CI_Model
 
     //DISPLAY EVALUATION FORM INFORMATION
 
-    public function get_open_forms($student_id)
+    public function get_open_forms()
     {
         $query = $this->db->query("
         SELECT 
@@ -701,7 +855,7 @@ class Student_model extends CI_Model
             OR a.dept_id = (SELECT dept_id FROM users WHERE student_id = ?)
             OR a.org_id IN (SELECT org_id FROM student_org WHERE student_id = ?)
         )
-    ", array($student_id, $student_id, $student_id));
+    ", array());
 
         $result = $query->result();
 

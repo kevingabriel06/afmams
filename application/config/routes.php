@@ -83,15 +83,15 @@ $route['student/summary-fines'] = 'StudentController/summary_fines';
 
 // ACTIVITY
 $route['student/list-activity'] = 'StudentController/list_activity';
-
-$route['student/excuse-application/submit'] = 'StudentController/submit_application';
-$route['student/excuse-application/(:any)'] = 'StudentController/excuse_application/$1';
-
-
 $route['student/activity-details/(:any)'] = 'StudentController/activity_details/$1';
 
+// EXCUSE APPLICATION
+$route['student/excuse-application/list'] = 'StudentController/excuse_application_list';
+$route['student/excuse-application/submit'] = 'StudentController/submit_application';
+$route['student/excuse-application'] = 'StudentController/excuse_application';
 
-$route['student/evaluation-form/(:any)'] = 'StudentController/evaluation_form/$1';
+// EVALUATION FORM
+$route['student/evaluation-form'] = 'StudentController/evaluation_form';
 $route['student/evaluation-form-questions/(:num)'] = 'StudentController/evaluation_form_questions/$1';
 $route['student/evaluation-form-submit/(:num)'] = 'StudentController/submit/$1';
 $route['student/evaluation-answers/(:num)'] = 'StudentController/view_evaluation_answers/$1';

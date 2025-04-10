@@ -439,31 +439,17 @@ class StudentController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
+        // FETCH USER DATA
+        $data['users'] = $this->student->get_student($student_id);
 
-        // Fetching roles based on the student ID
-        $users = $this->Student_model->get_roles($student_id);
-        $data['role'] = $users['role'];
+        // UPCOMING ACTIVITIES
+        $data['upcoming_activities'] = $this->student->get_activities_upcoming();
 
-        // Fetch the specific activity based on the activity_id
-        $activity = $this->Student_model->get_activity_details($activity_id);
-        $data['upcoming_activities'] = $this->Student_model->get_upcoming_activities($student_id);
+        $data['activity'] = $this->student->get_activity($activity_id); // SPECIFIC ACTIVITY
+        $data['schedules'] = $this->student->get_schedule($activity_id); // GETTING OF SCHEDULE
 
-        // Check if activity data exists
-        if ($activity) {
-            $data['activity'] = $activity;
-            // Get the attendee count for this activity
-            $attendee_count = $this->Student_model->getAttendeeCount($activity_id);
-            $data['attendee_count'] = $attendee_count;
-        } else {
-            // Handle case when activity is not found
-            $data['activity'] = null;
-            // Optionally, you can redirect or show a custom message
-            $data['message'] = "Activity not found!";
-        }
+        $data['attendees'] = $this->student->count_attendees($activity_id); // COUNT THE ATTENDEES
+        $data['registered'] = $this->student->count_registered($activity_id); // COUNT THE REGISTERED
 
         // Load the views
         $this->load->view('layout/header', $data);
@@ -472,91 +458,47 @@ class StudentController extends CI_Controller
     }
 
 
-
-    //FUNCTION TO STORE WHEN USER CLICKED ATTEND BUTTON
-
-    public function express_interest()
-    {
-        if ($this->input->method() === 'post') {
-            // Get activity_id from POST request
-            $activityId = $this->input->post('activity_id');
-
-            // Fetch student_id from session
-            $studentId = $this->session->userdata('student_id');
-
-            // Ensure student_id exists in the session
-            if (!$studentId) {
-                echo json_encode(['status' => 'error', 'message' => 'Student not logged in']);
-                return;
-            }
-
-            // Load the model for checking interest
-            $this->load->model('Student_model');
-
-            // Check if student has already expressed interest in the activity
-            $exists = $this->Student_model->checkInterest($activityId, $studentId);
-
-            if (!$exists) {
-                // Add student to the activity_attendance_interest table to track interest
-                $this->Student_model->addInterest($activityId, $studentId);
-
-                // Increment the attendee count in the activity table
-                $this->Student_model->incrementAttendeeCount($activityId);
-
-                // Return success response to change button text to "View Form"
-                echo json_encode(['status' => 'success']);
-            } else {
-                // Return response indicating the student has already expressed interest
-                echo json_encode(['status' => 'already-interested']);
-            }
-        } else {
-            // Handle invalid request type (not POST)
-            echo json_encode(['status' => 'error', 'message' => 'Invalid request']);
-        }
-    }
-
-
-
-
-
-
-
-
-
-
-
     // ====================EVALUATION FORM FUNCTIONS START
     public function evaluation_form()
     {
         $data['title'] = 'Evaluation Form';
-        $this->load->model('Student_model');
 
         $student_id = $this->session->userdata('student_id');
 
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
+        // FETCH USER DATA
+        $data['users'] = $this->student->get_student($student_id);
 
-        // FETCHING DATA BASED ON THE ROLES - NECESSARY
-        $users = $this->Student_model->get_roles($student_id);
-        $data['role'] = $users['role'];
+        $data['forms'] = $this->student->forms();
 
-        // Fetch open (unanswered) forms
-        $data['evaluation_forms'] = $this->Student_model->get_open_forms($student_id);
+        // // Fetch open (unanswered) forms
+        // $data['evaluation_forms'] = $this->student->get_open_forms($student_id);
 
-        // Fetch answered forms
-        $data['answered_forms'] = $this->Student_model->get_answered_forms($student_id);
-
-
+        // // Fetch answered forms
+        // $data['answered_forms'] = $this->student->get_answered_forms($student_id);
 
         // Load the view files
         $this->load->view('layout/header', $data);
-        $this->load->view('student/evaluation_forms', $data);
+        $this->load->view('student/evaluation_forms_list', $data);
         $this->load->view('layout/footer', $data);
     }
 
+    public function evaluation_forms()
+    {
+        $data['title'] = 'Evaluation Form';
 
+        $student_id = $this->session->userdata('student_id');
+
+        // FETCH USER DATA
+        $data['users'] = $this->student->get_student($student_id);
+
+        // Fetch open (unanswered) forms
+        $data['evaluation_forms'] = $this->student->get_open_forms($student_id);
+
+        // Load the view files
+        $this->load->view('layout/header', $data);
+        $this->load->view('student/evaluation_forms_list', $data);
+        $this->load->view('layout/footer', $data);
+    }
 
     public function evaluation_form_questions($form_id)
     {
@@ -565,18 +507,9 @@ class StudentController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
+        // FETCH USER DATA
+        $data['users'] = $this->student->get_student($student_id);
 
-
-        // Fetch User Role
-        $users = $this->Student_model->get_roles($student_id);
-        $data['role'] = $users['role'];
-
-        // Load the model
-        $this->load->model('Student_model');
 
         // Fetch Form Details
         $data['form'] = $this->Student_model->get_form_details($form_id);
@@ -595,9 +528,6 @@ class StudentController extends CI_Controller
 
     public function submit($form_id)
     {
-
-
-
         // Get the student ID from the session
         $student_id = $this->session->userdata('student_id');
 
@@ -637,11 +567,6 @@ class StudentController extends CI_Controller
         }
     }
 
-
-
-
-
-
     // SHOW EVALUATION FORM ANSWERS
     public function view_evaluation_answers($form_id)
     {
@@ -678,43 +603,36 @@ class StudentController extends CI_Controller
 
 
 
+    public function excuse_application_list()
+    {
+        $data['title'] = 'Excuse Application List';
+
+        $student_id = $this->session->userdata('student_id');
+
+        // FETCH USER DATA
+        $data['users'] = $this->student->get_student($student_id);
+
+        $data['activities'] = $this->student->get_activities_for_users();
+
+        // APPLICATIONS
+        $data['applications'] = $this->student->applications();
+
+        // Load views with merged data
+        $this->load->view('layout/header', $data);
+        $this->load->view('student/excuse_application_list', $data);
+        $this->load->view('layout/footer', $data);
+    }
+
     public function excuse_application()
     {
         $data['title'] = 'Excuse Application';
-        $this->load->model('Student_model');
+
         $student_id = $this->session->userdata('student_id');
 
-        // Fetch student profile picture
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-        // Ensure a default profile picture if none exists
-        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
+        // FETCH USER DATA
+        $data['users'] = $this->student->get_student($student_id);
 
-        // Fetching student details for pre-populating fields
-        $student_details = $this->Student_model->get_student_details($student_id);
-
-        // Check if student data is retrieved
-        if ($student_details) {
-            $data['first_name'] = $student_details['first_name'];
-            $data['last_name'] = $student_details['last_name'];
-            $data['department_name'] = $student_details['department_name']; // department name from dept_id
-        } else {
-            // Default values if no data is found (optional)
-            $data['first_name'] = '';
-            $data['last_name'] = '';
-            $data['department_name'] = '';
-        }
-
-        // Fetching data based on roles
-        $users = $this->Student_model->get_roles($student_id);
-        $data['role'] = $users['role'];
-
-
-        // Fetch activities based on department or organization membership
-        $activities = $this->Student_model->get_activities_for_user($student_id, $student_details['dept_id']);
-        $data['activities'] = $activities;
-
-        // Fetch the excuse applications
-        $data['excuseApplications'] = $this->Student_model->get_excuse_applications($student_id);
+        $data['activities'] = $this->student->get_activities_for_users_excuse_application();
 
         // Load views with merged data
         $this->load->view('layout/header', $data);
@@ -726,10 +644,6 @@ class StudentController extends CI_Controller
 
     public function submit_application()
     {
-        $this->load->library('form_validation');
-        $this->load->library('upload');
-        $this->load->model('Student_model');
-
         // Set validation rules
         $this->form_validation->set_rules('student_id', 'Student ID', 'required');
         $this->form_validation->set_rules('activity_id', 'Activity', 'required');
@@ -750,61 +664,62 @@ class StudentController extends CI_Controller
         }
 
         // File upload handling
-        $document = [];
-        if (!empty($_FILES['fileUpload']['name'][0])) {
+        $document = '';  // Initialize as an empty string, as we're uploading a single file
+        if (!empty($_FILES['fileUpload']['name'])) {  // Check if a file has been uploaded
             $config['upload_path'] = './assets/excuseFiles/';
-            $config['allowed_types'] = 'jpg|png|pdf|docx';
-            $config['max_size'] = 2048; // 2MB limit
+            $config['allowed_types'] = 'jpg|jpeg|png|pdf'; // Allow jpg, jpeg, png, and pdf files
+            $config['max_size'] = 10240; // 10MB limit
 
+            // Check if the upload directory exists; if not, create it
             if (!is_dir($config['upload_path'])) {
                 mkdir($config['upload_path'], 0777, true);
             }
 
-            $this->upload->initialize($config);
-            $files = $_FILES['fileUpload'];
-            $file_count = count($files['name']);
+            $this->load->library('upload', $config); // Load the upload library
 
-            for ($i = 0; $i < $file_count; $i++) {
-                $_FILES['fileUpload']['name'] = $files['name'][$i];
-                $_FILES['fileUpload']['type'] = $files['type'][$i];
-                $_FILES['fileUpload']['tmp_name'] = $files['tmp_name'][$i];
-                $_FILES['fileUpload']['error'] = $files['error'][$i];
-                $_FILES['fileUpload']['size'] = $files['size'][$i];
+            // Set the $_FILES superglobal for the single file upload
+            $_FILES['fileUpload']['name'] = $_FILES['fileUpload']['name'];
+            $_FILES['fileUpload']['type'] = $_FILES['fileUpload']['type'];
+            $_FILES['fileUpload']['tmp_name'] = $_FILES['fileUpload']['tmp_name'];
+            $_FILES['fileUpload']['error'] = $_FILES['fileUpload']['error'];
+            $_FILES['fileUpload']['size'] = $_FILES['fileUpload']['size'];
 
-                if ($this->upload->do_upload('fileUpload')) {
-                    $uploadData = $this->upload->data();
-                    $document[] = $uploadData['file_name'];
-                } else {
-                    echo json_encode([
-                        'status' => 'error',
-                        'message' => $this->upload->display_errors(),
-                        'form_data' => [
-                            'activity_id' => $this->input->post('activity_id'),
-                            'emailSubject' => $this->input->post('emailSubject'),
-                            'emailBody' => $this->input->post('emailBody')
-                        ]
-                    ]);
-                    return;
-                }
+            // Perform the upload
+            if ($this->upload->do_upload('fileUpload')) {
+                $uploadData = $this->upload->data();
+                $document = $uploadData['file_name'];  // Store the uploaded file's name
+            } else {
+                // Handle upload errors
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => $this->upload->display_errors(),
+                    'form_data' => [
+                        'activity_id' => $this->input->post('activity_id'),
+                        'emailSubject' => $this->input->post('emailSubject'),
+                        'emailBody' => $this->input->post('emailBody')
+                    ]
+                ]);
+                return;
             }
         }
 
-        $document_string = !empty($document) ? implode(',', $document) : '';
-
-        // Insert into database
+        // Insert data into the database
         $data = [
             'student_id' => $this->input->post('student_id'),
             'activity_id' => $this->input->post('activity_id'),
             'subject' => $this->input->post('emailSubject'),
             'content' => $this->input->post('emailBody'),
-            'document' => $document_string,
+            'document' => $document,  // Store single document name directly
             'status' => 'Pending'
         ];
 
-        $this->Student_model->insert_application($data);
+        // Insert into the model
+        $this->student->insert_application($data);
 
+        // Success response
         echo json_encode(['status' => 'success', 'message' => 'Your application has been submitted successfully.']);
     }
+
 
 
 

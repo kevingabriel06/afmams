@@ -164,7 +164,7 @@
                         <div class="flex-1 position-relative ps-3">
                             <p class="mb-1" hidden><?php echo htmlspecialchars($activity->activity_id); ?></p>
                             <h6 class="fs-9 mb-0">
-                                <a href="<?php echo site_url('admin/activity-details/' . $activity->activity_id); ?>">
+                                <a href="<?php echo site_url('student/activity-details/' . $activity->activity_id); ?>">
                                     <?php echo htmlspecialchars($activity->activity_title); ?>
                                     <?php if ($activity->registration_fee == '0'): ?>
                                         <span class="badge badge-subtle-success rounded-pill">Free</span>
