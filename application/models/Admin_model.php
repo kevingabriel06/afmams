@@ -17,7 +17,7 @@ class Admin_model extends CI_Model
         return $this->db->get_where('users', ['student_id' => $student_id])->row_array();
     }
 
-    // INSERTING ACTIVITY TO DATABASE *
+    // CREATING ACTIVITY
     public function get_department()
     {
         $this->db->select('*');
@@ -36,14 +36,18 @@ class Admin_model extends CI_Model
 
     public function save_schedules($schedules)
     {
-        foreach ($schedules as &$schedule) {
-            $schedule['created_at'] = date('Y-m-d H:i:s');
-        }
-        return $this->db->insert_batch('activity_time_slots', $schedules);
-    }
-    // END of INSERTION ACTIVITY TO DATABASE *
+        $timeslot_ids = [];
 
-    // START LISTING AND VIEWING OF ACTIVITY
+        foreach ($schedules as $schedule) {
+            $schedule['created_at'] = date('Y-m-d H:i:s');
+            $this->db->insert('activity_time_slots', $schedule);
+            $timeslot_ids[] = $this->db->insert_id(); // Get and store inserted timeslot_id
+        }
+
+        return $timeslot_ids;
+    }
+
+    // LISTING AND VIEWING OF ACTIVITY
     public function get_activities()
     {
         $this->db->select('a.*, MIN(ats.date_time_in) as first_schedule'); // Pick the earliest schedule
@@ -59,7 +63,7 @@ class Admin_model extends CI_Model
     // FETCHING SPECIFIC ACTIVITY USING ACTIVITY ID 
     public function get_activity($activity_id)
     {
-        $this->db->select('a.*, MIN(ats.date_time_in) as first_schedule, MAX(ats.date_time_out) as last_schedule');
+        $this->db->select('a.*, ats.*, MIN(ats.date_time_in) as first_schedule, MAX(ats.date_time_out) as last_schedule');
         $this->db->from('activity a');
         $this->db->join('activity_time_slots ats', 'ats.activity_id = a.activity_id', 'left');
         $this->db->group_by('a.activity_id');
@@ -73,19 +77,78 @@ class Admin_model extends CI_Model
         return $query->result(); // Fetch multiple records
     }
 
-
+    // GETTING SCHEDULE PER ACTIVITY
     public function get_schedule($activity_id)
     {
-        $this->db->select('*');
+        $this->db->select('ats.*');
         $this->db->from('activity_time_slots ats');
         $this->db->where('ats.activity_id', $activity_id);
 
         $query = $this->db->get();
         return $query->result_array(); // Fetch all schedules
     }
-    // END LISTING AND VIEWING OF ACTIVITY
 
-    // EDITING OF THE ACTIVITY
+    // FOR REGISTRATION
+    public function registrations($activity_id)
+    {
+
+        $this->db->select('registrations.*, users.*, department.*');
+        $this->db->from('registrations');
+        $this->db->join('users', 'registrations.student_id = users.student_id');
+        $this->db->join('department', 'department.dept_id = users.dept_id');
+        $this->db->where('activity_id', $activity_id);
+
+        $query = $this->db->get();
+        return $query->result(); // Fetch all registrations for the activity
+    }
+
+    // FOR REFERENCE NUMBER
+    public function get_reference_data($student_id, $activity_id)
+    {
+        return $this->db
+            ->select('reference_number')
+            ->where('student_id', $student_id)
+            ->where('activity_id', $activity_id)
+            ->get('registrations')
+            ->row();
+    }
+
+    // FOR VALIDATION OF THE REGISTRATION
+    public function validate_registration($student_id, $activity_id, $data)
+    {
+        return $this->db
+            ->where('student_id', $student_id)
+            ->where('activity_id', $activity_id)
+            ->update('registrations', $data);
+    }
+
+    // COUNTER FOR THE REGISTERED IN THE ACTIVITY
+    public function get_registered_count($activity_id)
+    {
+        $this->db->select('COUNT(*) as total');
+        $this->db->from('registrations');
+        $this->db->where('registration_status', 'Verified');
+        $this->db->where('activity_id', $activity_id);
+
+        $query = $this->db->get();
+        $result = $query->row();
+
+        return $result->total; // Return the count
+    }
+
+    // COUNTER FOR THE ATTENDEES IN THE ACTIVITY
+    public function get_attendees_count($activity_id)
+    {
+        $this->db->select('COUNT(*) as total');
+        $this->db->from('attendees');
+        $this->db->where('attendees_status', 'Attending');
+        $this->db->where('activity_id', $activity_id);
+
+        $query = $this->db->get();
+        $result = $query->row();
+
+        return $result->total; // Return the count
+    }
 
     // DELETE SCHEDULE BY ID
     public function delete_schedule($id)
@@ -107,15 +170,15 @@ class Admin_model extends CI_Model
         return $this->db->update('activity_time_slots', $schedule_data);
     }
 
+    // SAVING THE SCHEDULE
     public function save_schedule($schedule_data)
     {
         $this->db->insert('activity_time_slots', $schedule_data);
         return $this->db->affected_rows() > 0; // Returns true if inserted, false otherwise
     }
 
-    // END OF EDITING ACTIVITY
 
-    // START FOR EVALUATION FORM
+    // EVALUATION FORM 
 
     // LIST OF EVALUATION FORM
     public function evaluation_form()
@@ -179,10 +242,134 @@ class Admin_model extends CI_Model
         return $form_data;
     }
 
+    public function get_student_evaluation_responses($form_id)
+    {
+        $this->db->select("
+            evaluation_responses.evaluation_response_id,
+            evaluation_responses.student_id,
+            CONCAT(users.first_name, ' ', users.last_name) AS name,
+            department.dept_name,
+            formfields.label AS question,
+            formfields.type,
+            response_answer.answer,
+            evaluation_responses.submitted_at
+        ");
+        $this->db->from('evaluation_responses');
+        $this->db->join('response_answer', 'response_answer.evaluation_response_id = evaluation_responses.evaluation_response_id');
+        $this->db->join('formfields', 'formfields.form_fields_id = response_answer.form_fields_id');
+        $this->db->join('users', 'users.student_id = evaluation_responses.student_id');
+        $this->db->join('department', 'department.dept_id = users.dept_id');
+        $this->db->where('evaluation_responses.form_id', $form_id);
 
-    // START EXCUSE APPLICATION
+        $query = $this->db->get();
 
-    // FETCHING EXCUSE APPLICATION PER EVENT *
+        // Check if the query executed successfully
+        if ($query->num_rows() > 0) {
+            return $query->result(); // Return results if available
+        } else {
+            return []; // Return empty array if no results found
+        }
+    }
+
+
+    public function forms($form_id)
+    {
+        $this->db->select('form_id, title');
+        $this->db->from('forms');
+        $this->db->where('form_id', $form_id);
+        $query = $this->db->get();
+        return $query->row();
+    }
+
+    public function count_attendees($form_id)
+    {
+        // Get the activity_id linked to the form
+        $this->db->select('activity_id');
+        $this->db->from('forms');
+        $this->db->where('form_id', $form_id);
+        $activityQuery = $this->db->get();
+
+        if ($activityQuery->num_rows() > 0) {
+            $activity_id = $activityQuery->row()->activity_id;
+
+            // Get distinct student IDs from attendance for the specific activity
+            $this->db->distinct();
+            $this->db->select('student_id');
+            $this->db->from('attendance');
+            $this->db->where('activity_id', $activity_id);
+            $query = $this->db->get();
+
+            return $query->num_rows();
+        }
+
+        return 0; // If no matching form/activity found
+    }
+
+    public function total_respondents($form_id)
+    {
+        $this->db->select('COUNT(DISTINCT student_id) AS total');
+        $this->db->where('form_id', $form_id);
+        $query = $this->db->get('evaluation_responses');
+        return $query->row()->total;
+    }
+
+    public function rating_summary($form_id)
+    {
+        $this->db->select('formfields.form_id, formfields.form_fields_id, formfields.label AS question, 
+                       AVG(response_answer.answer) AS avg_rating, 
+                       SUM(CASE WHEN response_answer.answer = 5 THEN 1 ELSE 0 END) AS five_star,
+                       SUM(CASE WHEN response_answer.answer = 4 THEN 1 ELSE 0 END) AS four_star,
+                       SUM(CASE WHEN response_answer.answer = 3 THEN 1 ELSE 0 END) AS three_star,
+                       SUM(CASE WHEN response_answer.answer = 2 THEN 1 ELSE 0 END) AS two_star,
+                       SUM(CASE WHEN response_answer.answer = 1 THEN 1 ELSE 0 END) AS one_star,
+                       COUNT(response_answer.answer) AS total_responses');
+        $this->db->from('response_answer');
+        $this->db->join('formfields', 'response_answer.form_fields_id = formfields.form_fields_id');
+        $this->db->where('formfields.form_id', $form_id);
+        $this->db->where('formfields.type', 'rating'); // Only get rating-type fields
+        $this->db->group_by('formfields.form_fields_id, formfields.form_id');
+        $query = $this->db->get();
+        return $query->result_array();
+    }
+
+    public function overall_rating($form_id)
+    {
+        $this->db->select('AVG(CAST(response_answer.answer AS DECIMAL(10,2))) AS overall_rating');
+        $this->db->from('response_answer');
+        $this->db->join('formfields', 'response_answer.form_fields_id = formfields.form_fields_id');
+        $this->db->where('formfields.form_id', $form_id);
+
+        $query = $this->db->get();
+
+        // Return the overall rating or 0 if no results
+        $result = $query->row();
+        return $result ? $result->overall_rating : 0;
+    }
+
+    public function answer_summary($form_id)
+    {
+        // Select long answer and short answer responses
+        $this->db->select('ff.label AS question, 
+                           GROUP_CONCAT(DISTINCT ra.answer ORDER BY ra.answer SEPARATOR "||") AS answers');
+        $this->db->from('response_answer ra');
+        $this->db->join('formfields ff', 'ff.form_fields_id = ra.form_fields_id');
+
+        // Get answers where the type is either 'textarea' (long answer) or 'text' (short answer)
+        $this->db->where_in('ff.type', ['textarea', 'short']);
+        $this->db->where('ff.form_id', $form_id);
+
+        // Group by question (label) and order by question label alphabetically
+        $this->db->group_by('ff.label');
+        $this->db->order_by('ff.order', 'ASC');
+
+        // Execute query and return result
+        $query = $this->db->get();
+        return $query->result_array();
+    }
+
+    // EXCUSE APPLICATION
+
+    // FETCHING EXCUSE APPLICATION PER EVENT
     public function fetch_application($activity_id)
     {
         return $this->db->get_where('activity', ['activity_id' => $activity_id])->row_array();
@@ -194,6 +381,7 @@ class Admin_model extends CI_Model
         $this->db->select('*');
         $this->db->from('excuse_application');
         $this->db->join('users', 'excuse_application.student_id = users.student_id');
+        $this->db->join('department', 'department.dept_id = users.dept_id');
         $query = $this->db->get();
 
         return $query->result();
@@ -202,7 +390,7 @@ class Admin_model extends CI_Model
     // FETCHING EXCUSE LETTER PER STUDENT
     public function review_letter($excuse_id)
     {
-        $this->db->select('*');
+        $this->db->select('excuse_application.*, users.*');
         $this->db->from('excuse_application');
         $this->db->join('users', 'excuse_application.student_id = users.student_id');
         $this->db->join('department', 'users.dept_id = department.dept_id');
@@ -224,171 +412,7 @@ class Admin_model extends CI_Model
         return $this->db->affected_rows() > 0;
     }
 
-    // END FOR THE EXCUSE APPLICATION
-
-
-
-
-    //ACTIVITY DROPDOWN BASED ON LOGGED IN USER
-
-    public function get_filtered_activities()
-    {
-        $this->db->select('*');
-        $this->db->from('activity');
-
-        return $this->db->get()->result();
-    }
-
-    // Function to fetch activities for Admin (where org_id and dept_id are NULL) || used for list activity evaluations
-    public function get_admin_activities()
-    {
-        $this->db->select('activity_id, activity_title, status, activity_image');
-        $this->db->from('activity');
-        $this->db->where('org_id', NULL);
-        $this->db->where('dept_id', NULL);
-        $query = $this->db->get();
-
-        // Return the result as an array of objects
-        return $query->result();
-    }
-
-
-    // When activity is clicked, forms are fetched
-    public function get_forms_by_activity($activity_id)
-    {
-        $this->db->where('activity_id', $activity_id);
-        $query = $this->db->get('forms');
-        return $query->result();  // Return forms for the specific activity
-    }
-
-
-    // FOR VIEW RESPONSE BUTTON
-    public function get_responses_by_form($form_id)
-    {
-        $this->db->where('form_id', $form_id);
-        $query = $this->db->get('evaluation_responses');
-        return $query->result();  // This should now include 'evaluation_response_id'
-    }
-
-
-    public function get_student_by_id($student_id)
-    {
-        $this->db->where('student_id', $student_id);
-        $query = $this->db->get('users');
-        return $query->row();  // Return a single user record
-    }
-
-
-    //FETCH FORM ANSWERS WHEN CLICKING VIEW RESPONSE BUTTON
-
-    public function get_form_by_id($form_id)
-    {
-        // Select form details based on form_id
-        $this->db->where('form_id', $form_id);
-        $query = $this->db->get('forms');
-
-        return $query->row();  // Return a single row (form details)
-    }
-
-
-    public function get_answers_by_evaluation_response($evaluation_response_id)
-    {
-        // Select the answer, label (question), type (question type), and form_id
-        $this->db->select('response_answer.answer, formfields.label, formfields.type, formfields.form_id');
-        $this->db->from('response_answer');
-        $this->db->join('formfields', 'formfields.form_fields_id = response_answer.form_fields_id');
-        $this->db->where('response_answer.evaluation_response_id', $evaluation_response_id);
-        $query = $this->db->get();
-
-        return $query->result();  // Return all answers for the evaluation response
-    }
-
-    public function get_activity_by_id($activity_id)
-    {
-        $this->db->where('activity_id', $activity_id);
-        $query = $this->db->get('activity'); // Assuming your table name is 'activities'
-
-        return $query->row(); // Returns a single activity
-    }
-
-    // END OF EVALUATION 
-
-    // START COMMUNITY SECTION
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    // FETCHING ORGANIZATION WHERE THE ADMIN BELONGS - CONTAINS ORGID AND ORGNAME *
-    public function admin_org()
-    {
-        $student_id = $this->session->userdata('student_id');
-
-        $this->db->select('student_org.org_id, organization.org_name');
-        $this->db->from('users');
-        $this->db->join('student_org', 'student_org.student_id = users.student_id');
-        $this->db->join('organization', 'student_org.org_id = organization.org_id');
-        $this->db->where('users.student_id', $student_id);
-        $this->db->where('users.is_admin', 'Yes');
-        $this->db->where('student_org.is_officer', 'Yes');
-
-        $query = $this->db->get();
-        return $query->row(); // Returns a single row as an object
-    }
-
-    // FETCHING DEPARTMENT WHERE THE ADMIN BELONGS - CONTAINS DEPTID AND DEPTNAME *
-    public function admin_dept()
-    {
-        $student_id = $this->session->userdata('student_id');
-
-        $this->db->select('users.dept_id, department.dept_name');
-        $this->db->from('users');
-        $this->db->join('department', 'department.dept_id = users.dept_id');
-        $this->db->where('users.student_id', $student_id);
-        $this->db->where('users.is_admin', 'Yes');
-        $this->db->where('users.is_officer_dept', 'Yes');
-
-        $result = $this->db->get()->row();
-        return $result;  // Return department data for the logged-in user
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    //  START COMMUNITY SECTION ===>
+    // COMMUNITY SECTION
 
     // FETCHING USER TABLE BY STUDENT ID
     public function get_user()
@@ -574,7 +598,332 @@ class Admin_model extends CI_Model
         return $query->row(); // Return a single comment object
     }
 
-    // END COMMUNITY SECTION
+    // ATTENDANCE MONITORING
+
+    // START FACIAL RECOGNITION AND SCANNING QR CODES
+    public function get_students_realtime_time_in($activity_id)
+    {
+        // Set timezone
+        date_default_timezone_set('Asia/Manila');
+
+        // Select relevant fields: student ID, names, and time-in
+        $this->db->select('s.student_id, s.first_name, s.last_name, a.time_in');
+        $this->db->from('attendance a');
+        $this->db->join('users s', 's.student_id = a.student_id');
+        $this->db->where('a.activity_id', $activity_id);
+        $this->db->order_by('a.time_in', 'DESC');
+
+        $query = $this->db->get();
+        return $query->result_array();
+    }
+
+    public function get_students_realtime_time_out($activity_id)
+    {
+        // Set timezone
+        date_default_timezone_set('Asia/Manila');
+
+        // Select relevant fields: student ID, names, and time-in
+        $this->db->select('s.student_id, s.first_name, s.last_name, a.time_out');
+        $this->db->from('attendance a');
+        $this->db->join('users s', 's.student_id = a.student_id');
+        $this->db->where('a.activity_id', $activity_id);
+        $this->db->order_by('a.time_out', 'DESC');
+
+        $query = $this->db->get();
+        return $query->result_array();
+    }
+
+    // FUNCTIONALITY FOR SCANNING AND RECOGNITION
+    public function update_attendance_time_in($student_id, $activity_id, $timeslot_id, $update_data)
+    {
+        if (!empty($update_data)) {
+            $this->db->where('student_id', $student_id);
+            $this->db->where('activity_id', $activity_id);
+            $this->db->where('timeslot_id', $timeslot_id);
+            $this->db->update('attendance', $update_data);
+
+            return $this->db->affected_rows() > 0;
+        }
+        return false;
+    }
+
+    public function update_attendance_time_out($student_id, $activity_id, $timeslot_id, $update_data)
+    {
+        if (!empty($update_data)) {
+            $this->db->where('student_id', $student_id);
+            $this->db->where('activity_id', $activity_id);
+            $this->db->where('timeslot_id', $timeslot_id);
+            $this->db->update('attendance', $update_data);
+
+            return $this->db->affected_rows() > 0;
+        }
+        return false;
+    }
+
+    // PROVIDING DATA IN THE TAKING OF ATTENDANCE INTERFACE
+    public function get_attendance_record_time_in($student_id, $activity_id, $timeslot_id)
+    {
+        return $this->db->get_where('attendance', [
+            'student_id' => $student_id,
+            'timeslot_id' => $timeslot_id,
+            'activity_id' => $activity_id
+        ])->row();
+    }
+
+    public function get_attendance_record_time_out($student_id, $activity_id, $timeslot_id)
+    {
+        return $this->db->get_where('attendance', [
+            'student_id' => $student_id,
+            'timeslot_id' => $timeslot_id,
+            'activity_id' => $activity_id
+        ])->row();
+    }
+
+    public function get_activities_by_sp()
+    {
+        $this->db->select('activity.*');
+        $this->db->from('activity');
+        $this->db->where('organizer', 'Student Parliament');
+
+        $query = $this->db->get();
+        return $query->result();
+    }
+
+    public function get_activity_specific($activity_id)
+    {
+        return $this->db->get_where('activity', ['activity_id' => $activity_id])->row_array();
+    }
+
+    public function get_timeslots_by_activity($activity_id)
+    {
+        $this->db->select('*');
+        $this->db->from('activity_time_slots');
+        $this->db->where('activity_id', $activity_id);
+        $this->db->order_by('timeslot_id', 'asc'); // or custom order
+        return $this->db->get()->result();
+    }
+
+    public function get_all_students_attendance_by_activity($activity_id)
+    {
+        // Step 1: Get all students who have attendance records with department info
+        $this->db->select('users.*, department.dept_name');
+        $this->db->from('users');
+        $this->db->join('department', 'department.dept_id = users.dept_id', 'left');
+        $this->db->join('attendance', 'attendance.student_id = users.student_id', 'inner'); // Only include students with attendance records
+        $this->db->group_by('users.student_id');  // Ensure students appear once
+        $students = $this->db->get()->result();
+
+        // Step 2: Get all timeslots for the activity
+        $timeslots = $this->db->get_where('activity_time_slots', ['activity_id' => $activity_id])->result();
+
+        // Step 3: Build data
+        $data = [];
+
+        foreach ($students as $student) {
+            $row = [
+                'student_id' => $student->student_id,
+                'name'       => $student->first_name . ' ' . $student->last_name,
+                'dept_name'  => isset($student->dept_name) ? $student->dept_name : 'No Department',
+            ];
+
+            $slot_statuses = [];
+
+            foreach ($timeslots as $slot) {
+                // Determine period (morning or afternoon)
+                $period = strtolower($slot->slot_name) === 'morning' ? 'am' : 'pm';
+                $row["in_$period"] = 'No Data';  // Default value for time_in
+                $row["out_$period"] = 'No Data'; // Default value for time_out
+
+                // Get attendance for the student and current slot
+                $this->db->where([
+                    'student_id'  => $student->student_id,
+                    'timeslot_id' => $slot->timeslot_id
+                ]);
+                $attendance = $this->db->get('attendance')->row();
+
+                // Debugging log
+                log_message('debug', "Attendance for student {$student->student_id}, {$slot->slot_name}: " . print_r($attendance, true));
+
+                // Check if attendance exists
+                if ($attendance) {
+                    $time_in = !empty($attendance->time_in) ? date('F j, Y | g:i a', strtotime($attendance->time_in)) : 'No Data';
+                    $time_out = !empty($attendance->time_out) ? date('F j, Y | g:i a', strtotime($attendance->time_out)) : 'No Data';
+
+                    // Set the correct period (AM/PM) for time_in and time_out
+                    $row["in_$period"] = $time_in;
+                    $row["out_$period"] = $time_out;
+
+                    // Determine slot status for AM/PM separately
+                    if ($time_in === 'No Data' && $time_out === 'No Data') {
+                        $slot_statuses[] = 'Absent';
+                    } elseif ($time_in === 'No Data' || $time_out === 'No Data') {
+                        $slot_statuses[] = 'Incomplete';
+                    } else {
+                        $slot_statuses[] = 'Present';
+                    }
+                } else {
+                    // If no attendance record exists, mark as Absent
+                    $slot_statuses[] = 'Absent';
+                }
+            }
+
+            // Determine overall status based on all timeslot statuses
+            if (count(array_unique($slot_statuses)) === 1 && $slot_statuses[0] === 'Absent') {
+                $row['status'] = 'Absent';
+            } elseif (count(array_unique($slot_statuses)) === 1 && $slot_statuses[0] === 'Present') {
+                $row['status'] = 'Present';
+            } else {
+                $row['status'] = 'Incomplete';
+            }
+
+            $data[] = $row;
+        }
+
+        return $data;
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    //ACTIVITY DROPDOWN BASED ON LOGGED IN USER
+
+    public function get_filtered_activities()
+    {
+        $this->db->select('*');
+        $this->db->from('activity');
+
+        return $this->db->get()->result();
+    }
+
+    // Function to fetch activities for Admin (where org_id and dept_id are NULL) || used for list activity evaluations
+    public function get_admin_activities()
+    {
+        $this->db->select('activity_id, activity_title, status, activity_image');
+        $this->db->from('activity');
+        $this->db->where('org_id', NULL);
+        $this->db->where('dept_id', NULL);
+        $query = $this->db->get();
+
+        // Return the result as an array of objects
+        return $query->result();
+    }
+
+
+    // When activity is clicked, forms are fetched
+    public function get_forms_by_activity($activity_id)
+    {
+        $this->db->where('activity_id', $activity_id);
+        $query = $this->db->get('forms');
+        return $query->result();  // Return forms for the specific activity
+    }
+
+
+    // FOR VIEW RESPONSE BUTTON
+    public function get_responses_by_form($form_id)
+    {
+        $this->db->where('form_id', $form_id);
+        $query = $this->db->get('evaluation_responses');
+        return $query->result();  // This should now include 'evaluation_response_id'
+    }
+
+
+    public function get_student_by_id($student_id)
+    {
+        $this->db->where('student_id', $student_id);
+        $query = $this->db->get('users');
+        return $query->row();  // Return a single user record
+    }
+
+
+    //FETCH FORM ANSWERS WHEN CLICKING VIEW RESPONSE BUTTON
+
+    public function get_form_by_id($form_id)
+    {
+        // Select form details based on form_id
+        $this->db->where('form_id', $form_id);
+        $query = $this->db->get('forms');
+
+        return $query->row();  // Return a single row (form details)
+    }
+
+
+    public function get_answers_by_evaluation_response($evaluation_response_id)
+    {
+        // Select the answer, label (question), type (question type), and form_id
+        $this->db->select('response_answer.answer, formfields.label, formfields.type, formfields.form_id');
+        $this->db->from('response_answer');
+        $this->db->join('formfields', 'formfields.form_fields_id = response_answer.form_fields_id');
+        $this->db->where('response_answer.evaluation_response_id', $evaluation_response_id);
+        $query = $this->db->get();
+
+        return $query->result();  // Return all answers for the evaluation response
+    }
+
+    public function get_activity_by_id($activity_id)
+    {
+        $this->db->where('activity_id', $activity_id);
+        $query = $this->db->get('activity'); // Assuming your table name is 'activities'
+
+        return $query->row(); // Returns a single activity
+    }
+
+    // END OF EVALUATION 
+
+    // START COMMUNITY SECTION
+
+
+    // FETCHING ORGANIZATION WHERE THE ADMIN BELONGS - CONTAINS ORGID AND ORGNAME *
+    public function admin_org()
+    {
+        $student_id = $this->session->userdata('student_id');
+
+        $this->db->select('student_org.org_id, organization.org_name');
+        $this->db->from('users');
+        $this->db->join('student_org', 'student_org.student_id = users.student_id');
+        $this->db->join('organization', 'student_org.org_id = organization.org_id');
+        $this->db->where('users.student_id', $student_id);
+        $this->db->where('users.is_admin', 'Yes');
+        $this->db->where('student_org.is_officer', 'Yes');
+
+        $query = $this->db->get();
+        return $query->row(); // Returns a single row as an object
+    }
+
+    // FETCHING DEPARTMENT WHERE THE ADMIN BELONGS - CONTAINS DEPTID AND DEPTNAME *
+    public function admin_dept()
+    {
+        $student_id = $this->session->userdata('student_id');
+
+        $this->db->select('users.dept_id, department.dept_name');
+        $this->db->from('users');
+        $this->db->join('department', 'department.dept_id = users.dept_id');
+        $this->db->where('users.student_id', $student_id);
+        $this->db->where('users.is_admin', 'Yes');
+        $this->db->where('users.is_officer_dept', 'Yes');
+
+        $result = $this->db->get()->row();
+        return $result;  // Return department data for the logged-in user
+    }
 
 
     // START FINES
@@ -653,6 +1002,137 @@ class Admin_model extends CI_Model
         }
     }
 
+    // PROFILE SETTINGS
+    public function get_user_profile()
+    {
+        $student_id = $this->session->userdata('student_id');
+
+        // Get basic user and department info
+        $this->db->select('users.*, department.*');
+        $this->db->from('users');
+        $this->db->join('department', 'department.dept_id = users.dept_id');
+        $this->db->where('users.student_id', $student_id);
+        $user = $this->db->get()->row();
+
+        // Get organizations separately
+        $this->db->select('organization.*');
+        $this->db->from('student_org');
+        $this->db->join('organization', 'organization.org_id = student_org.org_id');
+        $this->db->where('student_org.student_id', $student_id);
+        $organizations = $this->db->get()->result();
+
+        if ($user) {
+            $user->organizations = $organizations;
+        }
+
+        return $user;
+    }
+
+    public function get_profile_pic($student_id)
+    {
+        // Make sure student_id is passed correctly
+        if (!$student_id) {
+            return 'default.png';
+        }
+
+        $this->db->select('profile_pic');
+        $this->db->from('users'); // Ensure this is your actual table name
+        $this->db->where('student_id', $student_id);
+
+        $query = $this->db->get();
+
+        if ($query->num_rows() > 0) {
+            $result = $query->row();
+            return $result->profile_pic ?? 'default.png';
+        }
+
+        return 'default.png'; // Fallback if no profile found
+    }
+
+    // Function to update profile picture in the database
+    public function update_profile_pic($student_id, $data)
+    {
+        $this->db->where('student_id', $student_id);
+        return $this->db->update('users', $data);
+    }
+
+    public function update_student($student_id, $data)
+    {
+        $this->db->where('student_id', $student_id);
+        return $this->db->update('users', $data);
+    }
+
+    public function get_by_id($student_id)
+    {
+        return $this->db->get_where('users', ['student_id' => $student_id])->row();
+    }
+
+    public function update_password($student_id, $hashed_password)
+    {
+        return $this->db->where('student_id', $student_id)
+            ->update('users', ['password' => $hashed_password]);
+    }
+
+    // MANAGE OFFICER AND PRIVILEGE
+    public function manage_privilege()
+    {
+        // Select the columns you need
+        $this->db->select('privilege.*, users.*');  // Adjust the columns to your need
+        $this->db->from('privilege');
+        $this->db->join('users', 'users.student_id = privilege.student_id', 'left');  // Adjust join type as necessary
+
+        // Execute the query
+        $query = $this->db->get();
+
+        // Return the results
+        return $query->result();
+    }
+
+    public function update_privileges($privileges_data)
+    {
+        foreach ($privileges_data as $privilege) {
+            if (!isset($privilege['privilege_id'])) {
+                continue; // Skip if privilege_id is missing
+            }
+
+            $data = [];
+
+            // Only update columns that are set in the privilege data
+            if (isset($privilege['manage_fines'])) {
+                $data['manage_fines'] = $privilege['manage_fines'] === 'Yes' ? 'Yes' : 'No';
+            }
+            if (isset($privilege['manage_evaluation'])) {
+                $data['manage_evaluation'] = $privilege['manage_evaluation'] === 'Yes' ? 'Yes' : 'No';
+            }
+            if (isset($privilege['manage_applications'])) {
+                $data['manage_applications'] = $privilege['manage_applications'] === 'Yes' ? 'Yes' : 'No';
+            }
+            if (isset($privilege['able_scan'])) {
+                $data['able_scan'] = $privilege['able_scan'] === 'Yes' ? 'Yes' : 'No';
+            }
+            if (isset($privilege['able_create_activity'])) {
+                $data['able_create_activity'] = $privilege['able_create_activity'] === 'Yes' ? 'Yes' : 'No';
+            }
+
+            // Only proceed if there's at least one column to update
+            if (!empty($data)) {
+                $this->db->where('privilege_id', $privilege['privilege_id']);
+                $this->db->update('privilege', $data);
+            }
+        }
+
+        return $this->db->affected_rows() > 0;
+    }
+
+
+    // GENERAL SETTINGS
+    protected $table = 'users'; // Your database table name
+
+    public function insert_batch($data_batch)
+    {
+        return $this->db->insert_batch($this->table, $data_batch);
+    }
+
 
 
 
@@ -677,12 +1157,6 @@ class Admin_model extends CI_Model
         $query = $this->db->get();
         return $query->result(); // Returns an array of objects
     }
-
-
-
-
-
-
 
     // FETCHING DEPARTMENT WHERE THE STUDENT BELONG *
     public function get_student_department($student_id)
@@ -741,7 +1215,29 @@ class Admin_model extends CI_Model
 
 
 
-    // <====== ATTENDANCE ======>
+    // <====== ATTENDANCE MONITORING ======>
+
+
+
+
+
+    public function department_selection()
+    {
+        // Select all columns from the department table
+        $this->db->select('*');
+        $this->db->from('department');
+
+        $query = $this->db->get();
+
+        return $query->result();
+    }
+
+
+
+
+
+
+
 
 
     public function get_organization()
@@ -777,35 +1273,8 @@ class Admin_model extends CI_Model
         return $query->row(); // Return a single row object
     }
 
-    public function update_attendance($student_id, $activity_id, $update_data)
-    {
-        // Ensure that $update_data is not empty before updating
-        if (!empty($update_data)) {
-            $this->db->where('student_id', $student_id);
-            $this->db->where('activity_id', $activity_id);
-            $this->db->update('attendance', $update_data);
 
-            // Check if the update was successful
-            if ($this->db->affected_rows() > 0) {
-                return true; // Successfully updated
-            } else {
-                return false; // No changes were made or the record does not exist
-            }
-        }
-        return false; // No data to update
-    }
 
-    public function get_attendance_record($student_id, $activity_id)
-    {
-        $this->db->select('*');
-        $this->db->from('attendance');
-        $this->db->where('student_id', $student_id);
-        $this->db->where('activity_id', $activity_id);
-
-        $query = $this->db->get(); // Execute query
-
-        return $query->row(); // Return a single record (or use ->result() for multiple)
-    }
 
     public function update_fines($student_id, $activity_id, $update_fines)
     {

@@ -2,10 +2,28 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <div class="d-flex justify-content-end mb-3">
-    <a href="<?php echo site_url('student/excuse-application'); ?>" class="btn btn-primary">
-        <i class="fas fa-plus"></i> Answer Evaluation Form
-    </a>
+    <?php if (empty($evaluation_forms)) : ?>
+        <button type="button" onclick="showNoFormAlert()" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Answer Evaluation Form
+        </button>
+    <?php else: ?>
+        <a href="<?php echo site_url('student/evaluation-forms'); ?>" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Answer Evaluation Form
+        </a>
+    <?php endif; ?>
 </div>
+
+<script>
+    function showNoFormAlert() {
+        Swal.fire({
+            icon: 'info',
+            title: 'No evaluation form as of the moment',
+            text: 'Stay tuned.',
+            confirmButtonColor: '#3085d6',
+            confirmButtonText: 'OK'
+        });
+    }
+</script>
 
 <div class="row gx-3">
     <div class="col-xxl-10 col-xl-12">
@@ -51,12 +69,13 @@
                                 <th scope="col">Activity</th>
                                 <th scope="col">Form Title</th>
                                 <th scope="col">Status</th>
+                                <th scope="col">Remarks</th>
                                 <th scope="col">Action</th>
                             </tr>
                         </thead>
                         <tbody class="list" id="table-ticket-body">
                             <?php foreach ($forms as $form) : ?>
-                                <tr class="activity-row" data-start-date="<?php echo $form->start_date; ?>" data-status="<?php echo $form->status_evaluation; ?>">
+                                <tr class="activity-row" data-start-date="<?php echo $form->start_date_evaluation; ?>" data-status="<?php echo $form->status_evaluation; ?>">
                                     <td class="text-nowrap activity"><?php echo $form->activity_title; ?></td>
                                     <td class="text-nowrap"><?php echo $form->title; ?></td>
                                     <td class="status">
@@ -74,6 +93,21 @@
                                             </span>
                                         <?php endif; ?>
                                     </td>
+                                    <td class="remarks">
+                                        <?php if ($form->remarks == 'Answered'): ?>
+                                            <span class="badge rounded-pill badge-subtle-success">
+                                                <?php echo $form->remarks; ?> <span class="ms-1 fas fa-check"></span>
+                                            </span>
+                                        <?php elseif ($form->remarks == 'Pending'): ?>
+                                            <span class="badge rounded-pill badge-subtle-warning">
+                                                <?php echo $form->remarks; ?> <span class="ms-1 fas fa-hourglass-half"></span>
+                                            </span>
+                                        <?php elseif ($form->remarks == 'Missing'): ?>
+                                            <span class="badge rounded-pill badge-subtle-danger">
+                                                <?php echo $form->remarks; ?> <span class="ms-1 fas fa-times"></span>
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td class="text-nowrap">
                                         <div class="dropdown font-sans-serif position-static">
                                             <button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button"
@@ -82,8 +116,14 @@
                                             </button>
                                             <div class="dropdown-menu dropdown-menu-end border py-0">
                                                 <div class="py-2">
-                                                    <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#paymentModal" data-student-id="${student.id}">View Form</a>
-                                                    <a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" data-student-id="${student.id}">View Response</a>
+                                                    <?php if ($form->remarks == 'Answered'): ?>
+                                                        <a class="dropdown-item" href="#">View Response</a>
+                                                    <?php elseif ($form->remarks == 'Pending'): ?>
+                                                        <a class="dropdown-item" href="<?php echo site_url('student/evaluation-form-questions/' . $form->form_id); ?>">Answer Evaluation Form</a>
+                                                    <?php elseif ($form->remarks == 'Missing'): ?>
+                                                        <h6 class="dropdown-item text-danger">No Action Available</h6>
+                                                    <?php endif; ?>
+
                                                 </div>
                                             </div>
                                         </div>

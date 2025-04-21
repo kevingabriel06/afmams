@@ -1,10 +1,3 @@
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
-
-<!-- SweetAlert2 JavaScript -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 <div class="card mb-3">
   <div class="card-body">
     <div class="row flex-between-center">
@@ -189,8 +182,7 @@
     </div>
   </div>
 </div>
-<?php echo site_url('admin/edit-evaluation-form/update/' . $forms['form_id']);
-?>
+
 <!-- Modal for adding fields (remains unchanged) -->
 <div
   class="modal fade"
@@ -343,8 +335,6 @@
     ratingInput.value = rating;
   }
 </script>
-
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 <script>
   $("#editForm").on("submit", function(e) {

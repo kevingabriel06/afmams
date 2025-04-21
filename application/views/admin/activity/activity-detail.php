@@ -1,9 +1,3 @@
-<!-- Include jQuery -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<!-- FOR SHARING THE ACTIVITY IN THE FEED -->
-
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> <!-- Include SweetAlert2 -->
-
 <script>
   $(document).ready(function() {
     // Attach the click event handler to the button using its id
@@ -100,7 +94,7 @@
 
 <div class="card mb-3">
   <img id="coverPhoto" class="card-img-top"
-    src="<?php echo base_url('assets/coverEvent/') . htmlspecialchars($activity['activity_image']); ?>"
+    src="<?php echo base_url('assets/coverEvent/') . (!empty($activity['activity_image']) ? htmlspecialchars($activity['activity_image']) : 'default.jpg'); ?>"
     alt="Event Cover" />
   <div class="card-body">
     <div class="row justify-content-between align-items-center">
@@ -130,14 +124,427 @@
         </div>
       </div>
       <div class="col-md-auto mt-4 mt-md-0">
-        <button class="btn btn-falcon-default btn-sm me-2" type="button">
-          <span class="fas fa-users text-danger me-1"></span>
-          <?php if ($activity['registration_fee'] == '0') : ?>
-            <?php echo $activity['interested']; ?> Interested
-          <?php else : ?>
-            <?php echo $activity['interested']; ?> Registered
-          <?php endif; ?>
-        </button>
+        <?php if ($activity['registration_fee'] == '0') : ?>
+          <button class="btn btn-falcon-default btn-sm me-2" type="button">
+            <span class="fas fa-users text-danger me-1"></span>
+            <?php echo $attendees_count; ?> Interested
+          </button>
+        <?php else : ?>
+          <button class="btn btn-falcon-default btn-sm me-2" type="button" data-bs-toggle="modal" data-bs-target="#registeredModal">
+            <span class="fas fa-users text-danger me-1"></span>
+            <?php echo $verified_count; ?> Registered
+          </button>
+        <?php endif; ?>
+
+        <!-- Registered Participants Modal -->
+        <div class="modal fade" id="registeredModal" tabindex="-1" aria-labelledby="registeredModalLabel" aria-hidden="true">
+          <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="registeredModalLabel">Registered Participants</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+
+              <div class="modal-body">
+                <div class="card" id="registeredTable"
+                  data-list='{"valueNames":["id", "name", "status"], "page": 11, "pagination": true, "fallback": "attendance-table-fallback"}'>
+
+                  <div class="card-header border-bottom border-200 px-0">
+                    <div class="d-lg-flex justify-content-between">
+                      <div class="row flex-between-center gy-2 px-x1">
+                        <div class="col-auto pe-0">
+                          <!-- Optional Left Content -->
+                        </div>
+                      </div>
+
+                      <div class="d-flex align-items-center justify-content-between justify-content-lg-end px-x1">
+                        <div class="d-flex align-items-center" id="table-ticket-replace-element">
+                          <div class="col-auto">
+                            <form>
+                              <div class="input-group input-search-width">
+                                <input id="searchInput" class="form-control form-control-sm shadow-none search"
+                                  type="search" placeholder="Search" aria-label="search" />
+                                <button class="btn btn-sm btn-outline-secondary border-300 hover-border-secondary" type="button">
+                                  <span class="fa fa-search fs-10"></span>
+                                </button>
+                              </div>
+                            </form>
+                          </div>
+                          <button class="btn btn-sm btn-falcon-default ms-2" type="button">
+                            <span class="fas fa-download"></span>
+                          </button>
+                          <button class="btn btn-sm btn-falcon-default ms-2" type="button" id="openFilterModal">
+                            <span class="fas fa-filter"></span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="card-body p-0">
+                    <div class="table-responsive scrollbar">
+                      <table class="table table-hover table-striped overflow-hidden">
+                        <thead class="bg-200">
+                          <tr>
+                            <th class="text-nowrap">Student ID</th>
+                            <th class="text-nowrap">Name</th>
+                            <th class="text-nowrap">Department</th>
+                            <th class="text-nowrap">Amount</th>
+                            <th class="text-nowrap">Reference Number</th>
+                            <th class="text-nowrap">Status</th>
+                            <th class="text-nowrap">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody class="list">
+                          <?php foreach ($registrations as $registration) : ?>
+                            <tr class="attendance-row">
+                              <td class="text-nowrap id"><?php echo $registration->student_id; ?></td>
+                              <td class="text-nowrap name"><?php echo $registration->first_name . " " . $registration->last_name; ?></td>
+                              <td class="text-nowrap department"><?php echo $registration->dept_name; ?></td>
+                              <td class="text-nowrap"><?php echo $registration->amount_paid; ?></td>
+                              <td class="text-nowrap"><?php echo $registration->reference_number; ?></td>
+                              <td class="status">
+                                <?php if ($registration->registration_status == 'Verified'): ?>
+                                  <span class="badge rounded-pill d-block p-2 bg-success text-white">
+                                    <?php echo $registration->registration_status; ?>
+                                    <span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span>
+                                  </span>
+
+                                <?php elseif ($registration->registration_status == 'Rejected'): ?>
+                                  <span class="badge rounded-pill d-block p-2 bg-danger text-white">
+                                    <?php echo $registration->registration_status; ?>
+                                    <span class="ms-1 fas fa-times" data-fa-transform="shrink-2"></span>
+                                  </span>
+
+                                <?php elseif ($registration->registration_status == 'Pending'): ?>
+                                  <span class="badge rounded-pill d-block p-2 bg-warning text-white">
+                                    <?php echo $registration->registration_status; ?>
+                                    <span class="ms-1 fas fa-clock" data-fa-transform="shrink-2"></span>
+                                  </span>
+                                <?php endif; ?>
+                              </td>
+
+                              <td class="text-nowrap">
+                                <div class="dropdown font-sans-serif position-static">
+                                  <button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button"
+                                    data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    <span class="fas fa-ellipsis-h fs-10"></span>
+                                  </button>
+                                  <div class="dropdown-menu dropdown-menu-end border py-0">
+                                    <div class="py-2">
+                                      <?php if ($registration->registration_status == 'Verified') : ?>
+                                        <a class="dropdown-item view-registration"
+                                          href="#"
+                                          data-bs-toggle="modal"
+                                          data-bs-target="#viewRegistrationModal"
+                                          data-student-name="<?php echo $registration->first_name . " " . $registration->last_name; ?>"
+                                          data-department="<?php echo $registration->dept_name; ?>"
+                                          data-reference-number="<?php echo $registration->reference_number; ?>"
+                                          data-status="<?php echo $registration->registration_status; ?>"
+                                          data-remarks="<?php echo $registration->remark; ?>"
+                                          data-receipt="<?php echo $registration->receipt; ?>">
+                                          View Registration
+                                        </a>
+                                      <?php else: ?>
+                                        <a class="dropdown-item text-danger validate-registration" href="#" data-student-id="<?php echo $registration->student_id; ?>" data-activity-id="<?php echo $registration->activity_id; ?>" data-bs-toggle="modal" data-bs-target="#validateModal">Validate Registration</a>
+                                      <?php endif; ?>
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          <?php endforeach; ?>
+                        </tbody>
+                      </table>
+
+                      <div class="text-center d-none" id="attendance-table-fallback">
+                        <span class="fa fa-user-slash fa-2x text-muted"></span>
+                        <p class="fw-bold fs-8 mt-3">No Student Found</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="card-footer">
+                    <div class="d-flex justify-content-center">
+                      <button class="btn btn-sm btn-falcon-default me-1" type="button" title="Previous" data-list-pagination="prev">
+                        <span class="fas fa-chevron-left"></span>
+                      </button>
+                      <ul class="pagination mb-0"></ul>
+                      <button class="btn btn-sm btn-falcon-default ms-1" type="button" title="Next" data-list-pagination="next">
+                        <span class="fas fa-chevron-right"></span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal fade" id="viewRegistrationModal" tabindex="-1" aria-labelledby="viewRegistrationModalLabel" aria-hidden="true">
+          <div class="modal-dialog modal-md modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="viewRegistrationModalLabel">Registration Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+
+              <div class="modal-body">
+                <p><strong>Student Name:</strong> <span id="modalStudentName"></span></p>
+                <p><strong>Department:</strong> <span id="modalDepartment"></span></p>
+                <p><strong>Reference Number:</strong> <span id="modalReferenceNumber"></span></p>
+                <p><strong>Status:</strong> <span id="modalStatus" class="badge rounded-pill"></span></p>
+                <p><strong>Remarks:</strong> <span id="modalRemarks"></span></p>
+
+                <div class="mb-3">
+                  <label class="form-label"><strong>Payment Receipt:</strong></label>
+                  <div class="border rounded p-2 text-center">
+                    <img id="modalReceiptImage" src="" alt="Payment Receipt" class="img-fluid rounded" style="max-height: 300px;">
+                  </div>
+                </div>
+              </div>
+
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        <script>
+          $(document).ready(function() {
+            $('.view-registration').on('click', function() {
+              const status = $(this).data('status');
+
+              $('#modalStudentName').text($(this).data('student-name'));
+              $('#modalDepartment').text($(this).data('department'));
+              $('#modalReferenceNumber').text($(this).data('reference-number'));
+              $('#modalRemarks').text($(this).data('remarks'));
+              $('#modalReceiptImage').attr('src', '<?php echo base_url('assets/receipt/'); ?>' + $(this).data('receipt'));
+
+              $('#modalStatus')
+                .text(status)
+                .removeClass()
+                .addClass('badge rounded-pill')
+                .addClass(getStatusBadgeClass(status));
+            });
+
+            function getStatusBadgeClass(status) {
+              switch (status) {
+                case 'Verified':
+                  return 'bg-success';
+                case 'Rejected':
+                  return 'bg-danger';
+                case 'Pending':
+                  return 'bg-warning text-dark';
+                default:
+                  return 'bg-secondary';
+              }
+            }
+          });
+        </script>
+
+
+
+        <div class="modal fade" id="validateModal" tabindex="-1" aria-labelledby="validateModalLabel" aria-hidden="true">
+          <div class="modal-dialog modal-md modal-dialog-centered">
+            <div class="modal-content">
+              <form id="validateForm">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="validateModalLabel">Validate Registration</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body">
+                  <input type="hidden" id="student_id" name="student_id">
+                  <input type="hidden" id="activity_id" name="activity_id">
+
+                  <div class="mb-3">
+                    <label for="referenceNumber" class="form-label">Verified Reference Number</label>
+                    <input type="text" class="form-control form-control-sm" id="referenceNumber" name="reference_number" required>
+                  </div>
+
+                  <!-- Payment Receipt Section -->
+                  <div class="mb-3">
+                    <label class="form-label">Payment Receipt</label>
+                    <div id="viewReceiptImageContainer" class="mt-3 d-none">
+                      <img id="viewReceiptImage" src="" alt="Receipt" class="img-fluid rounded border" style="max-height: 400px;">
+                    </div>
+                  </div>
+
+                  <div class="mb-3">
+                    <label for="actionSelect" class="form-label">Select Action</label>
+                    <select class="form-select form-select-sm" id="actionSelect" name="action" required>
+                      <option value="">-- Select --</option>
+                      <option value="Verified">Mark as Verified</option>
+                      <option value="Rejected">Reject Registration</option>
+                    </select>
+                  </div>
+
+                  <div class="mb-3">
+                    <label for="remarks" class="form-label">Remarks</label>
+                    <textarea class="form-control form-control-sm" id="remarks" name="remarks" rows="3"></textarea>
+                  </div>
+                </div>
+
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-danger btn-sm" data-bs-dismiss="modal">Cancel</button>
+                  <button type="submit" class="btn btn-primary btn-sm">Submit Validation</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <script>
+          $(document).ready(function() {
+            $('.validate-registration').on('click', function() {
+              const studentId = $(this).data('student-id');
+              const activityId = $(this).data('activity-id');
+
+              $('#student_id').val(studentId);
+              $('#activity_id').val(activityId);
+            });
+
+            $('#validateForm').on('submit', function(e) {
+              e.preventDefault();
+
+              $.ajax({
+                url: '<?php echo site_url('admin/activity/registration'); ?>',
+                type: 'POST',
+                data: $(this).serialize(),
+                dataType: 'json',
+                success: function(res) {
+                  if (res.status === 'success') {
+                    Swal.fire({
+                      icon: 'success',
+                      title: 'Success',
+                      text: 'Registration validated successfully!',
+                      timer: 2000,
+                      showConfirmButton: false
+                    }).then(() => {
+                      $('#validateModal').modal('hide');
+                      location.reload();
+                    });
+
+                  } else if (res.status === 'warning') {
+                    Swal.fire({
+                      icon: 'warning',
+                      title: 'Warning',
+                      text: res.message
+                    });
+
+                  } else {
+                    Swal.fire({
+                      icon: 'error',
+                      title: 'Error',
+                      text: res.message
+                    });
+                  }
+                },
+                error: function() {
+                  Swal.fire({
+                    icon: 'error',
+                    title: 'Request Failed',
+                    text: 'Something went wrong. Please try again later.'
+                  });
+                }
+              });
+            });
+          });
+        </script>
+
+        <!-- Filter Modal -->
+        <div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
+          <div class="modal-dialog modal-md">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="filterModalLabel">Filter Registered Participants</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+
+              <form id="filterForm">
+                <div class="modal-body">
+                  <div class="mb-3">
+                    <label for="statusFilter" class="form-label">Status</label>
+                    <select class="form-select" id="statusFilter" name="status">
+                      <option value="">All</option>
+                      <option value="Verified">Verified</option>
+                      <option value="Rejected">Rejected</option>
+                      <option value="Pending">Pending</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label for="departmentFilter" class="form-label">Department</label>
+                    <select class="form-select" id="departmentFilter" name="department">
+                      <option value="">All</option>
+                      <?php foreach ($departments as $department): ?>
+                        <option value="<?php echo $department->dept_name; ?>"><?php echo $department->dept_name; ?></option>
+                      <?php endforeach; ?>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                  <button type="submit" class="btn btn-primary btn-sm">Apply Filters</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter Script -->
+        <script>
+          document.addEventListener("DOMContentLoaded", function() {
+            const filterForm = document.getElementById("filterForm");
+            const filterModal = new bootstrap.Modal(document.getElementById("filterModal"));
+
+            // Open modal
+            document.getElementById("openFilterModal").addEventListener("click", () => {
+              filterModal.show();
+            });
+
+            // Apply filter
+            filterForm.addEventListener("submit", function(e) {
+              e.preventDefault();
+
+              const statusValue = document.getElementById("statusFilter").value.toLowerCase();
+              const departmentValue = document.getElementById("departmentFilter").value.toLowerCase();
+
+              const rows = document.querySelectorAll("#registeredTable tbody tr.attendance-row");
+
+              let anyVisible = false;
+
+              rows.forEach(row => {
+                const status = row.querySelector(".status").innerText.trim().toLowerCase();
+                const department = row.querySelector(".department").innerText.trim().toLowerCase();
+
+                const matchStatus = !statusValue || status.includes(statusValue);
+                const matchDepartment = !departmentValue || department.includes(departmentValue);
+
+                if (matchStatus && matchDepartment) {
+                  row.style.display = "";
+                  anyVisible = true;
+                } else {
+                  row.style.display = "none";
+                }
+              });
+
+              document.getElementById("attendance-table-fallback").classList.toggle("d-none", anyVisible);
+              filterModal.hide();
+            });
+
+            // Reset filters on close
+            document.getElementById("filterModal").addEventListener("hidden.bs.modal", () => {
+              filterForm.reset();
+            });
+          });
+        </script>
+
+
+
         <?php if ($activity['organizer'] == 'Student Parliament') : ?>
           <?php if ($activity['status'] == 'Upcoming' || $activity['status'] == 'Ongoing') : ?>
             <?php if ($activity['is_shared'] == 'No') : ?>
@@ -164,97 +571,97 @@
       </div>
     </div>
 
-    <? //php if ($activity['status'] == 'Ongoing') : 
-    ?>
-    <div class="card mb-4"> <!-- Added mb-4 for spacing -->
-      <div class="card-body">
-        <h5 class="fs-9 mb-3">Scans</h5>
-        <!-- Scan Section -->
+    <?php if ($activity['status'] == 'Ongoing') : ?>
+      <div class="card mb-4">
+        <div class="card-body">
+          <h5 class="fs-9 mb-3">Scans</h5>
+          <div class="row mb-3 gap-2">
+            <?php foreach ($schedules as $schedule) : ?>
+              <?php
+              date_default_timezone_set('Asia/Manila');
+              $currentDateTime = new DateTime();
 
-        <div class="row mb-3 gap 2">
-          <?php foreach ($schedules as $schedule) : ?>
-            <?php
-            date_default_timezone_set('Asia/Manila');
+              $dateTimeIn = !empty($schedule['date_time_in']) ? new DateTime($schedule['date_time_in']) : null;
+              $dateCutIn = !empty($schedule['date_cut_in']) ? new DateTime($schedule['date_cut_in']) : null;
+              $dateTimeOut = !empty($schedule['date_time_out']) ? new DateTime($schedule['date_time_out']) : null;
+              $dateCutOut = !empty($schedule['date_cut_out']) ? new DateTime($schedule['date_cut_out']) : null;
 
-            // Get current datetime
-            $currentDateTime = new DateTime();
+              $isTimeInValid = ($dateTimeIn && $dateCutIn && $currentDateTime >= $dateTimeIn && $currentDateTime <= $dateCutIn);
+              $isTimeOutValid = ($dateTimeOut && $dateCutOut && $currentDateTime >= $dateTimeOut && $currentDateTime <= $dateCutOut);
+              ?>
 
-            // Convert schedule times to DateTime objects
-            $dateTimeIn = !empty($schedule['date_time_in']) ? new DateTime($schedule['date_time_in']) : null;
-            $dateCutIn = !empty($schedule['date_cut_in']) ? new DateTime($schedule['date_cut_in']) : null;
-            $dateTimeOut = !empty($schedule['date_time_out']) ? new DateTime($schedule['date_time_out']) : null;
-            $dateCutOut = !empty($schedule['date_cut_out']) ? new DateTime($schedule['date_cut_out']) : null;
+              <div class="col-12">
+                <div class="border-bottom border-dashed my-3"></div>
+                <label class="fw-bold">Scan Options: <?= htmlspecialchars($schedule['slot_name']); ?></label>
+                <div class="d-flex flex-row gap-4 flex-wrap mt-2">
 
-            // // Time In: Allows early scan but must not exceed date_cut_in
-            // $isTimeInValid = ($dateTimeIn && $dateCutIn && $currentDateTime <= $dateCutIn);
-
-            // // Time Out: Must be strictly within the time-out range
-            // $isTimeOutValid = ($dateTimeOut && $dateCutOut && $currentDateTime >= $dateTimeOut && $currentDateTime <= $dateCutOut);
-            ?>
-
-            <div class="col-md-6">
-              <div class="border-bottom border-dashed my-3"></div>
-              <label class="fw-bold">Scan Options: <?php echo htmlspecialchars($schedule['slot_name']); ?></label>
-              <div class="d-flex flex-column gap-2">
-
-                <!-- Time In Section -->
-                <div class="d-flex flex-column align-items-start gap-1">
-                  <div class="d-flex align-items-center gap-3">
-                    <label class="small fw-semibold mb-0">Time In:</label>
-                    <h6 class="fw-bold fst-italic text-muted mb-0">
-                      <?= $dateTimeIn ? $dateTimeIn->format('Y-m-d h:i A') : 'N/A' ?>
-                    </h6>
+                  <!-- Time In Section -->
+                  <div class="d-flex flex-column align-items-start gap-1">
+                    <div class="d-flex align-items-center gap-3">
+                      <label class="small fw-semibold mb-0">Time In:</label>
+                      <h6 class="fw-bold fst-italic text-muted mb-0">
+                        <?= $dateTimeIn ? $dateTimeIn->format('Y-m-d h:i A') : 'N/A' ?>
+                      </h6>
+                    </div>
+                    <a href="#" class="btn btn-falcon-success btn-sm px-4 px-sm-7 scan-btn"
+                      data-url="<?= site_url('admin/activity/scan-qr/time-in/' . $schedule['activity_id']); ?>"
+                      data-valid="<?= $isTimeInValid ? 'true' : 'false' ?>"
+                      data-type="Time In">
+                      Scan QR
+                    </a>
                   </div>
-                  <a class="btn btn-falcon-success btn-sm px-4 px-sm-7 scan-btn"
-                    data-url="<?= site_url('admin/activity/scan-qr/time-in/' . $schedule['activity_id']); ?>"
-                    data-valid="<//?= $isTimeInValid ? 'true' : 'false' ?>">
-                    Scan QR
-                  </a>
-                </div>
 
-                <!-- Time Out Section -->
-                <div class="d-flex flex-column align-items-start gap-1">
-                  <div class="d-flex align-items-center gap-3">
-                    <label class="small fw-semibold mb-0">Time Out:</label>
-                    <h6 class="fw-bold fst-italic text-muted mb-0">
-                      <?= !empty($schedule['date_time_out']) ? date('Y-m-d h:i A', strtotime($schedule['date_time_out'])) : 'N/A' ?>
-                    </h6>
+                  <!-- Time Out Section -->
+                  <div class="d-flex flex-column align-items-start gap-1">
+                    <div class="d-flex align-items-center gap-3">
+                      <label class="small fw-semibold mb-0">Time Out:</label>
+                      <h6 class="fw-bold fst-italic text-muted mb-0">
+                        <?= $dateTimeOut ? $dateTimeOut->format('Y-m-d h:i A') : 'N/A' ?>
+                      </h6>
+                    </div>
+                    <a href="#" class="btn btn-falcon-danger btn-sm px-4 px-sm-7 scan-btn"
+                      data-url="<?= site_url('admin/activity/scan-qr/time-out/' . $schedule['activity_id']); ?>"
+                      data-valid="<?= $isTimeOutValid ? 'true' : 'false' ?>"
+                      data-type="Time Out">
+                      Scan QR
+                    </a>
                   </div>
-                  <a class="btn btn-falcon-danger btn-sm px-4 px-sm-7 scan-btn"
-                    data-url="<?= site_url('admin/activity/scan-qr/time-out/' . $schedule['activity_id']); ?>"
-                    data-valid="<//?= $isTimeOutValid ? 'true' : 'false' ?>">
-                    Scan QR
-                  </a>
+
                 </div>
+                <div class="border-bottom border-dashed my-3"></div>
               </div>
-              <div class="border-bottom border-dashed my-3"></div>
-            </div>
-          <?php endforeach; ?>
-
-          <script>
-            document.addEventListener("DOMContentLoaded", function() {
-              document.querySelectorAll(".scan-btn").forEach(function(button) {
-                button.addEventListener("click", function(event) {
-                  event.preventDefault(); // Prevent default link action
-                  let isValid = this.getAttribute("data-valid") == "true";
-                  let scanUrl = this.getAttribute("data-url");
-                  if (!isValid) {
-                    window.location.href = scanUrl; // Proceed with scanning
-                  } else {
-                    alertify.set('notifier', 'position', 'top-right'); // Change position
-                    alertify.error("Scan Not Allowed: You are outside the allowed scanning time!");
-                  }
-                });
-              });
-            });
-          </script>
-
+            <?php endforeach; ?>
+          </div>
         </div>
-
       </div>
-    </div>
-    <? //php endif; 
-    ?>
+
+      <script>
+        document.addEventListener("DOMContentLoaded", function() {
+          document.querySelectorAll(".scan-btn").forEach(function(btn) {
+            btn.addEventListener("click", function(e) {
+              e.preventDefault();
+
+              const isValid = this.getAttribute("data-valid") === "true";
+              const scanUrl = this.getAttribute("data-url");
+              const scanType = this.getAttribute("data-type");
+
+              if (isValid) {
+                // Proceed
+                window.location.href = scanUrl;
+              } else {
+                // Block and alert
+                Swal.fire({
+                  icon: 'error',
+                  title: `${scanType} Not Allowed`,
+                  text: 'You are outside the allowed scanning time!',
+                  confirmButtonColor: '#d33'
+                });
+              }
+            });
+          });
+        });
+      </script>
+    <?php endif; ?>
   </div>
 
 

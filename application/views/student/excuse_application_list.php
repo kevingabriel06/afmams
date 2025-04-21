@@ -95,10 +95,10 @@
                             <?php endforeach; ?>
 
                             <!-- "No activities listed" Row -->
-                            <tr id="no-activity-row" style="display: none;">
+                            <tr id="no-activity-row d-none">
                                 <td colspan="4" class="text-center text-muted fs-8 fw-bold py-2 bg-light">
                                     <span class="fas fa-calendar-times fa-2x text-muted"></span> <!-- Calendar icon -->
-                                    <h5 class="mt-2 mb-1">No excuse application isted.</h5>
+                                    <h5 class="mt-2 mb-1">No excuse application listed.</h5>
                                 </td>
                             </tr>
                         </tbody>
@@ -310,31 +310,29 @@
         });
     </script>
 
-
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             displayPastAndNext15DaysActivities();
         });
 
         function displayPastAndNext15DaysActivities() {
-            let today = new Date();
+            const today = new Date();
 
-            // Define past 15 days range
-            let past15Days = new Date();
+            // Define date range
+            const past15Days = new Date();
             past15Days.setDate(today.getDate() - 15);
 
-            // Define next 15 days range
-            let next15Days = new Date();
+            const next15Days = new Date();
             next15Days.setDate(today.getDate() + 15);
 
-            let activities = document.querySelectorAll(".activity-row");
+            const activities = document.querySelectorAll(".activity-row");
             let hasValidActivities = false;
 
             activities.forEach(function(activity) {
-                let startDate = activity.getAttribute("data-start-date");
+                const startDateStr = activity.getAttribute("data-start-date");
 
-                if (startDate) {
-                    let activityDate = new Date(startDate);
+                if (startDateStr) {
+                    const activityDate = parseDate(startDateStr);
 
                     if (activityDate >= past15Days && activityDate <= next15Days) {
                         activity.style.display = "table-row";
@@ -342,6 +340,8 @@
                     } else {
                         activity.style.display = "none";
                     }
+                } else {
+                    activity.style.display = "none";
                 }
             });
 
@@ -349,9 +349,15 @@
         }
 
         function toggleNoActivityMessage(hasActivities) {
-            let noActivityRow = document.getElementById('no-activity-row');
+            const noActivityRow = document.getElementById('no-activity-row');
             if (noActivityRow) {
                 noActivityRow.style.display = hasActivities ? 'none' : 'table-row';
             }
+        }
+
+        // Helper to parse YYYY-MM-DD formatted dates
+        function parseDate(dateStr) {
+            const parts = dateStr.split("-");
+            return new Date(parts[0], parts[1] - 1, parts[2]);
         }
     </script>

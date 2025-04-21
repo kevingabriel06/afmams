@@ -1,13 +1,3 @@
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
-<!-- SweetAlert CSS -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-<!-- SweetAlert JS -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-
 <!-- CUSTOM CSS TO SET STADARDIZE -->
 <style>
     #coverPhoto {
@@ -38,7 +28,7 @@
         <div class="card-header position-relative text-center" style="max-width: 100%; overflow: hidden;">
             <!-- Cover Photo -->
             <img id="coverPhoto" class="img-fluid w-100 rounded"
-                src="<?php echo base_url(); ?>assets/image/OIP.jpg"
+                src="<?php echo base_url(); ?>assets/coverEvent/default.jpg"
                 alt="Cover Photo"
                 style="height: 250px; object-fit: cover;">
 
@@ -221,7 +211,7 @@
                             <select class="form-select" id="audience" name="audience">
                                 <option value="0" selected>All</option>
                                 <?php foreach ($dept as $depts) : ?>
-                                    <option value="<?php echo $depts->dept_id; ?>">
+                                    <option value="<?php echo $depts->dept_name; ?>">
                                         <?php echo $depts->dept_name; ?>
                                     </option>
                                 <?php endforeach; ?>

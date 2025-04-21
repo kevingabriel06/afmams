@@ -371,290 +371,290 @@
                 </div>
             <?php endforeach; ?>
         </div>
+    </div>
 
-        <!-- FETCHING UPCOMING ACTIVITY RANDOMLY -->
-        <div class="col-lg-4">
-            <div class="card mb-3 mb-lg-0 sticky-sidebar">
-                <div class="card-header bg-body-tertiary">
-                    <h5 class="mb-0">Upcoming Activities</h5>
-                </div>
-                <div class="card-body fs-10"> <?php shuffle($activities_upcoming); ?>
+    <!-- FETCHING UPCOMING ACTIVITY RANDOMLY -->
+    <div class="col-lg-4">
+        <div class="card mb-3 mb-lg-0 sticky-sidebar">
+            <div class="card-header bg-body-tertiary">
+                <h5 class="mb-0">Upcoming Activities</h5>
+            </div>
+            <div class="card-body fs-10"> <?php shuffle($activities_upcoming); ?>
+                <?php
+                $count = 0;
+                $hasUpcomingActivities = false;
+
+                foreach ($activities_upcoming as $activity):
+                    $count++;
+                    if ($count > 4) break;
+                    $hasUpcomingActivities = true;
+                ?>
+                    <div class="d-flex btn-reveal-trigger mb-3">
+                        <div class="calendar text-center me-3">
+                            <?php
+                            $start_date = strtotime($activity->start_date);
+                            echo '<span class="calendar-month d-block">' . date('M', $start_date) . '</span>';
+                            echo '<span class="calendar-day d-block">' . date('j', $start_date) . '</span>';
+                            ?>
+                        </div>
+                        <div class="flex-1 position-relative">
+                            <h6 class="fs-9 mb-1">
+                                <a href="<?php echo site_url('admin/activity-details/' . $activity->activity_id); ?>">
+                                    <?= htmlspecialchars($activity->activity_title) ?>
+                                    <?php if ($activity->registration_fee == '0'): ?>
+                                        <span class="badge badge-subtle-success rounded-pill">Free</span>
+                                    <?php endif; ?>
+                                </a>
+                            </h6>
+                            <p class="mb-1">Organized by <?php echo htmlspecialchars($activity->organizer); ?></p>
+                            <p class="text-1000 mb-0">Date: <?= htmlspecialchars(date('M j, Y', strtotime($activity->start_date))) ?></p>
+                            <div class="border-bottom border-dashed my-2"></div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+                <?php if (!$hasUpcomingActivities): ?>
+                    <h5 class="mb-0">No Upcoming Activity</h5>
+                <?php endif; ?>
+            </div>
+            <div class="card-footer bg-body-tertiary p-0 border-top">
+                <a class="btn btn-link d-block w-100 text-center" href="<?= site_url('admin/list-of-activity') ?>">
+                    All Events <span class="fas fa-chevron-right ms-1 fs-11"></span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .sticky-sidebar {
+        position: sticky;
+        top: 8%;
+        /* Adjust as needed */
+        z-index: 1000;
+    }
+</style>
+
+
+<!-- MODAL OF ACTIVITY LIST -->
+<div class="modal fade" id="activityModal" tabindex="-1" aria-labelledby="activityModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <h5 class="modal-title" id="activityModalLabel">Shared an Activity</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <div class="row">
                     <?php
-                    $count = 0;
-                    $hasUpcomingActivities = false;
+                    $has_activity = false; // Flag to track if at least one valid activity exists
 
                     foreach ($activities_upcoming as $activity):
-                        $count++;
-                        if ($count > 4) break;
-                        $hasUpcomingActivities = true;
+                        if ($activity->is_shared == 'No' && $activity->organizer == 'Student Parliament'):
+                            $has_activity = true; // Set flag to true if a valid activity is found
                     ?>
-                        <div class="d-flex btn-reveal-trigger mb-3">
-                            <div class="calendar text-center me-3">
-                                <?php
-                                $start_date = strtotime($activity->start_date);
-                                echo '<span class="calendar-month d-block">' . date('M', $start_date) . '</span>';
-                                echo '<span class="calendar-day d-block">' . date('j', $start_date) . '</span>';
-                                ?>
-                            </div>
-                            <div class="flex-1 position-relative">
-                                <h6 class="fs-9 mb-1">
-                                    <a href="<?php echo site_url('admin/activity-details/' . $activity->activity_id); ?>">
-                                        <?= htmlspecialchars($activity->activity_title) ?>
-                                        <?php if ($activity->registration_fee == '0'): ?>
-                                            <span class="badge badge-subtle-success rounded-pill">Free</span>
-                                        <?php endif; ?>
-                                    </a>
-                                </h6>
-                                <p class="mb-1">Organized by <?php echo htmlspecialchars($activity->organizer); ?></p>
-                                <p class="text-1000 mb-0">Date: <?= htmlspecialchars(date('M j, Y', strtotime($activity->start_date))) ?></p>
-                                <div class="border-bottom border-dashed my-2"></div>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                    <?php if (!$hasUpcomingActivities): ?>
-                        <h5 class="mb-0">No Upcoming Activity</h5>
-                    <?php endif; ?>
-                </div>
-                <div class="card-footer bg-body-tertiary p-0 border-top">
-                    <a class="btn btn-link d-block w-100 text-center" href="<?= site_url('admin/list-of-activity') ?>">
-                        All Events <span class="fas fa-chevron-right ms-1 fs-11"></span>
-                    </a>
-                </div>
-            </div>
-        </div>
+                            <div class="col-md-6 mb-4">
+                                <!-- Activity Item -->
+                                <div class="d-flex btn-reveal-trigger activity-item p-3 border rounded shadow-sm hover-shadow"
+                                    data-id="<?php echo $activity->activity_id; ?>"
+                                    data-title="<?php echo $activity->activity_title; ?>"
+                                    data-start="<?php echo $activity->start_date; ?>"
+                                    data-end="<?php echo $activity->end_date; ?>"
+                                    data-fee="<?php echo $activity->registration_fee; ?>">
 
-        <style>
-            .sticky-sidebar {
-                position: sticky;
-                top: 8%;
-                /* Adjust as needed */
-                z-index: 1000;
-            }
-        </style>
+                                    <!-- Calendar Info -->
+                                    <div class="calendar">
+                                        <?php
+                                        $start_date_timestamp = strtotime($activity->start_date);
+                                        $month = date('M', $start_date_timestamp);
+                                        $day = date('j', $start_date_timestamp);
+                                        $year = date('y', $start_date_timestamp);
+                                        ?>
+                                        <span class="calendar-month"><?php echo $month; ?></span>
+                                        <span class="calendar-day"><?php echo $day; ?></span>
+                                        <span class="calendar-year" hidden><?php echo $year; ?></span>
+                                    </div>
 
-
-    </div>
-
-    <!-- MODAL OF ACTIVITY LIST -->
-    <div class="modal fade" id="activityModal" tabindex="-1" aria-labelledby="activityModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <!-- Modal Header -->
-                <div class="modal-header">
-                    <h5 class="modal-title" id="activityModalLabel">Shared an Activity</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <!-- Modal Body -->
-                <div class="modal-body">
-                    <div class="row">
-                        <?php
-                        $has_activity = false; // Flag to track if at least one valid activity exists
-
-                        foreach ($activities_upcoming as $activity):
-                            if ($activity->is_shared == 'No' && $activity->organizer == 'Student Parliament'):
-                                $has_activity = true; // Set flag to true if a valid activity is found
-                        ?>
-                                <div class="col-md-6 mb-4">
-                                    <!-- Activity Item -->
-                                    <div class="d-flex btn-reveal-trigger activity-item p-3 border rounded shadow-sm hover-shadow"
-                                        data-id="<?php echo $activity->activity_id; ?>"
-                                        data-title="<?php echo $activity->activity_title; ?>"
-                                        data-start="<?php echo $activity->start_date; ?>"
-                                        data-end="<?php echo $activity->end_date; ?>"
-                                        data-fee="<?php echo $activity->registration_fee; ?>">
-
-                                        <!-- Calendar Info -->
-                                        <div class="calendar">
-                                            <?php
-                                            $start_date_timestamp = strtotime($activity->start_date);
-                                            $month = date('M', $start_date_timestamp);
-                                            $day = date('j', $start_date_timestamp);
-                                            $year = date('y', $start_date_timestamp);
-                                            ?>
-                                            <span class="calendar-month"><?php echo $month; ?></span>
-                                            <span class="calendar-day"><?php echo $day; ?></span>
-                                            <span class="calendar-year" hidden><?php echo $year; ?></span>
-                                        </div>
-
-                                        <!-- Activity Details -->
-                                        <div class="flex-1 position-relative ps-3">
-                                            <p class="mb-1" hidden><?php echo $activity->activity_id; ?></p>
-                                            <h6 class="fs-9 mb-0">
-                                                <p>
-                                                    <?php echo $activity->activity_title; ?>
-                                                    <?php if ($activity->registration_fee == '0'): ?>
-                                                        <span class="badge badge-subtle-success rounded-pill">Free</span>
-                                                    <?php endif; ?>
-                                                </p>
-                                            </h6>
-                                            <p class="text-1000 mb-0">Date: <?php echo date('M j, Y', strtotime($activity->start_date)); ?> </p>
-                                        </div>
+                                    <!-- Activity Details -->
+                                    <div class="flex-1 position-relative ps-3">
+                                        <p class="mb-1" hidden><?php echo $activity->activity_id; ?></p>
+                                        <h6 class="fs-9 mb-0">
+                                            <p>
+                                                <?php echo $activity->activity_title; ?>
+                                                <?php if ($activity->registration_fee == '0'): ?>
+                                                    <span class="badge badge-subtle-success rounded-pill">Free</span>
+                                                <?php endif; ?>
+                                            </p>
+                                        </h6>
+                                        <p class="text-1000 mb-0">Date: <?php echo date('M j, Y', strtotime($activity->start_date)); ?> </p>
                                     </div>
                                 </div>
-                        <?php endif;
-                        endforeach; ?>
-
-                        <!-- Display "No activities listed" message if no valid activity is found -->
-                        <?php if (!$has_activity): ?>
-                            <div class="text-center py-4">
-                                <h5 class="text-muted">No activities listed</h5>
-                                <p class="text-secondary">Looks like there are no activities yet!</p>
                             </div>
-                        <?php endif; ?>
-                    </div>
+                    <?php endif;
+                    endforeach; ?>
+
+                    <!-- Display "No activities listed" message if no valid activity is found -->
+                    <?php if (!$has_activity): ?>
+                        <div class="text-center py-4">
+                            <h5 class="text-muted">No activities listed</h5>
+                            <p class="text-secondary">Looks like there are no activities yet!</p>
+                        </div>
+                    <?php endif; ?>
+                </div>
 
 
-                    <!-- Share Button (Initially hidden) -->
-                    <div class="mt-4 text-center" id="shareButtonDiv" style="display: none;">
-                        <button class="btn btn-primary px-4 py-2" id="shareButton">Share Selected Activity</button>
-                    </div>
+                <!-- Share Button (Initially hidden) -->
+                <div class="mt-4 text-center" id="shareButtonDiv" style="display: none;">
+                    <button class="btn btn-primary px-4 py-2" id="shareButton">Share Selected Activity</button>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        $(document).ready(function() {
-            let offset = 5; // Start after the initial 5 posts
-            const limit = 5; // Number of posts per batch
-            let loading = false; // Prevent multiple requests
-            let allPostsLoaded = false; // Stop when no more posts
+<script>
+    $(document).ready(function() {
+        let offset = 5; // Start after the initial 5 posts
+        const limit = 5; // Number of posts per batch
+        let loading = false; // Prevent multiple requests
+        let allPostsLoaded = false; // Stop when no more posts
 
-            function loadMorePosts() {
-                if (loading || allPostsLoaded) return;
-                loading = true;
-                $('#loading').show();
+        function loadMorePosts() {
+            if (loading || allPostsLoaded) return;
+            loading = true;
+            $('#loading').show();
 
-                $.ajax({
-                    url: '<?= site_url('admin/community') ?>',
-                    type: 'POST',
-                    data: {
-                        offset: offset,
-                        limit: limit
-                    },
-                    success: function(response) {
-                        if ($.trim(response) === '') {
-                            allPostsLoaded = true;
-                            $('#loading').text('No more posts.');
-                        } else {
-                            $('#feed-container').append(response); // Adds new posts at the bottom
-                            offset += limit; // Increase offset for next batch
-                        }
-                    },
-                    complete: function() {
-                        $('#loading').hide();
-                        loading = false;
+            $.ajax({
+                url: '<?= site_url('admin/community') ?>',
+                type: 'POST',
+                data: {
+                    offset: offset,
+                    limit: limit
+                },
+                success: function(response) {
+                    if ($.trim(response) === '') {
+                        allPostsLoaded = true;
+                        $('#loading').text('No more posts.');
+                    } else {
+                        $('#feed-container').append(response); // Adds new posts at the bottom
+                        offset += limit; // Increase offset for next batch
                     }
-                });
-            }
-
-            // Detect scroll to bottom
-            $(window).scroll(function() {
-                if (!loading && !allPostsLoaded && $(window).scrollTop() + $(window).height() >= $(document).height() - 100) {
-                    loadMorePosts();
+                },
+                complete: function() {
+                    $('#loading').hide();
+                    loading = false;
                 }
             });
+        }
 
-            // Prevent scroll position restoration on reload
-            if ('scrollRestoration' in history) {
-                history.scrollRestoration = 'manual';
+        // Detect scroll to bottom
+        $(window).scroll(function() {
+            if (!loading && !allPostsLoaded && $(window).scrollTop() + $(window).height() >= $(document).height() - 100) {
+                loadMorePosts();
             }
-
-            // Force scroll to top on reload
-            window.onload = function() {
-                window.scrollTo(0, 0);
-            };
         });
-    </script>
 
-    <script>
-        $(document).ready(function() {
-            // Event listener for the Like button
-            $('[id^=btn-like]').click(function() {
-                var postId = $(this).data('post-id'); // Get the post ID
-                var button = $(this); // Reference to the button
+        // Prevent scroll position restoration on reload
+        if ('scrollRestoration' in history) {
+            history.scrollRestoration = 'manual';
+        }
 
-                // Send AJAX request to like/unlike the post
-                $.ajax({
-                    url: '<?= site_url("admin/community/like-post/") ?>' + postId, // Send to controller's like_post method
-                    type: 'POST',
-                    success: function(response) {
-                        var data = JSON.parse(response); // Parse the response data
+        // Force scroll to top on reload
+        window.onload = function() {
+            window.scrollTo(0, 0);
+        };
+    });
+</script>
 
-                        // Update the button's icon and text based on the response
-                        button.find('img').attr('src', data.like_img); // Change image (active/inactive)
-                        button.find('span').text(data.like_text); // Change text (Liked/Like)
+<script>
+    $(document).ready(function() {
+        // Event listener for the Like button
+        $('[id^=btn-like]').click(function() {
+            var postId = $(this).data('post-id'); // Get the post ID
+            var button = $(this); // Reference to the button
 
-                        // Update the like count dynamically
-                        $('#like-count-' + postId).html(`
+            // Send AJAX request to like/unlike the post
+            $.ajax({
+                url: '<?= site_url("admin/community/like-post/") ?>' + postId, // Send to controller's like_post method
+                type: 'POST',
+                success: function(response) {
+                    var data = JSON.parse(response); // Parse the response data
+
+                    // Update the button's icon and text based on the response
+                    button.find('img').attr('src', data.like_img); // Change image (active/inactive)
+                    button.find('span').text(data.like_text); // Change text (Liked/Like)
+
+                    // Update the like count dynamically
+                    $('#like-count-' + postId).html(`
                     ${data.new_like_count} 
                         <a href="javascript:void(0);" onclick="showLikesModal(${postId})">
                            Likes
                         </a>
                     `);
 
-                        // Auto-update the like list in the modal
-                        updateLikeList(postId);
-                    },
-                    error: function() {
-                        alert('Something went wrong, please try again later.');
-                    }
-                });
-            });
-        });
-
-        // Function to update the like list in real-time
-        function updateLikeList(postId) {
-            $.ajax({
-                url: '<?= site_url('admin/view_likes/'); ?>' + postId,
-                method: 'GET',
-                success: function(response) {
-                    $('#likesList-' + postId).html(response); // Update modal content
+                    // Auto-update the like list in the modal
+                    updateLikeList(postId);
                 },
                 error: function() {
-                    alert('Error fetching likes. Please try again.');
+                    alert('Something went wrong, please try again later.');
                 }
             });
-        }
+        });
+    });
 
-        // Function to show the modal and update the like list
-        function showLikesModal(postId) {
-            updateLikeList(postId); // Refresh likes before showing modal
-            $('#likesModal-' + postId).modal('show');
-        }
-    </script>
+    // Function to update the like list in real-time
+    function updateLikeList(postId) {
+        $.ajax({
+            url: '<?= site_url('admin/view_likes/'); ?>' + postId,
+            method: 'GET',
+            success: function(response) {
+                $('#likesList-' + postId).html(response); // Update modal content
+            },
+            error: function() {
+                alert('Error fetching likes. Please try again.');
+            }
+        });
+    }
+
+    // Function to show the modal and update the like list
+    function showLikesModal(postId) {
+        updateLikeList(postId); // Refresh likes before showing modal
+        $('#likesModal-' + postId).modal('show');
+    }
+</script>
 
 
-    <!-- ========= JAVASCRIPT  ======== -->
-    <script>
-        // FOR COMMENT SECTION
-        $(document).on('submit', 'form[id^="commentForm"]', function(e) {
-            e.preventDefault();
-            var form = $(this);
-            var formData = form.serialize();
-            var postId = form.find('input[name="post_id"]').val();
-            var commentSection = $('#comment-section-' + postId); // Where comments are displayed
-            var commentCounter = $('#comment-counter-' + postId); // Comment counter
-            var noCommentsMsg = commentSection.find('.no-comments'); // No comments message
+<!-- ========= JAVASCRIPT  ======== -->
+<script>
+    // FOR COMMENT SECTION
+    $(document).on('submit', 'form[id^="commentForm"]', function(e) {
+        e.preventDefault();
+        var form = $(this);
+        var formData = form.serialize();
+        var postId = form.find('input[name="post_id"]').val();
+        var commentSection = $('#comment-section-' + postId); // Where comments are displayed
+        var commentCounter = $('#comment-counter-' + postId); // Comment counter
+        var noCommentsMsg = commentSection.find('.no-comments'); // No comments message
 
-            $.ajax({
-                url: '<?= site_url("admin/community/add-comment"); ?>',
-                type: 'POST',
-                data: formData,
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status === 'success') {
-                        // Update the comment counter
-                        commentCounter.text(response.comments_count + ' Comments');
+        $.ajax({
+            url: '<?= site_url("admin/community/add-comment"); ?>',
+            type: 'POST',
+            data: formData,
+            dataType: 'json',
+            success: function(response) {
+                if (response.status === 'success') {
+                    // Update the comment counter
+                    commentCounter.text(response.comments_count + ' Comments');
 
-                        // Hide "No comments yet" message
-                        if (noCommentsMsg.length) {
-                            noCommentsMsg.remove();
-                        }
+                    // Hide "No comments yet" message
+                    if (noCommentsMsg.length) {
+                        noCommentsMsg.remove();
+                    }
 
-                        // Check if the new_comment object is properly returned
-                        if (response.new_comment) {
-                            let newCommentHTML = `
+                    // Check if the new_comment object is properly returned
+                    if (response.new_comment) {
+                        let newCommentHTML = `
                         <div class="d-flex mt-3 comment-item">
                             <div class="avatar avatar-xl">
                                 <img class="rounded-circle" src="${response.new_comment.profile_pic}" alt="Profile Picture" />
@@ -667,408 +667,408 @@
                             </div>
                         </div>`;
 
-                            // Prepend the latest comment at the top
-                            commentSection.prepend(newCommentHTML);
-                        }
-
-                        // Clear input field
-                        form.find('input[name="comment"]').val('');
-
-                        // Show success notification with SweetAlert2
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Comment Added!',
-                            text: 'Your comment has been posted successfully.',
-                            showConfirmButton: false,
-                            timer: 1500
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: response.errors,
-                            confirmButtonText: 'OK'
-                        });
+                        // Prepend the latest comment at the top
+                        commentSection.prepend(newCommentHTML);
                     }
-                },
-                error: function() {
+
+                    // Clear input field
+                    form.find('input[name="comment"]').val('');
+
+                    // Show success notification with SweetAlert2
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Comment Added!',
+                        text: 'Your comment has been posted successfully.',
+                        showConfirmButton: false,
+                        timer: 1500
+                    });
+                } else {
                     Swal.fire({
                         icon: 'error',
-                        title: 'Oops!',
-                        text: 'Something went wrong. Please try again later.',
+                        title: 'Error',
+                        text: response.errors,
                         confirmButtonText: 'OK'
                     });
-                },
-            });
-        });
-
-        $(document).on('click', '.view-more-comments', function(e) {
-            e.preventDefault();
-            let postId = $(this).data('post-id');
-            let commentSection = $('#comment-section-' + postId);
-            let hiddenComments = commentSection.find('.extra-comment');
-            if ($(this).text().trim() === 'View all comments') {
-                hiddenComments.removeClass('d-none'); // Show all comments
-                $(this).text('See fewer comments');
-            } else {
-                hiddenComments.addClass('d-none'); // Hide extra comments
-                $(this).text('View all comments');
-            }
-        });
-
-        // FUNCTION FOR INSERTING POST
-        $(document).ready(function() {
-            $('#postForm').on('submit', function(e) {
-                e.preventDefault();
-                var formData = new FormData(this);
-
-                Swal.fire({
-                    title: 'Confirm Sharing',
-                    text: 'Are you sure you want to post this?',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonText: 'Yes, delete it!',
-                    cancelButtonText: 'Cancel',
-                    confirmButtonClass: 'btn btn-primary', // Primary button style
-                    cancelButtonClass: 'btn btn-danger', // Danger button style
-                    reverseButtons: true,
-                    customClass: {
-                        confirmButton: 'btn btn-primary', // Primary button style
-                        cancelButton: 'btn btn-danger', // Danger button style
-                    }
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        // Proceed with the AJAX request if confirmed
-                        $.ajax({
-                            url: '<?php echo site_url("admin/community/add-post"); ?>',
-                            type: 'POST',
-                            data: formData,
-                            contentType: false,
-                            processData: false,
-                            dataType: 'json',
-                            success: function(response) {
-                                if (response.status === 'error') {
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'Error',
-                                        text: response.errors // Show error message
-                                    });
-                                } else if (response.status === 'success') {
-                                    Swal.fire({
-                                        icon: 'success',
-                                        title: 'Success',
-                                        text: response.message, // Show success message
-                                        showConfirmButton: false,
-                                        timer: 2000
-                                    });
-                                    setTimeout(function() {
-                                        window.location.href = response.redirect; // Redirect after 1 second
-                                    }, 1000);
-                                }
-                            }
-                        });
-                    } else {
-                        // If cancelled, show a message
-                        Swal.fire({
-                            icon: 'info',
-                            title: 'Cancelled',
-                            text: 'Post cancelled.',
-                            showConfirmButton: false,
-                            timer: 2000
-                        });
-                    }
-                });
-            });
-        });
-
-        // DELETE POST
-        $(document).ready(function() {
-            $(document).on("click", "#delete-post", function(event) {
-                event.preventDefault();
-                var postId = $(this).data("post-id"); // Get post ID
-                var deleteUrl = $(this).data("url"); // Get delete URL
-                console.log("Delete clicked, post ID:", postId); // Debugging
-                console.log("Delete URL:", deleteUrl); // Debugging
-
-                if (!postId || !deleteUrl) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Invalid Data',
-                        text: 'Invalid Post ID or URL'
-                    });
-                    return;
                 }
-
-                // SweetAlert2 confirmation
+            },
+            error: function() {
                 Swal.fire({
-                    title: 'Confirm Deletion',
-                    text: 'Are you sure you want to delete this post?',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonText: 'Yes, delete it!',
-                    cancelButtonText: 'Cancel',
-                    confirmButtonClass: 'btn btn-primary', // Primary button style
-                    cancelButtonClass: 'btn btn-danger', // Danger button style
-                    reverseButtons: true,
-                    customClass: {
-                        confirmButton: 'btn btn-primary', // Primary button style
-                        cancelButton: 'btn btn-danger', // Danger button style
-                    }
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        // Perform AJAX request to delete post
-                        $.ajax({
-                            url: deleteUrl, // Ensure this is correct
-                            type: "POST",
-                            data: {
-                                post_id: postId
-                            },
-                            dataType: "json", // Ensure response is treated as JSON
-                            success: function(response) {
-                                console.log("Delete response:", response); // Debugging
-                                if (response.status === "success") {
-                                    Swal.fire({
-                                        icon: 'success',
-                                        title: 'Deleted!',
-                                        text: response.message
-                                    });
-                                    setTimeout(function() {
-                                        location.reload(); // Reload the page after 1 second
-                                    }, 1000);
-                                } else {
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'Error',
-                                        text: response.message
-                                    });
-                                }
-                            },
-                            error: function(xhr) {
+                    icon: 'error',
+                    title: 'Oops!',
+                    text: 'Something went wrong. Please try again later.',
+                    confirmButtonText: 'OK'
+                });
+            },
+        });
+    });
+
+    $(document).on('click', '.view-more-comments', function(e) {
+        e.preventDefault();
+        let postId = $(this).data('post-id');
+        let commentSection = $('#comment-section-' + postId);
+        let hiddenComments = commentSection.find('.extra-comment');
+        if ($(this).text().trim() === 'View all comments') {
+            hiddenComments.removeClass('d-none'); // Show all comments
+            $(this).text('See fewer comments');
+        } else {
+            hiddenComments.addClass('d-none'); // Hide extra comments
+            $(this).text('View all comments');
+        }
+    });
+
+    // FUNCTION FOR INSERTING POST
+    $(document).ready(function() {
+        $('#postForm').on('submit', function(e) {
+            e.preventDefault();
+            var formData = new FormData(this);
+
+            Swal.fire({
+                title: 'Confirm Sharing',
+                text: 'Are you sure you want to post this?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel',
+                confirmButtonClass: 'btn btn-primary', // Primary button style
+                cancelButtonClass: 'btn btn-danger', // Danger button style
+                reverseButtons: true,
+                customClass: {
+                    confirmButton: 'btn btn-primary', // Primary button style
+                    cancelButton: 'btn btn-danger', // Danger button style
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Proceed with the AJAX request if confirmed
+                    $.ajax({
+                        url: '<?php echo site_url("admin/community/add-post"); ?>',
+                        type: 'POST',
+                        data: formData,
+                        contentType: false,
+                        processData: false,
+                        dataType: 'json',
+                        success: function(response) {
+                            if (response.status === 'error') {
                                 Swal.fire({
                                     icon: 'error',
                                     title: 'Error',
-                                    text: 'Error deleting post'
+                                    text: response.errors // Show error message
                                 });
-                                console.log("AJAX Error:", xhr.responseText);
-                            }
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: 'info',
-                            title: 'Canceled',
-                            text: 'Deletion canceled',
-                            showConfirmButton: false,
-                            timer: 2000
-                        });
-
-                    }
-                });
-            });
-        });
-
-        // SHARING OF ACTIVITY
-        document.addEventListener('DOMContentLoaded', function() {
-            const activityItems = document.querySelectorAll('.activity-item');
-            const shareButtonDiv = document.getElementById('shareButtonDiv');
-            const shareButton = document.getElementById('shareButton');
-            let selectedActivity = null;
-
-            // Handle activity selection
-            activityItems.forEach(item => {
-                item.addEventListener('click', function() {
-                    if (selectedActivity) {
-                        selectedActivity.classList.remove('selected');
-                    }
-                    selectedActivity = this;
-                    selectedActivity.classList.add('selected');
-                    shareButtonDiv.style.display = 'block';
-                });
-            });
-
-            // Handle sharing when the button is clicked
-            shareButton.addEventListener('click', function() {
-                if (!selectedActivity) {
-                    // Show SweetAlert2 error message if no activity is selected
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Selection Required',
-                        text: 'Please select an activity first.'
-                    });
-                    return;
-                }
-
-                const activityId = selectedActivity.getAttribute('data-id');
-                const activityTitle = selectedActivity.getAttribute('data-title');
-
-                // Confirm the sharing action
-                Swal.fire({
-                    title: 'Confirm Sharing',
-                    html: `Are you sure you want to share this activity: "<b>${activityTitle}</b>"?`,
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonText: 'Yes, share it!',
-                    cancelButtonText: 'Cancel',
-                    confirmButtonClass: 'btn btn-primary', // Primary button style
-                    cancelButtonClass: 'btn btn-danger', // Danger button style
-                    reverseButtons: true,
-                    customClass: {
-                        confirmButton: 'btn btn-primary', // Primary button style
-                        cancelButton: 'btn btn-danger', // Danger button style
-                    }
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        // User confirmed, proceed with sharing
-                        fetch("<?= site_url('admin/community/share-activity') ?>", {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                                "X-Requested-With": "XMLHttpRequest",
-                            },
-                            body: JSON.stringify({
-                                activity_id: activityId
-                            }),
-                        }).then(response => response.json()).then(data => {
-                            if (data.success) {
-                                // Show success message
+                            } else if (response.status === 'success') {
                                 Swal.fire({
                                     icon: 'success',
-                                    title: 'Shared!',
-                                    html: `"<b>${activityTitle}</b>" has been shared successfully.`
+                                    title: 'Success',
+                                    text: response.message, // Show success message
+                                    showConfirmButton: false,
+                                    timer: 2000
                                 });
+                                setTimeout(function() {
+                                    window.location.href = response.redirect; // Redirect after 1 second
+                                }, 1000);
+                            }
+                        }
+                    });
+                } else {
+                    // If cancelled, show a message
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Cancelled',
+                        text: 'Post cancelled.',
+                        showConfirmButton: false,
+                        timer: 2000
+                    });
+                }
+            });
+        });
+    });
 
-                                // Reload the page after 1 second
-                                setTimeout(() => {
-                                    location.reload();
+    // DELETE POST
+    $(document).ready(function() {
+        $(document).on("click", "#delete-post", function(event) {
+            event.preventDefault();
+            var postId = $(this).data("post-id"); // Get post ID
+            var deleteUrl = $(this).data("url"); // Get delete URL
+            console.log("Delete clicked, post ID:", postId); // Debugging
+            console.log("Delete URL:", deleteUrl); // Debugging
+
+            if (!postId || !deleteUrl) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Data',
+                    text: 'Invalid Post ID or URL'
+                });
+                return;
+            }
+
+            // SweetAlert2 confirmation
+            Swal.fire({
+                title: 'Confirm Deletion',
+                text: 'Are you sure you want to delete this post?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel',
+                confirmButtonClass: 'btn btn-primary', // Primary button style
+                cancelButtonClass: 'btn btn-danger', // Danger button style
+                reverseButtons: true,
+                customClass: {
+                    confirmButton: 'btn btn-primary', // Primary button style
+                    cancelButton: 'btn btn-danger', // Danger button style
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Perform AJAX request to delete post
+                    $.ajax({
+                        url: deleteUrl, // Ensure this is correct
+                        type: "POST",
+                        data: {
+                            post_id: postId
+                        },
+                        dataType: "json", // Ensure response is treated as JSON
+                        success: function(response) {
+                            console.log("Delete response:", response); // Debugging
+                            if (response.status === "success") {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Deleted!',
+                                    text: response.message
+                                });
+                                setTimeout(function() {
+                                    location.reload(); // Reload the page after 1 second
                                 }, 1000);
                             } else {
-                                // Show error message
                                 Swal.fire({
                                     icon: 'error',
                                     title: 'Error',
-                                    text: "Failed to share the activity. Please try again."
+                                    text: response.message
                                 });
                             }
-                        }).catch(error => {
-                            console.error("Error:", error);
+                        },
+                        error: function(xhr) {
                             Swal.fire({
                                 icon: 'error',
                                 title: 'Error',
-                                text: "An error occurred. Please try again.",
-                                showConfirmButton: false,
-                                timer: 2000
+                                text: 'Error deleting post'
                             });
-                        });
-                    } else {
-                        // User canceled
+                            console.log("AJAX Error:", xhr.responseText);
+                        }
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Canceled',
+                        text: 'Deletion canceled',
+                        showConfirmButton: false,
+                        timer: 2000
+                    });
+
+                }
+            });
+        });
+    });
+
+    // SHARING OF ACTIVITY
+    document.addEventListener('DOMContentLoaded', function() {
+        const activityItems = document.querySelectorAll('.activity-item');
+        const shareButtonDiv = document.getElementById('shareButtonDiv');
+        const shareButton = document.getElementById('shareButton');
+        let selectedActivity = null;
+
+        // Handle activity selection
+        activityItems.forEach(item => {
+            item.addEventListener('click', function() {
+                if (selectedActivity) {
+                    selectedActivity.classList.remove('selected');
+                }
+                selectedActivity = this;
+                selectedActivity.classList.add('selected');
+                shareButtonDiv.style.display = 'block';
+            });
+        });
+
+        // Handle sharing when the button is clicked
+        shareButton.addEventListener('click', function() {
+            if (!selectedActivity) {
+                // Show SweetAlert2 error message if no activity is selected
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Selection Required',
+                    text: 'Please select an activity first.'
+                });
+                return;
+            }
+
+            const activityId = selectedActivity.getAttribute('data-id');
+            const activityTitle = selectedActivity.getAttribute('data-title');
+
+            // Confirm the sharing action
+            Swal.fire({
+                title: 'Confirm Sharing',
+                html: `Are you sure you want to share this activity: "<b>${activityTitle}</b>"?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, share it!',
+                cancelButtonText: 'Cancel',
+                confirmButtonClass: 'btn btn-primary', // Primary button style
+                cancelButtonClass: 'btn btn-danger', // Danger button style
+                reverseButtons: true,
+                customClass: {
+                    confirmButton: 'btn btn-primary', // Primary button style
+                    cancelButton: 'btn btn-danger', // Danger button style
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // User confirmed, proceed with sharing
+                    fetch("<?= site_url('admin/community/share-activity') ?>", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-Requested-With": "XMLHttpRequest",
+                        },
+                        body: JSON.stringify({
+                            activity_id: activityId
+                        }),
+                    }).then(response => response.json()).then(data => {
+                        if (data.success) {
+                            // Show success message
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Shared!',
+                                html: `"<b>${activityTitle}</b>" has been shared successfully.`
+                            });
+
+                            // Reload the page after 1 second
+                            setTimeout(() => {
+                                location.reload();
+                            }, 1000);
+                        } else {
+                            // Show error message
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: "Failed to share the activity. Please try again."
+                            });
+                        }
+                    }).catch(error => {
+                        console.error("Error:", error);
                         Swal.fire({
-                            icon: 'info',
-                            title: 'Canceled',
-                            text: "Sharing canceled.",
+                            icon: 'error',
+                            title: 'Error',
+                            text: "An error occurred. Please try again.",
                             showConfirmButton: false,
                             timer: 2000
                         });
-                    }
-                });
-            });
-        });
-
-
-        // DISPLAYING EXCERPT AND VIEWING OF POST
-        $(document).on('click', '.view-more', function() {
-            var container = $(this).closest('.card-body');
-            // Hide preview and show full content
-            container.find('.post-preview').hide();
-            container.find('.full-content').removeClass('d-none');
-        });
-        $(document).on('click', '.view-less', function() {
-            var container = $(this).closest('.card-body');
-            // Hide full content and show preview
-            container.find('.full-content').addClass('d-none');
-            container.find('.post-preview').show();
-        });
-
-
-        $(document).ready(function() {
-            // Handle Privacy Selection
-            $(document).on('click', '.dropdown-menu .dropdown-item', function(e) {
-                e.preventDefault();
-                const selectedPrivacy = $(this).data('privacy');
-                const privacyIcon = $('#privacy-icon');
-                // Change icon based on selected privacy
-                if (selectedPrivacy === 'Public') {
-                    privacyIcon.removeClass('fa-users').addClass('fa-globe-americas');
-                } else if (selectedPrivacy === 'Private') {
-                    privacyIcon.removeClass('fa-globe-americas').addClass('fa-users');
-                }
-                // Store selection in hidden input
-                $('#privacyStatus').val(selectedPrivacy);
-            });
-        });
-
-        // IMAGE HANDLING - PREVIEW AND REMOVE
-        $(document).ready(function() {
-            // Trigger file input when button is clicked
-            $("#imageBtn").click(function() {
-                $("#imageInput").click();
-            });
-            // Show image preview
-            $("#imageInput").change(function(event) {
-                var file = event.target.files[0];
-                if (file) {
-                    var reader = new FileReader();
-                    reader.onload = function(e) {
-                        $("#imagePreview").attr("src", e.target.result);
-                        $("#imagePreviewContainer").removeClass("d-none");
-                    };
-                    reader.readAsDataURL(file);
+                    });
+                } else {
+                    // User canceled
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Canceled',
+                        text: "Sharing canceled.",
+                        showConfirmButton: false,
+                        timer: 2000
+                    });
                 }
             });
         });
+    });
 
-        document.getElementById("imageInput").addEventListener("change", function() {
-            var file = this.files[0];
+
+    // DISPLAYING EXCERPT AND VIEWING OF POST
+    $(document).on('click', '.view-more', function() {
+        var container = $(this).closest('.card-body');
+        // Hide preview and show full content
+        container.find('.post-preview').hide();
+        container.find('.full-content').removeClass('d-none');
+    });
+    $(document).on('click', '.view-less', function() {
+        var container = $(this).closest('.card-body');
+        // Hide full content and show preview
+        container.find('.full-content').addClass('d-none');
+        container.find('.post-preview').show();
+    });
+
+
+    $(document).ready(function() {
+        // Handle Privacy Selection
+        $(document).on('click', '.dropdown-menu .dropdown-item', function(e) {
+            e.preventDefault();
+            const selectedPrivacy = $(this).data('privacy');
+            const privacyIcon = $('#privacy-icon');
+            // Change icon based on selected privacy
+            if (selectedPrivacy === 'Public') {
+                privacyIcon.removeClass('fa-users').addClass('fa-globe-americas');
+            } else if (selectedPrivacy === 'Private') {
+                privacyIcon.removeClass('fa-globe-americas').addClass('fa-users');
+            }
+            // Store selection in hidden input
+            $('#privacyStatus').val(selectedPrivacy);
+        });
+    });
+
+    // IMAGE HANDLING - PREVIEW AND REMOVE
+    $(document).ready(function() {
+        // Trigger file input when button is clicked
+        $("#imageBtn").click(function() {
+            $("#imageInput").click();
+        });
+        // Show image preview
+        $("#imageInput").change(function(event) {
+            var file = event.target.files[0];
             if (file) {
                 var reader = new FileReader();
                 reader.onload = function(e) {
-                    document.getElementById("imagePreview").src = e.target.result;
-                    document.getElementById("imageName").textContent = file.name;
-                    document.getElementById("imageSize").textContent = (file.size / (1024 * 1024)).toFixed(2) + " MB";
-                    document.getElementById("imagePreviewContainer").classList.remove("d-none");
+                    $("#imagePreview").attr("src", e.target.result);
+                    $("#imagePreviewContainer").removeClass("d-none");
                 };
                 reader.readAsDataURL(file);
             }
         });
-        // Remove Image Functionality
-        document.querySelector(".remove-image").addEventListener("click", function(e) {
-            e.preventDefault();
-            document.getElementById("imagePreviewContainer").classList.add("d-none");
-            document.getElementById("imageInput").value = ""; // Clear file input
-        });
-    </script>
+    });
 
-
-    <style>
-        /* Highlight selected activity */
-        .activity-item.selected {
-            background-color: #f0f0f0;
-            /* Change background to show selection */
-            border: 1px solid #007bff;
-            /* Add a blue border for visual feedback */
+    document.getElementById("imageInput").addEventListener("change", function() {
+        var file = this.files[0];
+        if (file) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById("imagePreview").src = e.target.result;
+                document.getElementById("imageName").textContent = file.name;
+                document.getElementById("imageSize").textContent = (file.size / (1024 * 1024)).toFixed(2) + " MB";
+                document.getElementById("imagePreviewContainer").classList.remove("d-none");
+            };
+            reader.readAsDataURL(file);
         }
+    });
+    // Remove Image Functionality
+    document.querySelector(".remove-image").addEventListener("click", function(e) {
+        e.preventDefault();
+        document.getElementById("imagePreviewContainer").classList.add("d-none");
+        document.getElementById("imageInput").value = ""; // Clear file input
+    });
+</script>
 
-        /* Set fixed size for the image */
-        #coverPhoto {
-            width: 100%;
-            /* Make the image width fill the container */
-            height: 250px;
-            /* Set a fixed height */
-            object-fit: cover;
-            /* Ensure the image covers the area without distortion */
-        }
 
-        /* Optional: Set specific dimensions for the card if necessary */
-        .card {
-            width: 100%;
-            /* You can adjust the width of the card */
-        }
-    </style>
+<style>
+    /* Highlight selected activity */
+    .activity-item.selected {
+        background-color: #f0f0f0;
+        /* Change background to show selection */
+        border: 1px solid #007bff;
+        /* Add a blue border for visual feedback */
+    }
+
+    /* Set fixed size for the image */
+    #coverPhoto {
+        width: 100%;
+        /* Make the image width fill the container */
+        height: 250px;
+        /* Set a fixed height */
+        object-fit: cover;
+        /* Ensure the image covers the area without distortion */
+    }
+
+    /* Optional: Set specific dimensions for the card if necessary */
+    .card {
+        width: 100%;
+        /* You can adjust the width of the card */
+    }
+</style>

@@ -34,7 +34,7 @@
         <div class="card-header position-relative text-center" style="max-width: 100%; overflow: hidden;">
             <!-- Cover Photo -->
             <img id="coverPhoto" class="img-fluid w-100 rounded"
-                src="<?php echo base_url('assets/coverEvent/' . $activity['activity_image']); ?>"
+                src="<?php echo base_url('assets/coverEvent/') . (!empty($activity['activity_image']) ? htmlspecialchars($activity['activity_image']) : 'default.jpg'); ?>"
                 alt="Cover Photo"
                 style="height: 250px; object-fit: cover;">
 

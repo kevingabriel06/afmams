@@ -91,15 +91,18 @@ $route['student/excuse-application/submit'] = 'StudentController/submit_applicat
 $route['student/excuse-application'] = 'StudentController/excuse_application';
 
 // EVALUATION FORM
-$route['student/evaluation-form'] = 'StudentController/evaluation_form';
+$route['student/evaluation-form/list'] = 'StudentController/evaluation_form_list';
+$route['student/evaluation-forms'] = 'StudentController/evaluation_forms';
 $route['student/evaluation-form-questions/(:num)'] = 'StudentController/evaluation_form_questions/$1';
+$route['student/evaluation/submit']['post'] = 'StudentController/submit_form';
 $route['student/evaluation-form-submit/(:num)'] = 'StudentController/submit/$1';
 $route['student/evaluation-answers/(:num)'] = 'StudentController/view_evaluation_answers/$1';
 
-$route['student/profile-settings/(:any)'] = 'StudentController/profile_settings/$1';
-$route['student/update_profile_pic'] = 'StudentController/update_profile_pic';
-//update profile details
-$route['student/update-profile/(:any)'] = 'StudentController/update_profile/$1';
+// PROFILE SETTINGS
+$route['student/profile-settings'] = 'StudentController/profile_settings';
+$route['student/profile/update-profile-pic'] = 'StudentController/update_profile_pic';
+$route['student/profile/update-profile'] = 'StudentController/update_profile';
+$route['student/profile/update_password'] = 'StudentController/update_password';
 
 $route['about'] = 'StudentController/about_page';
 
@@ -109,16 +112,16 @@ $route['translate_uri_dashes'] = FALSE;
 //ADMIN ROUTES
 $route['admin/dashboard'] = 'AdminController/admin_dashboard';
 
-// ATTENDANCE MONITORING =======>
+// ATTENDANCE MONITORING
 $route['admin/list-activities-attendance'] = 'AdminController/list_activities_attendance';
-$route['admin/list-department/(:num)'] = 'AdminController/list_department/$1';
-$route['admin/list-attendees/(:num)/(:num)'] = 'AdminController/list_attendees/$1/$2';
-$route['admin/activity/scan-qr/time-in/(:num)'] = 'AdminController/scanning_qr/$1';
-$route['admin/activity/scan-qr/time-out/(:num)'] = 'AdminController/scanning_qr/$1';
+$route['admin/list-attendees/(:num)'] = 'AdminController/list_attendees/$1';
+// ~ TAKING OF ATTENDANCE~
+$route['admin/activity/scan-qr/time-in/(:num)'] = 'AdminController/time_in/$1';
+$route['admin/activity/scan-qr/time-out/(:num)'] = 'AdminController/time_out/$1';
 $route['admin/activity/face-recognition/(:num)'] = 'AdminController/face_recognition/$1';
-$route['admin/activity/scan-qr-code'] = 'AdminController/scan';
 $route['admin/attendance/get-faces'] = 'AdminController/getFaces';
-$route['admin/attendance/detect'] = 'AdminController/updateAttendance';
+$route['admin/attendance/detect_timein'] = 'AdminController/scanUnified_timein';
+$route['admin/attendance/detect_timeout'] = 'AdminController/scanUnified_timeout';
 
 
 //FINES MONITORING
@@ -139,15 +142,16 @@ $route['admin/delete-schedule/(:num)'] = 'AdminController/delete_schedule/$1';
 $route['admin/list-of-activity'] = 'AdminController/list_activity'; // List of activity
 $route['admin/activity-details/(:num)'] = 'AdminController/activity_details/$1'; // Activity Details
 $route['admin/activity-details/activity-share']['post'] = 'AdminController/share_activity'; // Sharing activity to community
+$route['admin/activity/registration'] = 'AdminController/validate_registrations';
 
+$route['admin/list-activity-evaluation'] = 'AdminController/list_activity_evaluation';
 $route['admin/create-evaluation-form'] = 'AdminController/create_evaluationform';
 $route['admin/create-evaluation-form/create']['post'] = 'AdminController/create_eval';
 $route['admin/edit-evaluation-form/(:num)'] = 'AdminController/edit_evaluationform/$1';
 $route['admin/edit-evaluation-form/update/(:num)'] = 'AdminController/update_eval/$1';
 $route['admin/view-evaluation-form/(:num)'] = 'AdminController/view_evaluationform/$1';
-$route['admin/list-activity-evaluation'] = 'AdminController/list_activity_evaluation';
-$route['admin/list-evaluation-answers/(:num)'] = 'AdminController/list_evaluation_answers/$1';
-$route['admin/list-evaluation-answers/view_response/(:num)'] = 'AdminController/view_response/$1';
+$route['admin/list-evaluation-responses/(:num)'] = 'AdminController/list_evaluation_responses/$1';
+$route['admin/evaluation-statistic/(:num)'] = 'AdminController/evaluation_statistic/$1';
 
 // <==== EXCUSE APPLICATION ======>
 $route['admin/activity-list'] = 'AdminController/list_activity_excuse'; // List of activity
@@ -168,12 +172,17 @@ $route['admin/community/delete-post']['post'] = 'AdminController/delete_post'; /
 
 // PROFILE SETTINGS ========>
 //PROFILE UPDATES
-$route['admin/profile-settings/(:any)'] = 'AdminController/profile_settings/$1';
-$route['admin/update_profile_pic'] = 'AdminController/update_profile_pic';
-//update profile details
-$route['admin/update-profile/(:any)'] = 'AdminController/update_profile/$1';
+$route['admin/profile-settings'] = 'AdminController/profile_settings';
+$route['admin/profile/update-profile-pic'] = 'AdminController/update_profile_pic';
+$route['admin/profile/update-profile'] = 'AdminController/update_profile';
+$route['admin/profile/update_password'] = 'AdminController/update_password';
+
+
 $route['admin/manage-officers'] = 'AdminController/manage_officers';
 $route['admin/manage-officers-department/(:num)'] = 'AdminController/list_officers_dept/$1';
-$route['admin/manage-officers-department/update_status']['post'] = 'AdminController/update_status_dept';
+$route['admin/manage-officers-department/update_privileges']['post'] = 'AdminController/update_privileges';
 $route['admin/manage-officers-organization/(:num)'] = 'AdminController/list_officers_org/$1';
 $route['admin/manage-officers-organization/update_status']['post'] = 'AdminController/update_status_org';
+
+$route['admin/general-settings'] = 'AdminController/general_settings';
+$route['admin/import-students'] = 'AdminController/import_list';

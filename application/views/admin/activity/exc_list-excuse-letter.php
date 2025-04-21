@@ -1,5 +1,3 @@
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
 <div class="row gx-3">
   <div class="col-xxl-10 col-xl-12">
     <div class="card" id="ticketsTable"
@@ -45,9 +43,10 @@
           <table class="table table-hover table-striped overflow-hidden">
             <thead class="bg-200">
               <tr>
-                <th class="text-900 px-6 py-2">Student</th>
-                <th class="text-900 px-6 py-2">Subject</th>
-                <th class="text-900 px-7 py-2">Status</th>
+                <th scope="col">Student</th>
+                <th scope="col">Department</th>
+                <th scope="col">Subject</th>
+                <th scope="col">Status</th>
               </tr>
             </thead>
             <tbody class="list" id="table-ticket-body">
@@ -61,6 +60,9 @@
                         </div>
                         <h6 class="mb-0 fw-semibold text-dark"><?php echo $letter->first_name . " " . $letter->last_name; ?></h6>
                       </div>
+                    </td>
+                    <td class="align-middle subject px-6 py-2 subject">
+                      <?php echo $letter->dept_name; ?>
                     </td>
                     <td class="align-middle subject px-6 py-2 subject">
                       <a class="fw-semi-bold" href="<?php echo site_url('admin/review-excuse-letter/' . $letter->excuse_id); ?>"><?php echo $letter->subject; ?></a>
@@ -139,7 +141,7 @@
 </div>
 
 <script>
-    $(document).ready(function() {
+  $(document).ready(function() {
     $("#applyFilter").click(function() {
       var selectedStatus = $("#filterStatus").val().toLowerCase(); // Get selected status
 

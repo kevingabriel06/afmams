@@ -1,6 +1,6 @@
 <div class="card mb-3 mb-lg-0">
   <div class="card-header bg-body-tertiary d-flex justify-content-between">
-    <h5 class="mb-0">Manage Officers</h5>
+    <h5 class="mb-0">Manage Officers and Privilege</h5>
   </div>
 </div>
 
@@ -17,7 +17,12 @@
       <?php foreach ($department as $dept): ?>
         <div class="col-md-6 col-lg-4">
           <div class="card fixed-card">
-            <img class="card-img-top fixed-image" src="<?php echo base_url('assets/imageDept/') . (!empty($dept->logo) ? $dept->logo : 'default.png'); ?>" alt="Card image cap">
+            <div class="rounded-circle overflow-hidden mx-auto" style="width: 120px; height: 120px;">
+              <img src="<?php echo base_url('assets/imageDept/') . (!empty($dept->logo) ? $dept->logo : 'default.png'); ?>"
+                alt="Department Logo"
+                class="img-fluid w-100 h-100"
+                style="object-fit: cover;">
+            </div>
             <div class="card-body">
               <h5 class="card-title"><?php echo $dept->dept_name ?></h5>
               <a class="btn btn-primary btn-sm" href="<?php echo site_url('admin/manage-officers-department/' . $dept->dept_id); ?>">View Officers</a>
@@ -42,7 +47,12 @@
       <?php foreach ($organization as $org): ?>
         <div class="col-md-6 col-lg-4">
           <div class="card fixed-card">
-            <img class="card-img-top fixed-image" src="<?php echo base_url('assets/imageOrg/') . (!empty($org->logo) ? $org->logo : 'default.png'); ?>" alt="Card image cap">
+            <div class="rounded-circle overflow-hidden mx-auto" style="width: 120px; height: 120px;">
+              <img src="<?php echo base_url('assets/imageOrg/') . (!empty($org->logo) ? $org->logo : 'default.png'); ?>"
+                alt="Organization Logo"
+                class="img-fluid w-100 h-100"
+                style="object-fit: cover;">
+            </div>
             <div class="card-body">
               <h5 class="card-title"><?php echo $org->org_name ?></h5>
               <a class="btn btn-primary btn-sm" href="<?php echo site_url('admin/manage-officers-organization/' . $org->org_id); ?>">View Officers</a>

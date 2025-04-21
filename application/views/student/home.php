@@ -850,9 +850,9 @@
                 <div id="status-message" class="alert d-none"></div>
 
                 <form id="registrationForm" enctype="multipart/form-data">
-                    <input type="text" id="modal_activity_id" name="activity_id">
-                    <input type="text" id="modal_status" name="status">
-                    <input type="text" id="modal_student_id" value="<?php echo $this->session->userdata('student_id'); ?>" name="student_id">
+                    <input type="hidden" id="modal_activity_id" name="activity_id">
+                    <input type="hidden" id="modal_status" name="status">
+                    <input type="hidden" id="modal_student_id" value="<?php echo $this->session->userdata('student_id'); ?>" name="student_id">
 
                     <!-- Reference Number -->
                     <div class="mb-3">

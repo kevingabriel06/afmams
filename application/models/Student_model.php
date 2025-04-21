@@ -18,7 +18,7 @@ class Student_model extends CI_Model
         return $this->db->get_where('users', ['student_id' => $student_id])->row_array();
     }
 
-    // START HOME
+    // HOME
 
     // FECTCHING WHO IS THE AUTHOR OF THE POST
     public function get_user()
@@ -150,8 +150,6 @@ class Student_model extends CI_Model
         }
     }
 
-
-
     public function get_shared_activities($limit, $offset)
     {
         // Get logged-in student ID
@@ -247,14 +245,13 @@ class Student_model extends CI_Model
         $this->db->group_start();
         $this->db->or_where('audience', 'All'); // Student Parliament activities
         $this->db->or_where('audience', $user_dept_name); // Department-specific activities
-        $this->db->or_where_in('audience', $org_names); // Activities related to the student's organizations
+        //$this->db->or_where_in('audience', $org_names); // Activities related to the student's organizations
         $this->db->group_end();
 
         // Execute the query
         $query = $this->db->get();
         return $query->result();
     }
-
 
     // LIKES FUNCTIONALITY
     public function like_post($post_id, $student_id)
@@ -362,8 +359,6 @@ class Student_model extends CI_Model
         return $query->row(); // Return a single comment object
     }
 
-    // END HOME
-
     // START REGISTRATION
     public function insert_registration($data)
     {
@@ -401,84 +396,45 @@ class Student_model extends CI_Model
 
     //POST LIKES COMMENTS END
 
-    // Get attendance history for a specific student
-    public function get_attendance_history($student_id, $search = '', $status = 'all')
+    // ATTENDANCE HISTORY
+    public function get_attendance_history()
     {
-        $this->db->select('act.activity_title AS Activity, 
-                       act.start_date AS Date, 
-                       a.am_in AS AM_IN, 
-                       a.am_out AS AM_OUT, 
-                       a.pm_in AS PM_IN, 
-                       a.pm_out AS PM_OUT, 
-                       a.attendance_status AS Status, 
-                       act.dept_id, 
-                       act.org_id, 
-                       dep.dept_name, 
-                       org.org_name');
-        $this->db->from('attendance a');
-        $this->db->join('activity act', 'act.activity_id = a.activity_id');
-        $this->db->join('department dep', 'dep.dept_id = act.dept_id', 'left');
-        $this->db->join('organization org', 'org.org_id = act.org_id', 'left');
-        $this->db->where('a.student_id', $student_id);
+        $student_id = $this->session->userdata('student_id');
 
-        if (!empty($search)) {
-            $this->db->like('act.title', $search);
-        }
-
-        if ($status !== 'all') {
-            $this->db->where('a.attendance_status', $status);
-        }
+        $this->db->select('attendance.*, activity.*, activity_time_slots.*');
+        $this->db->from('attendance');
+        $this->db->join('activity', 'activity.activity_id = attendance.activity_id');
+        $this->db->join('activity_time_slots', 'activity_time_slots.activity_id = attendance.activity_id', 'right');
+        $this->db->where('attendance.student_id', $student_id);
 
         $query = $this->db->get();
-        $attendances = $query->result();
-
-        // Add organizer and status logic
-        foreach ($attendances as $attendance) {
-            // First, check the database status
-            $status = isset($attendance->Status) ? $attendance->Status : 'N/A';
-
-            // Override status based on attendance times
-            if ($status === 'N/A') {
-                // If status is not provided, check times
-                if (is_null($attendance->AM_IN) && is_null($attendance->AM_OUT) && is_null($attendance->PM_IN) && is_null($attendance->PM_OUT)) {
-                    $attendance->attendance_status = "Absent";
-                } elseif (is_null($attendance->AM_IN) || is_null($attendance->AM_OUT) || is_null($attendance->PM_IN) || is_null($attendance->PM_OUT)) {
-                    $attendance->attendance_status = "Incomplete";
-                } else {
-                    $attendance->attendance_status = "Present";
-                }
-            } else {
-                // Keep the status from the database if available
-                $attendance->attendance_status = $status;
-            }
-
-            // Set the status badge
-            switch ($attendance->attendance_status) {
-                case 'Present':
-                    $attendance->status_badge = "badge-success"; // Badge for Present
-                    break;
-                case 'Absent':
-                    $attendance->status_badge = "badge-danger"; // Badge for Absent
-                    break;
-                case 'Incomplete':
-                    $attendance->status_badge = "badge-warning"; // Badge for Incomplete
-                    break;
-                default:
-                    $attendance->status_badge = "badge-secondary"; // Default Badge
-            }
-
-            // Set the organizer name based on dept_id or org_id
-            if (!is_null($attendance->dept_id)) {
-                $attendance->organizer = $attendance->dept_name;
-            } elseif (!is_null($attendance->org_id)) {
-                $attendance->organizer = $attendance->org_name;
-            } else {
-                $attendance->organizer = "Student Parliament";
-            }
-        }
-
-        return $attendances;
+        return $query->result();
     }
+
+    public function get_attendance($student_id)
+    {
+
+        $student_id = $this->session->userdata('student_id');
+
+        $this->db->select('');
+        $this->db->from('attendance');
+        $this->db->join('activity', 'activity.activity_id = attendance.activity_id');
+        $this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = attendance.timeslot_id');
+        $this->db->where('attendance.student_id', $student_id);
+
+        $query = $this->db->get();
+        return $query->result();
+    }
+
+    // Helper function to combine multiple slot statuses into one
+    private function combineStatus($current, $new)
+    {
+        if ($current === 'Present' && $new === 'Present') return 'Present';
+        if ($current === 'Absent' && $new === 'Absent') return 'Absent';
+        return 'Incomplete';
+    }
+
+
 
     // LIST OF ACTIVITY
     public function get_activities_for_users()
@@ -607,7 +563,7 @@ class Student_model extends CI_Model
 
         $this->db->select('activity.*, ea.*, ea.status AS exStatus');
         $this->db->from('excuse_application ea');
-        $this->db->join('activity', 'activity.activity_id = ea.activity_id');
+        $this->db->join('activity', 'activity.activity_id = ea.activity_id', 'inner');
         $this->db->where('ea.student_id', $student_id);
 
         $query = $this->db->get();
@@ -774,7 +730,7 @@ class Student_model extends CI_Model
     }
 
     // EVALUATION FORMS
-    public function forms()
+    public function list_forms()
     {
         // Get logged-in student ID
         $student_id = $this->session->userdata('student_id');
@@ -801,12 +757,14 @@ class Student_model extends CI_Model
             return $org->org_name;
         }, $orgs);
 
-        // Fetch upcoming activities that exist in excuse_application but where the student has not passed an excuse
-        $this->db->select('activity.*, forms.*');
+        // Fetch activities with forms and filter by audience
+        $this->db->select('activity.*, forms.*, evaluation_responses.*');
         $this->db->from('activity');
         $this->db->join('forms', 'forms.activity_id = activity.activity_id', 'inner');
+        $this->db->join('evaluation_responses', 'evaluation_responses.form_id = forms.form_id', 'left');
 
-        // Filter by audience
+
+        // Audience filters
         $this->db->group_start();
         $this->db->or_where('activity.audience', 'All');
         if ($user_dept_name) {
@@ -817,55 +775,96 @@ class Student_model extends CI_Model
         }
         $this->db->group_end();
 
-        // Execute the query
+        $query = $this->db->get();
+        return $query->result();
+    }
+
+    public function get_open_forms_for_student_and_unanswered()
+    {
+        // Get logged-in student ID
+        $student_id = $this->session->userdata('student_id');
+
+        // Get the student's department
+        $user = $this->db->select('users.dept_id, department.dept_name')
+            ->from('users')
+            ->join('department', 'users.dept_id = department.dept_id', 'left')
+            ->where('users.student_id', $student_id)
+            ->get()
+            ->row();
+
+        $user_dept_name = $user ? $user->dept_name : null;
+
+        // Get all organizations the student belongs to
+        $orgs = $this->db->select('student_org.org_id, organization.org_name')
+            ->from('student_org')
+            ->join('organization', 'student_org.org_id = organization.org_id', 'left')
+            ->where('student_org.student_id', $student_id)
+            ->get()
+            ->result();
+
+        $org_names = array_map(function ($org) {
+            return $org->org_name;
+        }, $orgs);
+
+        // Fetch open forms where the student has not answered yet
+        $this->db->select('forms.*, activity.*');
+        $this->db->from('forms');
+        $this->db->join('activity', 'activity.activity_id = forms.activity_id', 'inner');
+        $this->db->join('evaluation_responses', 'evaluation_responses.form_id = forms.form_id AND evaluation_responses.student_id = ' . $this->db->escape($student_id), 'left');
+        $this->db->where('forms.status_evaluation', 'Ongoing');
+        $this->db->where('(evaluation_responses.remarks IS NULL OR evaluation_responses.remarks = "Pending")');
+
+        // Filter by audience
+        $this->db->group_start();
+        $this->db->or_where('activity.audience', 'All');
+        if (!empty($user_dept_name)) {
+            $this->db->or_where('activity.audience', $user_dept_name);
+        }
+        if (!empty($org_names)) {
+            $this->db->or_where_in('activity.audience', $org_names);
+        }
+        $this->db->group_end();
+
         $query = $this->db->get();
         return $query->result();
     }
 
 
-
-
-
-
-
-    //DISPLAY EVALUATION FORM INFORMATION
-
-    public function get_open_forms()
+    public function get_evaluation_by_id($form_id)
     {
-        $query = $this->db->query("
-        SELECT 
-            ef.form_id,
-            ef.title AS form_title,
-            ef.description AS form_description,
-            ef.start_date,
-            ef.end_date,
-            a.activity_title,
-            COALESCE(o.org_name, d.dept_name, 'Student Parliament') AS organizer,
-            -- Check if the current time is greater than the end date
-            IF(NOW() > ef.end_date, 0, 1) AS is_form_open
-        FROM forms ef
-        JOIN activity a ON ef.activity_id = a.activity_id
-        LEFT JOIN department d ON a.dept_id = d.dept_id
-        LEFT JOIN organization o ON a.org_id = o.org_id
-        LEFT JOIN evaluation_responses er ON ef.form_id = er.form_id AND er.student_id = ?  -- Checking if answered
-        WHERE ef.end_date >= NOW() 
-        AND er.evaluation_response_id IS NULL  -- Only select forms that have not been answered
-        AND (
-            (a.dept_id IS NULL AND a.org_id IS NULL) 
-            OR a.dept_id = (SELECT dept_id FROM users WHERE student_id = ?)
-            OR a.org_id IN (SELECT org_id FROM student_org WHERE student_id = ?)
-        )
-    ", array());
+        $this->db->select('*'); // Select form & activity details
+        $this->db->from('forms');
+        $this->db->join('activity', 'activity.activity_id = forms.activity_id');
+        $this->db->where('forms.form_id', $form_id);
 
-        $result = $query->result();
+        $query = $this->db->get();
+        $form_data = $query->row_array(); // Fetch form details
 
-        if (!$result) {
-            return []; // Ensure it returns an empty array if no results are found
-        }
+        // Fetch all form fields related to this form_id
+        $this->db->select('*');
+        $this->db->from('formfields');
+        $this->db->where('form_id', $form_id);
+        $query = $this->db->get();
+        $form_data['form_fields'] = $query->result_array(); // Store fields as an array inside form_data
 
-        return $result;
+        return $form_data;
     }
 
+    public function save_response($data)
+    {
+        // Insert into evaluation_responses table
+        $this->db->insert('evaluation_responses', $data);
+        return $this->db->insert_id(); // return the response ID
+    }
+
+    public function save_answers($data)
+    {
+        // Insert multiple answers into response_answer table
+        if (!empty($data)) {
+            return $this->db->insert_batch('response_answer', $data);
+        }
+        return false;
+    }
 
 
     // Fetch Form Details
@@ -1137,100 +1136,74 @@ class Student_model extends CI_Model
 
 
 
-    //FOR PROFILE SETTINGS
-
-    public function get_student_full_details($student_id)
+    // PROFILE SETTINGS
+    public function get_user_profile()
     {
-        // Query to fetch basic student details from the 'users' table
-        $this->db->select('first_name, middle_name, last_name, email, profile_pic, dept_id, year_level');
-        $this->db->where('student_id', $student_id);
-        $query = $this->db->get('users');
+        $student_id = $this->session->userdata('student_id');
 
-        if ($query->num_rows() > 0) {
-            $student = $query->row_array();
+        // Get basic user and department info
+        $this->db->select('users.*, department.*');
+        $this->db->from('users');
+        $this->db->join('department', 'department.dept_id = users.dept_id');
+        $this->db->where('users.student_id', $student_id);
+        $user = $this->db->get()->row();
 
-            // Set default profile picture if it's empty
-            $student['profile_pic'] = !empty($student['profile_pic']) ? $student['profile_pic'] : 'default-pic.jpg';
+        // Get organizations separately
+        $this->db->select('organization.*');
+        $this->db->from('student_org');
+        $this->db->join('organization', 'organization.org_id = student_org.org_id');
+        $this->db->where('student_org.student_id', $student_id);
+        $organizations = $this->db->get()->result();
 
-            // Get the department name using dept_id from the 'department' table
-            $this->db->select('dept_name');
-            $this->db->where('dept_id', $student['dept_id']);
-            $department_query = $this->db->get('department');
-
-            if ($department_query->num_rows() > 0) {
-                $student['department_name'] = $department_query->row_array()['dept_name']; // Fetch department name
-            } else {
-                $student['department_name'] = ''; // No department found
-            }
-
-            // Get the list of organizations the student belongs to from 'student_org' table
-            $this->db->select('o.org_name AS organization_name');
-            $this->db->from('student_org so');
-            $this->db->join('organization o', 'so.org_id = o.org_id'); // Joining with 'organization' table
-            $this->db->where('so.student_id', $student_id);
-            $organization_query = $this->db->get();
-
-            if ($organization_query->num_rows() > 0) {
-                // Fetch organization names
-                $student['organizations'] = $organization_query->result_array();
-            } else {
-                $student['organizations'] = []; // No organizations found
-            }
-
-            return $student;
-        } else {
-            return false; // If no data found
+        if ($user) {
+            $user->organizations = $organizations;
         }
+
+        return $user;
     }
 
-
-    //=======PROFILE UPDATE=========
-
-    // Get the current profile picture from the users table
     public function get_profile_pic($student_id)
     {
-        $this->db->select('*');
-        $this->db->from('users');
+        // Make sure student_id is passed correctly
+        if (!$student_id) {
+            return 'default.png';
+        }
+
+        $this->db->select('profile_pic');
+        $this->db->from('users'); // Ensure this is your actual table name
         $this->db->where('student_id', $student_id);
+
         $query = $this->db->get();
 
         if ($query->num_rows() > 0) {
-            return $query->row()->profile_pic; // Return the current profile pic
+            $result = $query->row();
+            return $result->profile_pic ?? 'default.png';
         }
 
-        return null; // Return null if no profile pic exists
+        return 'default.png'; // Fallback if no profile found
     }
 
-    // Update the profile picture in the users table
+    // Function to update profile picture in the database
     public function update_profile_pic($student_id, $data)
     {
-        // Check if data is not empty
-        if (!empty($data)) {
-            $this->db->where('student_id', $student_id); // Ensure you're targeting the correct student
-            $this->db->update('users', $data); // Assuming you are updating the 'users' table
-            return $this->db->affected_rows(); // Return the number of affected rows
-        }
-        return false;
+        $this->db->where('student_id', $student_id);
+        return $this->db->update('users', $data);
     }
 
-
-
-    //UPDATE PROFILE DETAILS
-
-    public function update_user_profile($student_id, $update_data)
+    public function update_student($student_id, $data)
     {
-        // Set the user data and update based on student_id
         $this->db->where('student_id', $student_id);
-        return $this->db->update('users', $update_data);
+        return $this->db->update('users', $data);
     }
 
-
-
-    public function update_password($student_id, $new_password)
+    public function get_by_id($student_id)
     {
-        // Update the password in the database (hash it before storing)
-        $data = array('password' => $new_password);
-        $this->db->where('student_id', $student_id);
-        $this->db->update('users', $data);
+        return $this->db->get_where('users', ['student_id' => $student_id])->row();
+    }
+
+    public function update_password($student_id, $hashed_password)
+    {
+        return $this->db->where('student_id', $student_id)
+            ->update('users', ['password' => $hashed_password]);
     }
 }

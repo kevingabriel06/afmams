@@ -210,7 +210,12 @@
                 // Validate year range (must be exactly a one-year difference)
                 if (!selectedStartYear || !selectedEndYear || selectedEndYear - selectedStartYear !== 1) {
                     $('#start-year, #end-year').addClass('is-invalid');
-                    alert("Please select a valid academic year range with a one-year difference.");
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Invalid Academic Year',
+                        text: 'Please select a valid academic year range with a one-year difference.',
+                        confirmButtonColor: '#3085d6',
+                    });
                     return;
                 } else {
                     $('#start-year, #end-year').removeClass('is-invalid');
@@ -218,19 +223,20 @@
 
                 // Define the exact date range for 1st and 2nd semesters
                 if (selectedSemester === "1st-semester") {
-                    startDate = new Date(selectedStartYear, 7, 1); // August 1, selected start year (e.g., Aug 1, 2024)
-                    endDate = new Date(selectedStartYear, 11, 31); // December 31, selected start year (e.g., Dec 31, 2024)
+                    startDate = new Date(selectedStartYear, 7, 1); // August 1, selected start year
+                    endDate = new Date(selectedStartYear, 11, 31); // December 31, selected start year
                 } else if (selectedSemester === "2nd-semester") {
-                    startDate = new Date(selectedEndYear, 0, 1); // January 1, selected end year (e.g., Jan 1, 2025)
-                    endDate = new Date(selectedEndYear, 6, 31); // July 31, selected end year (e.g., July 31, 2025)
+                    startDate = new Date(selectedEndYear, 0, 1); // January 1, selected end year
+                    endDate = new Date(selectedEndYear, 6, 31); // July 31, selected end year
                 } else {
-                    // Default to the full academic year (Jan 1, start year - Dec 31, end year)
+                    // Default to the full academic year
                     startDate = new Date(selectedStartYear, 0, 1);
                     endDate = new Date(selectedEndYear, 11, 31);
                 }
 
                 filterActivitiesByDateAndStatus(startDate, endDate, selectedStatus);
             };
+
 
             // Function to filter activities based on the selected date range and status
             function filterActivitiesByDateAndStatus(startDate, endDate, status) {

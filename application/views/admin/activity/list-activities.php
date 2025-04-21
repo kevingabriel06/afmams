@@ -1,5 +1,3 @@
-<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-
 <div class="card mb-3 mb-lg-0">
     <!-- Card Header with Filter Button -->
     <div class="card-header bg-body-tertiary d-flex justify-content-between">
@@ -89,7 +87,14 @@
                 // Validate year range (must be exactly a one-year difference)
                 if (!selectedStartYear || !selectedEndYear || selectedEndYear - selectedStartYear !== 1) {
                     $('#start-year, #end-year').addClass('is-invalid');
-                    alert("Please select a valid academic year range with a one-year difference.");
+
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Invalid Academic Year',
+                        text: 'Please select a valid academic year range with a one-year difference.',
+                        confirmButtonColor: '#3085d6'
+                    });
+
                     return;
                 } else {
                     $('#start-year, #end-year').removeClass('is-invalid');
@@ -141,6 +146,7 @@
             }
         });
     </script>
+
 
 
 
@@ -208,56 +214,57 @@
     });
 
     function displayPastAndNext15DaysActivities() {
-        let today = new Date();
+        const today = new Date();
 
-        // Define past 15 days range
-        let past15Days = new Date();
+        // Past 15 days
+        const past15Days = new Date();
         past15Days.setDate(today.getDate() - 15);
 
-        // Define next 15 days range
-        let next15Days = new Date();
+        // Next 15 days
+        const next15Days = new Date();
         next15Days.setDate(today.getDate() + 15);
 
-        let activities = document.querySelectorAll(".activity");
-        let hasPastActivities = false;
-        let hasUpcomingActivities = false;
+        const activities = document.querySelectorAll(".activity");
+        let hasVisibleActivity = false;
 
         activities.forEach(function(activity) {
-            let startDate = activity.getAttribute("data-start-date");
+            const startDate = activity.getAttribute("data-start-date");
 
             if (startDate) {
-                let activityDate = new Date(startDate);
+                const activityDate = new Date(startDate);
 
-                if (activityDate >= past15Days && activityDate < today) {
-                    activity.classList.add("past-activity"); // Style for past activities
+                if (activityDate >= past15Days && activityDate <= next15Days) {
                     activity.style.display = "block";
-                    hasPastActivities = true;
-                } else if (activityDate >= today && activityDate <= next15Days) {
-                    activity.classList.add("upcoming-activity"); // Style for upcoming activities
-                    activity.style.display = "block";
-                    hasUpcomingActivities = true;
+
+                    if (activityDate < today) {
+                        activity.classList.add("past-activity");
+                    } else {
+                        activity.classList.add("upcoming-activity");
+                    }
+
+                    hasVisibleActivity = true;
                 } else {
                     activity.style.display = "none";
                 }
+            } else {
+                activity.style.display = "none";
             }
         });
 
-        toggleNoActivityMessage(hasPastActivities, hasUpcomingActivities);
+        toggleNoActivityMessage(hasVisibleActivity);
     }
 
-
     function formatDateToYMD(date) {
-        let year = date.getFullYear();
-        let month = String(date.getMonth() + 1).padStart(2, '0'); // Ensure 2-digit month
-        let day = String(date.getDate()).padStart(2, '0'); // Ensure 2-digit day
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
     }
 
-    // Show/hide "No activities found" message
-    function toggleNoActivityMessage(hasActivities) {
-        let noActivityMessage = document.getElementById('no-activity');
+    function toggleNoActivityMessage(hasVisibleActivity) {
+        const noActivityMessage = document.getElementById('no-activity');
         if (noActivityMessage) {
-            noActivityMessage.style.display = hasActivities ? 'none' : 'block';
+            noActivityMessage.style.display = hasVisibleActivity ? 'none' : 'block';
         }
     }
 </script>

@@ -24,7 +24,6 @@ class StudentController extends CI_Controller
 
         $this->load->database();
         $this->load->model('Student_model', 'student');
-        $this->load->helper('url');
 
         // CHECK IF THERE'S A STUDENT LOGIN
         if (!$this->session->userdata('student_id')) {
@@ -32,9 +31,10 @@ class StudentController extends CI_Controller
         }
     }
 
+    // DASHBOARD - PAGE
     public function student_dashboard()
     {
-        $data['title'] = 'Community';
+        $data['title'] = 'Home';
         $student_id = $this->session->userdata('student_id');
 
         // FETCH USER DATA
@@ -375,27 +375,28 @@ class StudentController extends CI_Controller
     }
 
 
+    // ATTENDANCE HISTORY - PAGE
     public function attendance_history()
     {
         $data['title'] = 'Attendance History';
 
         $student_id = $this->session->userdata('student_id');
 
-        // FETCH USER DATA
+        // Fetching user details (with profile picture and role, etc.)
         $data['users'] = $this->student->get_student($student_id);
 
-        // Get the attendance data for the student
-
-        // $data['attendances'] = $this->student->get_attendance_history($student_id);
-
+        // Fetch attendance of this student across all activities
+        $data['attendances'] = $this->student->get_attendance($student_id);
 
         $this->load->view('layout/header', $data);
-        $this->load->view('student/attendance_history', $data);
+        $this->load->view('student/attendance_history', $data);  // change view to match your new setup
         $this->load->view('layout/footer', $data);
     }
 
+    public function list_attendees() {}
 
 
+    // SUMMARY OF FINES
     public function summary_fines()
     {
         $data['title'] = 'Summary of Fines';
@@ -410,7 +411,7 @@ class StudentController extends CI_Controller
         $this->load->view('layout/footer', $data);
     }
 
-    //LIST OF ACTIVITY	
+    // LIST OF ACTIVITY	- PAGE
     public function list_activity()
     {
         $data['title'] = 'List of Activity';
@@ -430,8 +431,7 @@ class StudentController extends CI_Controller
     }
 
 
-    //ACTIVITY DETAILS
-
+    // SPECIFIC ACTIVITY DETAILS - PAGE
     public function activity_details($activity_id)
     {
         $data['title'] = 'Activity Details';
@@ -458,20 +458,20 @@ class StudentController extends CI_Controller
     }
 
 
-    // ====================EVALUATION FORM FUNCTIONS START
-    public function evaluation_form()
+    // EVALUATION LIST - PAGE
+    public function evaluation_form_list()
     {
-        $data['title'] = 'Evaluation Form';
+        $data['title'] = 'List Evaluation Form';
 
         $student_id = $this->session->userdata('student_id');
 
         // FETCH USER DATA
         $data['users'] = $this->student->get_student($student_id);
 
-        $data['forms'] = $this->student->forms();
+        $data['forms'] = $this->student->list_forms();
 
-        // // Fetch open (unanswered) forms
-        // $data['evaluation_forms'] = $this->student->get_open_forms($student_id);
+        // Fetch open (unanswered) forms
+        $data['evaluation_forms'] = $this->student->get_open_forms_for_student_and_unanswered();
 
         // // Fetch answered forms
         // $data['answered_forms'] = $this->student->get_answered_forms($student_id);
@@ -482,6 +482,7 @@ class StudentController extends CI_Controller
         $this->load->view('layout/footer', $data);
     }
 
+    // EVALUATION FORM DESIGN OPENED FORM - PAGE
     public function evaluation_forms()
     {
         $data['title'] = 'Evaluation Form';
@@ -492,80 +493,135 @@ class StudentController extends CI_Controller
         $data['users'] = $this->student->get_student($student_id);
 
         // Fetch open (unanswered) forms
-        $data['evaluation_forms'] = $this->student->get_open_forms($student_id);
+        $data['evaluation_forms'] = $this->student->get_open_forms_for_student_and_unanswered();
 
         // Load the view files
         $this->load->view('layout/header', $data);
-        $this->load->view('student/evaluation_forms_list', $data);
+        $this->load->view('student/evaluation_forms', $data);
         $this->load->view('layout/footer', $data);
     }
 
+    // EVALUATION VIEW FORM - PAGE
     public function evaluation_form_questions($form_id)
     {
         $data['title'] = 'Evaluation Form';
-        $this->load->model('Student_model');
 
         $student_id = $this->session->userdata('student_id');
 
         // FETCH USER DATA
         $data['users'] = $this->student->get_student($student_id);
 
+        $data['forms'] = $this->student->get_evaluation_by_id($form_id);
 
-        // Fetch Form Details
-        $data['form'] = $this->Student_model->get_form_details($form_id);
-
-        // Fetch Form Questions
-        $data['questions'] = $this->Student_model->get_form_fields($form_id);
+        $form_data = $this->student->get_evaluation_by_id($form_id);
+        $data['form_data'] = $form_data;
 
         // Load Views
         $this->load->view('layout/header', $data);
-        $this->load->view('student/evaluation_forms_questions', $data);
+        $this->load->view('student/evaluation_forms_view', $data);
         $this->load->view('layout/footer', $data);
     }
+
+    // FUNCTION FOR SUBMIT
+    public function submit_form()
+    {
+        // Get form data
+        $form_id   = $this->input->post('form_id');
+        $answers   = $this->input->post('answers');     // array of answers
+        $field_ids = $this->input->post('id');          // array of form_fields_id
+        $types     = $this->input->post('type');        // array of types
+
+        // Validate inputs
+        if (!$form_id || empty($answers) || empty($field_ids)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid submission.']);
+            return;
+        }
+
+        // Prepare data for evaluation_responses table
+        $response_data = [
+            'form_id'    => $form_id,
+            'student_id' => $this->session->userdata('student_id'),
+            'remarks'    => 'Answered'
+        ];
+
+        // Insert response record
+        $response_id = $this->student->save_response($response_data);
+
+        if (!$response_id) {
+            echo json_encode(['success' => false, 'message' => 'Failed to save response.']);
+            return;
+        }
+
+        // Prepare answer entries
+        $answer_data = [];
+        foreach ($answers as $i => $answer) {
+            $answer_data[] = [
+                'evaluation_response_id' => $response_id,
+                'form_fields_id'         => $field_ids[$i],  // FIXED: use matching index
+                'answer'                 => $answer,
+
+                // 'type' => $types[$i], // Uncomment if needed
+            ];
+        }
+
+        // Insert into response_answer table
+        $save_answers = $this->student->save_answers($answer_data);
+
+        if ($save_answers) {
+            echo json_encode([
+                'success'  => true,
+                'message'  => 'Your answers have been submitted.',
+                'redirect' => site_url('student/evaluation-form/list'),
+            ]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to submit answers.']);
+        }
+    }
+
 
 
     //SUBMIT FORM ANSWERS
 
-    public function submit($form_id)
-    {
-        // Get the student ID from the session
-        $student_id = $this->session->userdata('student_id');
+    // public function submit($form_id)
+    // {
+    //     // Get the student ID from the session
+    //     $student_id = $this->session->userdata('student_id');
 
 
 
-        // Load the Student_model to interact with the database
-        $this->load->model('Student_model');
+    //     // Load the Student_model to interact with the database
+    //     $this->load->model('Student_model');
 
-        // Fetch User Role
-        $users = $this->Student_model->get_roles($student_id);
-        $data['role'] = $users['role'];
+    //     // Fetch User Role
+    //     $users = $this->Student_model->get_roles($student_id);
+    //     $data['role'] = $users['role'];
 
-        // Prepare the response data for evaluation submission
-        $response_data = [
-            'form_id' => $form_id,
-            'student_id' => $student_id,
-            'submitted_at' => date('Y-m-d H:i:s')
-        ];
+    //     // Prepare the response data for evaluation submission
+    //     $response_data = [
+    //         'form_id' => $form_id,
+    //         'student_id' => $student_id,
+    //         'submitted_at' => date('Y-m-d H:i:s')
+    //     ];
 
-        // Save evaluation response and get the evaluation response ID
-        $evaluation_response_id = $this->Student_model->save_evaluation_response($response_data);
+    //     // Save evaluation response and get the evaluation response ID
+    //     $evaluation_response_id = $this->Student_model->save_evaluation_response($response_data);
 
-        // Save the answers for each question
-        $responses = $this->input->post('responses');  // Ensure responses are available in POST
-        if (!empty($responses)) {
-            $this->Student_model->save_response_answers($evaluation_response_id, $responses);
-        }
+    //     // Save the answers for each question
+    //     $responses = $this->input->post('responses');  // Ensure responses are available in POST
+    //     if (!empty($responses)) {
+    //         $this->Student_model->save_response_answers($evaluation_response_id, $responses);
+    //     }
 
-        // If it's an AJAX request, return a JSON response
-        if ($this->input->is_ajax_request()) {
-            echo json_encode([
-                'status' => 'success',
-                'message' => 'Evaluation submitted successfully!',
-                'student_id' => $student_id, // Send student_id for redirection
-                'redirect_url' => base_url('student/evaluation-form/' . $student_id) // Send redirect URL
-            ]);
-        }
-    }
+    //     // If it's an AJAX request, return a JSON response
+    //     if ($this->input->is_ajax_request()) {
+    //         echo json_encode([
+    //             'status' => 'success',
+    //             'message' => 'Evaluation submitted successfully!',
+    //             'student_id' => $student_id, // Send student_id for redirection
+    //             'redirect_url' => base_url('student/evaluation-form/' . $student_id) // Send redirect URL
+    //         ]);
+    //     }
+    // }
 
     // SHOW EVALUATION FORM ANSWERS
     public function view_evaluation_answers($form_id)
@@ -602,7 +658,7 @@ class StudentController extends CI_Controller
 
 
 
-
+    // EXCUSE APPLICATION LIST - PAGE
     public function excuse_application_list()
     {
         $data['title'] = 'Excuse Application List';
@@ -623,6 +679,7 @@ class StudentController extends CI_Controller
         $this->load->view('layout/footer', $data);
     }
 
+    // EXCUSE APPLICATION - PAGE
     public function excuse_application()
     {
         $data['title'] = 'Excuse Application';
@@ -641,7 +698,6 @@ class StudentController extends CI_Controller
     }
 
     //EXCUSE APPLICATION SUBMIT
-
     public function submit_application()
     {
         // Set validation rules
@@ -720,192 +776,138 @@ class StudentController extends CI_Controller
         echo json_encode(['status' => 'success', 'message' => 'Your application has been submitted successfully.']);
     }
 
+    // OTHER PAGES 
 
-
-
-    //PROFILE SETTINGS
-
+    //PROFILE SETTINGS - PAGE
     public function profile_settings()
     {
         $data['title'] = 'Profile Settings';
-        $this->load->model('Student_model');
 
         $student_id = $this->session->userdata('student_id');
 
-        // Fetching student details from the database
-        $student_details = $this->Student_model->get_student_full_details($student_id); // Using get_student_full_details method
+        // Get user and their organizations
+        $student_details = $this->student->get_user_profile();
 
         if ($student_details) {
-            $data['first_name'] = isset($student_details['first_name']) ? $student_details['first_name'] : '';
-            $data['last_name'] = isset($student_details['last_name']) ? $student_details['last_name'] : '';
-            $data['email'] = isset($student_details['email']) ? $student_details['email'] : '';
-            $data['profile_pic'] = isset($student_details['profile_pic']) ? $student_details['profile_pic'] : 'default-pic.jpg';
-            $data['department_name'] = isset($student_details['department_name']) ? $student_details['department_name'] : '';
-            $data['role'] = isset($student_details['role']) ? $student_details['role'] : '';
-
-            // Pass the organizations data
-            $data['organizations'] = isset($student_details['organizations']) ? $student_details['organizations'] : [];
+            $data['student_details'] = $student_details;
+            $data['organizations'] = $student_details->organizations ?? [];
+        } else {
+            $data['student_details'] = null;
+            $data['organizations'] = [];
         }
 
-        // Fetch User Role
-        $users = $this->Student_model->get_roles($student_id);
-        $data['role'] = $users['role'];
+        $data['users'] = $this->student->get_student($student_id);
 
-        // Pass student_id to the view
-        $data['student_id'] = $student_id;
-
-        // Load views
         $this->load->view('layout/header', $data);
         $this->load->view('student/profile-settings', $data);
         $this->load->view('layout/footer', $data);
     }
 
-
-
-    //===========PROFILE UPDATES
-
-    //UPDATE PROFILE PIC
-
     public function update_profile_pic()
     {
-        // Get student ID from session
         $student_id = $this->session->userdata('student_id');
 
         if (!$student_id) {
-            echo json_encode(['status' => 'error', 'error' => 'User not logged in']);
+            echo json_encode(['status' => 'error', 'message' => 'User not logged in']);
             return;
         }
 
-        // Use absolute path to upload directory
-        $upload_path = FCPATH . 'assets/profile/';
+        // Fetch current profile picture
+        $current_pic = $this->student->get_profile_pic($student_id);
 
-        // Check if the directory exists
-        if (!is_dir($upload_path)) {
-            // Try to create the directory if it doesn't exist
-            if (!mkdir($upload_path, 0777, true)) {
-                echo json_encode(['status' => 'error', 'error' => 'Failed to create directory.']);
-                return;
-            }
-        }
+        if (isset($_FILES['profile_pic']) && $_FILES['profile_pic']['error'] == 0) {
+            $config['upload_path']   = './assets/profile/';
+            $config['allowed_types'] = 'jpg|jpeg|png|gif';
+            $config['max_size']      = 10240; // 10MB
+            $config['file_name']     = 'profile_' . $student_id . '_' . time(); // Unique filename
 
-        // Check if the directory is writable
-        if (!is_writable($upload_path)) {
-            echo json_encode(['status' => 'error', 'error' => 'Upload folder is not writable.']);
-            return;
-        }
+            $this->load->library('upload', $config);
 
-        // Set up file upload configuration
-        $config['upload_path'] = $upload_path;
-        $config['allowed_types'] = 'jpg|jpeg|png';
-        $config['file_name'] = $student_id . "_" . time();  // Unique filename
-        $config['overwrite'] = true;
-
-        // Load the upload library
-        $this->load->library('upload', $config);
-        $this->upload->initialize($config);
-        $this->load->model('Student_model');
-
-        // Get the current profile pic from the database
-        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-
-        // Check if a file is uploaded
-        if (isset($_FILES['profile_pic']) && $_FILES['profile_pic']['error'] === UPLOAD_ERR_OK) {
-            // Try uploading the file
             if (!$this->upload->do_upload('profile_pic')) {
-                echo json_encode(['status' => 'error', 'error' => strip_tags($this->upload->display_errors())]);
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => strip_tags($this->upload->display_errors())
+                ]);
                 return;
             }
 
-            // Get the upload data (file name)
-            $uploadData = $this->upload->data();
-            $profile_pic = $uploadData['file_name'];
+            $file_data = $this->upload->data();
+            $file_name = $file_data['file_name'];
 
-            // Remove old profile picture if exists
-            if ($current_profile_pic && file_exists($upload_path . $current_profile_pic)) {
-                unlink($upload_path . $current_profile_pic);
+            // Update database with new profile picture
+            $update_data = ['profile_pic' => $file_name];
+            $this->student->update_profile_pic($student_id, $update_data);
+
+            // Delete the old profile picture if it's not the default
+            if ($current_pic && file_exists('./assets/profile/' . $current_pic) && $current_pic !== 'default.png') {
+                unlink('./assets/profile/' . $current_pic); // Remove old image
             }
 
-            // Update the profile picture in the database
-            if ($this->Student_model->update_profile_pic($student_id, ['profile_pic' => $profile_pic])) {
-                // Respond with success and the new file name and URL
-                echo json_encode([
-                    'status' => 'success',
-                    'file_name' => $profile_pic,
-                    'file_url' => base_url('assets/profile/' . $profile_pic)  // URL to access the profile picture
-                ]);
-            } else {
-                echo json_encode(['status' => 'error', 'error' => 'Failed to update profile picture in the database.']);
-            }
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Profile picture updated successfully',
+                'file_name' => $file_name
+            ]);
         } else {
-            echo json_encode(['status' => 'error', 'error' => 'No file uploaded or an error occurred.']);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'No file selected or file upload error'
+            ]);
         }
     }
 
-
-    //UPDATE PROFILE DETAILS
     public function update_profile()
     {
-        // Get the student ID from the session
+
         $student_id = $this->session->userdata('student_id');
 
-        if (!$student_id) {
-            // If no student_id is in the session, redirect to the login page or show an error
-            redirect('student/login');
-        }
+        $data = [
+            'first_name' => $this->input->post('first_name'),
+            'middle_name' => $this->input->post('middle_name'),
+            'last_name'  => $this->input->post('last_name'),
+            'email'      => $this->input->post('email'),
+            'year_level' => $this->input->post('year_level'),
+            'sex' => $this->input->post('sex'),
 
-        // Load the model
-        $this->load->model('Student_model');
+        ];
 
-        // Get the current user data using the student_id
-        $student_details = $this->Student_model->get_student_full_details($student_id);
+        $updated = $this->student->update_student($student_id, $data);
 
-        if (!$student_details) {
-            // If no details are found, redirect or show an error
-            $this->session->set_flashdata('error', 'Student not found');
-            redirect('student/login');
-        }
-
-        // Validation rules (if needed)
-        $this->form_validation->set_rules('first_name', 'First Name', 'required');
-        $this->form_validation->set_rules('last_name', 'Last Name', 'required');
-        $this->form_validation->set_rules('email', 'Email', 'required|valid_email');
-        $this->form_validation->set_rules('year_level', 'Year Level', 'required');
-
-        // Check if form validation passes
-        if ($this->form_validation->run() === FALSE) {
-            // Reload the profile page with validation errors and pre-filled data
-            $data = [
-                'student_id' => $student_id,
-                'first_name' => $this->input->post('first_name') ?: $student_details->first_name,
-                'last_name' => $this->input->post('last_name') ?: $student_details->last_name,
-                'email' => $this->input->post('email') ?: $student_details->email,
-                'year_level' => $this->input->post('year_level') ?: $student_details->year_level,
-            ];
-
-            // Pass the data to the view
-            $this->load->view('student/update_profile', $data);
+        if ($updated) {
+            echo json_encode(['status' => 'success', 'message' => 'Profile updated successfully.']);
         } else {
-            // Form validated, proceed with update
-            $update_data = [
-                'first_name' => $this->input->post('first_name'),
-                'last_name' => $this->input->post('last_name'),
-                'email' => $this->input->post('email'),
-                'year_level' => $this->input->post('year_level'),
-            ];
-
-            // Call the model function to update the user details
-            $update_success = $this->Student_model->update_user_profile($student_id, $update_data);
-
-            if ($update_success) {
-                // Redirect to a success page or back to the profile with a success message
-                $this->session->set_flashdata('success', 'Profile updated successfully');
-                redirect('student/profile-settings/' . $student_id);
-            } else {
-                // Handle any errors (if update failed)
-                $this->session->set_flashdata('error', 'Failed to update profile');
-                redirect('student/update-profile/' . $student_id);
-            }
+            echo json_encode(['status' => 'error', 'message' => 'No changes made or something went wrong.']);
         }
+    }
+
+    public function update_password()
+    {
+        $student_id = $this->session->userdata('student_id');
+        $old_password = $this->input->post('old_password');
+        $new_password = $this->input->post('new_password');
+        $confirm_password = $this->input->post('confirm_password');
+
+        if (!$student_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Not logged in']);
+            return;
+        }
+
+        if ($new_password !== $confirm_password) {
+            echo json_encode(['status' => 'error', 'message' => 'Passwords do not match']);
+            return;
+        }
+
+        $student = $this->student->get_by_id($student_id);
+
+        if (!$student || !password_verify($old_password, $student->password)) {
+            echo json_encode(['status' => 'error', 'message' => 'Old password is incorrect']);
+            return;
+        }
+
+        $hashed = password_hash($new_password, PASSWORD_DEFAULT);
+        $this->admin->update_password($student_id, $hashed);
+
+        echo json_encode(['status' => 'success', 'message' => 'Password updated successfully']);
     }
 
 

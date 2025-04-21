@@ -128,17 +128,21 @@
                         </select>
                     </div>
 
-                    <!-- Year Filter with Range -->
+                    <!-- Year Picker for Academic Year -->
                     <div class="mb-3">
-                        <label for="year-filter" class="form-label">Year Range</label>
-                        <select id="year-filter" class="form-select">
-                            <option value="" selected>Select Academic Year</option>
-                            <option value="2024-2025">2024-2025</option>
-                            <option value="2025-2026">2025-2026</option>
-                            <option value="2026-2027">2026-2027</option>
-                            <option value="2027-2028">2027-2028</option>
-                            <option value="2028-2029">2028-2029</option>
-                        </select>
+                        <label for="year-picker" class="form-label">Academic Year</label>
+                        <div class="input-group">
+                            <select id="start-year" class="form-select">
+                                <option value="" selected>Select Start Year</option>
+                            </select>
+                            <span class="input-group-text">-</span>
+                            <select id="end-year" class="form-select">
+                                <option value="" selected>Select End Year</option>
+                            </select>
+                        </div>
+                        <div class="invalid-feedback">
+                            Please select a valid academic year range with a 1-year difference.
+                        </div>
                     </div>
 
                     <!-- Status Filter -->
@@ -161,48 +165,127 @@
     </div>
 
     <script>
-        function applyFilters() {
-            // Get selected values from the modal filters
-            var semester = document.getElementById("semester-filter").value;
-            var yearRange = document.getElementById("year-filter").value;
-            var status = document.getElementById("status-filter").value;
+        document.addEventListener("DOMContentLoaded", function() {
+            const currentYear = new Date().getFullYear();
+            const startYearDropdown = $('#start-year');
+            const endYearDropdown = $('#end-year');
 
-            // Get all activity rows
-            var activityRows = document.querySelectorAll(".activity-row");
-            var noActivityRow = document.getElementById("no-activity-row");
-            var filteredRows = 0;
+            // Populate Start Year dropdown
+            for (let year = currentYear; year >= 1900; year--) {
+                startYearDropdown.append(new Option(year, year));
+            }
 
-            // Loop through each activity row
-            activityRows.forEach(function(row) {
-                var rowSemester = row.getAttribute("data-semester");
-                var rowYear = row.getAttribute("data-academic-year");
-                var rowStatus = row.getAttribute("data-status"); // Add status attribute in PHP
+            // Update End Year dropdown based on selected start year
+            startYearDropdown.on('change', function() {
+                const selectedStartYear = parseInt(this.value);
+                endYearDropdown.empty().append(new Option("Select End Year", "", true, true));
 
-                // Check if the row matches the selected filters
-                if (
-                    (semester === "" || semester === rowSemester) &&
-                    (yearRange === "" || yearRange === rowYear) &&
-                    (status === "" || status === rowStatus)
-                ) {
-                    row.style.display = ""; // Show the row if it matches
-                    filteredRows++;
-                } else {
-                    row.style.display = "none"; // Hide the row if it doesn't match
+                if (selectedStartYear) {
+                    endYearDropdown.append(new Option(selectedStartYear + 1, selectedStartYear + 1));
                 }
             });
 
-            // Show or hide the "No activities listed" row
-            if (filteredRows === 0) {
-                noActivityRow.style.display = ""; // Show the no activity row
-            } else {
-                noActivityRow.style.display = "none"; // Hide the no activity row
-            }
+            // Apply filters when button is clicked
+            window.applyFilters = function() {
+                const selectedStartYear = parseInt($('#start-year').val());
+                const selectedEndYear = parseInt($('#end-year').val());
+                const selectedSemester = $('#semester-filter').val();
+                const selectedStatus = $('#status-filter').val();
 
-            // Close the modal properly
-            var modalElement = document.getElementById("filterModal");
-            var modal = bootstrap.Modal.getInstance(modalElement);
-            if (modal) {
-                modal.hide();
+                let isValid = true;
+
+                if (!selectedStartYear || !selectedEndYear || selectedEndYear - selectedStartYear !== 1) {
+                    $('#start-year, #end-year').addClass('is-invalid');
+                    isValid = false;
+                } else {
+                    $('#start-year, #end-year').removeClass('is-invalid');
+                }
+
+                if (!isValid) {
+                    alert("Please select a valid academic year range with a one-year difference.");
+                    return;
+                }
+
+                let startDate, endDate;
+
+                if (selectedSemester === "1st-semester") {
+                    startDate = new Date(selectedStartYear, 7, 1); // August 1
+                    endDate = new Date(selectedStartYear, 11, 31); // December 31
+                } else if (selectedSemester === "2nd-semester") {
+                    startDate = new Date(selectedEndYear, 0, 1); // January 1
+                    endDate = new Date(selectedEndYear, 6, 31); // July 31
+                } else {
+                    startDate = new Date(selectedStartYear, 0, 1);
+                    endDate = new Date(selectedEndYear, 11, 31);
+                }
+
+                let rows = document.querySelectorAll("tr.activity-row");
+                let hasVisibleActivity = false;
+
+                rows.forEach(row => {
+                    let activityDateStr = row.getAttribute("data-start-date");
+                    let activitySemester = row.getAttribute("data-semester");
+                    let activityYear = row.getAttribute("data-academic-year");
+                    let activityStatus = row.getAttribute("data-status");
+
+                    if (!activityDateStr) return;
+
+                    let activityDate = new Date(activityDateStr);
+                    let matchesSemester = selectedSemester === "" || selectedSemester === activitySemester;
+                    let matchesYear = `${selectedStartYear}-${selectedEndYear}` === activityYear;
+                    let matchesStatus = selectedStatus === "" || selectedStatus === activityStatus;
+                    let matchesDate = activityDate >= startDate && activityDate <= endDate;
+
+                    if (matchesSemester && matchesYear && matchesStatus && matchesDate) {
+                        row.style.display = "";
+                        hasVisibleActivity = true;
+                    } else {
+                        row.style.display = "none";
+                    }
+                });
+
+                toggleNoActivityMessage(hasVisibleActivity);
+
+                const modalElement = document.getElementById("filterModal");
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) modal.hide();
+            };
+
+            // Automatically show past and upcoming 15-day activities
+            displayPastAndNext15DaysActivities();
+        });
+
+        function displayPastAndNext15DaysActivities() {
+            const today = new Date();
+            const past15 = new Date(today);
+            const next15 = new Date(today);
+            past15.setDate(today.getDate() - 15);
+            next15.setDate(today.getDate() + 15);
+
+            let rows = document.querySelectorAll("tr.activity-row");
+            let hasVisibleActivity = false;
+
+            rows.forEach(row => {
+                const dateStr = row.getAttribute("data-start-date");
+                if (!dateStr) return;
+
+                const activityDate = new Date(dateStr);
+
+                if (activityDate >= past15 && activityDate <= next15) {
+                    row.style.display = "";
+                    hasVisibleActivity = true;
+                } else {
+                    row.style.display = "none";
+                }
+            });
+
+            toggleNoActivityMessage(hasVisibleActivity);
+        }
+
+        function toggleNoActivityMessage(hasActivity) {
+            const messageRow = document.getElementById('no-activity-row');
+            if (messageRow) {
+                messageRow.style.display = hasActivity ? 'none' : 'table-row';
             }
         }
     </script>

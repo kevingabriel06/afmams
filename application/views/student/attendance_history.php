@@ -25,7 +25,7 @@
                                 <form>
                                     <div class="input-group input-search-width">
                                         <input id="searchInput" class="form-control form-control-sm shadow-none search"
-                                            type="search" placeholder="Search by Name" aria-label="search" />
+                                            type="search" placeholder="Search" aria-label="search" />
                                         <button class="btn btn-sm btn-outline-secondary border-300 hover-border-secondary" type="button">
                                             <span class="fa fa-search fs-10"></span>
                                         </button>
@@ -49,90 +49,43 @@
                     <table class="table table-hover table-striped overflow-hidden">
                         <thead>
                             <tr>
-                                <th scope="col">Name</th>
-                                <th scope="col">Email</th>
-                                <th scope="col">Phone</th>
-                                <th scope="col">Address</th>
+                                <th scope="col">Activity</th>
+                                <th scope="col">Organizer</th>
+                                <th scope="col"></th>
+                                <th scope="col">Time-in</th>
+                                <th scope="col">Time-out</th>
                                 <th scope="col">Status</th>
-                                <th class="text-end" scope="col">Amount</th>
+                                <!-- <th scope="col">Action</th> -->
                             </tr>
                         </thead>
                         <tbody>
-                            <tr class="align-middle">
-                                <td class="text-nowrap">
-                                    <div class="d-flex align-items-center">
-                                        <div class="avatar avatar-xl">
-                                            <img class="rounded-circle" src="../../assets/img/team/4.jpg" alt="" />
+                            <?php foreach ($attendances as $attendance): ?>
+                                <tr class="align-middle">
+                                    <td class="text-nowrap"><?php echo $attendance->activity_title; ?></td>
+                                    <td class="text-nowrap"><?php echo $attendance->organizer; ?></td>
+                                    <td class="text-nowrap"><?php echo $attendance->slot_name; ?></td>
+                                    <td class="text-nowrap">
+                                        <?php echo !empty($attendance->time_in) ? $attendance->time_in : 'No Data'; ?>
+                                    </td>
+                                    <td class="text-nowrap">
+                                        <?php echo !empty($attendance->time_out) ? $attendance->time_out : 'No Data'; ?>
+                                    </td>
+                                    <td><span class="badge badge rounded-pill d-block p-2 badge-subtle-success"><?php echo $attendance->attendance_status; ?><span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span></td>
+                                    <!-- <td class="text-nowrap">
+                                        <div class="dropdown font-sans-serif position-static">
+                                            <button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button"
+                                                data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                <span class="fas fa-ellipsis-h fs-10"></span>
+                                            </button>
+                                            <div class="dropdown-menu dropdown-menu-end border py-0">
+                                                <div class="py-2">
+                                                    <a class="dropdown-item" href="#">View Details</a>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div class="ms-2">Ricky Antony</div>
-                                    </div>
-                                </td>
-                                <td class="text-nowrap">ricky@example.com</td>
-                                <td class="text-nowrap">(201) 200-1851</td>
-                                <td class="text-nowrap">2392 Main Avenue, Penasauka</td>
-                                <td><span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Completed<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span></td>
-                                <td class="text-end">$99</td>
-                            </tr>
-                            <tr class="align-middle">
-                                <td class="text-nowrap">
-                                    <div class="d-flex align-items-center">
-                                        <div class="avatar avatar-xl">
-                                            <img class="rounded-circle" src="../../assets/img/team/13.jpg" alt="" />
-                                        </div>
-                                        <div class="ms-2">Emma Watson</div>
-                                    </div>
-                                </td>
-                                <td class="text-nowrap">emma@example.com</td>
-                                <td class="text-nowrap">(212) 228-8403</td>
-                                <td class="text-nowrap">2289 5th Avenue, New York</td>
-                                <td><span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Completed<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span></td>
-                                <td class="text-end">$199</td>
-                            </tr>
-                            <tr class="align-middle">
-                                <td class="text-nowrap">
-                                    <div class="d-flex align-items-center">
-                                        <div class="avatar avatar-xl">
-                                            <div class="avatar-name rounded-circle"><span>RA</span></div>
-                                        </div>
-                                        <div class="ms-2">Rowen Atkinson</div>
-                                    </div>
-                                </td>
-                                <td class="text-nowrap">rown@example.com</td>
-                                <td class="text-nowrap">(201) 200-1851</td>
-                                <td class="text-nowrap">112 Bostwick Avenue, Jersey City</td>
-                                <td><span class="badge badge rounded-pill d-block p-2 badge-subtle-primary">Processing<span class="ms-1 fas fa-redo" data-fa-transform="shrink-2"></span></span></td>
-                                <td class="text-end">$755</td>
-                            </tr>
-                            <tr class="align-middle">
-                                <td class="text-nowrap">
-                                    <div class="d-flex align-items-center">
-                                        <div class="avatar avatar-xl">
-                                            <img class="rounded-circle" src="../../assets/img/team/2.jpg" alt="" />
-                                        </div>
-                                        <div class="ms-2">Antony Hopkins</div>
-                                    </div>
-                                </td>
-                                <td class="text-nowrap">antony@example.com</td>
-                                <td class="text-nowrap">(901) 324-3127</td>
-                                <td class="text-nowrap">3448 Ile De France St #242</td>
-                                <td><span class="badge badge rounded-pill d-block p-2 badge-subtle-secondary">On Hold<span class="ms-1 fas fa-ban" data-fa-transform="shrink-2"></span></span></td>
-                                <td class="text-end">$50</td>
-                            </tr>
-                            <tr class="align-middle">
-                                <td class="text-nowrap">
-                                    <div class="d-flex align-items-center">
-                                        <div class="avatar avatar-xl">
-                                            <img class="rounded-circle" src="../../assets/img/team/3.jpg" alt="" />
-                                        </div>
-                                        <div class="ms-2">Jennifer Schramm</div>
-                                    </div>
-                                </td>
-                                <td class="text-nowrap">jennifer@example.com</td>
-                                <td class="text-nowrap">(828) 382-9631</td>
-                                <td class="text-nowrap">659 Hannah Street, Charlotte</td>
-                                <td><span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">Pending<span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span></span></td>
-                                <td class="text-end">$150</td>
-                            </tr>
+                                    </td> -->
+                                </tr>
+                            <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>

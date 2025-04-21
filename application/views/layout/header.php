@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html data-bs-theme="light" lang="en-US" dir="ltr">
 
-
-<!-- Mirrored from prium.github.io/falcon/v3.19.0/demo/navbar-vertical.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 22 Nov 2023 06:21:15 GMT -->
 <!-- Added by HTTrack -->
 <meta http-equiv="content-type" content="text/html;charset=utf-8" /><!-- /Added by HTTrack -->
 
@@ -15,12 +13,12 @@
   <title>AFMAMS | <?php echo $title ?></title>
 
   <!-- ===============================================--><!--    Favicons--><!-- ===============================================-->
-  <link rel="apple-touch-icon" sizes="180x180" href="../assets/img/favicons/apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="../assets/img/favicons/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="../assets/img/favicons/favicon-16x16.png">
-  <link rel="shortcut icon" type="image/x-icon" href="../assets/img/favicons/favicon.ico">
-  <link rel="manifest" href="../assets/img/favicons/manifest.json">
-  <meta name="msapplication-TileImage" content="../assets/img/favicons/mstile-150x150.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="<?php echo base_url('assets/img/favicons/apple-touch-icon.png'); ?>">
+  <link rel="icon" type="image/png" sizes="32x32" href="<?php echo base_url('assets/img/favicons/favicon-32x32.png'); ?>">
+  <link rel="icon" type="image/png" sizes="16x16" href="<?php echo base_url('assets/img/favicons/favicon-16x16.pn'); ?>g">
+  <link rel="shortcut icon" type="image/x-icon" href="<?php echo base_url('assets/img/favicons/favicon.ico'); ?>">
+  <link rel="manifest" href="<?php echo base_url('assets/img/favicons/site.webmanifest'); ?>">
+  <meta name="msapplication-TileImage" content="<?php echo base_url('assets/img/favicons/mstile-150x150.png'); ?>">
   <meta name="theme-color" content="#ffffff">
   <script src="<?php echo base_url('assets/js/config.js'); ?>"></script>
   <script src="<?php echo base_url('vendors/simplebar/simplebar.min.js'); ?>"></script>
@@ -36,11 +34,17 @@
 
   <!-- QR Scanner Script -->
   <script type="text/javascript" src="<?php echo base_url(); ?>assets/js/qr1.js"></script>
-  <script type="text/javascript" src="<?php echo base_url(); ?>assets/js/qr2.js'"></script>
+  <script type="text/javascript" src="<?php echo base_url(); ?>assets/js/qr2.js"></script>
   <script type="text/javascript" src="<?php echo base_url(); ?>assets/js/qr3.js"></script>
 
   <!-- capture-photo -->
   <link href="<?php echo base_url(); ?>assets/css/capture-photo.css" rel="stylesheet" id="user-style-default">
+
+  <!-- JQUERY | SWEETALERT | CALENDAR-->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
   <!-- responsible for animation -->
   <script>
@@ -84,8 +88,8 @@
         <div class="d-flex align-items-center">
           <div class="toggle-icon-wrapper">
             <button class="btn navbar-toggler-humburger-icon navbar-vertical-toggle" data-bs-toggle="tooltip" data-bs-placement="left" title="Toggle Navigation"><span class="navbar-toggle-icon"><span class="toggle-line"></span></span></button>
-          </div><a class="navbar-brand" href="../index.html">
-            <div class="d-flex align-items-center py-3"><img class="me-2" src="" alt="" width="40" /><span class="font-sans-serif text-primary">AFMAMS</span></div>
+          </div><a class="navbar-brand" href="<?php echo site_url('admin/dashboard') ?>">
+            <div class="d-flex align-items-center py-3"><img class="me-2" src="<?php echo base_url('assets/img/pictures/android-chrome-512x512.png'); ?>" alt="" width="50" /><span class="font-sans-serif text-primary">AFMAMS</span></div>
           </a>
         </div>
         <?php if ($users['role'] == 'Student'): ?>
@@ -119,8 +123,8 @@
                     <li class="nav-item"><a class="nav-link" href="<?php echo site_url('student/list-activity'); ?>">
                         <div class="d-flex align-items-center"><span class="nav-link-text ps-1">List of Activity</span></div>
                       </a><!-- more inner pages--></li>
-                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('student/evaluation-form'); ?>">
-                        <div class="d-flex align-items-center"><span class="nav-link-text ps-1">Evaluation Form</span></div>
+                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('student/evaluation-form/list'); ?>">
+                        <div class="d-flex align-items-center"><span class="nav-link-text ps-1">List Evaluation Form</span></div>
                       </a><!-- more inner pages--></li>
                     <li class="nav-item"><a class="nav-link" href="<?php echo site_url('student/excuse-application/list'); ?>">
                         <div class="d-flex align-items-center"><span class="nav-link-text ps-1">List Excuse Application</span></div>
@@ -201,17 +205,10 @@
         <nav class="navbar navbar-light navbar-glass navbar-top navbar-expand">
           <button class="btn navbar-toggler-humburger-icon navbar-toggler me-1 me-sm-3" type="button" data-bs-toggle="collapse" data-bs-target="#navbarVerticalCollapse" aria-controls="navbarVerticalCollapse" aria-expanded="false" aria-label="Toggle Navigation"><span class="navbar-toggle-icon"><span class="toggle-line"></span></span></button>
           <a class="navbar-brand me-1 me-sm-3" href="../index.html">
-            <div class="d-flex align-items-center"><img class="me-2" src="../assets/img/icons/spot-illustrations/falcon.png" alt="" width="40" /><span class="font-sans-serif text-primary">falcon</span></div>
+            <div class="d-flex align-items-center"><img class="me-2" src="<?php echo base_url('assets/img/pictures/android-chrome-512x512.png'); ?>" alt="" width="50" /><span class="font-sans-serif text-primary fs-6">AFMAMS</span></div>
           </a>
 
           <ul class="navbar-nav navbar-nav-icons ms-auto flex-row align-items-center">
-            <li class="nav-item ps-2 pe-0">
-              <div class="dropdown theme-control-dropdown"><a class="nav-link d-flex align-items-center dropdown-toggle fa-icon-wait fs-9 pe-1 py-0" href="#" role="button" id="themeSwitchDropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span class="fas fa-sun fs-7" data-fa-transform="shrink-2" data-theme-dropdown-toggle-icon="light"></span><span class="fas fa-moon fs-7" data-fa-transform="shrink-3" data-theme-dropdown-toggle-icon="dark"></span><span class="fas fa-adjust fs-7" data-fa-transform="shrink-2" data-theme-dropdown-toggle-icon="auto"></span></a>
-                <div class="dropdown-menu dropdown-menu-end dropdown-caret border py-0 mt-3" aria-labelledby="themeSwitchDropdown">
-                  <div class="bg-white dark__bg-1000 rounded-2 py-2"><button class="dropdown-item d-flex align-items-center gap-2" type="button" value="light" data-theme-control="theme"><span class="fas fa-sun"></span>Light<span class="fas fa-check dropdown-check-icon ms-auto text-600"></span></button><button class="dropdown-item d-flex align-items-center gap-2" type="button" value="dark" data-theme-control="theme"><span class="fas fa-moon" data-fa-transform=""></span>Dark<span class="fas fa-check dropdown-check-icon ms-auto text-600"></span></button><button class="dropdown-item d-flex align-items-center gap-2" type="button" value="auto" data-theme-control="theme"><span class="fas fa-adjust" data-fa-transform=""></span>Auto<span class="fas fa-check dropdown-check-icon ms-auto text-600"></span></button></div>
-                </div>
-              </div>
-            </li>
             <li class="nav-item dropdown">
               <a class="nav-link notification-indicator notification-indicator-primary px-0 fa-icon-wait" id="navbarDropdownNotification" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-hide-on-body-scroll="data-hide-on-body-scroll"><span class="fas fa-bell" data-fa-transform="shrink-6" style="font-size: 33px;"></span></a>
               <div class="dropdown-menu dropdown-caret dropdown-caret dropdown-menu-end dropdown-menu-card dropdown-menu-notification dropdown-caret-bg" aria-labelledby="navbarDropdownNotification">
@@ -310,7 +307,7 @@
                   <div class="bg-white dark__bg-1000 rounded-2 py-2">
                     <a class="dropdown-item fw-bold text-warning"><span>Student Account</span></a>
                     <div class="dropdown-divider"></div>
-                    <a class="dropdown-item" href="<?php echo site_url('student/profile-settings/' . $this->session->userdata('student_id')); ?>">Profile Settings</a>
+                    <a class="dropdown-item" href="<?php echo site_url('student/profile-settings'); ?>">Profile Settings</a>
                     <div class="dropdown-divider"></div>
                     <a class="dropdown-item" href="<?php echo site_url('logout'); ?>">Logout</a>
                   </div>
@@ -321,8 +318,8 @@
                   <div class="bg-white dark__bg-1000 rounded-2 py-2">
                     <a class="dropdown-item fw-bold text-warning"><span>Admin Account</span></a>
                     <div class="dropdown-divider"></div>
-                    <a class="dropdown-item" href="<?php echo site_url('admin/profile-settings/' . $this->session->userdata('student_id')); ?>">Profile Settings</a>
-                    <a class="dropdown-item" href="<?php echo site_url('admin/profile-settings/' . $this->session->userdata('student_id')); ?>">General Settings</a>
+                    <a class="dropdown-item" href="<?php echo site_url('admin/profile-settings'); ?>">Profile Settings</a>
+                    <a class="dropdown-item" href="<?php echo site_url('admin/general-settings'); ?>">General Settings</a>
                     <a class="dropdown-item" href="<?php echo site_url('admin/manage-officers'); ?> ">Manage Officers</a>
                     <div class="dropdown-divider"></div>
                     <a class="dropdown-item" href="<?php echo site_url('logout'); ?>">Logout</a>

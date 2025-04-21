@@ -1,14 +1,6 @@
-<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-
 <div class="card mb-3 mb-lg-0">
     <div class="card-header bg-body-tertiary d-flex justify-content-between">
-        <h5 class="mb-0"><?php echo $activities['activity_title']; ?> - Attendance List of
-            <?php foreach ($department as $dept): ?>
-                <?php if ($dept_id == $dept->dept_id): ?>
-                    <?php echo $dept->dept_name; ?>
-                <?php endif; ?>
-            <?php endforeach; ?>
-        </h5>
+        <h5 class="mb-0"><?php echo $activities['activity_title']; ?> - Attendance List </h5>
     </div>
 </div>
 
@@ -35,7 +27,7 @@
                                 <form>
                                     <div class="input-group input-search-width">
                                         <input id="searchInput" class="form-control form-control-sm shadow-none search"
-                                            type="search" placeholder="Search by Activity" aria-label="search" />
+                                            type="search" placeholder="Search" aria-label="search" />
                                         <button class="btn btn-sm btn-outline-secondary border-300 hover-border-secondary" type="button">
                                             <span class="fa fa-search fs-10"></span>
                                         </button>
@@ -60,32 +52,72 @@
                         <thead class="bg-200">
                             <tr>
                                 <th scope="col" class="text-nowrap">Student ID</th>
-                                <th scope="col">Name</th>
-                                <th scope="col">Department</th>
-                                <th scope="col">Time In</th>
-                                <th scope="col">Time Out</th>
-                                <th scope="col">Status</th>
+                                <th scope="col" class=" text-nowrap">Name</th>
+                                <th scope="col" class=" text-nowrap">Department</th>
+                                <?php foreach ($timeslots as $slot): ?>
+                                    <?php
+                                    $period = '';
+                                    if (strtolower($slot->slot_name) === 'morning') {
+                                        $period = 'AM';
+                                    } elseif (strtolower($slot->slot_name) === 'afternoon') {
+                                        $period = 'PM';
+                                    } else {
+                                        $period = strtoupper($slot->slot_name); // fallback for custom names
+                                    }
+                                    ?>
+                                    <th scope="col" class="text-nowrap"><?php echo $period; ?> - Time In</th>
+                                    <th scope="col" class="text-nowrap"><?php echo $period; ?> - Time Out</th>
+                                <?php endforeach; ?>
+                                <th scope="col" class="text-nowrap">Status</th>
                             </tr>
                         </thead>
                         <tbody class="list" id="table-ticket-body">
-                            <tr class="attendance-row">
-                                <td class="text-nowrap id">21-03529</td>
-                                <td class="text-nowrap name">Ricky Antony</td>
-                                <td class="text-nowrap department">Bachewlor of Science in Information System</td>
-                                <td class="text-nowrap">March 8, 2025 | 8:00 AM</td>
-                                <td class="text-nowrap">March 8, 2025 | 12:00 PM</td>
-                                <td class="status"><span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Completed<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span></td>
-                                </td>
-                            </tr>
-
-                            <!-- "No activities listed" Row -->
-                            <tr id="no-attendance-row" style="display: none;">
-                                <td colspan="3" class="text-center text-muted fs-8 fw-bold py-2 bg-light">
-                                    <span class="fa fa-user-slash fa-2x text-muted"></span>
-                                    <h5 class="mt-2 mb-1">No student listed.</h5>
-                                </td>
-                            </tr>
-                        </tbody>
+                            <?php foreach ($students as $student): ?>
+                                <tr class="attendance-row">
+                                    <td class="text-nowrap id"><?php echo $student['student_id']; ?></td>
+                                    <td class="text-nowrap name"><?php echo $student['name']; ?></td>
+                                    <td class="text-nowrap department"><?php echo $student['dept_name']; ?></td>
+                                    <!-- Loop through the timeslots to show the time in and time out for each -->
+                                    <?php foreach ($timeslots as $slot): ?>
+                                        <?php
+                                        // Determine the period (AM or PM)
+                                        $period = strtolower($slot->slot_name) === 'morning' ? 'am' : 'pm';
+                                        $time_in_key = 'in_' . $period;  // For time_in (am or pm)
+                                        $time_out_key = 'out_' . $period;  // For time_out (am or pm)
+                                        ?>
+                                        <td class="text-nowrap">
+                                            <!-- Display time_in or 'No Data' if not available -->
+                                            <?php echo isset($student[$time_in_key]) ? $student[$time_in_key] : 'No Data'; ?>
+                                        </td>
+                                        <td class="text-nowrap">
+                                            <!-- Display time_out or 'No Data' if not available -->
+                                            <?php echo isset($student[$time_out_key]) ? $student[$time_out_key] : 'No Data'; ?>
+                                        </td>
+                                    <?php endforeach; ?>
+                                    <td class="status">
+                                        <?php if ($student['status'] == 'Present'): ?>
+                                            <span class="badge badge rounded-pill d-block p-2 badge-subtle-success">
+                                                <?php echo $student['status']; ?>
+                                                <span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span>
+                                            </span>
+                                        <?php elseif ($student['status'] == 'Absent'): ?>
+                                            <span class="badge badge rounded-pill d-block p-2 badge-subtle-danger">
+                                                <?php echo $student['status']; ?>
+                                                <span class="ms-1 fas fa-times" data-fa-transform="shrink-2"></span>
+                                            </span>
+                                        <?php elseif ($student['status'] == 'Incomplete'): ?>
+                                            <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">
+                                                <?php echo $student['status']; ?>
+                                                <span class="ms-1 fas fa-exclamation" data-fa-transform="shrink-2"></span>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="badge badge rounded-pill d-block p-2 badge-subtle-secondary">
+                                                No Status
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
                     </table>
                     <div class="text-center d-none" id="attendance-table-fallback">
                         <span class="fa fa-user-slash fa-2x text-muted"></span>
@@ -108,97 +140,6 @@
         </div>
     </div>
 
-
-    <!-- Attendance Details Modal -->
-    <div class="modal fade" id="attendanceModal" tabindex="-1" aria-labelledby="attendanceModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="attendanceModalLabel">Attendance Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p><strong>Student ID:</strong> <span id="modal-student-id"></span></p>
-                    <p><strong>Name:</strong> <span id="modal-name"></span></p>
-                    <p><strong>Department:</strong> <span id="modal-department"></span></p>
-                    <p><strong>Status:</strong> <span id="modal-status"></span></p>
-
-                    <hr>
-
-                    <!-- Morning Attendance -->
-                    <div id="morning-attendance">
-                        <p><strong>Morning Attendance</strong></p>
-                        <p><strong>AM In:</strong> <span id="modal-am-in"></span></p>
-                        <p><strong>AM Out:</strong> <span id="modal-am-out"></span></p>
-                    </div>
-
-                    <!-- Afternoon Attendance -->
-                    <div id="afternoon-attendance">
-                        <p><strong>Afternoon Attendance</strong></p>
-                        <p><strong>PM In:</strong> <span id="modal-pm-in"></span></p>
-                        <p><strong>PM Out:</strong> <span id="modal-pm-out"></span></p>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- JavaScript to Populate and Display Attendance -->
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            var attendanceModal = document.getElementById("attendanceModal");
-
-            attendanceModal.addEventListener("show.bs.modal", function(event) {
-                var button = event.relatedTarget; // Button that triggered the modal
-
-                // Extract data attributes
-                var studentId = button.getAttribute("data-student-id");
-                var name = button.getAttribute("data-name");
-                var department = button.getAttribute("data-department");
-                var status = button.getAttribute("data-status");
-                var amIn = button.getAttribute("data-am-in");
-                var amOut = button.getAttribute("data-am-out");
-                var pmIn = button.getAttribute("data-pm-in");
-                var pmOut = button.getAttribute("data-pm-out");
-
-                // Update modal content
-                document.getElementById("modal-student-id").textContent = studentId;
-                document.getElementById("modal-name").textContent = name;
-                document.getElementById("modal-department").textContent = department;
-                document.getElementById("modal-status").textContent = status;
-                document.getElementById("modal-am-in").textContent = amIn;
-                document.getElementById("modal-am-out").textContent = amOut;
-                document.getElementById("modal-pm-in").textContent = pmIn;
-                document.getElementById("modal-pm-out").textContent = pmOut;
-
-                // Hide both attendance sections initially
-                document.getElementById("morning-attendance").style.display = "none";
-                document.getElementById("afternoon-attendance").style.display = "none";
-
-                // Determine which sections to show
-                var isMorningEmpty = (!amIn || amIn === "N/A") && (!amOut || amOut === "N/A");
-                var isAfternoonEmpty = (!pmIn || pmIn === "N/A") && (!pmOut || pmOut === "N/A");
-
-                if (isMorningEmpty && !isAfternoonEmpty) {
-                    // Only Afternoon Activity
-                    document.getElementById("afternoon-attendance").style.display = "block";
-                } else if (!isMorningEmpty && isAfternoonEmpty) {
-                    // Only Morning Activity
-                    document.getElementById("morning-attendance").style.display = "block";
-                } else if (!isMorningEmpty && !isAfternoonEmpty) {
-                    // Whole Day Activity
-                    document.getElementById("morning-attendance").style.display = "block";
-                    document.getElementById("afternoon-attendance").style.display = "block";
-                }
-            });
-        });
-    </script>
-
-
     <!-- MODAL FILTER -->
     <div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -218,6 +159,17 @@
                             <option value="Absent">Absent</option>
                         </select>
                     </div>
+
+                    <!-- Department Filter -->
+                    <div class="mb-3">
+                        <label for="department-filter" class="form-label">Department</label>
+                        <select id="department-filter" class="form-select">
+                            <option value="" selected>Select Department</option>
+                            <?php foreach ($departments as $department): ?>
+                                <option value="<?php echo $department->dept_name; ?>"><?php echo $department->dept_name; ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -231,19 +183,26 @@
         function applyFilters() {
             // Get selected values from the modal filters
             var status = document.getElementById("status-filter").value;
+            var department = document.getElementById("department-filter").value;
 
             // Get all activity rows
             var activityRows = document.querySelectorAll(".attendance-row");
-            var noActivityRow = document.getElementById("no-attendance-row");
             var filteredRows = 0;
 
             // Loop through each activity row
             activityRows.forEach(function(row) {
-                var rowStatus = row.getAttribute("data-status"); // Add status attribute in PHP
+                // Get the status and department values from the row (add status and department attributes in PHP)
+                var rowStatus = row.querySelector(".status") ? row.querySelector(".status").textContent.trim() : "";
+                var rowDepartment = row.querySelector(".department") ? row.querySelector(".department").textContent.trim() : "";
+
+                // Fallback: If status or department is empty, treat it as "No Status" or "No Department"
+                rowStatus = rowStatus === "" ? "No Status" : rowStatus;
+                rowDepartment = rowDepartment === "" ? "No Department" : rowDepartment;
 
                 // Check if the row matches the selected filters
                 if (
-                    (status === "" || status === rowStatus)
+                    (status === "" || rowStatus === status) &&
+                    (department === "" || rowDepartment === department)
                 ) {
                     row.style.display = ""; // Show the row if it matches
                     filteredRows++;
@@ -251,13 +210,6 @@
                     row.style.display = "none"; // Hide the row if it doesn't match
                 }
             });
-
-            // Show or hide the "No activities listed" row
-            if (filteredRows === 0) {
-                noActivityRow.style.display = ""; // Show the no activity row
-            } else {
-                noActivityRow.style.display = "none"; // Hide the no activity row
-            }
 
             // Close the modal properly
             var modalElement = document.getElementById("filterModal");
