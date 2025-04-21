@@ -1,5 +1,5 @@
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/skyloomc/onlinegradingsystem.com
+    - export DEPLOYPATH=/home/skyloomc/public_html/afmams
     - /bin/echo "Deploying to onlinegradingsystem.com..."
     - /bin/cp -r * $DEPLOYPATH
