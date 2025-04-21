@@ -2,4 +2,8 @@ deployment:
   tasks:
     - export DEPLOYPATH=/home/skyloomc/public_html/afmams 
     - /bin/echo "Deploying to onlinegradingsystem.com..."
+<<<<<<< HEAD
     - /bin/cp -r * $DEPLOYPATH
+=======
+    - /bin/cp -r * $DEPLOYPATH
+>>>>>>> a0ddae1d04dd6b24bc9657710f96cb62f24f0c6b
