@@ -1,4 +1,5 @@
 deployment:
   tasks:
+    - export DEPLOYPATH=/home/skyloomc/public_html/afmams
     - /bin/echo "Deploying to afmams.com..."
-    - /bin/cp -r ./* /home/skyloomc/public_html/afmams
+    - /bin/cp -r * $DEPLOYPATH
