@@ -50,7 +50,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 |		my-controller/my-method	-> my_controller/my_method
 */
 //AUTH ROUTES
-$route['default_controller'] = 'welcome';
+$route['default_controller'] = 'AuthController/login';
 $route['login'] = 'AuthController/login';
 $route['logout'] = 'AuthController/logout';
 
@@ -104,6 +104,9 @@ $route['student/profile/update-profile-pic'] = 'StudentController/update_profile
 $route['student/profile/update-profile'] = 'StudentController/update_profile';
 $route['student/profile/update_password'] = 'StudentController/update_password';
 
+//STUDENT RECEIPTS
+$route['student/receipts'] = 'StudentController/receipts_page';
+
 $route['about'] = 'StudentController/about_page';
 
 $route['404_override'] = '';
@@ -142,6 +145,7 @@ $route['admin/delete-schedule/(:num)'] = 'AdminController/delete_schedule/$1';
 $route['admin/list-of-activity'] = 'AdminController/list_activity'; // List of activity
 $route['admin/activity-details/(:num)'] = 'AdminController/activity_details/$1'; // Activity Details
 $route['admin/activity-details/activity-share']['post'] = 'AdminController/share_activity'; // Sharing activity to community
+$route['admin/unshare-activity'] = 'AdminController/unshare_activity'; //UNSHARE ACTIVITY
 $route['admin/activity/registration'] = 'AdminController/validate_registrations';
 
 $route['admin/list-activity-evaluation'] = 'AdminController/list_activity_evaluation';
@@ -152,6 +156,11 @@ $route['admin/edit-evaluation-form/update/(:num)'] = 'AdminController/update_eva
 $route['admin/view-evaluation-form/(:num)'] = 'AdminController/view_evaluationform/$1';
 $route['admin/list-evaluation-responses/(:num)'] = 'AdminController/list_evaluation_responses/$1';
 $route['admin/evaluation-statistic/(:num)'] = 'AdminController/evaluation_statistic/$1';
+
+// <==== RECORD CASH PAYMENT ======>
+$route['admin/record-cash-payment'] = 'AdminController/cash_payment_form';
+$route['admin/cash-payment/submit'] = 'AdminController/save_cash_payment';
+
 
 // <==== EXCUSE APPLICATION ======>
 $route['admin/activity-list'] = 'AdminController/list_activity_excuse'; // List of activity
