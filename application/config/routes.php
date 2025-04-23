@@ -147,6 +147,7 @@ $route['admin/activity-details/(:num)'] = 'AdminController/activity_details/$1';
 $route['admin/activity-details/activity-share']['post'] = 'AdminController/share_activity'; // Sharing activity to community
 $route['admin/unshare-activity'] = 'AdminController/unshare_activity'; //UNSHARE ACTIVITY
 $route['admin/activity/registration'] = 'AdminController/validate_registrations';
+$route['admin/cash-payment/submit'] = 'AdminController/save_cash_payment';
 
 $route['admin/list-activity-evaluation'] = 'AdminController/list_activity_evaluation';
 $route['admin/create-evaluation-form'] = 'AdminController/create_evaluationform';
@@ -156,11 +157,6 @@ $route['admin/edit-evaluation-form/update/(:num)'] = 'AdminController/update_eva
 $route['admin/view-evaluation-form/(:num)'] = 'AdminController/view_evaluationform/$1';
 $route['admin/list-evaluation-responses/(:num)'] = 'AdminController/list_evaluation_responses/$1';
 $route['admin/evaluation-statistic/(:num)'] = 'AdminController/evaluation_statistic/$1';
-
-// <==== RECORD CASH PAYMENT ======>
-$route['admin/record-cash-payment'] = 'AdminController/cash_payment_form';
-$route['admin/cash-payment/submit'] = 'AdminController/save_cash_payment';
-
 
 // <==== EXCUSE APPLICATION ======>
 $route['admin/activity-list'] = 'AdminController/list_activity_excuse'; // List of activity

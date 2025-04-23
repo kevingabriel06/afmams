@@ -76,9 +76,14 @@ $query_builder = TRUE;
 $db['default'] = array(
 	'dsn'	=> '',
 	'hostname' => 'localhost',
-	'username' => 'skyloomc_skyloomc',
-	'password' => '!euoB$9TU,BY',
-	'database' => 'skyloomc_cpdb',
+	'username' => 'root', // local
+	'password' => '',
+	'database' => 'cpdb',
+
+	// 'username' => 'skyloomc_skyloomc', ONLINE
+	// 'password' => '!euoB$9TU,BY',
+	// 'database' => 'skyloomc_cpdb',
+
 	'dbdriver' => 'mysqli',
 	'dbprefix' => '',
 	'pconnect' => FALSE,

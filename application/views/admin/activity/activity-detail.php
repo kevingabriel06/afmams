@@ -146,6 +146,12 @@
               </div>
 
               <div class="modal-body">
+                <div class="d-flex justify-content-end mb-3">
+                  <button class="btn btn-primary" id="openRecordCashPaymentModal">
+                    🧾 Record Cash Payment
+                  </button>
+                </div>
+
                 <div class="card" id="registeredTable"
                   data-list='{"valueNames":["id", "name", "status"], "page": 11, "pagination": true, "fallback": "attendance-table-fallback"}'>
 
@@ -241,6 +247,7 @@
                                           data-department="<?php echo $registration->dept_name; ?>"
                                           data-reference-number="<?php echo $registration->reference_number; ?>"
                                           data-status="<?php echo $registration->registration_status; ?>"
+                                          data-payment="<?php echo $registration->payment_type; ?>"
                                           data-remarks="<?php echo $registration->remark; ?>"
                                           data-receipt="<?php echo $registration->receipt; ?>">
                                           View Registration
@@ -281,6 +288,7 @@
           </div>
         </div>
 
+        <!-- VIEW REGISTRATION MODAL -->
         <div class="modal fade" id="viewRegistrationModal" tabindex="-1" aria-labelledby="viewRegistrationModalLabel" aria-hidden="true">
           <div class="modal-dialog modal-md modal-dialog-centered">
             <div class="modal-content">
@@ -298,12 +306,9 @@
 
                 <div class="mb-3">
                   <label class="form-label"><strong>Payment Receipt:</strong></label>
-                  <div class="border rounded p-2 text-center">
-                    <img id="modalReceiptImage" src="" alt="Payment Receipt" class="img-fluid rounded" style="max-height: 300px;">
-                  </div>
+                  <div id="receiptContainer" class="border rounded p-2 text-center"></div>
                 </div>
               </div>
-
               <div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
               </div>
@@ -311,23 +316,37 @@
           </div>
         </div>
 
-
         <script>
           $(document).ready(function() {
             $('.view-registration').on('click', function() {
+              const studentName = $(this).data('student-name');
+              const department = $(this).data('department');
+              const referenceNumber = $(this).data('reference-number');
+              const remarks = $(this).data('remarks');
               const status = $(this).data('status');
+              const paymentType = $(this).data('payment'); // 'Cash' or something else
+              const receipt = $(this).data('receipt'); // File name or null
 
-              $('#modalStudentName').text($(this).data('student-name'));
-              $('#modalDepartment').text($(this).data('department'));
-              $('#modalReferenceNumber').text($(this).data('reference-number'));
-              $('#modalRemarks').text($(this).data('remarks'));
-              $('#modalReceiptImage').attr('src', '<?php echo base_url('assets/receipt/'); ?>' + $(this).data('receipt'));
+              $('#modalStudentName').text(studentName);
+              $('#modalDepartment').text(department);
+              $('#modalReferenceNumber').text(referenceNumber);
+              $('#modalRemarks').text(remarks);
 
               $('#modalStatus')
                 .text(status)
                 .removeClass()
                 .addClass('badge rounded-pill')
                 .addClass(getStatusBadgeClass(status));
+
+              // Receipt display logic
+              if (paymentType === 'Cash') {
+                $('#receiptContainer').html('<p class="mb-0 fw-semibold">Cash Payment – No Receipt Image</p>');
+              } else {
+                const imagePath = '<?= base_url("uploads/receipts/") ?>' + receipt;
+                $('#receiptContainer').html(
+                  `<img id="modalReceiptImage" src="${imagePath}" alt="Payment Receipt" class="img-fluid rounded" style="max-height: 300px;">`
+                );
+              }
             });
 
             function getStatusBadgeClass(status) {
@@ -346,7 +365,7 @@
         </script>
 
 
-
+        <!-- VALIDATE REGISTRATION MODAL -->
         <div class="modal fade" id="validateModal" tabindex="-1" aria-labelledby="validateModalLabel" aria-hidden="true">
           <div class="modal-dialog modal-md modal-dialog-centered">
             <div class="modal-content">
@@ -454,6 +473,121 @@
             });
           });
         </script>
+
+        <!-- FOR CASH REGISTRATION -->
+        <div class="modal fade" id="recordCashPaymentModal" tabindex="-1" aria-labelledby="recordCashPaymentLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+          <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0 rounded-4">
+
+              <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="recordCashPaymentLabel">🧾 Record Cash Payment</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+
+              <div class="modal-body px-4 py-3">
+                <form id="cashPaymentForm">
+                  <div class="row g-3">
+                    <input type="text" name="activity_id" value="<?php echo $activity['activity_id']; ?>">
+
+                    <!-- Student ID -->
+                    <div class="col-md-6">
+                      <label class="form-label fw-semibold">Student ID</label>
+                      <input type="text" class="form-control" name="student_id" required>
+                    </div>
+
+                    <div class="col-md-6">
+                      <label class="form-label fw-semibold">Receipt Number</label>
+                      <input type="text" class="form-control" name="receipt_number" required>
+                    </div>
+
+                    <!-- Amount Paid -->
+                    <div class="col-md-6">
+                      <label class="form-label fw-semibold">Amount Paid</label>
+                      <input type="number" step="0.01" class="form-control" name="amount_paid" value="<?php echo $activity['registration_fee']; ?>">
+                    </div>
+
+                    <!-- Remark -->
+                    <div class="col-md-12">
+                      <label class="form-label fw-semibold">Remark</label>
+                      <textarea class="form-control" name="remark" rows="3" placeholder="Optional notes about the payment..."></textarea>
+                    </div>
+                  </div>
+
+                  <!-- Submit Button -->
+                  <div class="mt-4 d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary px-4">
+                      <i class="fas fa-check-circle me-1"></i> Submit Payment
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <script>
+          $('#cashPaymentForm').submit(function(e) {
+            e.preventDefault(); // Prevent the default form submission
+
+            // Collect form data
+            var formData = $(this).serialize();
+
+            // Send the AJAX request
+            $.ajax({
+              url: '<?php echo site_url('admin/cash-payment/submit'); ?>', // Adjust the URL accordingly
+              type: 'POST',
+              data: formData,
+              dataType: 'json', // Expecting a JSON response
+              success: function(response) {
+                // Handle the success response
+                if (response.status === 'success') {
+                  // Show success alert using SweetAlert
+                  Swal.fire({
+                    icon: 'success',
+                    title: 'Payment Recorded!',
+                    text: response.message,
+                    confirmButtonText: 'OK'
+                  }).then(function() {
+                    // Optionally close the modal and reset the form
+                    $('#recordCashPaymentModal').modal('hide');
+                    $('#cashPaymentForm')[0].reset();
+                  });
+                } else {
+                  // Show error alert using SweetAlert
+                  Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: response.message,
+                    confirmButtonText: 'Try Again'
+                  });
+                }
+              },
+              error: function(xhr, status, error) {
+                // Handle AJAX errors
+                Swal.fire({
+                  icon: 'error',
+                  title: 'Request Failed!',
+                  text: 'There was an error processing your request. Please try again.',
+                  confirmButtonText: 'Close'
+                });
+              }
+            });
+          });
+        </script>
+
+        <script>
+          document.getElementById('openRecordCashPaymentModal').addEventListener('click', function() {
+            var modal = new bootstrap.Modal(document.getElementById('recordCashPaymentModal'));
+            modal.show();
+          });
+        </script>
+
+
+
+
+
+
 
         <!-- Filter Modal -->
         <div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">

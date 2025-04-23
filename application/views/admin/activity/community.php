@@ -778,7 +778,7 @@
 				text: 'Are you sure you want to post this?',
 				icon: 'warning',
 				showCancelButton: true,
-				confirmButtonText: 'Yes, delete it!',
+				confirmButtonText: 'Yes!',
 				cancelButtonText: 'Cancel',
 				confirmButtonClass: 'btn btn-primary', // Primary button style
 				cancelButtonClass: 'btn btn-danger', // Danger button style

@@ -17,6 +17,134 @@ class Admin_model extends CI_Model
         return $this->db->get_where('users', ['student_id' => $student_id])->row_array();
     }
 
+    // DASHBOARD 
+
+    // Get the current semester count
+    public function get_current_semester_count()
+    {
+        $today = date('Y-m-d');
+        $current_year = date('Y');
+        $month = date('n');
+
+        // Determine current semester based on the month
+        if ($month >= 7 && $month <= 12) {
+            $semester = 'First Semester';
+            $start_date = "$current_year-07-01";
+            $end_date = "$current_year-12-31";
+        } else {
+            $semester = 'Second Semester';
+            $start_date = "$current_year-01-01";
+            $end_date = "$current_year-06-30";
+        }
+
+        // Get count of completed activities in the current semester
+        $this->db->from('activity');
+        $this->db->where('start_date >=', $start_date);
+        $this->db->where('start_date <=', $end_date);
+        $this->db->where('status', 'completed');
+        $count = $this->db->count_all_results();
+
+        return [
+            'semester' => $semester,
+            'start_date' => $start_date,
+            'end_date' => $end_date,
+            'completed_count' => $count
+        ];
+    }
+
+    // Get the previous semester count
+    public function get_previous_semester_count()
+    {
+        $today = date('Y-m-d');
+        $current_year = date('Y');
+        $month = date('n');
+
+        // Determine previous semester based on the current month
+        if ($month >= 7 && $month <= 12) {
+            $semester = 'Second Semester'; // Previous semester is the second semester
+            $start_date = ($current_year - 1) . "-01-01";  // Previous year, first semester
+            $end_date = ($current_year - 1) . "-06-30";    // Previous year, first semester
+        } else {
+            $semester = 'First Semester'; // Previous semester is the first semester
+            $start_date = ($current_year - 1) . "-07-01";  // Previous year, second semester
+            $end_date = ($current_year - 1) . "-12-31";    // Previous year, second semester
+        }
+
+        // Get count of completed activities in the previous semester
+        $this->db->from('activity');
+        $this->db->where('start_date >=', $start_date);
+        $this->db->where('start_date <=', $end_date);
+        $this->db->where('status', 'completed');
+        $count = $this->db->count_all_results();
+
+        return [
+            'semester' => $semester,
+            'start_date' => $start_date,
+            'end_date' => $end_date,
+            'completed_count' => $count
+        ];
+    }
+
+    public function get_monthly_activity_count($start_date, $end_date)
+    {
+        $this->db->select('MONTH(start_date) as month, COUNT(*) as count');
+        $this->db->from('activity');
+        $this->db->where('start_date >=', $start_date);
+        $this->db->where('start_date <=', $end_date);
+        $this->db->where('status', 'completed');
+        $this->db->group_by('MONTH(start_date)');
+        $query = $this->db->get();
+
+        return $query->result();
+    }
+
+    public function get_student_count_per_department()
+    {
+        // SQL Query to join 'users' (or 'students') table with 'departments' table on 'dept_id'
+        $this->db->select('d.dept_name, COUNT(u.dept_id) as student_count');
+        $this->db->from('users u'); // Assuming the table storing user data is 'users'
+        $this->db->join('department d', 'u.dept_id = d.dept_id', 'inner'); // Join departments table to users table
+        $this->db->group_by('u.dept_id'); // Group by dept_id to count students per department
+        $query = $this->db->get();  // Execute the query
+
+        // Return the result as an associative array
+        return $query->result_array();
+    }
+
+    public function get_current_semester_count_organized()
+    {
+        $today = date('Y-m-d');
+        $current_year = date('Y');
+        $month = date('n');
+
+        // Determine current semester based on the month
+        if ($month >= 7 && $month <= 12) {
+            $semester = 'First Semester';
+            $start_date = "$current_year-07-01";
+            $end_date = "$current_year-12-31";
+        } else {
+            $semester = 'Second Semester';
+            $start_date = "$current_year-01-01";
+            $end_date = "$current_year-06-30";
+        }
+
+        // Get count of completed activities in the current semester
+        $this->db->from('activity');
+        $this->db->where('start_date >=', $start_date);
+        $this->db->where('start_date <=', $end_date);
+        $this->db->where('status', 'completed');
+        $this->db->where('organizer', 'Student Parliament');
+        $count = $this->db->count_all_results();
+
+        return [
+            'semester' => $semester,
+            'start_date' => $start_date,
+            'end_date' => $end_date,
+            'completed_count' => $count
+        ];
+    }
+
+
     // CREATING ACTIVITY
     public function get_department()
     {
@@ -100,6 +228,18 @@ class Admin_model extends CI_Model
 
         $query = $this->db->get();
         return $query->result(); // Fetch all registrations for the activity
+    }
+
+    public function insert_cash_payment($data)
+    {
+        $this->db->insert('registrations', $data);
+
+        // Check if insertion was successful
+        if ($this->db->affected_rows() > 0) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     // FOR REFERENCE NUMBER
@@ -782,6 +922,197 @@ class Admin_model extends CI_Model
         return $data;
     }
 
+    // CONNECTING FINES AND ATTENDANCE
+    public function get_fines_amount($activity_id)
+    {
+        $this->db->select('fines');
+        $this->db->from('activity');
+        $this->db->where('activity_id', $activity_id);
+        $query = $this->db->get();
+
+        if ($query->num_rows() > 0) {
+            return $query->row()->fines; // Return just the fine amount
+        } else {
+            return null; // Or 0, depending on how you want to handle it
+        }
+    }
+
+    public function auto_fines_missing_time_in()
+    {
+        date_default_timezone_set('Asia/Manila');
+        $now = date('Y-m-d H:i:s');
+
+        // Get all active timeslots where cut-off has passed
+        $this->db->select('timeslot_id, activity_id, cut_off');
+        $this->db->from('activity_timeslots');
+        $this->db->where('date_cut_in <=', $now);
+        $timeslots = $this->db->get()->result();
+
+        foreach ($timeslots as $slot) {
+            // Get all attendees for this activity/timeslot
+            $this->db->select('student_id');
+            $this->db->from('attendance');
+            $this->db->where([
+                'activity_id' => $slot->activity_id,
+                'timeslot_id' => $slot->timeslot_id,
+                'time_in' => NULL // Those who did NOT time in
+            ]);
+            $students = $this->db->get()->result();
+
+            foreach ($students as $student) {
+                // Check if fine already exists
+                $exists = $this->db->get_where('fines', [
+                    'student_id' => $student->student_id,
+                    'activity_id' => $slot->activity_id,
+                    'timeslot_id' => $slot->timeslot_id
+                ])->row();
+
+                if ($exists) {
+                    // If no fine exists, insert it
+                    $activity = $this->db->get_where('activity', [
+                        'activity_id' => $slot->activity_id
+                    ])->row();
+
+                    $fine_amount = $activity->fines ?? 0;
+
+                    // If fine exists, update it
+                    $this->db->where('student_id', $student->student_id);
+                    $this->db->where('activity_id', $slot->activity_id);
+                    $this->db->where('timeslot_id', $slot->timeslot_id);
+                    $this->db->update('fines', [
+                        'fines_amount' => $exists->amount + $fine_amount,  // Increase amount if necessary
+                        'updated_at' => date('Y-m-d H:i:s') // Set the updated timestamp
+                    ]);
+                } else {
+                    // If no fine exists, insert it
+                    $activity = $this->db->get_where('activity', [
+                        'activity_id' => $slot->activity_id
+                    ])->row();
+
+                    $fine_amount = $activity->fines ?? 0;
+
+                    // Insert into fines table
+                    $this->db->insert('fines', [
+                        'student_id' => $student->student_id,
+                        'activity_id' => $slot->activity_id,
+                        'timeslot_id' => $slot->timeslot_id,
+                        'amount' => $fine_amount,
+                        'created_at' => date('Y-m-d H:i:s')
+                    ]);
+                }
+            }
+        }
+
+        // After inserting or updating fines, update fines_summary
+        $this->update_fines_summary();
+    }
+
+    public function auto_fines_missing_time_out()
+    {
+        date_default_timezone_set('Asia/Manila');
+        $now = date('Y-m-d H:i:s');
+
+        // Get all active timeslots where cut-off has passed
+        $this->db->select('timeslot_id, activity_id, cut_off');
+        $this->db->from('activity_timeslots');
+        $this->db->where('date_cut_in <=', $now);
+        $timeslots = $this->db->get()->result();
+
+        foreach ($timeslots as $slot) {
+            // Get all attendees for this activity/timeslot
+            $this->db->select('student_id');
+            $this->db->from('attendance');
+            $this->db->where([
+                'activity_id' => $slot->activity_id,
+                'timeslot_id' => $slot->timeslot_id,
+                'time_out' => NULL // Those who did NOT time in
+            ]);
+            $students = $this->db->get()->result();
+
+            foreach ($students as $student) {
+                // Check if fine already exists
+                $exists = $this->db->get_where('fines', [
+                    'student_id' => $student->student_id,
+                    'activity_id' => $slot->activity_id,
+                    'timeslot_id' => $slot->timeslot_id
+                ])->row();
+
+                if ($exists) {
+                    // If no fine exists, insert it
+                    $activity = $this->db->get_where('activity', [
+                        'activity_id' => $slot->activity_id
+                    ])->row();
+
+                    $fine_amount = $activity->fines ?? 0;
+
+                    // If fine exists, update it
+                    $this->db->where('student_id', $student->student_id);
+                    $this->db->where('activity_id', $slot->activity_id);
+                    $this->db->where('timeslot_id', $slot->timeslot_id);
+                    $this->db->update('fines', [
+                        'fines_amount' => $exists->amount + $fine_amount,  // Increase amount if necessary
+                        'updated_at' => date('Y-m-d H:i:s') // Set the updated timestamp
+                    ]);
+                } else {
+                    // If no fine exists, insert it
+                    $activity = $this->db->get_where('activity', [
+                        'activity_id' => $slot->activity_id
+                    ])->row();
+
+                    $fine_amount = $activity->fines ?? 0;
+
+                    // Insert into fines table
+                    $this->db->insert('fines', [
+                        'student_id' => $student->student_id,
+                        'activity_id' => $slot->activity_id,
+                        'timeslot_id' => $slot->timeslot_id,
+                        'amount' => $fine_amount,
+                        'created_at' => date('Y-m-d H:i:s')
+                    ]);
+                }
+            }
+        }
+
+        // After inserting or updating fines, update fines_summary
+        $this->update_fines_summary();
+    }
+
+    public function update_fines_summary()
+    {
+        // Get all fines grouped by student and activity
+        $this->db->select('student_id, activity_id, SUM(fines_amount) as total_fines');
+        $this->db->from('fines');
+        $this->db->group_by(['student_id', 'activity_id']);
+        $summaries = $this->db->get()->result();
+
+        foreach ($summaries as $summary) {
+            // Check if record exists
+            $exists = $this->db->get_where('fines_summary', [
+                'student_id' => $summary->student_id,
+                'activity_id' => $summary->activity_id
+            ])->row();
+
+            if ($exists) {
+                // Update existing
+                $this->db->where([
+                    'student_id' => $summary->student_id,
+                    'activity_id' => $summary->activity_id
+                ]);
+                $this->db->update('fines_summary', [
+                    'total_fines' => $summary->total_fines,
+                    'fines_status' => 'Unpaid'
+                ]);
+            } else {
+                // Insert new
+                $this->db->insert('fines_summary', [
+                    'student_id' => $summary->student_id,
+                    'activity_id' => $summary->activity_id,
+                    'total_fines' => $summary->total_fines,
+                    'fines_status' => 'Unpaid'
+                ]);
+            }
+        }
+    }
 
 
 

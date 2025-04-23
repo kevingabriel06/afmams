@@ -41,6 +41,27 @@ class AdminController extends CI_Controller
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
 		$data['users'] = $this->admin->get_student($student_id);
 
+
+		// DATA
+		// Get current semester count and comparison with previous semester
+		$data['current_semester'] = $this->admin->get_current_semester_count();
+		$data['previous_semester'] = $this->admin->get_previous_semester_count();
+
+		// Get breakdown of activities per month for the current semester
+		$data['monthly_breakdown'] = $this->admin->get_monthly_activity_count($data['current_semester']['start_date'], $data['current_semester']['end_date']);
+
+		// COUNT OF STUDENT PER DEPARTMENT
+		// Get the count of students per department
+		$data['student_counts'] = $this->admin->get_student_count_per_department();
+
+		// Calculate the total number of students
+		$total_students = array_sum(array_column($data['student_counts'], 'student_count'));
+		$data['total_students'] = $total_students;
+
+		// ACTIVITY ORGANIZED
+		$data['activity_count'] = $this->admin->get_current_semester_count_organized();
+
+
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/dashboard', $data);
 		$this->load->view('layout/footer', $data);
@@ -210,6 +231,12 @@ class AdminController extends CI_Controller
 				]);
 			}
 		}
+
+		foreach ($students as $student) {
+			$this->db->insert('fines_summary', [
+				'student_id'   => $student->student_id
+			]);
+		}
 	}
 
 	// FETCHING ACTIVITY (STUDENT PARLIAMENT) - PAGE
@@ -294,6 +321,58 @@ class AdminController extends CI_Controller
 			echo json_encode(['status' => 'error', 'message' => 'Update failed.']);
 		}
 	}
+
+	// CASH REGISTRATION
+	public function save_cash_payment()
+	{
+
+		$student_id = $this->input->post('student_id', TRUE);  // Sanitize input
+		$activity_id = $this->input->post('activity_id', TRUE);
+		$receipt_number = $this->input->post('receipt_number', TRUE);
+		$amount_paid = $this->input->post('amount_paid', TRUE);
+		$remark = $this->input->post('remark', TRUE);
+
+		// Validate required fields
+		if (empty($student_id) || empty($activity_id) || empty($receipt_number) || empty($amount_paid)) {
+			echo json_encode([
+				'status' => 'error',
+				'message' => 'All fields are required. Please fill in the missing information.'
+			]);
+			return;
+		}
+
+		// Prepare data for insertion
+		$data = array(
+			'student_id'             => $student_id,
+			'activity_id'            => $activity_id,
+			'payment_type'           => 'Cash',
+			'reference_number'       => $receipt_number,
+			'reference_number_admin' => $receipt_number,  // Assuming same as receipt number
+			'amount_paid'            => $amount_paid,
+			'registration_status'    => 'Verified',
+			'remark'                 => $remark,
+			'registered_at'          => date('Y-m-d H:i:s'),
+			'updated_at'             => date('Y-m-d H:i:s')
+		);
+
+		// Insert into the database
+		$inserted = $this->admin->insert_cash_payment($data);
+
+		// Return the response as JSON
+		if ($inserted) {
+			echo json_encode([
+				'status' => 'success',
+				'message' => 'Cash payment recorded successfully!'
+			]);
+		} else {
+			echo json_encode([
+				'status' => 'error',
+				'message' => 'Failed to record cash payment. Please try again.'
+			]);
+		}
+	}
+
+
 
 	// SHARING ACTIVITY FROM THE ACTIVITY DETAILS
 	public function share_activity()
@@ -1383,6 +1462,13 @@ class AdminController extends CI_Controller
 		}
 	}
 
+	// This method will be called by the cron job
+	public function auto_fines_missing_time_in()
+	{
+		$this->admin->auto_fines_missing_time_in(); // This should do the logic
+		echo "Auto fines executed at " . date('Y-m-d H:i:s');
+	}
+
 	public function scanUnified_timeout()
 	{
 		date_default_timezone_set('Asia/Manila');
@@ -1495,7 +1581,8 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
-	// FINES MONITORING
+	//CONNECTING ATTENDANCE AND FINES
+	public function update_fines() {}
 
 	// LIST OF FINES - PAGE
 	public function list_fines()
@@ -2033,47 +2120,4 @@ class AdminController extends CI_Controller
 	//======> FINES
 
 
-
-	//RECORDING OF CASH PAYMENT
-
-	public function cash_payment_form()
-	{
-
-		$data['title'] = 'Record Cash Payment';
-
-		$student_id = $this->session->userdata('student_id');
-
-		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
-		$data['users'] = $this->admin->get_student($student_id);
-
-		// GETTING OF THE ACTIVITY FROM THE DATABASE
-		$data['activities'] = $this->admin->get_activities(); // FOR STUDENT PARLIAMENT
-
-		// You can load activity or student data here if needed
-		$this->load->view('layout/header', $data);
-		$this->load->view('admin/record-cash-payment');
-		$this->load->view('layout/footer', $data);
-	}
-
-	public function save_cash_payment()
-	{
-		// Get POST data and validate
-		$data = array(
-			'student_id'             => $this->input->post('student_id'),
-			'activity_id'            => $this->input->post('activity_id'), // comes from dropdown value
-			'payment_type'           => 'cash',
-			'reference_number'       => null, // not applicable for cash
-			'reference_number_admin' => $this->input->post('reference_number_admin'),
-			'amount_paid'            => $this->input->post('amount_paid'),
-			// 'receipt'               => $this->input->post('receipt'), // If handling file upload, do it properly (optional)
-			'registration_status'    => 'Verified',
-			'remark'                 => $this->input->post('remark'),
-			'registered_at'          => date('Y-m-d H:i:s'),
-			'updated_at'             => date('Y-m-d H:i:s')
-		);
-
-		$this->db->insert('registrations', $data);
-		$this->session->set_flashdata('success', 'Cash payment recorded successfully!');
-		redirect('admin/record-cash-payment');
-	}
 }
