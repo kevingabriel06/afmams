@@ -89,6 +89,20 @@
             </div>
 
             <script>
+                Swal.fire({
+                    title: 'Loading...',
+                    text: 'Please wait while facial recognition initializes.',
+                    allowOutsideClick: false,
+                    timer: 10000, // 10 seconds in milliseconds
+                    didOpen: () => {
+                        Swal.showLoading();
+                    },
+                    willClose: () => {
+                        // Optional: add callback logic here after timer ends
+                        console.log('Timer ended');
+                    }
+                });
+
                 var labels = [];
                 let detectedFaces = [];
                 let sendingData = false;

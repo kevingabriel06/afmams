@@ -60,10 +60,23 @@
                                             <div class="avatar avatar-xl">
                                                 <img class="rounded-circle" src="<?php echo base_url('assets/coverEvent/') . $activity->activity_image; ?>" alt="" />
                                             </div>
-                                            <a class="ms-3 text-decoration-none text-dark fw-semibold d-block link-hover"
-                                                href="<?php echo site_url('admin/list-attendees/' . $activity->activity_id); ?>">
-                                                <?php echo $activity->activity_title; ?>
-                                            </a>
+                                            <?php if ($activity->status == 'Upcoming'): ?>
+                                                <a class="ms-3 text-decoration-none text-dark fw-semibold d-block link-hover"
+                                                    href="javascript:void(0);"
+                                                    onclick="Swal.fire({
+                                                        icon: 'info',
+                                                        title: 'Activity Not Available',
+                                                        text: 'This activity is upcoming and not yet available to view.',
+                                                        confirmButtonColor: '#3085d6'
+                                                    })">
+                                                    <?php echo $activity->activity_title; ?>
+                                                </a>
+                                            <?php else: ?>
+                                                <a class="ms-3 text-decoration-none text-dark fw-semibold d-block link-hover"
+                                                    href="<?php echo site_url('admin/list-attendees/' . $activity->activity_id); ?>">
+                                                    <?php echo $activity->activity_title; ?>
+                                                </a>
+                                            <?php endif; ?>
                                         </div>
                                     </td>
                                     <td class="text-nowrap px-7 py-2 status">

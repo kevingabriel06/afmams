@@ -1387,6 +1387,81 @@ class AdminController extends CI_Controller
 	}
 
 	// SCANNING AND FACIAL RECOGNITION FUNCTIONALITY
+	// public function scanUnified_timein()
+	// {
+	// 	date_default_timezone_set('Asia/Manila');
+
+	// 	// Get JSON input or fallback to POST
+	// 	$raw_input = json_decode(trim(file_get_contents("php://input")), true);
+
+	// 	$student_id = $raw_input['student_id'] ?? $this->input->post('student_id');
+	// 	$activity_id = $raw_input['activity_id'] ?? $this->input->post('activity_id');
+	// 	$timeslot_id = $raw_input['timeslot_id'] ?? $this->input->post('timeslot_id');
+
+	// 	if (!$student_id || !$activity_id || !$timeslot_id) {
+	// 		return $this->output
+	// 			->set_content_type('application/json')
+	// 			->set_status_header(400)
+	// 			->set_output(json_encode([
+	// 				'status' => 'error',
+	// 				'message' => 'Student ID and Activity ID are required.'
+	// 			]));
+	// 	}
+
+	// 	// Get current datetime
+	// 	$current_datetime = date('Y-m-d H:i:s');
+
+	// 	// Check if activity exists
+	// 	$activity = $this->admin->get_activity_schedule($activity_id);
+	// 	if (!$activity) {
+	// 		return $this->output
+	// 			->set_content_type('application/json')
+	// 			->set_status_header(404)
+	// 			->set_output(json_encode([
+	// 				'status' => 'error',
+	// 				'message' => 'Activity not found.'
+	// 			]));
+	// 	}
+
+	// 	// Get student details
+	// 	$student = $this->admin->get_student_by_id($student_id);
+	// 	$full_name = $student ? $student->first_name . ' ' . $student->last_name : 'Student';
+
+	// 	// Check if student already has time_in
+	// 	$existing_attendance = $this->admin->get_attendance_record_time_in($student_id, $activity_id, $timeslot_id);
+	// 	if ($existing_attendance && !empty($existing_attendance->time_in)) {
+	// 		return $this->output
+	// 			->set_content_type('application/json')
+	// 			->set_status_header(200)
+	// 			->set_output(json_encode([
+	// 				'status' => 'info',
+	// 				'message' => "Student ID - $student_id - $full_name has already been recorded."
+	// 			]));
+	// 	}
+
+	// 	// Update attendance
+	// 	$update_data = ['time_in' => $current_datetime];
+	// 	$updated = $this->admin->update_attendance_time_in($student_id, $activity_id, $timeslot_id, $update_data);
+
+	// 	if ($updated) {
+	// 		return $this->output
+	// 			->set_content_type('application/json')
+	// 			->set_status_header(200)
+	// 			->set_output(json_encode([
+	// 				'status' => 'success',
+	// 				'message' => "$full_name successfully recorded."
+	// 			]));
+	// 	} else {
+	// 		return $this->output
+	// 			->set_content_type('application/json')
+	// 			->set_status_header(200)
+	// 			->set_output(json_encode([
+	// 				'status' => 'error',
+	// 				'message' => 'No changes made or record not found.'
+	// 			]));
+	// 	}
+	// }
+
 	public function scanUnified_timein()
 	{
 		date_default_timezone_set('Asia/Manila');
@@ -1439,17 +1514,63 @@ class AdminController extends CI_Controller
 				]));
 		}
 
+		// Get the timeslot cut-off for fines calculation
+		$timeslot = $this->db->get_where('activity_time_slots', [
+			'timeslot_id' => $timeslot_id
+		])->row();
+
+		if ($timeslot && strtotime($timeslot->date_cut_in) < strtotime($current_datetime)) {
+			// Apply fines logic: Check if student hasn't time-in and is past the cut-off
+			$activity = $this->db->get_where('activity', [
+				'activity_id' => $activity_id
+			])->row();
+
+			$fine_amount = $activity->fines ?? 0;
+
+			// Check if the student is eligible for fines
+			$existing_fine = $this->db->get_where('fines', [
+				'student_id' => $student_id,
+				'activity_id' => $activity_id,
+				'timeslot_id' => $timeslot_id
+			])->row();
+
+			if (!$existing_fine) {
+				// Insert fine record if no fine exists
+				$this->db->insert('fines', [
+					'student_id' => $student_id,
+					'activity_id' => $activity_id,
+					'timeslot_id' => $timeslot_id,
+					'fines_amount' => $fine_amount,
+					//'created_at' => date('Y-m-d H:i:s')
+				]);
+			} else {
+				// Update the fine record if one already exists
+				$this->db->where([
+					'student_id' => $student_id,
+					'activity_id' => $activity_id,
+					'timeslot_id' => $timeslot_id
+				]);
+				$this->db->update('fines', [
+					'fines_amount' => $existing_fine->fines_amount + $fine_amount, // Accumulate fine if necessary
+					'updated_at' => date('Y-m-d H:i:s')
+				]);
+			}
+		}
+
 		// Update attendance
 		$update_data = ['time_in' => $current_datetime];
 		$updated = $this->admin->update_attendance_time_in($student_id, $activity_id, $timeslot_id, $update_data);
 
 		if ($updated) {
+			// Update or Insert fines summary after attendance update
+			$this->update_fines_summary_for_student($student_id);
+
 			return $this->output
 				->set_content_type('application/json')
 				->set_status_header(200)
 				->set_output(json_encode([
 					'status' => 'success',
-					'message' => "$full_name successfully recorded."
+					'message' => "$student_id - $full_name successfully recorded."
 				]));
 		} else {
 			return $this->output
@@ -1459,6 +1580,38 @@ class AdminController extends CI_Controller
 					'status' => 'error',
 					'message' => 'No changes made or record not found.'
 				]));
+		}
+	}
+
+	private function update_fines_summary_for_student($student_id)
+	{
+		// Get total fines for the student and activity
+		$this->db->select('SUM(fines_amount) as total_fines');
+		$this->db->from('fines');
+		$this->db->where('student_id', $student_id);
+		$total_fines = $this->db->get()->row()->total_fines ?? 0;
+
+		// Check if the fines summary already exists
+		$existing_summary = $this->db->get_where('fines_summary', [
+			'student_id' => $student_id
+		])->row();
+
+		if ($existing_summary) {
+			// Update the existing summary
+			$this->db->where([
+				'student_id' => $student_id
+			]);
+			$this->db->update('fines_summary', [
+				'total_fines' => $total_fines,
+				'fines_status' => $total_fines > 0 ? 'Unpaid' : 'Paid'
+			]);
+		} else {
+			// Insert a new summary record
+			$this->db->insert('fines_summary', [
+				'student_id' => $student_id,
+				'total_fines' => $total_fines,
+				'fines_status' => $total_fines > 0 ? 'Unpaid' : 'Paid'
+			]);
 		}
 	}
 
@@ -1752,9 +1905,13 @@ class AdminController extends CI_Controller
 	public function update_password()
 	{
 		$student_id = $this->session->userdata('student_id');
-		$old_password = $this->input->post('old_password');
-		$new_password = $this->input->post('new_password');
-		$confirm_password = $this->input->post('confirm_password');
+
+		// Decode the raw JSON body
+		$data = json_decode(file_get_contents("php://input"), true);
+
+		$old_password = $data['old_password'] ?? null;
+		$new_password = $data['new_password'] ?? null;
+		$confirm_password = $data['confirm_password'] ?? null;
 
 		if (!$student_id) {
 			echo json_encode(['status' => 'error', 'message' => 'Not logged in']);

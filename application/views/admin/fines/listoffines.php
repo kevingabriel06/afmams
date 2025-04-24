@@ -1,8 +1,3 @@
-<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-
-<!-- Include SweetAlert2 CDN if not already added -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 <div class="card mb-3 mb-lg-0">
     <div class="card-header bg-body-tertiary d-flex justify-content-between">
         <h5 class="mb-0">Summary of Fines</h5>
@@ -67,6 +62,7 @@
                         <tbody class="list" id="table-ticket-body">
                             <!-- Dynamic Rows will be generated here -->
                         </tbody>
+
                     </table>
                     <div class="text-center d-none" id="tickets-table-fallback">
                         <span class="fa fa-user-slash fa-2x text-muted"></span>
@@ -158,18 +154,22 @@
                     let badgeClass = 'badge rounded-pill badge-subtle-secondary';
                     let iconClass = 'fas fa-question-circle';
 
-                    switch (student.status.toLowerCase()) {
+                    switch ((student.status || '').toLowerCase()) {
                         case 'paid':
                             badgeClass = 'badge rounded-pill badge-subtle-success';
-                            iconClass = 'fas fa-check-circle';
+                            iconClass = 'fas fa-check-circle'; // ✅ Green check
                             break;
                         case 'unpaid':
                             badgeClass = 'badge rounded-pill badge-subtle-danger';
-                            iconClass = 'fas fa-times-circle';
+                            iconClass = 'fas fa-times-circle'; // ❌ Red cross
                             break;
                         case 'pending':
                             badgeClass = 'badge rounded-pill badge-subtle-warning';
-                            iconClass = 'fas fa-clock';
+                            iconClass = 'fas fa-clock'; // 🕒 Yellow clock
+                            break;
+                        default:
+                            badgeClass = 'badge rounded-pill badge-subtle-secondary';
+                            iconClass = 'fas fa-exclamation-circle'; // ⚠️ Default fallback
                             break;
                     }
 

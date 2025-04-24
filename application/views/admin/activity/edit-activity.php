@@ -231,10 +231,10 @@
                         <div class="mb-3">
                             <label class="form-label" for="audience">Audience</label>
                             <select class="form-control" id="audience" name="audience">
-                                <option value="0" <?php echo ($activity['audience'] == 0) ? 'selected' : ''; ?>>All</option>
+                                <option value="All" <?php echo ($activity['audience'] == 0) ? 'selected' : ''; ?>>All</option>
                                 <?php foreach ($dept as $depts) : ?>
-                                    <option value="<?php echo $depts->dept_id; ?>"
-                                        <?php echo ($depts->dept_id == $activity['audience']) ? 'selected' : ''; ?>>
+                                    <option value="<?php echo $depts->dept_name; ?>"
+                                        <?php echo ($depts->dept_name == $activity['audience']) ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($depts->dept_name); ?>
                                     </option>
                                 <?php endforeach; ?>

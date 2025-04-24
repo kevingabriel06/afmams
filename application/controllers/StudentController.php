@@ -886,9 +886,13 @@ class StudentController extends CI_Controller
 	public function update_password()
 	{
 		$student_id = $this->session->userdata('student_id');
-		$old_password = $this->input->post('old_password');
-		$new_password = $this->input->post('new_password');
-		$confirm_password = $this->input->post('confirm_password');
+
+		// Decode the raw JSON body
+		$data = json_decode(file_get_contents("php://input"), true);
+
+		$old_password = $data['old_password'] ?? null;
+		$new_password = $data['new_password'] ?? null;
+		$confirm_password = $data['confirm_password'] ?? null;
 
 		if (!$student_id) {
 			echo json_encode(['status' => 'error', 'message' => 'Not logged in']);
@@ -908,10 +912,11 @@ class StudentController extends CI_Controller
 		}
 
 		$hashed = password_hash($new_password, PASSWORD_DEFAULT);
-		$this->admin->update_password($student_id, $hashed);
+		$this->student->update_password($student_id, $hashed);
 
 		echo json_encode(['status' => 'success', 'message' => 'Password updated successfully']);
 	}
+
 
 	//RECEIPTS PAGE START
 

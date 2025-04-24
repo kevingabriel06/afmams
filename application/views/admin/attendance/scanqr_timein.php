@@ -89,13 +89,17 @@
             </div>
 
             <script>
-                // Show SweetAlert loading
                 Swal.fire({
                     title: 'Loading...',
                     text: 'Please wait while facial recognition initializes.',
                     allowOutsideClick: false,
+                    timer: 10000, // 10 seconds in milliseconds
                     didOpen: () => {
                         Swal.showLoading();
+                    },
+                    willClose: () => {
+                        // Optional: add callback logic here after timer ends
+                        console.log('Timer ended');
                     }
                 });
 
@@ -157,6 +161,8 @@
 
                     // Get labeled face descriptions from the server
                     async function getLabeledFaceDescriptions() {
+
+
                         const response = await fetch("<?= base_url('admin/attendance/get-faces') ?>");
                         const users = await response.json();
                         const labeledDescriptors = [];
@@ -195,6 +201,7 @@
 
                     // Start face recognition
                     video.addEventListener("play", async () => {
+
 
                         const labeledFaceDescriptors = await getLabeledFaceDescriptions();
                         const faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors);
@@ -539,7 +546,13 @@
                                         <tr>
                                             <td class="student-id"><?php echo $student['student_id']; ?></td>
                                             <td class="student-name"><?php echo $student['first_name'] . " " . $student['last_name']; ?></td>
-                                            <td class="time-in"><?php echo date('Y-m-d | h:i A', strtotime($student['time_in'])); ?></td>
+                                            <td class="time-in">
+                                                <?php
+                                                echo !empty($student['time_in'])
+                                                    ? date('Y-m-d | h:i A', strtotime($student['time_in']))
+                                                    : 'No Data';
+                                                ?>
+                                            </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 </tbody>
