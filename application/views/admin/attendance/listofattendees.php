@@ -43,6 +43,14 @@
 								</a>
 							<?php endif; ?>
 
+							<a href="<?= base_url('AdminController/view_attendance_reports/' . $activity_id) ?>"
+								target="_blank"
+								title="View Attendance Reports">
+								<button class="btn btn-sm btn-falcon-default ms-2" type="button">
+									<span class="fas fa-chart-pie"></span>
+								</button>
+							</a>
+
 
 
 							<button class="btn btn-sm btn-falcon-default ms-2" type="button"

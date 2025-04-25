@@ -151,7 +151,7 @@ class OfficerController extends CI_Controller
                 'description'           => $this->input->post('description'),
                 'registration_deadline' => $this->input->post('registration_deadline'),
                 'registration_fee'      => str_replace(",", "", $this->input->post('registration_fee')),
-                'organizer'             => 'Student Parliament',
+                'organizer'             => $this->session->userdata('dept_name'),
                 'fines'                 => str_replace(",", "", $this->input->post('fines')),
                 'audience'             => implode(',', $this->input->post('audience')),
                 'created_at'            => date('Y-m-d H:i:s')
@@ -408,7 +408,7 @@ class OfficerController extends CI_Controller
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(50, 8, 'From:', 0, 0, 'L');
         $pdf->SetFont('Arial', '', 10);
-        $pdf->Cell(0, 8, 'Student Parliament', 0, 1, 'L');
+        $pdf->Cell(0, 8, $this->session->userdata('dept_name'), 0, 1, 'L');
 
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(50, 8, 'Received By:', 0, 0, 'L');
@@ -610,7 +610,7 @@ class OfficerController extends CI_Controller
                 'description'           => $this->input->post('description'),
                 'registration_deadline' => $this->input->post('registration_deadline'),
                 'registration_fee'      => str_replace(",", "", $this->input->post('registration_fee')),
-                'organizer'             => 'Student Parliament',
+                'organizer'             => $this->session->userdata('dept_name'),
                 'fines'                 => str_replace(",", "", $this->input->post('fines')),
                 'audience'              => $this->input->post('audience')
             ];

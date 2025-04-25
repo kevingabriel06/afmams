@@ -1755,6 +1755,81 @@ class AdminController extends CI_Controller
 		echo "Auto fines executed at " . date('Y-m-d H:i:s');
 	}
 
+	// public function scanUnified_timeout()
+	// {
+	// 	date_default_timezone_set('Asia/Manila');
+
+	// 	// Get JSON input or fallback to POST
+	// 	$raw_input = json_decode(trim(file_get_contents("php://input")), true);
+
+	// 	$student_id = $raw_input['student_id'] ?? $this->input->post('student_id');
+	// 	$activity_id = $raw_input['activity_id'] ?? $this->input->post('activity_id');
+	// 	$timeslot_id = $raw_input['timeslot_id'] ?? $this->input->post('timeslot_id');
+
+	// 	if (!$student_id || !$activity_id || !$timeslot_id) {
+	// 		return $this->output
+	// 			->set_content_type('application/json')
+	// 			->set_status_header(400)
+	// 			->set_output(json_encode([
+	// 				'status' => 'error',
+	// 				'message' => 'Student ID and Activity ID are required.'
+	// 			]));
+	// 	}
+
+	// 	// Get current datetime
+	// 	$current_datetime = date('Y-m-d H:i:s');
+
+	// 	// Check if activity exists
+	// 	$activity = $this->admin->get_activity_schedule($activity_id);
+	// 	if (!$activity) {
+	// 		return $this->output
+	// 			->set_content_type('application/json')
+	// 			->set_status_header(404)
+	// 			->set_output(json_encode([
+	// 				'status' => 'error',
+	// 				'message' => 'Activity not found.'
+	// 			]));
+	// 	}
+
+	// 	// Get student details
+	// 	$student = $this->admin->get_student_by_id($student_id);
+	// 	$full_name = $student ? $student->first_name . ' ' . $student->last_name : 'Student';
+
+	// 	// Check if student already has time_in
+	// 	$existing_attendance = $this->admin->get_attendance_record_time_out($student_id, $activity_id, $timeslot_id);
+	// 	if ($existing_attendance && !empty($existing_attendance->time_out)) {
+	// 		return $this->output
+	// 			->set_content_type('application/json')
+	// 			->set_status_header(200)
+	// 			->set_output(json_encode([
+	// 				'status' => 'info',
+	// 				'message' => "Student ID - $student_id - $full_name has already been recorded."
+	// 			]));
+	// 	}
+
+	// 	// Update attendance
+	// 	$update_data = ['time_out' => $current_datetime];
+	// 	$updated = $this->admin->update_attendance_time_out($student_id, $activity_id, $timeslot_id, $update_data);
+
+	// 	if ($updated) {
+	// 		return $this->output
+	// 			->set_content_type('application/json')
+	// 			->set_status_header(200)
+	// 			->set_output(json_encode([
+	// 				'status' => 'success',
+	// 				'message' => "$full_name successfully recorded."
+	// 			]));
+	// 	} else {
+	// 		return $this->output
+	// 			->set_content_type('application/json')
+	// 			->set_status_header(200)
+	// 			->set_output(json_encode([
+	// 				'status' => 'error',
+	// 				'message' => 'No changes made or record not found.'
+	// 			]));
+	// 	}
+	// }
+
 	public function scanUnified_timeout()
 	{
 		date_default_timezone_set('Asia/Manila');
@@ -1797,7 +1872,7 @@ class AdminController extends CI_Controller
 
 		// Check if student already has time_in
 		$existing_attendance = $this->admin->get_attendance_record_time_out($student_id, $activity_id, $timeslot_id);
-		if ($existing_attendance && !empty($existing_attendance->time_out)) {
+		if ($existing_attendance && !empty($existing_attendance->time_in)) {
 			return $this->output
 				->set_content_type('application/json')
 				->set_status_header(200)
@@ -1807,17 +1882,63 @@ class AdminController extends CI_Controller
 				]));
 		}
 
+		// Get the timeslot cut-off for fines calculation
+		$timeslot = $this->db->get_where('activity_time_slots', [
+			'timeslot_id' => $timeslot_id
+		])->row();
+
+		if ($timeslot && strtotime($timeslot->date_cut_in) < strtotime($current_datetime)) {
+			// Apply fines logic: Check if student hasn't time-in and is past the cut-off
+			$activity = $this->db->get_where('activity', [
+				'activity_id' => $activity_id
+			])->row();
+
+			$fine_amount = $activity->fines ?? 0;
+
+			// Check if the student is eligible for fines
+			$existing_fine = $this->db->get_where('fines', [
+				'student_id' => $student_id,
+				'activity_id' => $activity_id,
+				'timeslot_id' => $timeslot_id
+			])->row();
+
+			if (!$existing_fine) {
+				// Insert fine record if no fine exists
+				$this->db->insert('fines', [
+					'student_id' => $student_id,
+					'activity_id' => $activity_id,
+					'timeslot_id' => $timeslot_id,
+					'fines_amount' => $fine_amount,
+					//'created_at' => date('Y-m-d H:i:s')
+				]);
+			} else {
+				// Update the fine record if one already exists
+				$this->db->where([
+					'student_id' => $student_id,
+					'activity_id' => $activity_id,
+					'timeslot_id' => $timeslot_id
+				]);
+				$this->db->update('fines', [
+					'fines_amount' => $existing_fine->fines_amount + $fine_amount, // Accumulate fine if necessary
+					'updated_at' => date('Y-m-d H:i:s')
+				]);
+			}
+		}
+
 		// Update attendance
 		$update_data = ['time_out' => $current_datetime];
 		$updated = $this->admin->update_attendance_time_out($student_id, $activity_id, $timeslot_id, $update_data);
 
 		if ($updated) {
+			// Update or Insert fines summary after attendance update
+			$this->update_fines_summary_for_student($student_id);
+
 			return $this->output
 				->set_content_type('application/json')
 				->set_status_header(200)
 				->set_output(json_encode([
 					'status' => 'success',
-					'message' => "$full_name successfully recorded."
+					'message' => "$student_id - $full_name successfully recorded."
 				]));
 		} else {
 			return $this->output
@@ -1861,6 +1982,8 @@ class AdminController extends CI_Controller
 		$data['students'] = $this->admin->get_all_students_attendance_by_activity($activity_id);
 		$data['timeslots'] = $this->admin->get_timeslots_by_activity($activity_id);
 		$data['departments'] = $this->admin->department_selection();
+
+		$data['activity_id'] = $activity_id; // Add this line
 
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/attendance/listofattendees', $data);
@@ -1983,6 +2106,46 @@ class AdminController extends CI_Controller
 		// Output PDF
 		$pdf->Output('I', 'attendance_report.pdf');
 	}
+
+
+
+	public function view_attendance_reports($activity_id)
+	{
+
+		$data['title'] = 'Attendance Reports';
+
+		$student_id = $this->session->userdata('student_id');
+
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->admin->get_student($student_id);
+
+
+		$this->load->model('Admin_model');
+
+
+
+		$data['activity_id'] = $activity_id;
+		$data['by_department'] = $this->Admin_model->get_departments_with_attendees($activity_id);
+		$data['total_attendees'] = $this->Admin_model->get_total_attendees($activity_id);
+		$data['status_comparison'] = $this->Admin_model->get_attendance_status_counts($activity_id);
+
+
+
+		$this->load->view('layout/header', $data);
+		$this->load->view('admin/attendance/attendance-reports', $data);
+		$this->load->view('layout/footer', $data);
+	}
+
+
+
+
+
+
+
+
+
+
+
 
 
 	//CONNECTING ATTENDANCE AND FINES

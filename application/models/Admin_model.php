@@ -947,6 +947,70 @@ class Admin_model extends CI_Model
 		return $data;
 	}
 
+
+
+	//ATTENDANCE REPORT WITH GRAPHS START
+	public function get_attendance_status_counts($activity_id)
+	{
+		$query = $this->db->select('attendance_status, COUNT(*) as total')
+			->where('activity_id', $activity_id)
+			->group_by('attendance_status')
+			->get('attendance')
+			->result();
+
+		$result = [];
+		foreach ($query as $row) {
+			$result[$row->attendance_status] = (int)$row->total;
+		}
+
+		return $result;
+	}
+
+
+
+	public function get_attendance_by_department($activity_id)
+	{
+		return $this->db->select('department.dept_name, COUNT(DISTINCT attendance.student_id) AS total')
+			->join('users', 'users.user_id = attendance.student_id')
+			->join('department', 'department.dept_id = users.dept_id')
+			->where('attendance.activity_id', $activity_id)
+			->group_by('department.dept_name')
+			->get('attendance')
+			->result();
+	}
+
+	public function get_departments_with_attendees($activity_id)
+	{
+		return $this->db->select('department.dept_name as department, COUNT(*) as total')
+			->from('attendance')
+			->join('users', 'users.student_id = attendance.student_id')
+			->join('department', 'department.dept_id = users.dept_id') // assuming 'id' is the PK of departments
+			->where('attendance.activity_id', $activity_id)
+			->group_by('department.dept_name')
+			->order_by('total', 'DESC')
+			->get()
+			->result();
+	}
+
+
+	public function get_total_attendees($activity_id)
+	{
+		return $this->db->where('activity_id', $activity_id)
+			->where('attendance_status', 'Present')
+			->distinct()
+			->count_all_results('attendance');
+	}
+
+
+
+
+
+
+
+
+
+	//END
+
 	// CONNECTING FINES AND ATTENDANCE
 	public function get_fines_amount($activity_id)
 	{
