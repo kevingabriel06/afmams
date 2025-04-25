@@ -451,36 +451,30 @@ class StudentController extends CI_Controller
 		$data['attendees'] = $this->student->count_attendees($activity_id); // COUNT THE ATTENDEES
 		$data['registered'] = $this->student->count_registered($activity_id); // COUNT THE REGISTERED
 
+
+		// Get registration record directly from the 'registrations' table
+		$registration = $this->db->get_where('registrations', [
+			'student_id' => $student_id,
+			'activity_id' => $activity_id,
+		])->row_array();
+
+		$data['registration'] = $registration;
+
+		// Check if the registration is verified and has a corresponding receipt
+		if ($registration && $registration['registration_status'] == 'Verified') {
+			$registration_id = $registration['registration_id'];
+			$data['receipt'] = $this->student->get_receipt_by_id($registration_id); // Pass receipt data
+		} else {
+			$data['receipt'] = null; // No receipt if not verified
+		}
+
+
 		// Load the views
 		$this->load->view('layout/header', $data);
 		$this->load->view('student/activity-details', $data);
 		$this->load->view('layout/footer', $data);
 	}
 
-
-	// EVALUATION LIST - PAGE
-	public function evaluation_form_list()
-	{
-		$data['title'] = 'List Evaluation Form';
-
-		$student_id = $this->session->userdata('student_id');
-
-		// FETCH USER DATA
-		$data['users'] = $this->student->get_student($student_id);
-
-		$data['forms'] = $this->student->list_forms();
-
-		// Fetch open (unanswered) forms
-		$data['evaluation_forms'] = $this->student->get_open_forms_for_student_and_unanswered();
-
-		// // Fetch answered forms
-		// $data['answered_forms'] = $this->student->get_answered_forms($student_id);
-
-		// Load the view files
-		$this->load->view('layout/header', $data);
-		$this->load->view('student/evaluation_forms_list', $data);
-		$this->load->view('layout/footer', $data);
-	}
 
 	// EVALUATION FORM DESIGN OPENED FORM - PAGE
 	public function evaluation_forms()

@@ -1158,7 +1158,7 @@ class Student_model extends CI_Model
 		$this->db->join('activity a', 'r.activity_id = a.activity_id', 'left');
 		$this->db->join('users u', 'r.student_id = u.student_id', 'left'); // ✅ Join users table
 		$this->db->where('r.registration_id', $registration_id);
-		$this->db->where('r.status', 'verified'); // ✅ Ensure only verified transactions can have receipts
+		$this->db->where('r.registration_status', 'Verified'); // ✅ Ensure only verified transactions can have receipts
 
 		$query = $this->db->get();
 		return ($query->num_rows() > 0) ? $query->row_array() : false; // ✅ Return false if no data

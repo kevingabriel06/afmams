@@ -16,6 +16,39 @@ defined('BASEPATH') or exit('No direct script access allowed');
  * @property CI_DB_query_builder $db <-- Add this line
  */
 
+// Load the FPDF library from the third_party folder
+require_once(APPPATH . 'third_party/fpdf.php');
+class PDF extends FPDF
+{
+	function Header()
+	{
+		// Get the full path of the logo image
+		$logoPath = APPPATH . 'third_party/header.jpg'; // Ensure the correct path
+
+		// Get page width dynamically
+		$pageWidth = $this->GetPageWidth();
+
+		// Set the image to cover the full width (assuming A4 width is 210mm)
+		$this->Image($logoPath, 0, 0, $pageWidth, 40); // Adjust height as needed
+
+		// Move the cursor below the image to avoid overlapping
+		$this->SetY(45); // Adjust if necessary
+	}
+
+	function Footer()
+	{
+		// Get the full path of the footer image
+		$footerImage = APPPATH . 'third_party/footer.jpg';
+
+		// Get page width and height dynamically
+		$pageWidth = $this->GetPageWidth();
+		$pageHeight = $this->GetPageHeight();
+		$footerHeight = 20; // Adjust footer height as needed
+
+		// Position the footer at the exact bottom with no margin
+		$this->Image($footerImage, 0, $pageHeight - $footerHeight, $pageWidth, $footerHeight);
+	}
+}
 class AdminController extends CI_Controller
 {
 
@@ -299,7 +332,7 @@ class AdminController extends CI_Controller
 		}
 
 		if ($reference_number !== $record->reference_number) {
-			$update = $this->admin->validate_registration($student_id, $activity_id, [
+			$this->admin->validate_registration($student_id, $activity_id, [
 				'reference_number_admin' => $reference_number,
 				'registration_status' => 'Rejected',
 				'remark' => "Reference number doesn't match the admin's record. Please contact support if this is a mistake."
@@ -307,20 +340,117 @@ class AdminController extends CI_Controller
 
 			echo json_encode(['status' => 'warning', 'message' => 'Reference number does not match. Please check it. Contact the student.']);
 			return;
-		} else {
-			$update = $this->admin->validate_registration($student_id, $activity_id, [
-				'reference_number_admin' => $reference_number,
-				'registration_status' => $action,
-				'remark' => $remarks
-			]);
 		}
 
+		$update = $this->admin->validate_registration($student_id, $activity_id, [
+			'reference_number_admin' => $reference_number,
+			'registration_status' => $action,
+			'remark' => $remarks
+		]);
+
 		if ($update) {
+			// ✅ Only generate receipt if status is Verified
+			if ($action === 'Verified') {
+				$registration_id = $this->admin->get_registration_id($student_id, $activity_id);
+				if ($registration_id) {
+					$this->generate_and_store_receipt($registration_id);
+				}
+			}
+
 			echo json_encode(['status' => 'success']);
 		} else {
 			echo json_encode(['status' => 'error', 'message' => 'Update failed.']);
 		}
 	}
+
+
+	public function generate_and_store_receipt($registration_id)
+	{
+		$this->load->model('Student_model');
+		require_once(APPPATH . 'third_party/fpdf.php');
+
+		$receipt_data = $this->Student_model->get_receipt_by_id($registration_id);
+		if (!$receipt_data) return;
+
+		$filename = 'receipt_' . $registration_id . '.pdf';
+		$folder_path = FCPATH . 'uploads/generated_receipts/';
+		$filepath = $folder_path . $filename;
+
+		if (!is_dir($folder_path)) {
+			mkdir($folder_path, 0777, true);
+		}
+
+		$verification_code = strtoupper(substr(md5($registration_id . time()), 0, 8));
+
+		$pdf = new PDF();
+		$pdf->AddPage();
+		$pdf->SetAutoPageBreak(true, 10);
+
+		$watermarkPath = FCPATH . 'application/third_party/receiptlogo.png';
+		if (file_exists($watermarkPath)) {
+			$pdf->Image($watermarkPath, 35, 70, 140, 100, 'PNG');
+		}
+
+		$pdf->SetFont('Arial', 'B', 16);
+		$pdf->Cell(0, 10, 'OFFICIAL RECEIPT', 0, 1, 'C');
+		$pdf->Ln(5);
+
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell(50, 8, 'Receipt No:', 0, 0, 'L');
+		$pdf->Cell(0, 8, strtoupper($registration_id), 0, 1, 'L');
+		$pdf->Cell(50, 8, 'Date:', 0, 0, 'L');
+		$pdf->Cell(0, 8, date('F j, Y', strtotime($receipt_data['registered_at'])), 0, 1, 'L');
+		$pdf->Ln(5);
+
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell(50, 8, 'From:', 0, 0, 'L');
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell(0, 8, 'Student Parliament', 0, 1, 'L');
+
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell(50, 8, 'Received By:', 0, 0, 'L');
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell(0, 8, strtoupper($receipt_data['student_id'] . ' - ' . $receipt_data['first_name'] . ' ' . $receipt_data['last_name']), 0, 1, 'L');
+
+		$pdf->Ln(5);
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell(120, 8, 'Description', 1, 0, 'C');
+		$pdf->Cell(40, 8, 'Amount (PHP)', 1, 1, 'C');
+
+		$pdf->SetFont('Arial', '', 10);
+		$description = 'Payment for ' . $receipt_data['activity_title'] . ' Registration';
+		$pdf->Cell(120, 8, $description, 1, 0, 'C');
+		$pdf->Cell(40, 8, number_format($receipt_data['amount_paid'], 2), 1, 1, 'C');
+
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell(120, 8, 'Total Amount:', 1, 0, 'R');
+		$pdf->Cell(40, 8, 'P ' . number_format($receipt_data['amount_paid'], 2), 1, 1, 'C');
+
+		$pdf->Ln(5);
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell(50, 8, 'Payment Type:', 0, 0, 'L');
+		$pdf->Cell(0, 8, $receipt_data['reference_number'] ? 'E-Payment (GCash)' : 'Cash', 0, 1, 'L');
+
+		$pdf->Ln(15);
+		$pdf->SetFont('Arial', 'B', 12);
+		$pdf->Cell(0, 8, 'Verification Code:', 0, 1, 'C');
+		$pdf->SetFont('Arial', 'B', 16);
+		$pdf->Cell(0, 10, $verification_code, 0, 1, 'C');
+
+		$pdf->Ln(10);
+		$pdf->SetFont('Arial', 'I', 8);
+		$pdf->Cell(0, 8, 'Enter this code on the receipt verification page to check validity.', 0, 1, 'C');
+
+		$pdf->Output($filepath, 'F');
+
+		// ✅ Update the `generated_receipt` and verification code
+		$this->db->where('registration_id', $registration_id);
+		$this->db->update('registrations', [
+			'generated_receipt' => $filename,
+			'remark' => 'Receipt generated.',
+		]);
+	}
+
 
 	// CASH REGISTRATION
 	public function save_cash_payment()
