@@ -1329,6 +1329,9 @@ class Admin_model extends CI_Model
 		return false;
 	}
 
+
+	//FINES RECEIPT START
+
 	public function update_payment_status($student_id, $reference_number, $mode_of_payment)
 	{
 		// Check reference match
@@ -1346,6 +1349,8 @@ class Admin_model extends CI_Model
 
 			$this->db->where('student_id', $student_id);
 			$this->db->update('fines', ['status' => 'Paid']);
+
+			return true;  // Payment marked as "Paid"
 		} else {
 			// Reference number mismatched or not yet assigned – mark as Processing
 			$this->db->where('student_id', $student_id);
@@ -1354,8 +1359,34 @@ class Admin_model extends CI_Model
 				'reference_number_admin' => $reference_number,
 				'fines_status' => 'Pending'
 			]);
+
+			return false;  // Payment is "Pending"
 		}
 	}
+
+
+
+	public function get_fine_summary($student_id)
+	{
+		return $this->db->get_where('fines_summary', ['student_id' => $student_id])->row();
+	}
+
+	public function update_fines_summary_receipt($student_id, $data)
+	{
+		$this->db->where('student_id', $student_id);
+		return $this->db->update('fines_summary', $data);
+	}
+
+	public function get_payment_id($student_id)
+	{
+		// Since you already have the `summary_id`, this might be unnecessary
+		$record = $this->get_fine_summary($student_id);
+		return $record ? $record->summary_id : null;
+	}
+
+
+	//FINES RECEIPT END
+
 
 	// PROFILE SETTINGS
 	public function get_user_profile()

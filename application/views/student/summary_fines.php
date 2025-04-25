@@ -49,42 +49,44 @@
 
 			<div class="card-body p-3">
 				<div class="table-responsive scrollbar">
-					<!-- Fines Table -->
 					<?php
-					$previous_organizer = ''; // Initialize a variable to track the previous organizer
-					$organizer_fines = []; // Array to store fines for each organizer
+					$previous_organizer = '';
+					$organizer_fines = [];
+
 					foreach ($fines as $fine):
-						// Check if the organizer is different from the previous one
 						if ($fine['organizer'] !== $previous_organizer):
-							// If the organizer is different, create a new Source of Fine header
 							if ($previous_organizer !== ''):
-								echo '</tbody></table>'; // Close the previous table before starting a new one
-								// Display total fines for the previous organizer
 								$total_fines = array_sum(array_column($organizer_fines, 'fines_amount'));
+								$last_fine = end($organizer_fines);
+								echo '</tbody></table>';
 								echo '<div class="bg-light mt-3 p-3 rounded d-flex justify-content-between align-items-center border">';
 								echo '<div><span class="fw-bold">Total Fines Imposed:</span><span class="fw-bold text-danger">₱' . number_format($total_fines, 2) . '</span></div>';
-								echo '<div><button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#payNowModal" data-total_fines="' . $total_fines . '">Pay Now</button></div>';
-								echo '</div>'; // Close the total section
+								echo '<div>';
+								if ($last_fine['fines_status'] !== 'Paid') {
+									echo '<button class="btn btn-primary"
+								data-bs-toggle="modal"
+								data-bs-target="#payNowModal"
+								data-total_fines="' . number_format($total_fines, 2) . '"
+								data-summary_id="' . $last_fine['summary_id'] . '"
+								data-student_id="' . $last_fine['student_id'] . '"
+								data-organizer="' . htmlspecialchars($last_fine['organizer'], ENT_QUOTES) . '">Pay Now</button>';
+								} else {
+									echo '<a href="' . base_url('uploads/fine_receipts/' . $last_fine['generated_receipt']) . '" class="btn btn-success" target="_blank">Download Receipt</a>';
+								}
+								echo '</div></div>';
 							endif;
-							// Start new table for the new organizer
+
+							// New organizer block
 							echo '<table class="table table-hover table-striped table-bordered" style="margin-top: 20px; margin-bottom: 20px;">';
 							echo '<thead class="table-light">';
-							echo '<tr>';
-							echo '<th colspan="4" style="text-align: left; word-wrap: break-word;">Source of Fine: ' . $fine['organizer'] . '</th>';
-							echo '</tr>';
-							echo '<tr>';
-							echo '<th style="word-wrap: break-word;">Activity</th>';
-							echo '<th style="word-wrap: break-word;">Date</th>';
-							echo '<th style="word-wrap: break-word;">Amount</th>';
-							echo '</tr>';
-							echo '</thead>';
-							echo '<tbody>';
-							// Reset fines for the new organizer
+							echo '<tr><th colspan="4" style="text-align: left;">Source of Fine: ' . $fine['organizer'] . '</th></tr>';
+							echo '<tr><th>Activity</th><th>Date</th><th>Amount</th></tr>';
+							echo '</thead><tbody>';
+
 							$organizer_fines = [];
-							$previous_organizer = $fine['organizer']; // Update the previous organizer
+							$previous_organizer = $fine['organizer'];
 						endif;
 
-						// Store fines for the current organizer
 						$organizer_fines[] = $fine;
 					?>
 						<tr>
@@ -92,65 +94,89 @@
 							<td><?php echo date('Y-m-d', strtotime($fine['start_date'])); ?></td>
 							<td>₱<?php echo number_format($fine['fines_amount'], 2); ?></td>
 						</tr>
-
 					<?php endforeach; ?>
 
-					<!-- Display total fines for the last organizer -->
+					<!-- Last group -->
 					<?php if (!empty($organizer_fines)): ?>
-						<tfoot>
-							<tr>
-								<td colspan="2" class="text-end"><strong>Total Fines Imposed:</strong></td>
-								<td class="text-danger"><strong>₱<?php echo number_format(array_sum(array_column($organizer_fines, 'fines_amount')), 2); ?></strong></td>
-							</tr>
-						</tfoot>
+						<?php
+						$total_fines = array_sum(array_column($organizer_fines, 'fines_amount'));
+						$last_fine = end($organizer_fines);
+						?>
+						</tbody>
+						</table>
+
+						<div class="bg-light mt-3 p-3 rounded d-flex justify-content-between align-items-center border">
+							<div>
+								<span class="fw-bold">Total Fines Imposed:</span>
+								<span class="fw-bold text-danger">₱<?php echo number_format($total_fines, 2); ?></span>
+							</div>
+							<div>
+								<?php
+								$status = $last_fine['fines_status'] ?? '';
+								$receipt = $last_fine['generated_receipt'] ?? '';
+								$receipt_path = FCPATH . 'uploads/fine_receipts/' . $receipt;
+								?>
+
+								<?php if ($status === 'Paid' && !empty($receipt) && file_exists($receipt_path)): ?>
+									<a href="<?php echo base_url('uploads/fine_receipts/' . $receipt); ?>"
+										class="btn btn-success"
+										target="_blank"
+										download>
+										Download Receipt
+									</a>
+
+								<?php elseif ($status === 'Pending'): ?>
+									<span class="text-warning fw-bold">Waiting for admin approval...</span>
+
+								<?php else: ?>
+									<button class="btn btn-primary"
+										data-bs-toggle="modal"
+										data-bs-target="#payNowModal"
+										data-total_fines="<?php echo number_format($total_fines, 2); ?>"
+										data-summary_id="<?php echo $last_fine['summary_id']; ?>"
+										data-student_id="<?php echo $last_fine['student_id']; ?>"
+										data-organizer="<?php echo htmlspecialchars($last_fine['organizer'], ENT_QUOTES); ?>">
+										Pay Now
+									</button>
+								<?php endif; ?>
+							</div>
+
+						</div>
 					<?php endif; ?>
-
-					</tbody>
-					</table>
-
-					<!-- Pay Now Button (Appears after each table) -->
-					<div class="bg-light mt-3 p-3 rounded d-flex justify-content-between align-items-center border">
-						<div><span class="fw-bold">Total Fines Imposed:</span><span class="fw-bold text-danger">₱<?php echo number_format(array_sum(array_column($organizer_fines, 'fines_amount')), 2); ?></span></div>
-						<div><button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#payNowModal">Pay Now</button></div>
-					</div>
 				</div>
 			</div>
 
-			<!-- Pay Now Modal -->
+			<!-- Modal -->
 			<div class="modal fade" id="payNowModal" tabindex="-1" aria-labelledby="payNowModalLabel" aria-hidden="true">
 				<div class="modal-dialog">
 					<div class="modal-content">
 						<div class="modal-header">
-							<h5 class="modal-title" id="payNowModalLabel">Pay Fines</h5>
-							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+							<h5 class="modal-title">Pay Fines</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
 						</div>
 						<div class="modal-body">
 							<form id="payFinesForm">
-								<!-- Hidden inputs for total fines and student ID -->
+								<input type="hidden" id="organizer" name="organizer">
 								<input type="hidden" id="total_fines" name="total_fines">
 								<input type="hidden" id="student_id" name="student_id" value="<?php echo $this->session->userdata('student_id'); ?>">
 
-								<!-- Payment Mode -->
 								<div class="mb-3">
-									<label for="payment_mode" class="form-label">Payment Mode</label>
-									<select class="form-control" id="payment_mode" name="mode_payment" required>
+									<label class="form-label">Payment Mode</label>
+									<select class="form-control" name="mode_payment" required>
 										<option value="Online Payment" selected>Online Payment</option>
 									</select>
 								</div>
 
-								<!-- Reference Number (Student) -->
 								<div class="mb-3">
-									<label for="reference_number_students" class="form-label">Student Reference Number</label>
-									<input type="text" class="form-control" id="reference_number_students" name="reference_number_students" required>
+									<label class="form-label">Student Reference Number</label>
+									<input type="text" class="form-control" name="reference_number_students" required>
 								</div>
 
-								<!-- Upload Receipt -->
 								<div class="mb-3">
-									<label for="receipt" class="form-label">Upload Receipt</label>
-									<input type="file" class="form-control" id="receipt" name="receipt" accept="image/*">
+									<label class="form-label">Upload Receipt</label>
+									<input type="file" class="form-control" name="receipt" accept="image/*">
 								</div>
 
-								<!-- Submit Button -->
 								<button type="submit" class="btn btn-primary w-100">Submit Payment</button>
 							</form>
 						</div>
@@ -158,23 +184,20 @@
 				</div>
 			</div>
 
+			<!-- Script -->
 			<script>
-				// When the modal is about to be shown, set the total_fines value dynamically
 				$('#payNowModal').on('show.bs.modal', function(event) {
-					var button = $(event.relatedTarget); // Button that triggered the modal
-					var totalFines = button.data('total_fines'); // Extract total fines from data attribute
-
-					// Set the total fines value in the hidden input
-					$('#total_fines').val(totalFines);
+					var button = $(event.relatedTarget);
+					$('#total_fines').val(button.attr('data-total_fines'));
+					$('#student_id').val(button.attr('data-student_id'));
+					$('#organizer').val(button.attr('data-organizer'));
 				});
 
-				// Handle form submission using AJAX
 				$('#payFinesForm').submit(function(event) {
 					event.preventDefault();
 
-					// Send the form data to the server using AJAX
 					$.ajax({
-						url: "<?php echo site_url('StudentController/pay_fines'); ?>", // Adjust the URL to your controller method
+						url: "<?php echo site_url('StudentController/pay_fines'); ?>",
 						type: "POST",
 						data: new FormData(this),
 						processData: false,
@@ -188,12 +211,12 @@
 									icon: 'success',
 									confirmButtonText: 'OK'
 								}).then(function() {
-									location.reload(); // Reloads the page
+									location.reload();
 								});
 							} else {
 								Swal.fire({
 									title: 'Payment Failed!',
-									text: 'Please try again.',
+									text: data.message || 'Please try again.',
 									icon: 'error',
 									confirmButtonText: 'OK'
 								});
@@ -209,12 +232,10 @@
 						}
 					});
 				});
-
-				// Modal for Filter
-				$('#filterModal').on('show.bs.modal', function() {
-					// You can apply additional logic for filters here if needed
-				});
 			</script>
+
+
+
 		</div>
 	</div>
 </div>

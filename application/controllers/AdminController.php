@@ -1883,28 +1883,159 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
+
+	//FINES PAYMENTS CONFIRMATION
 	public function confirm_payment()
 	{
 		$student_id = $this->input->post('student_id');
 		$total_fines = $this->input->post('total_fines');
 		$mode_of_payment = $this->input->post('mode_of_payment');
-		$reference_number = $this->input->post('reference_number');
+		$reference_number = trim($this->input->post('reference_number'));
 
-		// Check if the reference number matches the expected one
-		$match = $this->admin->verify_reference($student_id, $reference_number);
+		$record = $this->admin->get_fine_summary($student_id);
 
-		// Update status depending on whether it matched
-		$this->admin->update_payment_status($student_id, $reference_number, $mode_of_payment);
+		if (!$record) {
+			echo json_encode(['status' => 'error', 'message' => 'No fines summary found.']);
+			return;
+		}
 
-		if ($match) {
-			echo json_encode(['status' => 'success', 'message' => 'Payment confirmed.']);
-		} else {
-			echo json_encode([
-				'status' => 'processing',
-				'message' => 'Contact the student. Reference doesn\'t match. Payment is on hold.'
+		if ($reference_number !== $record->reference_number_students) {
+			$this->admin->update_fines_summary($student_id, [
+				'reference_number_admin' => $reference_number,
+				'fines_status' => 'Pending',
+				'mode_payment' => $mode_of_payment,
+				'last_updated' => date('Y-m-d H:i:s')
 			]);
+
+			echo json_encode(['status' => 'warning', 'message' => 'Reference mismatch. Payment on hold.']);
+			return;
+		}
+
+		$updated = $this->admin->update_fines_summary_receipt($student_id, [
+			'reference_number_admin' => $reference_number,
+			'fines_status' => 'Paid',
+			'mode_payment' => $mode_of_payment,
+			'last_updated' => date('Y-m-d H:i:s')
+		]);
+
+		if ($updated) {
+			$summary_id = $record->summary_id;
+			$this->generate_and_store_fine_receipt($summary_id);
+
+			echo json_encode(['status' => 'success', 'message' => 'Payment verified and receipt generated.']);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => 'Update failed.']);
 		}
 	}
+
+	public function generate_and_store_fine_receipt($summary_id)
+	{
+		$this->load->model('Student_model');
+		require_once(APPPATH . 'third_party/fpdf.php');
+
+		// Get all fines for the summary
+		$fines_data = $this->Student_model->get_fine_summary_data($summary_id);
+		if (empty($fines_data)) return;
+
+		$receipt_data = $fines_data[0]; // general info comes from first row
+
+		$filename = 'fine_receipt_' . $summary_id . '.pdf';
+		$folder_path = FCPATH . 'uploads/fine_receipts/';
+		$filepath = $folder_path . $filename;
+
+		if (!is_dir($folder_path)) {
+			mkdir($folder_path, 0777, true);
+		}
+
+		$verification_code = strtoupper(substr(md5($summary_id . time()), 0, 8));
+
+		$pdf = new PDF();
+		$pdf->AddPage();
+		$pdf->SetAutoPageBreak(true, 10);
+
+		$logoPath = FCPATH . 'application/third_party/receiptlogo.png';
+		if (file_exists($logoPath)) {
+			$pdf->Image($logoPath, 35, 70, 140, 100, 'PNG');
+		}
+
+		$pdf->SetFont('Arial', 'B', 16);
+		$pdf->Cell(0, 10, 'FINE PAYMENT RECEIPT', 0, 1, 'C');
+		$pdf->Ln(5);
+
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell(50, 8, 'Receipt No:', 0, 0, 'L');
+		$pdf->Cell(0, 8, strtoupper($summary_id), 0, 1, 'L');
+		$pdf->Cell(50, 8, 'Date:', 0, 0, 'L');
+		$pdf->Cell(0, 8, date('F j, Y'), 0, 1, 'L');
+		$pdf->Ln(5);
+
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell(50, 8, 'Student ID:', 0, 0, 'L');
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell(0, 8, $receipt_data['student_id'], 0, 1, 'L');
+
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell(50, 8, 'Student Name:', 0, 0, 'L');
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell(0, 8, $receipt_data['first_name'] . ' ' . $receipt_data['last_name'], 0, 1, 'L');
+
+		// Organizer as source
+		$pdf->Ln(3);
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell(50, 8, 'Source of Fines:', 0, 0, 'L');
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell(0, 8, $receipt_data['organizer'], 0, 1, 'L');
+
+		$pdf->Ln(5);
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell(120, 8, 'Description (Activity Title)', 1, 0, 'C');
+		$pdf->Cell(40, 8, 'Amount (PHP)', 1, 1, 'C');
+
+		$pdf->SetFont('Arial', '', 10);
+		$total = 0;
+		foreach ($fines_data as $fine) {
+			$desc = $fine['fines_reason'] . ' (' . $fine['activity_title'] . ')';
+			$amount = number_format($fine['fines_amount'], 2);
+			$pdf->Cell(120, 8, $desc, 1, 0, 'L');
+			$pdf->Cell(40, 8, $amount, 1, 1, 'R');
+			$total += $fine['fines_amount'];
+		}
+
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell(120, 8, 'Total Amount:', 1, 0, 'R');
+		$pdf->Cell(40, 8, 'P ' . number_format($total, 2), 1, 1, 'C');
+
+		$pdf->Ln(5);
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell(50, 8, 'Payment Type:', 0, 0, 'L');
+		$pdf->Cell(0, 8, $receipt_data['mode_payment'], 0, 1, 'L');
+
+		$pdf->Ln(15);
+		$pdf->SetFont('Arial', 'B', 12);
+		$pdf->Cell(0, 8, 'Verification Code:', 0, 1, 'C');
+		$pdf->SetFont('Arial', 'B', 16);
+		$pdf->Cell(0, 10, $verification_code, 0, 1, 'C');
+
+		$pdf->Ln(10);
+		$pdf->SetFont('Arial', 'I', 8);
+		$pdf->Cell(0, 8, 'Use this code on the receipt verification page to validate.', 0, 1, 'C');
+
+		$pdf->Output($filepath, 'F');
+
+		// ✅ Update the `fines_summary` table
+		$this->db->where('summary_id', $summary_id);
+		$this->db->update('fines_summary', [
+			'generated_receipt' => $filename,
+			'last_updated' => date('Y-m-d H:i:s')
+		]);
+	}
+
+
+
+
+
+
+
 
 	public function update_status()
 	{
