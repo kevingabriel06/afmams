@@ -1133,6 +1133,102 @@ class Student_model extends CI_Model
 	//FOR CHECKING THE NUMBERS WHO CLICKED THE ATTEND BUTTON END
 
 
+	//SUMMARY OF FINES START
+
+
+	//GET LIST OF FINES
+	public function get_fines_with_activity()
+	{
+		$this->db->select('fines.*, activity.activity_title, activity.organizer, activity.start_date');
+		$this->db->from('fines');
+		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+		$query = $this->db->get();
+		return $query->result_array();
+	}
+
+
+
+	//PAY FINES
+
+	// Update fine status (mark as paid)
+	public function update_fine_status($student_id, $status)
+	{
+		$this->db->set('status', $status);
+		$this->db->where('student_id', $student_id);
+		$this->db->update('fines');
+	}
+
+	// Insert data into fines_summary table
+	public function insert_fines_summary($data)
+	{
+		return $this->db->insert('fines_summary', $data);
+	}
+
+	// Function to handle file upload (receipt)
+	public function do_upload_receipt()
+	{
+		if (isset($_FILES['receipt']) && $_FILES['receipt']['error'] == 0) {
+			$config['upload_path'] = './uploads/receipts/';
+			$config['allowed_types'] = 'jpg|png|jpeg|gif';
+			$config['max_size'] = 2048; // 2MB max size
+
+			$this->load->library('upload', $config);
+
+			if ($this->upload->do_upload('receipt')) {
+				$upload_data = $this->upload->data();
+				return $upload_data['file_name']; // Return the uploaded file name
+			} else {
+				return null; // Return null if the upload failed
+			}
+		}
+		return null; // Return null if no file was uploaded
+	}
+
+	// Fetch fines summary by student (optional, for viewing their payment history)
+	public function get_fines_and_summary($student_id)
+	{
+		// Select fines and related activity data, including the organizer
+		$this->db->select('fines.*, activity.activity_title, activity.organizer, activity.start_date');
+		$this->db->from('fines');
+		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+		$this->db->join('fines_summary', 'fines_summary.fines_id = fines.fines_id');  // Link fines with fines_summary
+		$this->db->where('fines_summary.student_id', $student_id);  // Filter by student_id
+		$this->db->group_by('activity.organizer');  // Group by organizer to get all fines of the same organizer
+		$query = $this->db->get();
+		return $query->result_array();  // Return results
+	}
+
+
+
+	//FINES RECEIPT
+
+	// Method to fetch fines data by fines_id
+	// Method to fetch fines data by fines_id
+	// Method to fetch fines data by fines_id
+	public function get_fines_data_by_id($fines_id)
+	{
+		$this->db->select('fines_summary.*, users.first_name, users.last_name, activity.activity_title'); // Correct column name here
+		$this->db->from('fines_summary');
+		$this->db->join('users', 'users.student_id = fines_summary.student_id');
+		$this->db->join('fines', 'fines.fines_id = fines_summary.fines_id'); // Join with the fines table
+		$this->db->join('activity', 'activity.activity_id = fines.activity_id'); // Join with the activity table
+		$this->db->where('fines_summary.fines_id', $fines_id);
+
+		$query = $this->db->get();
+
+		if ($query->num_rows() > 0) {
+			return $query->row_array(); // Return the first result as an associative array
+		} else {
+			return null; // No result found
+		}
+	}
+
+
+
+
+
+	//SUMMARY OF FINES END
+
 
 	//REGISTRATION RECEIPTS START
 
