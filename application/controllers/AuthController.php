@@ -33,28 +33,40 @@ class AuthController extends CI_Controller
             // Use the LoginModel to authenticate the user
             $user = $this->auth->login($student_id, $password);
 
-            if ($user->role == 'Admin') {
-                $this->session->set_userdata([
-                    'student_id' => $user->student_id,
-                    'role' => $user->role
-                ]);
-                redirect('admin/dashboard'); // Redirect to the admin dashboard
+            if ($user) {
+                if ($user->role == 'Admin') {
+                    $this->session->set_userdata([
+                        'student_id' => $user->student_id,
+                        'role' => $user->role
+                    ]);
+                    redirect('admin/dashboard');
+                } elseif ($user->role == 'Student') {
+                    $this->session->set_userdata([
+                        'student_id' => $user->student_id,
+                        'role' => $user->role
+                    ]);
+                    redirect('student/home');
+                } else {
+                    // Check if officer with department and admin privileges
+                    $officer = $this->auth->get_user_by_student($student_id);
 
-            } else if ($user->role == 'Student') {
-                $this->session->set_userdata([
-                    'student_id' => $user->student_id,
-                    'role' => $user->role
-                ]);
-                redirect('student/home/'); // Redirect to the admin dashboard
-
-            } else if ($user->role == 'Officer') {
-                $this->session->set_userdata([
-                    'student_id' => $user->student_id,
-                    'role' => $user->role
-                ]);
-                redirect('admin/dashboard'); // Redirect to the admin dashboard
+                    if ($officer && $officer->is_officer_dept === 'Yes' && $officer->is_admin === 'Yes') {
+                        $this->session->set_userdata([
+                            'student_id' => $officer->student_id,
+                            'role' => 'Officer',
+                            'is_officer_dept' => '$officer->is_officer_dept',
+                            'is_admin' => $officer->is_admin,
+                            'dept_name' => $officer->dept_name
+                        ]);
+                        redirect('officer/dashboard');
+                    } else {
+                        // If user doesn't match any role or officer condition
+                        $this->session->set_flashdata('error', 'Unauthorized access.');
+                        redirect('login');
+                    }
+                }
             } else {
-                // Handle login failure
+                // Handle login failure (invalid credentials)
                 $this->session->set_flashdata('error', 'Invalid Student ID or Password');
                 redirect('login');
             }

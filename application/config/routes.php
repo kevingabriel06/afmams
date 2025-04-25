@@ -49,8 +49,14 @@ defined('BASEPATH') or exit('No direct script access allowed');
 | Examples:	my-controller/index	-> my_controller/index
 |		my-controller/my-method	-> my_controller/my_method
 */
+
+$route['404_override'] = '';
+$route['translate_uri_dashes'] = FALSE;
+
+$route['default_controller'] = 'Welcome/index';
+
+
 //AUTH ROUTES
-$route['default_controller'] = 'AuthController/login';
 $route['login'] = 'AuthController/login';
 $route['logout'] = 'AuthController/logout';
 
@@ -108,9 +114,6 @@ $route['student/profile/update_password'] = 'StudentController/update_password';
 $route['student/receipts'] = 'StudentController/receipts_page';
 
 $route['about'] = 'StudentController/about_page';
-
-$route['404_override'] = '';
-$route['translate_uri_dashes'] = FALSE;
 
 //ADMIN ROUTES
 $route['admin/dashboard'] = 'AdminController/admin_dashboard';
@@ -193,3 +196,89 @@ $route['admin/manage-officers-organization/update_status']['post'] = 'AdminContr
 $route['admin/general-settings'] = 'AdminController/general_settings';
 $route['admin/import-students'] = 'AdminController/import_list';
 $route['admin/generate_bulk_qr'] = 'AdminController/generate_bulk_qr';
+
+$route['admin/about'] = 'AdminController/about';
+
+// OFFICER ROUTES
+$route['officer/dashboard'] = 'OfficerController/officer_dashboard';
+
+// ATTENDANCE MONITORING
+$route['officer/list-activities-attendance'] = 'OfficerController/list_activities_attendance';
+$route['officer/list-attendees/(:num)'] = 'OfficerController/list_attendees/$1';
+// ~ TAKING OF ATTENDANCE~
+$route['officer/activity/scan-qr/time-in/(:num)'] = 'OfficerController/time_in/$1';
+$route['officer/activity/scan-qr/time-out/(:num)'] = 'OfficerController/time_out/$1';
+$route['officer/activity/face-recognition/(:num)'] = 'OfficerController/face_recognition/$1';
+$route['officer/attendance/get-faces'] = 'OfficerController/getFaces';
+$route['officer/attendance/detect_timein'] = 'OfficerController/scanUnified_timein';
+$route['officer/attendance/detect_timeout'] = 'OfficerController/scanUnified_timeout';
+
+
+//FINES MONITORING
+// $route['admin/list-activities-fines'] = 'AdminController/list_activities_fines';
+// $route['admin/list-department-fines/(:num)'] = 'AdminController/list_department_fines/$1';
+//$route['admin/list-fines/(:num)/(:num)'] = 'AdminController/list_fines/$1/$2';
+$route['officer/list-fines'] = 'OfficerController/list_fines';
+$route['officer/fines-payment/confirm'] = 'OfficerController/confirm_payment';
+$route['officer/fines/update_status']['post'] = 'OfficerController/update_status';
+
+
+//<======= CREATION ACTIVITY ======>
+$route['officer/create-activity'] = 'OfficerController/create_activity'; // VIEW CREATE ACTIVITY PAGE
+$route['officer/create-activity/add']['post'] = 'OfficerController/save_activity'; // SAVING ACTIVITY TO DATABASE
+$route['officer/edit-activity/(:num)'] = 'OfficerController/edit_activity/$1'; // VIEW EDIT ACTIVITY PAGE
+$route['officer/edit-activity/update/(:num)'] = 'OfficerController/update_activity/$1'; // UPDATING ACTIVITY TO DATABASE
+$route['officer/delete-schedule/(:num)'] = 'OfficerController/delete_schedule/$1';
+$route['officer/list-of-activity'] = 'OfficerController/list_activity'; // List of activity
+$route['officer/activity-details/(:num)'] = 'OfficerController/activity_details/$1'; // Activity Details
+$route['officer/activity-details/activity-share']['post'] = 'OfficerController/share_activity'; // Sharing activity to community
+$route['officer/unshare-activity'] = 'OfficerController/unshare_activity'; //UNSHARE ACTIVITY
+$route['officer/activity/registration'] = 'OfficerController/validate_registrations';
+$route['officer/cash-payment/submit'] = 'OfficerController/save_cash_payment';
+
+$route['officer/list-activity-evaluation'] = 'OfficerController/list_activity_evaluation';
+$route['officer/create-evaluation-form'] = 'OfficerController/create_evaluationform';
+$route['officer/create-evaluation-form/create']['post'] = 'OfficerController/create_eval';
+$route['officer/edit-evaluation-form/(:num)'] = 'OfficerController/edit_evaluationform/$1';
+$route['officer/edit-evaluation-form/update/(:num)'] = 'OfficerController/update_eval/$1';
+$route['officer/view-evaluation-form/(:num)'] = 'OfficerController/view_evaluationform/$1';
+$route['officer/list-evaluation-responses/(:num)'] = 'OfficerController/list_evaluation_responses/$1';
+$route['officer/evaluation-statistic/(:num)'] = 'OfficerController/evaluation_statistic/$1';
+
+// <==== EXCUSE APPLICATION ======>
+$route['officer/activity-list'] = 'OfficerController/list_activity_excuse'; // List of activity
+$route['officer/list-of-excuse-letter/(:num)'] = 'OfficerController/list_excuse_letter/$1'; // List of Excuse Application per Activity
+$route['officer/review-excuse-letter/(:num)'] = 'OfficerController/review_excuse_letter/$1'; // Excuse Application
+$route['officer/review-excuse-letter/update']['POST'] = 'OfficerController/updateApprovalStatus'; // Remarks of the application
+
+// <===== COMMUNITY SECTION =======>
+$route['officer/community'] = 'OfficerController/community';
+//$route['admin/community/posts']['post'] = 'v/fetch_more_posts';
+$route['officer/community/like-post/(:num)'] = 'OfficerController/like_post/$1'; // Route for liking a post
+$route['officer/view_likes/(:num)'] = 'OfficerController/view_likes/$1'; // Route for the viewing of user who like the post
+$route['officer/community/unlike-post/(:num)'] = 'OfficerController/unlike_post/$1'; // Route for unliking a post
+$route['officer/community/add-comment']['post'] = 'OfficerController/add_comment'; // Route for adding of comment
+$route['officer/community/add-post']['post'] = 'OfficerController/add_post'; // Route for adding of post
+$route['officer/community/share-activity']['post'] = 'OfficerController/share'; // Route for sharing activity
+$route['officer/community/delete-post']['post'] = 'OfficerController/delete_post'; // Route for deleting post
+
+// PROFILE SETTINGS ========>
+//PROFILE UPDATES
+$route['officer/profile-settings'] = 'OfficerController/profile_settings';
+$route['officer/profile/update-profile-pic'] = 'OfficerController/update_profile_pic';
+$route['officer/profile/update-profile'] = 'OfficerController/update_profile';
+$route['officer/profile/update_password'] = 'OfficerController/update_password';
+$route['officer/profile/get_qr_code_by_student'] = 'OfficerController/get_qr_code_by_student';
+
+
+$route['officer/manage-officers'] = 'OfficerController/manage_officers';
+$route['officer/manage-officers-department/(:num)'] = 'OfficerController/list_officers_dept/$1';
+$route['officer/manage-officers-department/update_privileges']['post'] = 'OfficerController/update_privileges';
+$route['officer/manage-officers-organization/(:num)'] = 'OfficerController/list_officers_org/$1';
+$route['officer/manage-officers-organization/update_status']['post'] = 'OfficerController/update_status_org';
+
+$route['officer/general-settings'] = 'OfficerController/general_settings';
+$route['officer/import-students'] = 'OfficerController/import_list';
+$route['officer/generate_bulk_qr'] = 'OfficerController/generate_bulk_qr';
+
+$route['officer/about'] = 'OfficerController/about';

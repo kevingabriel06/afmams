@@ -1,25 +1,27 @@
 <?php
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 /**
  * Class Auth
  * @property LoginModel $LoginModel
  * @property CI_Input $input
  * @property CI_Session $session
  */
-class DashboardController extends CI_Controller {
-    public function __construct() {
+class DashboardController extends CI_Controller
+{
+    public function __construct()
+    {
         parent::__construct();
         $this->load->library('session'); // Load the session library
         $this->load->helper('url'); // Load the URL helper
-        
-       // Ensure the user is logged in, otherwise redirect to login
-	   if (!$this->session->userdata('student_id')) {
-		redirect('login'); // Redirect to login if not logged in
-	}
-	
+
+        // Ensure the user is logged in, otherwise redirect to login
+        if (!$this->session->userdata('student_id')) {
+            redirect('login'); // Redirect to login if not logged in
+        }
     }
 
-    public function index() {
+    public function index()
+    {
         // Get role and student_id (to use for redirection)
         $role = $this->session->userdata('role');
         $student_id = $this->session->userdata('student_id'); // Student ID (for all roles)
@@ -37,7 +39,4 @@ class DashboardController extends CI_Controller {
             redirect('login');
         }
     }
-
-
-	
 }

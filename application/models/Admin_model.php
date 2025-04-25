@@ -149,6 +149,17 @@ class Admin_model extends CI_Model
 	//     thi
 	// }
 
+	public function get_total_fines()
+	{
+		$this->db->select('SUM(fines.fines_amount) as total_fines');
+		$this->db->from('fines');
+		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+		$this->db->where('activity.organizer', 'Student Parliament');
+
+		$query = $this->db->get();
+		return $query->row(); // Returns the result as a single row object
+	}
+
 	// CREATING ACTIVITY
 	public function get_department()
 	{

@@ -138,6 +138,64 @@
               </ul>
             </div>
           </div>
+        <?php elseif ($users['role'] == 'Officer') : ?>
+          <div class="collapse navbar-collapse" id="navbarVerticalCollapse">
+            <div class="navbar-vertical-content scrollbar">
+              <ul class="navbar-nav flex-column mb-3" id="navbarVerticalNav">
+
+                <!-- dashboard -->
+                <a class="nav-link" href="<?php echo site_url('officer/dashboard') ?>" role="button">
+                  <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-chart-pie"></span></span><span class="nav-link-text ps-1">Dashboard</span></div>
+                </a>
+
+                <!-- menu options -->
+                <li class="nav-item"><!-- label-->
+                  <div class="row navbar-vertical-label-wrapper mt-3 mb-2">
+                    <div class="col-auto navbar-vertical-label">Menu</div>
+                    <div class="col ps-0">
+                      <hr class="mb-0 navbar-vertical-divider" />
+                    </div>
+                  </div><!-- Attendance pages-->
+                  <a class="nav-link" href="<?php echo site_url('officer/list-activities-attendance'); ?>" role="button">
+                    <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-calendar-alt"></span></span><span class="nav-link-text ps-1">Attendance</span></div>
+                  </a><!-- Fines pages-->
+                  <a class="nav-link" href="<?php echo site_url('officer/list-fines') ?>" role="button">
+                    <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-coins"></span></span><span class="nav-link-text ps-1">Fines</span></div>
+                  </a>
+                  <!-- Activity management pages-->
+                  <a class="nav-link dropdown-indicator" href="#email" role="button" data-bs-toggle="collapse" aria-expanded="false" aria-controls="">
+                    <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fab fa-buromobelexperte"></span></span><span class="nav-link-text ps-1">Activity</span></div>
+                  </a>
+                  <ul class="nav collapse" id="email">
+                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('officer/create-activity'); ?>">
+                        <div class="d-flex align-items-center"><span class="nav-link-text ps-1">Create an Activity</span></div>
+                      </a><!-- more inner pages--></li>
+                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('officer/list-of-activity'); ?>">
+                        <div class="d-flex align-items-center"><span class="nav-link-text ps-1">List of Activity</span></div>
+                      </a><!-- more inner pages--></li>
+                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('officer/list-activity-evaluation'); ?>">
+                        <div class="d-flex align-items-center"><span class="nav-link-text ps-1">List of Evaluation Form</span></div>
+                      </a><!-- more inner pages--></li>
+                    <li class="nav-item"><a class="nav-link" href="<?php echo site_url('officer/activity-list'); ?>">
+                        <div class="d-flex align-items-center"><span class="nav-link-text ps-1">List of Excuse Letter</span></div>
+                      </a><!-- more inner pages--></li>
+                  </ul><!-- parent pages-->
+                </li>
+
+                <!-- community page -->
+                <a class="nav-link" href="<?php echo site_url('officer/community'); ?>" role="button">
+                  <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-comments"></span></span><span class="nav-link-text ps-1">Community</span></div>
+                </a>
+
+                <!-- about page -->
+                <a class="nav-link" href="<?php echo site_url('officer/about'); ?>" role="button">
+                  <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-info-circle"></span></span><span class="nav-link-text ps-1">About</span></div>
+                </a>
+
+              </ul>
+
+            </div>
+          </div>
         <?php else : ?>
           <!-- admin -->
           <div class="collapse navbar-collapse" id="navbarVerticalCollapse">
@@ -189,7 +247,7 @@
                 </a>
 
                 <!-- about page -->
-                <a class="nav-link" href="../app/calendar.html" role="button">
+                <a class="nav-link" href="<?php echo site_url('admin/about'); ?>" role="button">
                   <div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-info-circle"></span></span><span class="nav-link-text ps-1">About</span></div>
                 </a>
 

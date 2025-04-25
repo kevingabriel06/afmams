@@ -94,6 +94,9 @@ class AdminController extends CI_Controller
 		// ACTIVITY ORGANIZED
 		$data['activity_count'] = $this->admin->get_current_semester_count_organized();
 
+		// TOTAL FINES
+		$data['fines'] = $this->admin->get_total_fines();
+
 
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/dashboard', $data);
@@ -1982,9 +1985,6 @@ class AdminController extends CI_Controller
 	}
 
 
-
-
-
 	//CONNECTING ATTENDANCE AND FINES
 	public function update_fines() {}
 
@@ -2150,11 +2150,6 @@ class AdminController extends CI_Controller
 			'last_updated' => date('Y-m-d H:i:s')
 		]);
 	}
-
-
-
-
-
 
 
 
@@ -2637,6 +2632,20 @@ class AdminController extends CI_Controller
 		echo json_encode(['status' => 'success', 'count' => $count]);
 	}
 
+	public function about()
+	{
+		$data['title'] = 'About';
+
+		$student_id = $this->session->userdata('student_id');
+
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->admin->get_student($student_id);
+
+
+		$this->load->view('layout/header', $data);
+		$this->load->view('admin/about', $data);
+		$this->load->view('layout/footer', $data);
+	}
 
 
 

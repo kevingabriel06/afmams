@@ -4,7 +4,7 @@
     <div class="col-sm-auto d-flex align-items-center"><img class="ms-n2" src="<?php echo base_url('assets/img/illustrations/crm-bar-chart.png'); ?>" alt="" width="90" />
       <div>
         <h6 class="text-primary fs-10 mb-0">Welcome <?php echo $users['first_name']; ?> to </h6>
-        <h4 class="text-primary fw-bold mb-0">ADMIN <span class="text-info fw-medium">Account</span></h4>
+        <h4 class="text-primary fw-bold mb-0">OFFICER <span class="text-info fw-medium">Account</span></h4>
       </div><img class="ms-n4 d-md-none d-lg-block" src="<?php echo site_url('assets/img/illustrations/crm-line-chart.png'); ?>" alt="" width="150" />
     </div>
   </div>

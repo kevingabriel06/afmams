@@ -29,4 +29,13 @@ class Auth_model extends CI_Model
         }
         return false; // Return false if user not found or role mismatch
     }
+
+    public function get_user_by_student($student_id)
+    {
+        $this->db->select('users.*, department.dept_name');
+        $this->db->from('users');
+        $this->db->join('department', 'department.dept_id = users.dept_id', 'left');
+        $this->db->where('users.student_id', $student_id);
+        return $this->db->get()->row(); // returns single user
+    }
 }
