@@ -1,7 +1,3 @@
-<!-- jQuery -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-
 <!-- Updated Card with Button Triggers -->
 <div class="card mb-3">
 	<div class="card-header bg-light">
@@ -17,8 +13,8 @@
 							<span class="fs-4 text-primary"><i class="fas fa-file-import"></i></span>
 						</div>
 						<div>
-							<h6 class="mb-1">Importing of List</h6>
-							<p class="mb-0 text-muted small">Upload bulk data like students or activities using CSV or Excel files.</p>
+							<h6 class="mb-1">Importing of Students</h6>
+							<p class="mb-0 text-muted small">Upload bulk data of students using CSV or Excel files.</p>
 						</div>
 					</div>
 					<div class="d-flex justify-content-end align-items-center gap-2 mt-3">
@@ -32,7 +28,30 @@
 				</div>
 			</div>
 
-			<!-- QR Code Generator -->
+			<!-- Importing of Officers -->
+			<div class="col-md-6">
+				<div class="border rounded p-3 h-100 d-flex flex-column justify-content-between">
+					<div class="d-flex">
+						<div class="me-3">
+							<span class="fs-4 text-primary"><i class="fas fa-file-import"></i></span>
+						</div>
+						<div>
+							<h6 class="mb-1">Importing of Officer</h6>
+							<p class="mb-0 text-muted small">Upload bulk data of officers using CSV or Excel files.</p>
+						</div>
+					</div>
+					<div class="d-flex justify-content-end align-items-center gap-2 mt-3">
+						<a href="<?= base_url('assets/templates/Template-ImportingStudents.xlsx') ?>" class="btn btn-sm btn-outline-secondary" download>
+							Download Template
+						</a>
+						<button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModal">
+							Open
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<!-- QR Code Generator Section -->
 			<div class="col-md-6">
 				<div class="border rounded p-3 h-100 d-flex justify-content-between align-items-start">
 					<div class="d-flex">
@@ -41,12 +60,99 @@
 						</div>
 						<div>
 							<h6 class="mb-1">QR Code Generation</h6>
-							<p class="mb-0 text-muted small">Automatically generate QR codes for users, events, or reports.</p>
+							<p class="mb-0 text-muted small">Automatically generate QR codes for students who don't have one yet.</p>
 						</div>
 					</div>
-					<button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#qrModal">Open</button>
+					<button class="btn btn-sm btn-outline-info" id="openQRModal" data-bs-toggle="modal" data-bs-target="#qrModal">Open</button>
 				</div>
 			</div>
+
+			<!-- QR Modal -->
+			<div class="modal fade" id="qrModal" tabindex="-1" aria-labelledby="qrModalLabel" aria-hidden="true">
+				<div class="modal-dialog modal-dialog-centered">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h5 class="modal-title" id="qrModalLabel">Generate QR Codes</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						</div>
+						<div class="modal-body">
+							<p>This will generate and assign QR codes for all students without one.</p>
+							<div class="text-end">
+								<button class="btn btn-info" id="generateAllQrBtn">Generate All</button>
+							</div>
+							<div class="mt-3" id="qrStatus" style="display:none;">
+								<p class="text-success mb-0">QR codes generated: <span id="qrCount"></span></p>
+							</div>
+							<!-- Container for displaying generated QR codes -->
+							<div id="qrPreview" class="d-flex flex-wrap justify-content-center mt-3">
+								<!-- QR Code images will be inserted here -->
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<script>
+				document.getElementById('generateAllQrBtn').addEventListener('click', function() {
+					// Use SweetAlert for confirmation instead of the native confirm
+					Swal.fire({
+						title: 'Are you sure?',
+						text: "Generate QR codes for all students who don't have one yet?",
+						icon: 'warning',
+						showCancelButton: true,
+						confirmButtonText: 'Yes, generate!',
+						cancelButtonText: 'Cancel'
+					}).then((result) => {
+						// If the user confirmed the action
+						if (result.isConfirmed) {
+							// Show the SweetAlert loading spinner
+							Swal.fire({
+								title: 'Generating QR Codes...',
+								html: 'Please wait while the QR codes are being generated.',
+								timerProgressBar: true,
+								didOpen: () => {
+									Swal.showLoading();
+								},
+								allowOutsideClick: false, // Prevent closing the modal by clicking outside
+								allowEscapeKey: false // Prevent closing the modal by pressing ESC
+							});
+
+							// Send the request to generate the QR codes
+							fetch('<?php echo site_url("admin/generate_bulk_qr"); ?>', {
+									method: 'POST'
+								})
+								.then(res => res.json())
+								.then(data => {
+									// Close the SweetAlert modal once the request is completed
+									Swal.close();
+
+									// Handle the success response
+									if (data.status === 'success') {
+										document.getElementById('qrStatus').style.display = 'block';
+										document.getElementById('qrCount').textContent = data.count;
+									} else {
+										Swal.fire({
+											icon: 'error',
+											title: 'Failed to generate QR codes',
+											text: 'Something went wrong while generating QR codes.'
+										});
+									}
+								})
+								.catch(err => {
+									// Close the SweetAlert modal if an error occurs
+									Swal.close();
+
+									console.error(err);
+									Swal.fire({
+										icon: 'error',
+										title: 'An error occurred',
+										text: 'Please try again later.'
+									});
+								});
+						}
+					});
+				});
+			</script>
 
 			<!-- Header and Footer -->
 			<div class="col-md-6">

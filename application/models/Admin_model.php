@@ -294,8 +294,6 @@ class Admin_model extends CI_Model
 		return $result->total; // Return the count
 	}
 
-
-
 	//registration receipt
 	public function get_registration_id($student_id, $activity_id)
 	{
@@ -333,7 +331,6 @@ class Admin_model extends CI_Model
 		$this->db->insert('activity_time_slots', $schedule_data);
 		return $this->db->affected_rows() > 0; // Returns true if inserted, false otherwise
 	}
-
 
 	// EVALUATION FORM 
 
@@ -427,7 +424,6 @@ class Admin_model extends CI_Model
 			return []; // Return empty array if no results found
 		}
 	}
-
 
 	public function forms($form_id)
 	{
@@ -1202,6 +1198,7 @@ class Admin_model extends CI_Model
 	}
 
 
+	//
 
 
 
@@ -1574,6 +1571,22 @@ class Admin_model extends CI_Model
 		return $this->db->affected_rows() > 0;
 	}
 
+	public function get_qr_code_by_student_id($student_id)
+	{
+		$student_id = $this->session->userdata('student_id');
+
+		$this->db->select('qr_image');
+		$this->db->from('users');
+		$this->db->where('student_id', $student_id);
+		$query = $this->db->get();
+
+		if ($query->num_rows() > 0) {
+			return $query->row()->qr_image;
+		}
+
+		return null;  // QR code not found
+	}
+
 
 	// GENERAL SETTINGS
 	protected $table = 'users'; // Your database table name
@@ -1831,5 +1844,33 @@ class Admin_model extends CI_Model
 	public function get_student_attendance($student_id)
 	{
 		return $this->db->where('student_id', $student_id)->get('attendance')->row_array();
+	}
+
+
+	// GENERAL SETTINGS
+	public function get_students_without_qr()
+	{
+		return $this->db->where('qr_image IS NULL')->get('users')->result();
+	}
+
+	public function assign_qr($student_id, $qrBase64)
+	{
+		// Assuming you have a 'students' table with a 'qr_code' column
+		$this->db->where('student_id', $student_id);
+		$this->db->update('users', ['qr_image' => $qrBase64]);
+	}
+
+	public function get_qr_code($student_id)
+	{
+		$this->db->select('qr_image');
+		$this->db->from('users');
+		$this->db->where('student_id', $student_id);
+		$query = $this->db->get();
+
+		if ($query->num_rows() > 0) {
+			return $query->row()->qr_image; // Return the base64 encoded QR code
+		}
+
+		return null; // No QR code found for this student
 	}
 }
