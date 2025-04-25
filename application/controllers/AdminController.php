@@ -1980,6 +1980,8 @@ class AdminController extends CI_Controller
 		$data['timeslots'] = $this->admin->get_timeslots_by_activity($activity_id);
 		$data['departments'] = $this->admin->department_selection();
 
+		$data['activity_id'] = $activity_id; // Add this line
+
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/attendance/listofattendees', $data);
 		$this->load->view('layout/footer', $data);
@@ -2101,6 +2103,43 @@ class AdminController extends CI_Controller
 		// Output PDF
 		$pdf->Output('I', 'attendance_report.pdf');
 	}
+
+
+
+	public function view_attendance_reports($activity_id)
+	{
+
+		$data['title'] = 'Attendance Reports';
+
+		$student_id = $this->session->userdata('student_id');
+
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->admin->get_student($student_id);
+
+
+		$this->load->model('Admin_model');
+
+
+
+		$data['activity_id'] = $activity_id;
+		$data['by_department'] = $this->Admin_model->get_departments_with_attendees($activity_id);
+		$data['total_attendees'] = $this->Admin_model->get_total_attendees($activity_id);
+		$data['status_comparison'] = $this->Admin_model->get_attendance_status_counts($activity_id);
+
+
+
+		$this->load->view('layout/header', $data);
+		$this->load->view('admin/attendance/attendance-reports', $data);
+		$this->load->view('layout/footer', $data);
+	}
+
+
+
+
+
+
+
+
 
 
 
