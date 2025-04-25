@@ -181,6 +181,7 @@ $route['admin/profile-settings'] = 'AdminController/profile_settings';
 $route['admin/profile/update-profile-pic'] = 'AdminController/update_profile_pic';
 $route['admin/profile/update-profile'] = 'AdminController/update_profile';
 $route['admin/profile/update_password'] = 'AdminController/update_password';
+$route['admin/profile/get_qr_code_by_student'] = 'AdminController/get_qr_code_by_student';
 
 
 $route['admin/manage-officers'] = 'AdminController/manage_officers';
@@ -191,3 +192,4 @@ $route['admin/manage-officers-organization/update_status']['post'] = 'AdminContr
 
 $route['admin/general-settings'] = 'AdminController/general_settings';
 $route['admin/import-students'] = 'AdminController/import_list';
+$route['admin/generate_bulk_qr'] = 'AdminController/generate_bulk_qr';

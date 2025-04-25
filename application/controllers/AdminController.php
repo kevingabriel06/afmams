@@ -2066,6 +2066,27 @@ class AdminController extends CI_Controller
 		echo json_encode(['status' => 'success', 'message' => 'Password updated successfully']);
 	}
 
+	public function get_qr_code_by_student()
+	{
+		// Get student_id from session
+		if ($this->session->has_userdata('student_id')) {
+			$student_id = $this->session->userdata('student_id');
+
+			// Retrieve QR code from the database (ensure you have the correct query in place)
+			$qr_code = $this->admin->get_qr_code($student_id);
+
+			if ($qr_code) {
+				// Return the QR code as JSON (base64 string)
+				echo json_encode(['status' => 'success', 'qr_code' => $qr_code]);
+			} else {
+				// No QR code found for the student
+				echo json_encode(['status' => 'error', 'message' => 'QR Code not found for this student.']);
+			}
+		} else {
+			echo json_encode(['status' => 'error', 'message' => 'No student found in session.']);
+		}
+	}
+
 
 	// MANAGE OFFICERS AND PRIVILEGE - PAGE
 	public function manage_officers()
@@ -2336,6 +2357,33 @@ class AdminController extends CI_Controller
 	}
 
 	// GENERATING QR
+	public function generate_bulk_qr()
+	{
+		require_once(APPPATH . 'libraries/phpqrcode.php');
+
+		$students = $this->admin->get_students_without_qr(); // Get all students without QR codes
+		$count = 0;
+
+		foreach ($students as $student) {
+			$student_id = $student->student_id;
+
+			// Generate QR code image as base64
+			ob_start();
+			\QRcode::png($student_id, null, QR_ECLEVEL_L, 3);
+			$imageString = ob_get_contents();
+			ob_end_clean();
+
+			// Base64 encode the image data
+			$qrBase64 = base64_encode($imageString);
+
+			// Save to database (Ensure this method correctly saves the data)
+			$this->admin->assign_qr($student_id, $qrBase64);
+			$count++;
+		}
+
+		// Return a success response with the count of generated QR codes
+		echo json_encode(['status' => 'success', 'count' => $count]);
+	}
 
 
 
