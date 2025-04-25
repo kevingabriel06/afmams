@@ -1864,6 +1864,127 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
+
+
+	public function export_attendance_pdf($activity_id)
+	{
+		// Clean output buffer
+		ob_clean();
+
+		// Load model
+		$this->load->model('Admin_model');
+
+		// Fetch data
+		$students = $this->Admin_model->get_all_students_attendance_by_activity($activity_id);
+		$timeslots = $this->Admin_model->get_timeslots_by_activity($activity_id);
+		$activity = $this->Admin_model->get_activity_specific($activity_id);
+
+		// Setup PDF
+		$pdf = new PDF('L', 'mm', 'A4'); // Use your custom PDF class!
+		$pdf->AddPage();
+		$pdf->SetFont('Arial', 'B', 14);
+		$pdf->Cell(0, 10, 'Attendance Report - Activity: ' . ($activity ? $activity['activity_title'] : 'N/A'), 0, 1, 'C');
+		$pdf->Ln(5);
+
+		// Prepare columns
+		$header = ['Student ID', 'Name', 'Department'];
+		foreach ($timeslots as $slot) {
+			$period = strtolower($slot->slot_name);
+			$label = $period === 'morning' ? 'AM' : ($period === 'afternoon' ? 'PM' : strtoupper($period));
+			$header[] = "$label In";
+			$header[] = "$label Out";
+		}
+		$header[] = 'Status';
+
+		// Font for table
+		$pdf->SetFont('Arial', '', 10);
+
+		// Calculate maximum width for each column
+		$colWidths = [];
+		foreach ($header as $col) {
+			$colWidths[] = $pdf->GetStringWidth($col) + 6;
+		}
+
+		foreach ($students as $student) {
+			$dataRow = [
+				$student['student_id'],
+				$student['name'],
+				$student['dept_name']
+			];
+
+			foreach ($timeslots as $slot) {
+				$period = strtolower($slot->slot_name);
+				$dataRow[] = $student['in_' . $period] ?? 'No Data';
+				$dataRow[] = $student['out_' . $period] ?? 'No Data';
+			}
+
+			$dataRow[] = $student['status'];
+
+			foreach ($dataRow as $index => $cell) {
+				$cellWidth = $pdf->GetStringWidth($cell) + 6;
+				if ($cellWidth > $colWidths[$index]) {
+					$colWidths[$index] = $cellWidth;
+				}
+			}
+		}
+
+		// Normalize total width if too wide
+		$pageWidth = 297 - 20; // A4 landscape - margins
+		$totalWidth = array_sum($colWidths);
+
+		if ($totalWidth > $pageWidth) {
+			$scale = $pageWidth / $totalWidth;
+			foreach ($colWidths as $i => $w) {
+				$colWidths[$i] = $w * $scale;
+			}
+			$totalWidth = array_sum($colWidths);
+		}
+
+		// Center the table by setting X position
+		$startX = ($pageWidth - $totalWidth) / 2 + 10; // +10 for left margin
+		$pdf->SetX($startX);
+
+		// Output table header
+		$pdf->SetFont('Arial', 'B', 10);
+		foreach ($header as $i => $colName) {
+			$pdf->Cell($colWidths[$i], 10, $colName, 1, 0, 'C');
+		}
+		$pdf->Ln();
+
+		// Table rows
+		$pdf->SetFont('Arial', '', 9);
+		foreach ($students as $student) {
+			$dataRow = [
+				$student['student_id'],
+				$student['name'],
+				$student['dept_name']
+			];
+
+			foreach ($timeslots as $slot) {
+				$period = strtolower($slot->slot_name);
+				$dataRow[] = $student['in_' . $period] ?? 'No Data';
+				$dataRow[] = $student['out_' . $period] ?? 'No Data';
+			}
+
+			$dataRow[] = $student['status'];
+
+			// Reset X before each row to keep table centered
+			$pdf->SetX($startX);
+
+			foreach ($dataRow as $i => $cell) {
+				$pdf->Cell($colWidths[$i], 10, $cell, 1, 0, 'C');
+			}
+			$pdf->Ln();
+		}
+
+		// Output PDF
+		$pdf->Output('I', 'attendance_report.pdf');
+	}
+
+
+
+
+
 	//CONNECTING ATTENDANCE AND FINES
 	public function update_fines() {}
 
