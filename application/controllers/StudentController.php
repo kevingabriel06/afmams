@@ -12,7 +12,39 @@ defined('BASEPATH') or exit('No direct script access allowed');
  * @property CI_DB_query_builder $db   <-- Add this line for database
  */
 
+// Load the FPDF library from the third_party folder
+require_once(APPPATH . 'third_party/fpdf.php');
+class PDF extends FPDF
+{
+	function Header()
+	{
+		// Get the full path of the logo image
+		$logoPath = APPPATH . 'third_party/header.jpg'; // Ensure the correct path
 
+		// Get page width dynamically
+		$pageWidth = $this->GetPageWidth();
+
+		// Set the image to cover the full width (assuming A4 width is 210mm)
+		$this->Image($logoPath, 0, 0, $pageWidth, 40); // Adjust height as needed
+
+		// Move the cursor below the image to avoid overlapping
+		$this->SetY(45); // Adjust if necessary
+	}
+
+	function Footer()
+	{
+		// Get the full path of the footer image
+		$footerImage = APPPATH . 'third_party/footer.jpg';
+
+		// Get page width and height dynamically
+		$pageWidth = $this->GetPageWidth();
+		$pageHeight = $this->GetPageHeight();
+		$footerHeight = 20; // Adjust footer height as needed
+
+		// Position the footer at the exact bottom with no margin
+		$this->Image($footerImage, 0, $pageHeight - $footerHeight, $pageWidth, $footerHeight);
+	}
+}
 
 class StudentController extends CI_Controller
 {
@@ -406,8 +438,8 @@ class StudentController extends CI_Controller
 		// Fetch user data
 		$data['users'] = $this->student->get_student($student_id);
 
-		// Fetch fines with related activity data (no grouping)
-		$data['fines'] = $this->student->get_fines_with_activity();
+		// ✅ Fetch only this student's fines
+		$data['fines'] = $this->Student_model->get_fines_with_summary_and_activity($student_id);
 
 		// Load the views
 		$this->load->view('layout/header', $data);
@@ -423,165 +455,62 @@ class StudentController extends CI_Controller
 
 
 
+
+
 	//PAY SUMMARY OF FINES START
 
 	// Handle the payment submission
 	public function pay_fines()
 	{
-		$student_id = $this->session->userdata('student_id');
+		// Load required helpers/libraries if not loaded already
+		$this->load->helper(['form', 'url']);
+		$this->load->library('upload');
+
+		$student_id = $this->input->post('student_id');
 		$total_fines = $this->input->post('total_fines');
-		$reference_number_students = $this->input->post('reference_number_students');
+		$organizer = $this->input->post('organizer'); // <--- GET organizer
 		$mode_payment = $this->input->post('mode_payment');
-		$receipt = $this->do_upload_receipt(); // Handle the file upload for the receipt
+		$reference_number_students = $this->input->post('reference_number_students');
+		$receipt_filename = '';
 
-		// Get the organizer (assuming it's passed from the frontend)
-		$organizer = $this->input->post('organizer');
+		// Handle receipt upload if provided
+		if (!empty($_FILES['receipt']['name'])) {
+			$config['upload_path'] = './uploads/fine_receipts/';
+			$config['allowed_types'] = 'jpg|jpeg|png|gif';
+			$config['encrypt_name'] = TRUE;
 
-		// Insert into fines_summary table
-		$data = [
-			'student_id' => $student_id,
-			'total_fines' => $total_fines,
-			'fines_status' => 'Paid',
-			'mode_payment' => $mode_payment,
-			'reference_number_admin' => 'Admin_Ref_' . time(),
-			'reference_number_students' => 'Student_Ref_' . time(),
-			'receipt' => $receipt ? $receipt : 'No Receipt Uploaded',
-		];
-
-		// Insert into fines_summary table
-		$this->student->insert_fines_summary($data);
-
-		// Assuming fines_id is returned from inserting fines_summary or fetched from the database
-		$fines_id = $this->db->insert_id();  // Get the last inserted ID (if that's what you need)
-
-		// Now call generate_fines_receipt with the correct number of arguments
-		$this->generate_fines_receipt($student_id, $total_fines, $receipt, $fines_id);
-
-		// Respond back to the client
-		echo json_encode(['status' => 'success', 'message' => 'Payment successfully processed.']);
-		exit;
-	}
-
-
-
-	public function generate_fines_receipt($student_id, $total_fines, $receipt, $fines_id)
-	{
-		$this->load->model('Student_model');
-		require_once(APPPATH . 'third_party/fpdf.php');
-
-		// Fetch relevant data using $student_id and $fines_id (or other necessary information)
-		$receipt_data = $this->Student_model->get_fines_data_by_id($fines_id); // Fetch fines data by fines_id
-
-		if (!$receipt_data) {
-			return;
-		}
-
-		$filename = 'fines_receipt_' . $fines_id . '.pdf';
-		$folder_path = FCPATH . 'uploads/generated_receipts/';
-		$filepath = $folder_path . $filename;
-
-		if (!is_dir($folder_path)) {
-			mkdir($folder_path, 0777, true);
-		}
-
-		$verification_code = strtoupper(substr(md5($fines_id . time()), 0, 8));
-
-		$pdf = new PDF();
-		$pdf->AddPage();
-		$pdf->SetAutoPageBreak(true, 10);
-
-		$watermarkPath = FCPATH . 'application/third_party/receiptlogo.png';
-		if (file_exists($watermarkPath)) {
-			$pdf->Image($watermarkPath, 35, 70, 140, 100, 'PNG');
-		}
-
-		$pdf->SetFont('Arial', 'B', 16);
-		$pdf->Cell(0, 10, 'OFFICIAL RECEIPT', 0, 1, 'C');
-		$pdf->Ln(5);
-
-		$pdf->SetFont('Arial', '', 10);
-		$pdf->Cell(50, 8, 'Receipt No:', 0, 0, 'L');
-		$pdf->Cell(0, 8, strtoupper($fines_id), 0, 1, 'L');
-		$pdf->Cell(50, 8, 'Date:', 0, 0, 'L');
-		$pdf->Cell(0, 8, date('F j, Y'), 0, 1, 'L');
-		$pdf->Ln(5);
-
-		$pdf->SetFont('Arial', 'B', 10);
-		$pdf->Cell(50, 8, 'From:', 0, 0, 'L');
-		$pdf->SetFont('Arial', '', 10);
-		$pdf->Cell(0, 8, 'Student Parliament', 0, 1, 'L');
-
-		$pdf->SetFont('Arial', 'B', 10);
-		$pdf->Cell(50, 8, 'Received By:', 0, 0, 'L');
-		$pdf->SetFont('Arial', '', 10);
-		$pdf->Cell(0, 8, strtoupper($receipt_data['student_id'] . ' - ' . $receipt_data['first_name'] . ' ' . $receipt_data['last_name']), 0, 1, 'L');
-
-		$pdf->Ln(5);
-		$pdf->SetFont('Arial', 'B', 10);
-		$pdf->Cell(120, 8, 'Description', 1, 0, 'C');
-		$pdf->Cell(40, 8, 'Amount (PHP)', 1, 1, 'C');
-
-		$pdf->SetFont('Arial', '', 10);
-		$description = 'Payment for ' . $receipt_data['activity_title'] . ' Fines';
-		$pdf->Cell(120, 8, $description, 1, 0, 'C');
-		$pdf->Cell(40, 8, number_format($total_fines, 2), 1, 1, 'C');
-
-		$pdf->SetFont('Arial', 'B', 10);
-		$pdf->Cell(120, 8, 'Total Amount:', 1, 0, 'R');
-		$pdf->Cell(40, 8, 'P ' . number_format($total_fines, 2), 1, 1, 'C');
-
-		$pdf->Ln(5);
-		$pdf->SetFont('Arial', '', 10);
-		$pdf->Cell(50, 8, 'Payment Type:', 0, 0, 'L');
-		$pdf->Cell(0, 8, $receipt ? 'E-Payment (GCash)' : 'Cash', 0, 1, 'L');
-
-		$pdf->Ln(15);
-		$pdf->SetFont('Arial', 'B', 12);
-		$pdf->Cell(0, 8, 'Verification Code:', 0, 1, 'C');
-		$pdf->SetFont('Arial', 'B', 16);
-		$pdf->Cell(0, 10, $verification_code, 0, 1, 'C');
-
-		$pdf->Ln(10);
-		$pdf->SetFont('Arial', 'I', 8);
-		$pdf->Cell(0, 8, 'Enter this code on the receipt verification page to check validity.', 0, 1, 'C');
-
-		$pdf->Output($filepath, 'F');
-
-		// ✅ Update the `generated_receipt` and verification code in the fines table
-		$this->db->where('fines_id', $fines_id);
-		$this->db->update('fines_summary', [
-			'receipt' => $filename,
-			'last_updated' => date('Y-m-d H:i:s'),
-		]);
-	}
-
-
-
-	private function do_upload_receipt()
-	{
-		if (isset($_FILES['receipt']) && $_FILES['receipt']['error'] == 0) {
-			$config['upload_path'] = './uploads/receipts/';
-			$config['allowed_types'] = 'jpg|png|jpeg|gif';
-			$config['max_size'] = 2048; // 2MB max size
-
-			$this->load->library('upload', $config);
+			$this->upload->initialize($config);
 
 			if ($this->upload->do_upload('receipt')) {
 				$upload_data = $this->upload->data();
-				return $upload_data['file_name']; // Return the uploaded file name
-			} else {
-				return null; // Return null if the upload failed
+				$receipt_filename = $upload_data['file_name'];
 			}
 		}
-		return null; // Return null if no file was uploaded
+
+		// Prepare data to insert/update in fines_summary
+		$data = [
+			'student_id' => $student_id,
+			'organizer' => $organizer, // <--- ADD organizer here
+			'total_fines' => $total_fines,
+			'fines_status' => 'Pending',
+			'mode_payment' => $mode_payment,
+			'reference_number_students' => $reference_number_students,
+			'receipt' => $receipt_filename,
+			'last_updated' => date('Y-m-d H:i:s'),
+		];
+
+		// Insert or update summary — adjust this logic based on your needs
+		$this->db->insert('fines_summary', $data);
+
+		echo json_encode(['status' => 'success', 'message' => 'Payment recorded successfully.']);
 	}
 
 
-
-
-
-
 	//PAY SUMMARY OF FINES END
+
+
+
+
 
 	// LIST OF ACTIVITY	- PAGE
 	public function list_activity()

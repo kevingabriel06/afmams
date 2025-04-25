@@ -1135,99 +1135,118 @@ class Student_model extends CI_Model
 
 	//SUMMARY OF FINES START
 
+	// PAY FINES
 
-	//GET LIST OF FINES
-	public function get_fines_with_activity()
+
+	// Method to get the fines status of a student
+	public function get_fines_status($student_id)
 	{
-		$this->db->select('fines.*, activity.activity_title, activity.organizer, activity.start_date');
-		$this->db->from('fines');
-		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+		// Query to fetch the fines status from the fines_summary table
+		$this->db->select('fines_status');
+		$this->db->from('fines_summary');
+		$this->db->where('student_id', $student_id);
+		$query = $this->db->get();
+
+		// If there is a result, return the fines_status
+		if ($query->num_rows() > 0) {
+			return $query->row()->fines_status;
+		}
+
+		// Return null if no status found
+		return null;
+	}
+
+	// Insert data into fines_summary table after paying online
+	public function insert_fines_summary($data)
+	{
+		return $this->db->insert('fines_summary', $data);
+	}
+
+	// Method to fetch fines data by summary_id
+	public function get_fine_summary_data($summary_id)
+	{
+		$this->db->select('
+        fines_summary.summary_id,
+        fines_summary.student_id,
+        fines_summary.total_fines,
+        fines_summary.mode_payment,
+        fines_summary.reference_number_admin,
+        fines_summary.reference_number_students,
+        fines_summary.last_updated,
+        users.first_name,
+        users.last_name,
+        fines.fines_id,
+        fines.activity_id,
+        fines.timeslot_id,
+        fines.attendance_id,
+        fines.fines_reason,
+        fines.fines_amount,
+        fines.status,
+        fines.remarks,
+        activity.activity_title,
+        activity.organizer,
+        activity.start_date
+    ');
+		$this->db->from('fines_summary');
+		$this->db->join('users', 'fines_summary.student_id = users.student_id');
+		$this->db->join('fines', 'fines.student_id = fines_summary.student_id'); // ✅ FIXED HERE
+		$this->db->join('activity', 'activity.activity_id = fines.activity_id', 'left');
+		$this->db->where('fines_summary.summary_id', $summary_id);
+		$this->db->order_by('fines.fines_id', 'DESC');
+
 		$query = $this->db->get();
 		return $query->result_array();
 	}
 
 
 
-	//PAY FINES
 
-	// Update fine status (mark as paid)
-	public function update_fine_status($student_id, $status)
+	// Function to get fines along with activity details (No changes here)
+	public function get_fines_with_summary_and_activity($student_id = null)
 	{
-		$this->db->set('status', $status);
-		$this->db->where('student_id', $student_id);
-		$this->db->update('fines');
-	}
+		$this->db->select('
+			fines.*, 
+			activity.activity_title, 
+			activity.organizer, 
+			activity.start_date, 
+			fines_summary.summary_id,
+			fines_summary.total_fines,
+			fines_summary.fines_status,
+			fines_summary.mode_payment,
+			fines_summary.reference_number_admin,
+			fines_summary.reference_number_students,
+			fines_summary.last_updated,
+			fines_summary.receipt,
+			fines_summary.generated_receipt
+		');
 
-	// Insert data into fines_summary table
-	public function insert_fines_summary($data)
-	{
-		return $this->db->insert('fines_summary', $data);
-	}
-
-	// Function to handle file upload (receipt)
-	public function do_upload_receipt()
-	{
-		if (isset($_FILES['receipt']) && $_FILES['receipt']['error'] == 0) {
-			$config['upload_path'] = './uploads/receipts/';
-			$config['allowed_types'] = 'jpg|png|jpeg|gif';
-			$config['max_size'] = 2048; // 2MB max size
-
-			$this->load->library('upload', $config);
-
-			if ($this->upload->do_upload('receipt')) {
-				$upload_data = $this->upload->data();
-				return $upload_data['file_name']; // Return the uploaded file name
-			} else {
-				return null; // Return null if the upload failed
-			}
-		}
-		return null; // Return null if no file was uploaded
-	}
-
-	// Fetch fines summary by student (optional, for viewing their payment history)
-	public function get_fines_and_summary($student_id)
-	{
-		// Select fines and related activity data, including the organizer
-		$this->db->select('fines.*, activity.activity_title, activity.organizer, activity.start_date');
+		// Define the tables and join conditions
 		$this->db->from('fines');
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
-		$this->db->join('fines_summary', 'fines_summary.fines_id = fines.fines_id');  // Link fines with fines_summary
-		$this->db->where('fines_summary.student_id', $student_id);  // Filter by student_id
-		$this->db->group_by('activity.organizer');  // Group by organizer to get all fines of the same organizer
-		$query = $this->db->get();
-		return $query->result_array();  // Return results
-	}
+		$this->db->join('fines_summary', 'fines_summary.student_id = fines.student_id', 'left');
 
-
-
-	//FINES RECEIPT
-
-	// Method to fetch fines data by fines_id
-	// Method to fetch fines data by fines_id
-	// Method to fetch fines data by fines_id
-	public function get_fines_data_by_id($fines_id)
-	{
-		$this->db->select('fines_summary.*, users.first_name, users.last_name, activity.activity_title'); // Correct column name here
-		$this->db->from('fines_summary');
-		$this->db->join('users', 'users.student_id = fines_summary.student_id');
-		$this->db->join('fines', 'fines.fines_id = fines_summary.fines_id'); // Join with the fines table
-		$this->db->join('activity', 'activity.activity_id = fines.activity_id'); // Join with the activity table
-		$this->db->where('fines_summary.fines_id', $fines_id);
-
-		$query = $this->db->get();
-
-		if ($query->num_rows() > 0) {
-			return $query->row_array(); // Return the first result as an associative array
-		} else {
-			return null; // No result found
+		// If a student_id is provided, filter by it
+		if ($student_id !== null) {
+			$this->db->where('fines.student_id', $student_id);
 		}
+
+		// Execute the query and return results
+		$query = $this->db->get();
+		return $query->result_array();
 	}
+
+
+
+
+
+
 
 
 
 
 
 	//SUMMARY OF FINES END
+
 
 
 	//REGISTRATION RECEIPTS START
