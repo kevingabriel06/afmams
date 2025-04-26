@@ -180,21 +180,22 @@
                 <div class="row mt-6 justify-content-center">
                     <div class="col-lg-4">
                         <div class="card card-span h-100">
-                            <img class="card-span-img" src="<?php echo base_url('assets/profile/default.jpg'); ?>" class="img-fluid rounded-circle" style="width: 100px; height: 100px; object-fit: cover;" />
+                            <img class="card-span-img" src="<?php echo base_url('assets/images/profile/491024614_667113149636970_2302531625877490435_n.jpg'); ?>" class="img-fluid rounded-circle" style="width: 100px; height: 100px; object-fit: cover;" />
                             <div class="card-body pt-6 pb-4">
                                 <h5 class="mb-2">Niwed Jevett C. Abad</h5>
                                 <h6 class="mb-3 fs-italic">Quality Analyst</h6>
-                                <p>Envisioning a quality system that promotes accountability, transparency, and seamless user experience, through precise testingin mo'ko.</p>
+                                <p>Hi, I'm Niwed. As a Quality Analyst, Envisioning a system that promotes accountability, transparency, and seamless user experience, through precise testingin mo'ko.</p>
                             </div>
                         </div>
                     </div>
                     <div class="col-lg-4">
                         <div class="card card-span h-100">
-                            <img class="card-span-img" src="<?php echo base_url('assets/profile/default.jpg'); ?>" class="img-fluid rounded-circle" style="width: 100px; height: 100px; object-fit: cover;" />
+                            <img class="card-span-img" src="<?php echo base_url('assets/images/profile/491280077_2081398112381263_2415549942200076156_n.jpg'); ?>" class="img-fluid rounded-circle" style="width: 100px; height: 100px; object-fit: cover;" />
                             <div class="card-body pt-6 pb-4">
                                 <h5 class="mb-2">Shiann Nicole Marcos</h5>
                                 <h6 class="mb-3 fs-italic">Documentation</h6>
-                                <p>Build your webapp with the world's most popular front-end component library along with Falcon's 32 sets of carefully designed elements.</p>
+                                <p>Enjoy and experience the best quality! Kahit hindi ikaw yung best, kimiii
+                                </p>
                             </div>
                         </div>
                     </div>
