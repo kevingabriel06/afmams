@@ -1372,20 +1372,15 @@ class OfficerController extends CI_Controller
     // ADDING OF POST
     public function add_post()
     {
-
         $student_id = $this->session->userdata('student_id');
 
         $dept = $this->officer->admin_dept();
         $org = $this->officer->admin_org();
 
-        // Check if the form is submitted
         if ($this->input->post()) {
-            // Set validation rules
             $this->form_validation->set_rules('content', 'Content', 'required');
 
-            // Check if validation passes
             if ($this->form_validation->run() == FALSE) {
-                // If validation fails, return validation errors
                 $response = [
                     'status' => 'error',
                     'errors' => validation_errors()
@@ -1394,22 +1389,26 @@ class OfficerController extends CI_Controller
                 return;
             }
 
-            // Prepare data for insertion
+            // Set timezone to Asia/Manila
+            $timezone = new DateTimeZone('Asia/Manila');
+            $date = new DateTime('now', $timezone);
+            $formatted_time = $date->format('Y-m-d H:i:s');
+
             $data = [
                 'student_id' => $student_id,
                 'content' => $this->input->post('content'),
                 'privacy' => $this->input->post('privacyStatus'),
                 'dept_id' => !empty($dept->dept_id) ? $dept->dept_id : NULL,
                 'org_id' => !empty($org->org_id) ? $org->org_id : NULL,
+                'created_at' => $formatted_time // Add this line
             ];
 
-            // Handle file upload if an image is provided
             if (!empty($_FILES['image']['name'])) {
                 $config = [
                     'upload_path'   => './assets/post/',
                     'allowed_types' => 'gif|jpg|jpeg|png',
-                    'max_size'      => 2048, // 2MB limit
-                    'encrypt_name'  => TRUE  // Encrypt file name for security
+                    'max_size'      => 2048,
+                    'encrypt_name'  => TRUE
                 ];
 
                 $this->load->library('upload', $config);
@@ -1418,7 +1417,6 @@ class OfficerController extends CI_Controller
                     $uploadData = $this->upload->data();
                     $data['media'] = $uploadData['file_name'];
                 } else {
-                    // Upload failed, return error response
                     $response = [
                         'status' => 'error',
                         'errors' => $this->upload->display_errors()
@@ -1428,36 +1426,32 @@ class OfficerController extends CI_Controller
                 }
             }
 
-            // Insert post data into the database
             $result = $this->officer->insert_data($data);
 
             if ($result) {
-                // Post saved successfully
                 $response = [
                     'status' => 'success',
                     'message' => 'You shared a post.',
                     'redirect' => site_url('officer/community')
                 ];
             } else {
-                // Database insertion failed
                 $response = [
                     'status' => 'error',
                     'errors' => 'Failed to post. Please try again.'
                 ];
             }
 
-            // Return the response
             echo json_encode($response);
             return;
         }
 
-        // If no POST data, return an error response
         $response = [
             'status' => 'error',
             'errors' => 'Invalid request. No data received.'
         ];
         echo json_encode($response);
     }
+
 
 
     // ATTENDANCE RECORDING
