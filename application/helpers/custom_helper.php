@@ -1,9 +1,10 @@
 <?php
 if (!function_exists('time_elapsed_string')) {
-    function time_elapsed_string($datetime)
+    function time_elapsed_string($datetime, $timezone = 'Asia/Manila')
     {
-        $now = new DateTime;
-        $ago = new DateTime($datetime);
+        $tz = new DateTimeZone($timezone);
+        $now = new DateTime('now', $tz);
+        $ago = new DateTime($datetime, $tz);
         $diff = $now->diff($ago);
 
         if ($diff->days == 0) {
