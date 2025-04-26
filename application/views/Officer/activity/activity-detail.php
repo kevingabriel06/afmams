@@ -677,8 +677,6 @@
           });
         </script>
 
-
-
         <?php if ($activity['organizer'] == 'Bachelor of Science in Information Systems') : ?>
           <?php if ($activity['status'] == 'Upcoming' || $activity['status'] == 'Ongoing') : ?>
             <?php if ($activity['is_shared'] == 'No') : ?>

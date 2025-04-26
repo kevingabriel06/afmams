@@ -1179,7 +1179,7 @@ class OfficerController extends CI_Controller
         $data['feed'] = array_slice($merged_feed, $offset, $limit);
 
         // Activity to post and show to the upcoming section
-        $data['activities_upcoming'] = $this->admin->get_activities_upcoming();
+        $data['activities_upcoming'] = $this->officer->get_activities_upcoming();
 
         // AJAX Request: Return only the next batch
         if ($this->input->is_ajax_request()) {
