@@ -584,7 +584,7 @@
 			$('#loading').show();
 
 			$.ajax({
-				url: '<?= site_url('officer/community') ?>',
+				url: '<?= site_url('admin/community') ?>',
 				type: 'POST',
 				data: {
 					offset: offset,
@@ -625,7 +625,8 @@
 	});
 </script>
 
-<script>
+
+<!-- <script>
 	$(document).ready(function() {
 		// Event listener for the Like button
 		$('[id^=btn-like]').click(function() {
@@ -680,7 +681,7 @@
 		updateLikeList(postId); // Refresh likes before showing modal
 		$('#likesModal-' + postId).modal('show');
 	}
-</script>
+</script> -->
 
 
 <!-- ========= JAVASCRIPT  ======== -->
