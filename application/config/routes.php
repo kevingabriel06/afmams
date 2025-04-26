@@ -114,7 +114,7 @@ $route['student/profile/get_qr_code_by_student'] = 'StudentController/get_qr_cod
 //STUDENT RECEIPTS
 $route['student/receipts'] = 'StudentController/receipts_page';
 
-$route['about'] = 'StudentController/about_page';
+$route['student/about'] = 'StudentController/about';
 
 //ADMIN ROUTES
 $route['admin/dashboard'] = 'AdminController/admin_dashboard';

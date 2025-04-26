@@ -1128,4 +1128,19 @@ class StudentController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 		// $this->load->view('layout/footer');
 	}
+
+	public function about()
+	{
+		$data['title'] = 'About';
+
+		$student_id = $this->session->userdata('student_id');
+
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->student->get_student($student_id);
+
+
+		$this->load->view('layout/header', $data);
+		$this->load->view('admin/about', $data);
+		$this->load->view('layout/footer', $data);
+	}
 }
