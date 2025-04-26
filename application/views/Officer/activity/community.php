@@ -138,7 +138,11 @@
 												}
 
 												function timeAgo(date) {
-													let seconds = Math.floor((new Date() - date) / 1000);
+													// Convert current time to the same timezone
+													let now = new Date();
+
+													// Calculate difference in seconds
+													let seconds = Math.floor((now - date) / 1000);
 													let minutes = Math.floor(seconds / 60);
 													let hours = Math.floor(minutes / 60);
 													let days = Math.floor(hours / 24);
@@ -148,15 +152,18 @@
 													if (hours < 24) return hours === 1 ? "1 hour ago" : hours + " hours ago";
 													if (days < 7) return days === 1 ? "1 day ago" : days + " days ago";
 
-													return date.toLocaleString('en-US', {
+													// Format using specific timezone
+													return new Intl.DateTimeFormat('en-US', {
+														timeZone: 'Asia/Manila',
 														month: 'long',
 														day: 'numeric',
 														year: 'numeric',
 														hour: 'numeric',
 														minute: '2-digit',
 														hour12: true
-													});
+													}).format(date);
 												}
+
 												// Auto-update every minute
 												setInterval(updateTimeAgo, 60000);
 												updateTimeAgo();
