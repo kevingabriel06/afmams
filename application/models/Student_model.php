@@ -1390,4 +1390,19 @@ class Student_model extends CI_Model
 		return $this->db->where('student_id', $student_id)
 			->update('users', ['password' => $hashed_password]);
 	}
+
+
+	public function get_qr_code($student_id)
+	{
+		$this->db->select('qr_image');
+		$this->db->from('users');
+		$this->db->where('student_id', $student_id);
+		$query = $this->db->get();
+
+		if ($query->num_rows() > 0) {
+			return $query->row()->qr_image; // Return the base64 encoded QR code
+		}
+
+		return null; // No QR code found for this student
+	}
 }

@@ -109,6 +109,7 @@ $route['student/profile-settings'] = 'StudentController/profile_settings';
 $route['student/profile/update-profile-pic'] = 'StudentController/update_profile_pic';
 $route['student/profile/update-profile'] = 'StudentController/update_profile';
 $route['student/profile/update_password'] = 'StudentController/update_password';
+$route['student/profile/get_qr_code_by_student'] = 'StudentController/get_qr_code_by_student';
 
 //STUDENT RECEIPTS
 $route['student/receipts'] = 'StudentController/receipts_page';

@@ -576,6 +576,29 @@ class StudentController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
+	// EVALUATION LIST - PAGE
+	public function evaluation_form_list()
+	{
+		$data['title'] = 'List Evaluation Form';
+
+		$student_id = $this->session->userdata('student_id');
+
+		// FETCH USER DATA
+		$data['users'] = $this->student->get_student($student_id);
+
+		$data['forms'] = $this->student->list_forms();
+
+		// Fetch open (unanswered) forms
+		$data['evaluation_forms'] = $this->student->get_open_forms_for_student_and_unanswered();
+
+		// // Fetch answered forms
+		// $data['answered_forms'] = $this->student->get_answered_forms($student_id);
+
+		// Load the view files
+		$this->load->view('layout/header', $data);
+		$this->load->view('student/evaluation_forms_list', $data);
+		$this->load->view('layout/footer', $data);
+	}
 
 	// EVALUATION FORM DESIGN OPENED FORM - PAGE
 	public function evaluation_forms()
@@ -672,7 +695,6 @@ class StudentController extends CI_Controller
 			echo json_encode(['success' => false, 'message' => 'Failed to submit answers.']);
 		}
 	}
-
 
 
 	//SUBMIT FORM ANSWERS
@@ -1012,6 +1034,26 @@ class StudentController extends CI_Controller
 		echo json_encode(['status' => 'success', 'message' => 'Password updated successfully']);
 	}
 
+	public function get_qr_code_by_student()
+	{
+		// Get student_id from session
+		if ($this->session->has_userdata('student_id')) {
+			$student_id = $this->session->userdata('student_id');
+
+			// Retrieve QR code from the database (ensure you have the correct query in place)
+			$qr_code = $this->student->get_qr_code($student_id);
+
+			if ($qr_code) {
+				// Return the QR code as JSON (base64 string)
+				echo json_encode(['status' => 'success', 'qr_code' => $qr_code]);
+			} else {
+				// No QR code found for the student
+				echo json_encode(['status' => 'error', 'message' => 'QR Code not found for this student.']);
+			}
+		} else {
+			echo json_encode(['status' => 'error', 'message' => 'No student found in session.']);
+		}
+	}
 
 	//RECEIPTS PAGE START
 

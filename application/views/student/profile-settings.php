@@ -322,7 +322,7 @@
                                 reverseButtons: true
                             }).then((result) => {
                                 if (result.isConfirmed) {
-                                    const url = '<?= site_url("admin/profile/update_password") ?>';
+                                    const url = '<?= site_url("student/profile/update_password") ?>';
 
                                     fetch(url, {
                                             method: 'POST',
@@ -367,6 +367,54 @@
 
                 </div>
             </div>
+
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Your QR Code</h5>
+                </div>
+                <div class="card-body bg-light text-center" id="qrCodeContainer" style="width: 100%; overflow: hidden;">
+                    <!-- QR Code will be inserted here dynamically -->
+                    <!-- If QR Code is missing, display a placeholder -->
+                    <p id="noQrMessage" class="text-muted">No QR code found for this student.</p>
+                </div>
+            </div>
+
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    fetch('<?php echo site_url("student/profile/get_qr_code_by_student"); ?>', {
+                            method: 'GET'
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            const qrCodeContainer = document.querySelector('#qrCodeContainer');
+                            const noQrMessage = document.querySelector('#noQrMessage');
+
+                            if (data.status === 'success' && data.qr_code) {
+                                // QR code data exists, create image element
+                                const img = document.createElement('img');
+                                img.src = 'data:image/png;base64,' + data.qr_code;
+                                img.alt = 'Your QR Code';
+                                img.classList.add('qr-code-img'); // Custom class for larger QR code
+                                img.style.width = '100%'; // Make sure the image takes up the full container width
+                                img.style.height = 'auto'; // Maintain aspect ratio
+                                img.style.maxHeight = '100%'; // Ensure the image doesn't exceed the container height
+                                img.style.objectFit = 'contain'; // Ensure the image scales proportionally
+
+                                qrCodeContainer.innerHTML = ''; // Clear the container
+                                qrCodeContainer.appendChild(img); // Append the image
+                                noQrMessage.style.display = 'none'; // Hide the "No QR code" message
+                            } else {
+                                // If no QR code, show fallback message
+                                noQrMessage.style.display = 'block'; // Display "No QR code" message
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Fetch error:', error);
+                            alert('An error occurred while fetching the QR code.');
+                        });
+                });
+            </script>
+
         </div>
     </div>
 </div>
