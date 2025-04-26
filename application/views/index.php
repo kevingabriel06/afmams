@@ -194,7 +194,7 @@
                             <div class="card-body pt-6 pb-4">
                                 <h5 class="mb-2">Shiann Nicole Marcos</h5>
                                 <h6 class="mb-3 fs-italic">Documentation</h6>
-                                <p>Enjoy and experience the best quality! Kahit hindi ikaw yung best, kimiii
+                                <p>Hi I'm Shiann, Enjoy and experience the best quality! Kahit hindi ikaw yung best, kimiii
                                 </p>
                             </div>
                         </div>
