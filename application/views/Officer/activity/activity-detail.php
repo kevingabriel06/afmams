@@ -679,7 +679,7 @@
 
 
 
-        <?php if ($activity['organizer'] == 'Student Parliament') : ?>
+        <?php if ($activity['organizer'] == 'Bachelor of Science in Information Systems') : ?>
           <?php if ($activity['status'] == 'Upcoming' || $activity['status'] == 'Ongoing') : ?>
             <?php if ($activity['is_shared'] == 'No') : ?>
               <button id="share" class="btn btn-falcon-default btn-sm me-2" type="button">
