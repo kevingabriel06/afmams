@@ -13,7 +13,7 @@
 							<span class="fs-4 text-primary"><i class="fas fa-file-import"></i></span>
 						</div>
 						<div>
-							<h6 class="mb-1">Importing of Students</h6>
+							<h6 class="mb-1 fw-bold">Importing of Students</h6>
 							<p class="mb-0 text-muted small">Upload bulk data of students using CSV or Excel files.</p>
 						</div>
 					</div>
@@ -28,7 +28,7 @@
 				</div>
 			</div>
 
-			<!-- Importing of Officers -->
+			<!-- Importing of Department Officers -->
 			<div class="col-md-6">
 				<div class="border rounded p-3 h-100 d-flex flex-column justify-content-between">
 					<div class="d-flex">
@@ -36,20 +36,226 @@
 							<span class="fs-4 text-primary"><i class="fas fa-file-import"></i></span>
 						</div>
 						<div>
-							<h6 class="mb-1">Importing of Officer</h6>
-							<p class="mb-0 text-muted small">Upload bulk data of officers using CSV or Excel files.</p>
+							<h6 class="mb-1 fw-bold">Importing of Department Officers</h6>
+							<p class="mb-0 text-muted small">Upload bulk data of department officers using CSV or Excel files.</p>
 						</div>
 					</div>
 					<div class="d-flex justify-content-end align-items-center gap-2 mt-3">
-						<a href="<?= base_url('assets/templates/Template-ImportingStudents.xlsx') ?>" class="btn btn-sm btn-outline-secondary" download>
+						<a href="<?= base_url('assets/templates/Template-ImportingDeptOfficers.xlsx') ?>" class="btn btn-sm btn-outline-secondary" download>
 							Download Template
 						</a>
-						<button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModal">
+						<button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModalDept">
 							Open
 						</button>
 					</div>
 				</div>
 			</div>
+
+			<!-- Import Modal for Department Officers -->
+			<div class="modal fade" id="importModalDept" tabindex="-1" aria-labelledby="importModalDeptLabel" aria-hidden="true">
+				<div class="modal-dialog">
+					<form class="modal-content" id="importFormDept">
+						<div class="modal-header">
+							<h5 class="modal-title" id="importModalDeptLabel">Import Department Officers</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						</div>
+						<div class="modal-body">
+							<div class="mb-3">
+								<label for="importFileDept" class="form-label">Choose a file</label>
+								<input type="file" name="import_file" class="form-control" id="importFileDept" accept=".csv, .xlsx" required>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+							<button type="submit" class="btn btn-primary">Upload</button>
+						</div>
+					</form>
+				</div>
+			</div>
+
+			<!-- Script for Importing Department Officers -->
+			<script>
+				$(document).ready(function() {
+					$('#importFormDept').submit(function(e) {
+						e.preventDefault();
+
+						Swal.fire({
+							title: 'Are you sure?',
+							text: "This action is not reversible. Make sure all details are correct before proceeding.",
+							icon: 'warning',
+							showCancelButton: true,
+							confirmButtonColor: '#3085d6',
+							cancelButtonColor: '#d33',
+							confirmButtonText: 'Yes, upload it!',
+							cancelButtonText: 'Cancel'
+						}).then((result) => {
+							if (result.isConfirmed) {
+								var formData = new FormData(this);
+
+								Swal.fire({
+									title: 'Uploading...',
+									text: 'Please wait while we import your file.',
+									allowOutsideClick: false,
+									didOpen: () => {
+										Swal.showLoading();
+									}
+								});
+
+								$.ajax({
+									url: "<?= site_url('admin/import-department-officers'); ?>",
+									type: "POST",
+									data: formData,
+									contentType: false,
+									processData: false,
+									dataType: 'json',
+									success: function(response) {
+										Swal.close();
+
+										if (response.success) {
+											Swal.fire({
+												icon: 'success',
+												title: 'Success!',
+												text: response.message
+											}).then(() => {
+												$('#importModalDept').modal('hide');
+											});
+										} else {
+											Swal.fire({
+												icon: 'error',
+												title: 'Import Failed',
+												text: response.message
+											});
+										}
+									},
+									error: function() {
+										Swal.close();
+										Swal.fire({
+											icon: 'error',
+											title: 'Error',
+											text: 'An unexpected error occurred. Please try again.'
+										});
+									}
+								});
+							}
+						});
+					});
+				});
+			</script>
+
+			<!-- Importing of Organization Officers -->
+			<div class="col-md-6">
+				<div class="border rounded p-3 h-100 d-flex flex-column justify-content-between">
+					<div class="d-flex">
+						<div class="me-3">
+							<span class="fs-4 text-primary"><i class="fas fa-file-import"></i></span>
+						</div>
+						<div>
+							<h6 class="mb-1 fw-bold">Importing of Organization Officers</h6>
+							<p class="mb-0 text-muted small">Upload bulk data of organization officers using CSV or Excel files.</p>
+						</div>
+					</div>
+					<div class="d-flex justify-content-end align-items-center gap-2 mt-3">
+						<a href="<?= base_url('assets/templates/Template-ImportingOrgOfficers.xlsx') ?>" class="btn btn-sm btn-outline-secondary" download>
+							Download Template
+						</a>
+						<button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModalOrg">
+							Open
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<!-- Import Modal for Organization Officers -->
+			<div class="modal fade" id="importModalOrg" tabindex="-1" aria-labelledby="importModalOrgLabel" aria-hidden="true">
+				<div class="modal-dialog">
+					<form class="modal-content" id="importFormOrg">
+						<div class="modal-header">
+							<h5 class="modal-title" id="importModalOrgLabel">Import Organization Officers</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						</div>
+						<div class="modal-body">
+							<div class="mb-3">
+								<label for="importFileOrg" class="form-label">Choose a file</label>
+								<input type="file" name="import_file" class="form-control" id="importFileOrg" accept=".csv, .xlsx" required>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+							<button type="submit" class="btn btn-primary">Upload</button>
+						</div>
+					</form>
+				</div>
+			</div>
+
+			<!-- Script for Importing Organization Officers -->
+			<script>
+				$(document).ready(function() {
+					$('#importFormOrg').submit(function(e) {
+						e.preventDefault();
+
+						Swal.fire({
+							title: 'Are you sure?',
+							text: "This action is not reversible. Make sure all details are correct before proceeding.",
+							icon: 'warning',
+							showCancelButton: true,
+							confirmButtonColor: '#3085d6',
+							cancelButtonColor: '#d33',
+							confirmButtonText: 'Yes, upload it!',
+							cancelButtonText: 'Cancel'
+						}).then((result) => {
+							if (result.isConfirmed) {
+								var formData = new FormData(this);
+
+								Swal.fire({
+									title: 'Uploading...',
+									text: 'Please wait while we import your file.',
+									allowOutsideClick: false,
+									didOpen: () => {
+										Swal.showLoading();
+									}
+								});
+
+								$.ajax({
+									url: "<?= site_url('admin/import-organization-officers'); ?>",
+									type: "POST",
+									data: formData,
+									contentType: false,
+									processData: false,
+									dataType: 'json',
+									success: function(response) {
+										Swal.close();
+
+										if (response.success) {
+											Swal.fire({
+												icon: 'success',
+												title: 'Success!',
+												text: response.message
+											}).then(() => {
+												$('#importModalOrg').modal('hide');
+											});
+										} else {
+											Swal.fire({
+												icon: 'error',
+												title: 'Import Failed',
+												text: response.message
+											});
+										}
+									},
+									error: function() {
+										Swal.close();
+										Swal.fire({
+											icon: 'error',
+											title: 'Error',
+											text: 'An unexpected error occurred. Please try again.'
+										});
+									}
+								});
+							}
+						});
+					});
+				});
+			</script>
+
 
 			<!-- QR Code Generator Section -->
 			<div class="col-md-6">

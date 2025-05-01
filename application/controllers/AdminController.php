@@ -2665,7 +2665,7 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
-	// IMPORTING LIST
+	// IMPORTING LIST STUDENT
 	public function import_list()
 	{
 		require_once FCPATH . 'vendor/autoload.php'; // Correct PhpSpreadsheet autoload path
@@ -2765,6 +2765,232 @@ class AdminController extends CI_Controller
 		}
 		return $data;
 	}
+
+	// IMPORT DEPARTMENT OFFICERS
+	public function import_list_dept()
+	{
+		require_once FCPATH . 'vendor/autoload.php'; // Load PhpSpreadsheet
+
+		if ($_FILES['import_file']['error'] === UPLOAD_ERR_OK) {
+			$fileTmpPath = $_FILES['import_file']['tmp_name'];
+			$fileName = $_FILES['import_file']['name'];
+			$extension = pathinfo($fileName, PATHINFO_EXTENSION);
+
+			try {
+				if ($extension === 'csv') {
+					$data = $this->readCSVDept($fileTmpPath);
+				} elseif ($extension === 'xlsx') {
+					$data = $this->readXLSXDept($fileTmpPath);
+				} else {
+					echo json_encode(['success' => false, 'message' => 'Invalid file type. Only CSV or XLSX allowed.']);
+					return;
+				}
+
+				if (!empty($data)) {
+					$this->admin->insert_batch($data);
+					echo json_encode(['success' => true, 'message' => 'Department officers imported successfully.']);
+				} else {
+					echo json_encode(['success' => false, 'message' => 'No valid data found in the file.']);
+				}
+			} catch (Exception $e) {
+				echo json_encode(['success' => false, 'message' => 'Error processing file: ' . $e->getMessage()]);
+			}
+		} else {
+			echo json_encode(['success' => false, 'message' => 'No file uploaded or upload error.']);
+		}
+	}
+
+	private function readCSVDept($filePath)
+	{
+		$data = [];
+		if (($handle = fopen($filePath, "r")) !== FALSE) {
+			$isHeader = true;
+			while (($row = fgetcsv($handle, 1000, ",")) !== FALSE) {
+				if ($isHeader) {
+					$isHeader = false;
+					continue;
+				}
+
+				// Skip empty or invalid rows
+				if (count($row) < 9 || empty(trim($row[0])) || empty(trim($row[7])) || !is_numeric(trim($row[7]))) {
+					continue;
+				}
+
+				$rawId = trim($row[0]);
+				$studentId = 'DEPT' . $rawId;
+				$idParts = explode('-', $studentId);
+				$last4 = isset($idParts[1]) ? substr($idParts[1], -4) : substr($studentId, -4);
+				$generatedPassword = 'dept' . $last4;
+				$hashedPassword = password_hash($generatedPassword, PASSWORD_DEFAULT); // Hash the password
+				$position = strtolower(trim($row[8]));
+
+				$data[] = [
+					'student_id'      => $studentId,
+					'first_name'      => trim($row[1]),
+					'middle_name'     => trim($row[2]),
+					'last_name'       => trim($row[3]),
+					'sex'             => trim($row[4]),
+					'year_level'      => trim($row[5]),
+					'email'           => trim($row[6]),
+					'password'        => $hashedPassword, // Use hashed password
+					'dept_id'         => trim($row[7]),
+					'role'            => 'Officer',
+					'is_officer_dept' => 'Yes',
+					'is_admin'        => ($position === 'president') ? 'Yes' : 'No',
+				];
+			}
+			fclose($handle);
+		}
+		return $data;
+	}
+
+	private function readXLSXDept($filePath)
+	{
+		$spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filePath);
+		$sheet = $spreadsheet->getActiveSheet();
+		$rows = $sheet->toArray();
+		$data = [];
+
+		foreach ($rows as $index => $row) {
+			if ($index === 0) continue; // Skip header
+
+			// Skip empty or invalid rows
+			if (count($row) < 9 || empty(trim($row[0])) || empty(trim($row[7])) || !is_numeric(trim($row[7]))) {
+				continue;
+			}
+
+			$rawId = trim($row[0]);
+			$studentId = 'DEPT' . $rawId;
+			$idParts = explode('-', $studentId);
+			$last4 = isset($idParts[1]) ? substr($idParts[1], -4) : substr($studentId, -4);
+			$generatedPassword = 'dept' . $last4;
+			$hashedPassword = password_hash($generatedPassword, PASSWORD_DEFAULT); // Hash the password
+			$position = strtolower(trim($row[8]));
+
+			$data[] = [
+				'student_id'      => $studentId,
+				'first_name'      => trim($row[1]),
+				'middle_name'     => trim($row[2]),
+				'last_name'       => trim($row[3]),
+				'sex'             => trim($row[4]),
+				'year_level'      => trim($row[5]),
+				'email'           => trim($row[6]),
+				'password'        => $hashedPassword, // Use hashed password
+				'dept_id'         => trim($row[7]),
+				'role'            => 'Officer',
+				'is_officer_dept' => 'Yes',
+				'is_admin'        => ($position === 'president') ? 'Yes' : 'No',
+			];
+		}
+		return $data;
+	}
+
+	// IMPORTING ORGANIZATION OFFICERS
+	public function import_list_org()
+	{
+		require_once FCPATH . 'vendor/autoload.php';
+
+		if ($_FILES['import_file']['error'] === UPLOAD_ERR_OK) {
+			$fileTmpPath = $_FILES['import_file']['tmp_name'];
+			$fileName = $_FILES['import_file']['name'];
+			$extension = pathinfo($fileName, PATHINFO_EXTENSION);
+
+			try {
+				if ($extension === 'csv') {
+					$data = $this->readCSVOrg($fileTmpPath);
+				} elseif ($extension === 'xlsx') {
+					$data = $this->readXLSXOrg($fileTmpPath);
+				} else {
+					echo json_encode(['success' => false, 'message' => 'Invalid file type. Only CSV or XLSX allowed.']);
+					return;
+				}
+
+				if (!empty($data['users']) && !empty($data['student_org'])) {
+					$success = $this->admin->insert_org_officers_batch($data['users'], $data['student_org']);
+					if ($success) {
+						echo json_encode(['success' => true, 'message' => 'Organization officers imported successfully.']);
+					} else {
+						echo json_encode(['success' => false, 'message' => 'Database transaction failed.']);
+					}
+				} else {
+					echo json_encode(['success' => false, 'message' => 'No valid data found in the file.']);
+				}
+			} catch (Exception $e) {
+				echo json_encode(['success' => false, 'message' => 'Error processing file: ' . $e->getMessage()]);
+			}
+		} else {
+			echo json_encode(['success' => false, 'message' => 'No file uploaded or upload error.']);
+		}
+	}
+
+	private function parseOrgFile($rows)
+	{
+		$users = [];
+		$student_org = [];
+
+		foreach ($rows as $index => $row) {
+			if ($index === 0) continue; // Skip header
+
+			if (count($row) < 9 || empty(trim($row[0])) || empty(trim($row[7])) || !is_numeric(trim($row[7]))) {
+				continue;
+			}
+
+			$rawId = trim($row[0]);
+			$studentId = 'ORG' . $rawId;
+			$idParts = explode('-', $studentId);
+			$last4 = isset($idParts[1]) ? substr($idParts[1], -4) : substr($studentId, -4);
+			$generatedPassword = 'org' . $last4;
+			$hashedPassword = password_hash($generatedPassword, PASSWORD_DEFAULT);
+			$orgId = trim($row[8]);
+			$position = strtolower(trim($row[9]));
+
+			$users[] = [
+				'student_id'       => $studentId,
+				'first_name'       => trim($row[1]),
+				'middle_name'      => trim($row[2]),
+				'last_name'        => trim($row[3]),
+				'sex'              => trim($row[4]),
+				'year_level'       => trim($row[5]),
+				'email'            => trim($row[6]),
+				'password'         => $hashedPassword,
+				'dept_id'		=> $row[7],
+				'role'             => 'Officer',
+				'is_officer_dept'  => 'No',
+				'is_admin'         => 'No',
+			];
+
+			$student_org[] = [
+				'student_id' => $studentId,
+				'org_id'     => $orgId,
+				'is_admin'   => ($position === 'president') ? 'Yes' : 'No',
+				'is_officer' => 'Yes',
+			];
+		}
+
+		return ['users' => $users, 'student_org' => $student_org];
+	}
+
+	private function readCSVOrg($filePath)
+	{
+		$rows = [];
+		if (($handle = fopen($filePath, "r")) !== FALSE) {
+			while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+				$rows[] = $data;
+			}
+			fclose($handle);
+		}
+		return $this->parseOrgFile($rows);
+	}
+
+	private function readXLSXOrg($filePath)
+	{
+		$spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filePath);
+		$sheet = $spreadsheet->getActiveSheet();
+		$rows = $sheet->toArray();
+		return $this->parseOrgFile($rows);
+	}
+
+
 
 	// GENERATING QR
 	public function generate_bulk_qr()

@@ -1607,6 +1607,16 @@ class Admin_model extends CI_Model
 		return $this->db->insert_batch($this->table, $data_batch);
 	}
 
+	public function insert_org_officers_batch($user_data_batch, $org_data_batch)
+	{
+		$this->db->trans_start();
+		$this->db->insert_batch($this->table, $user_data_batch);
+		$this->db->insert_batch('student_org', $org_data_batch);
+		$this->db->trans_complete();
+
+		return $this->db->trans_status(); // Returns true on success, false on failure
+	}
+
 
 
 
