@@ -1,7 +1,7 @@
 <div class="card mb-3 mb-lg-0">
-    <div class="card-header bg-body-tertiary d-flex justify-content-between">
-        <h5 class="mb-0">Attendance History</h5>
-    </div>
+	<div class="card-header bg-body-tertiary d-flex justify-content-between">
+		<h5 class="mb-0">Attendance History</h5>
+	</div>
 </div>
 
 
@@ -10,68 +10,68 @@
 
 
 <div class="row gx-3">
-    <div class="col-xxl-10 col-xl-12">
-        <div class="card" id="attendanceTable">
-            <div class="card-header border-bottom border-200 px-0">
-                <div class="d-lg-flex justify-content-between">
-                    <div class="row flex-between-center gy-2 px-x1">
+	<div class="col-xxl-10 col-xl-12">
+		<div class="card" id="attendanceTable">
+			<div class="card-header border-bottom border-200 px-0">
+				<div class="d-lg-flex justify-content-between">
+					<div class="row flex-between-center gy-2 px-x1">
 
-                    </div>
+					</div>
 
-                    <!-- Search Input -->
-                    <div class="d-flex align-items-center justify-content-between justify-content-lg-end px-x1">
-                        <div class="d-flex align-items-center" id="table-ticket-replace-element">
-                            <div class="col-auto">
-                                <form>
-                                    <div class="input-group input-search-width">
-                                        <input id="searchInput" class="form-control form-control-sm shadow-none search"
-                                            type="search" placeholder="Search" aria-label="search" />
-                                        <button class="btn btn-sm btn-outline-secondary border-300 hover-border-secondary" type="button">
-                                            <span class="fa fa-search fs-10"></span>
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                            <button class="btn btn-sm btn-falcon-default ms-2" type="button">
-                                <span class="fas fa-download"></span>
-                            </button>
-                            <button class="btn btn-sm btn-falcon-default ms-2" type="button"
-                                data-bs-toggle="modal" data-bs-target="#filterModal">
-                                <span class="fas fa-filter"></span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+					<!-- Search Input -->
+					<div class="d-flex align-items-center justify-content-between justify-content-lg-end px-x1">
+						<div class="d-flex align-items-center" id="table-ticket-replace-element">
+							<div class="col-auto">
+								<form>
+									<div class="input-group input-search-width">
+										<input id="searchInput" class="form-control form-control-sm shadow-none search"
+											type="search" placeholder="Search" aria-label="search" />
+										<button class="btn btn-sm btn-outline-secondary border-300 hover-border-secondary" type="button">
+											<span class="fa fa-search fs-10"></span>
+										</button>
+									</div>
+								</form>
+							</div>
+							<button class="btn btn-sm btn-falcon-default ms-2" type="button">
+								<span class="fas fa-download"></span>
+							</button>
+							<button class="btn btn-sm btn-falcon-default ms-2" type="button"
+								data-bs-toggle="modal" data-bs-target="#filterModal">
+								<span class="fas fa-filter"></span>
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
 
-            <div class="card-body p-0">
-                <div class="table-responsive scrollbar">
-                    <table class="table table-hover table-striped overflow-hidden">
-                        <thead>
-                            <tr>
-                                <th scope="col">Activity</th>
-                                <th scope="col">Organizer</th>
-                                <th scope="col"></th>
-                                <th scope="col">Time-in</th>
-                                <th scope="col">Time-out</th>
-                                <th scope="col">Status</th>
-                                <!-- <th scope="col">Action</th> -->
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($attendances as $attendance): ?>
-                                <tr class="align-middle">
-                                    <td class="text-nowrap"><?php echo $attendance->activity_title; ?></td>
-                                    <td class="text-nowrap"><?php echo $attendance->organizer; ?></td>
-                                    <td class="text-nowrap"><?php echo $attendance->slot_name; ?></td>
-                                    <td class="text-nowrap">
-                                        <?php echo !empty($attendance->time_in) ? $attendance->time_in : 'No Data'; ?>
-                                    </td>
-                                    <td class="text-nowrap">
-                                        <?php echo !empty($attendance->time_out) ? $attendance->time_out : 'No Data'; ?>
-                                    </td>
-                                    <td><span class="badge badge rounded-pill d-block p-2 badge-subtle-success"><?php echo $attendance->attendance_status; ?><span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span></td>
-                                    <!-- <td class="text-nowrap">
+			<div class="card-body p-0">
+				<div class="table-responsive scrollbar">
+					<table class="table table-hover table-striped overflow-hidden">
+						<thead>
+							<tr>
+								<th scope="col">Activity</th>
+								<th scope="col">Organizer</th>
+								<th scope="col"></th>
+								<th scope="col">Time-in</th>
+								<th scope="col">Time-out</th>
+								<th scope="col">Status</th>
+								<!-- <th scope="col">Action</th> -->
+							</tr>
+						</thead>
+						<tbody>
+							<?php foreach ($attendances as $attendance): ?>
+								<tr class="align-middle">
+									<td class="text-nowrap"><?php echo $attendance->activity_title; ?></td>
+									<td class="text-nowrap"><?php echo $attendance->organizer; ?></td>
+									<td class="text-nowrap"><?php echo $attendance->slot_name; ?></td>
+									<td class="text-nowrap">
+										<?php echo !empty($attendance->time_in) ? $attendance->time_in : 'No Data'; ?>
+									</td>
+									<td class="text-nowrap">
+										<?php echo !empty($attendance->time_out) ? $attendance->time_out : 'No Data'; ?>
+									</td>
+									<td><span class="badge badge rounded-pill d-block p-2 badge-subtle-success"><?php echo $attendance->attendance_status; ?><span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span></td>
+									<!-- <td class="text-nowrap">
                                         <div class="dropdown font-sans-serif position-static">
                                             <button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button"
                                                 data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -84,196 +84,196 @@
                                             </div>
                                         </div>
                                     </td> -->
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
+								</tr>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
 </div>
 
 <!-- Modal for Filter -->
 <div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="filterModalLabel">Filter Activities</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <!-- Semester Filter -->
-                <div class="mb-3">
-                    <label for="semester-filter" class="form-label">Semester</label>
-                    <select id="semester-filter" class="form-select">
-                        <option value="" selected>Select Semester</option>
-                        <option value="1st-semester">1st Semester</option>
-                        <option value="2nd-semester">2nd Semester</option>
-                    </select>
-                </div>
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="filterModalLabel">Filter Activities</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<!-- Semester Filter -->
+				<div class="mb-3">
+					<label for="semester-filter" class="form-label">Semester</label>
+					<select id="semester-filter" class="form-select">
+						<option value="" selected>Select Semester</option>
+						<option value="1st-semester">1st Semester</option>
+						<option value="2nd-semester">2nd Semester</option>
+					</select>
+				</div>
 
-                <!-- Year Picker for Academic Year -->
-                <div class="mb-3">
-                    <label for="year-picker" class="form-label">Academic Year</label>
-                    <div class="input-group">
-                        <select id="start-year" class="form-select">
-                            <option value="" selected>Select Start Year</option>
-                        </select>
-                        <span class="input-group-text">-</span>
-                        <select id="end-year" class="form-select">
-                            <option value="" selected>Select End Year</option>
-                        </select>
-                    </div>
-                    <div class="invalid-feedback">
-                        Please select a valid academic year range with a 1-year difference.
-                    </div>
-                </div>
+				<!-- Year Picker for Academic Year -->
+				<div class="mb-3">
+					<label for="year-picker" class="form-label">Academic Year</label>
+					<div class="input-group">
+						<select id="start-year" class="form-select">
+							<option value="" selected>Select Start Year</option>
+						</select>
+						<span class="input-group-text">-</span>
+						<select id="end-year" class="form-select">
+							<option value="" selected>Select End Year</option>
+						</select>
+					</div>
+					<div class="invalid-feedback">
+						Please select a valid academic year range with a 1-year difference.
+					</div>
+				</div>
 
-                <!-- Status -->
-                <div class="mb-3">
-                    <label for="status-filter">Status</label>
-                    <select id="status-filter" class="form-select">
-                        <option value="">Select Status</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Ongoing">Ongoing</option>
-                        <option value="Upcoming">Upcoming</option>
-                    </select>
-                </div>
-            </div>
+				<!-- Status -->
+				<div class="mb-3">
+					<label for="status-filter">Status</label>
+					<select id="status-filter" class="form-select">
+						<option value="">Select Status</option>
+						<option value="Completed">Completed</option>
+						<option value="Ongoing">Ongoing</option>
+						<option value="Upcoming">Upcoming</option>
+					</select>
+				</div>
+			</div>
 
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
-            </div>
-        </div>
-    </div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+				<button type="button" class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+			</div>
+		</div>
+	</div>
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        let options = {
-            valueNames: ["form", "activity", "status"],
-            page: 10,
-            pagination: true,
-        };
-        let evalList = new List("evaluationTable", options); // Initialize List.js
+	document.addEventListener("DOMContentLoaded", function() {
+		let options = {
+			valueNames: ["form", "activity", "status"],
+			page: 10,
+			pagination: true,
+		};
+		let evalList = new List("evaluationTable", options); // Initialize List.js
 
-        const searchInput = document.getElementById("searchInput");
-        const fallbackMessage = document.getElementById("evaluation-table-fallback");
+		const searchInput = document.getElementById("searchInput");
+		const fallbackMessage = document.getElementById("evaluation-table-fallback");
 
-        searchInput.addEventListener("input", function() {
-            evalList.search(this.value); // Perform the search
+		searchInput.addEventListener("input", function() {
+			evalList.search(this.value); // Perform the search
 
-            // Check for visible rows after filtering
-            const visibleRows = document.querySelectorAll(".list tr:not([style*='display: none'])").length;
+			// Check for visible rows after filtering
+			const visibleRows = document.querySelectorAll(".list tr:not([style*='display: none'])").length;
 
-            // Toggle the fallback message visibility
-            fallbackMessage.classList.toggle("d-none", visibleRows > 0);
-        });
-    });
+			// Toggle the fallback message visibility
+			fallbackMessage.classList.toggle("d-none", visibleRows > 0);
+		});
+	});
 </script>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const currentYear = new Date().getFullYear();
-        const startYearDropdown = $('#start-year');
-        const endYearDropdown = $('#end-year');
-        const yearFilter = document.getElementById("year-filter");
-        const statusFilter = document.getElementById("status-filter"); // Reference to status filter dropdown
+	document.addEventListener("DOMContentLoaded", function() {
+		const currentYear = new Date().getFullYear();
+		const startYearDropdown = $('#start-year');
+		const endYearDropdown = $('#end-year');
+		const yearFilter = document.getElementById("year-filter");
+		const statusFilter = document.getElementById("status-filter"); // Reference to status filter dropdown
 
-        // Populate Start Year dropdown dynamically from the current year down to 1900
-        for (let year = currentYear; year >= 1900; year--) {
-            startYearDropdown.append(new Option(year, year));
-        }
+		// Populate Start Year dropdown dynamically from the current year down to 1900
+		for (let year = currentYear; year >= 1900; year--) {
+			startYearDropdown.append(new Option(year, year));
+		}
 
-        // Update End Year based on selected Start Year
-        startYearDropdown.on('change', function() {
-            const selectedStartYear = parseInt(this.value);
-            endYearDropdown.empty().append(new Option("Select End Year", "", true, true)); // Reset options
+		// Update End Year based on selected Start Year
+		startYearDropdown.on('change', function() {
+			const selectedStartYear = parseInt(this.value);
+			endYearDropdown.empty().append(new Option("Select End Year", "", true, true)); // Reset options
 
-            if (selectedStartYear) {
-                // Automatically set end year as one year after the selected start year
-                endYearDropdown.append(new Option(selectedStartYear + 1, selectedStartYear + 1));
-            }
-        });
+			if (selectedStartYear) {
+				// Automatically set end year as one year after the selected start year
+				endYearDropdown.append(new Option(selectedStartYear + 1, selectedStartYear + 1));
+			}
+		});
 
-        // Apply filters based on semester, academic year, and status
-        window.applyFilters = function() {
-            const selectedStartYear = parseInt($('#start-year').val());
-            const selectedEndYear = parseInt($('#end-year').val());
-            const selectedSemester = $('#semester-filter').val();
-            const selectedStatus = statusFilter.value; // Get selected status value
-            let startDate, endDate;
+		// Apply filters based on semester, academic year, and status
+		window.applyFilters = function() {
+			const selectedStartYear = parseInt($('#start-year').val());
+			const selectedEndYear = parseInt($('#end-year').val());
+			const selectedSemester = $('#semester-filter').val();
+			const selectedStatus = statusFilter.value; // Get selected status value
+			let startDate, endDate;
 
-            // Validate year range (must be exactly a one-year difference)
-            if (!selectedStartYear || !selectedEndYear || selectedEndYear - selectedStartYear !== 1) {
-                $('#start-year, #end-year').addClass('is-invalid');
-                alert("Please select a valid academic year range with a one-year difference.");
-                return;
-            } else {
-                $('#start-year, #end-year').removeClass('is-invalid');
-            }
+			// Validate year range (must be exactly a one-year difference)
+			if (!selectedStartYear || !selectedEndYear || selectedEndYear - selectedStartYear !== 1) {
+				$('#start-year, #end-year').addClass('is-invalid');
+				alert("Please select a valid academic year range with a one-year difference.");
+				return;
+			} else {
+				$('#start-year, #end-year').removeClass('is-invalid');
+			}
 
-            // Define the exact date range for 1st and 2nd semesters
-            if (selectedSemester === "1st-semester") {
-                startDate = new Date(selectedStartYear, 7, 1); // August 1, selected start year (e.g., Aug 1, 2024)
-                endDate = new Date(selectedStartYear, 11, 31); // December 31, selected start year (e.g., Dec 31, 2024)
-            } else if (selectedSemester === "2nd-semester") {
-                startDate = new Date(selectedEndYear, 0, 1); // January 1, selected end year (e.g., Jan 1, 2025)
-                endDate = new Date(selectedEndYear, 6, 31); // July 31, selected end year (e.g., July 31, 2025)
-            } else {
-                // Default to the full academic year (Jan 1, start year - Dec 31, end year)
-                startDate = new Date(selectedStartYear, 0, 1);
-                endDate = new Date(selectedEndYear, 11, 31);
-            }
+			// Define the exact date range for 1st and 2nd semesters
+			if (selectedSemester === "1st-semester") {
+				startDate = new Date(selectedStartYear, 7, 1); // August 1, selected start year (e.g., Aug 1, 2024)
+				endDate = new Date(selectedStartYear, 11, 31); // December 31, selected start year (e.g., Dec 31, 2024)
+			} else if (selectedSemester === "2nd-semester") {
+				startDate = new Date(selectedEndYear, 0, 1); // January 1, selected end year (e.g., Jan 1, 2025)
+				endDate = new Date(selectedEndYear, 6, 31); // July 31, selected end year (e.g., July 31, 2025)
+			} else {
+				// Default to the full academic year (Jan 1, start year - Dec 31, end year)
+				startDate = new Date(selectedStartYear, 0, 1);
+				endDate = new Date(selectedEndYear, 11, 31);
+			}
 
-            filterActivitiesByDateAndStatus(startDate, endDate, selectedStatus);
-        };
+			filterActivitiesByDateAndStatus(startDate, endDate, selectedStatus);
+		};
 
-        // Function to filter activities based on the selected date range and status
-        function filterActivitiesByDateAndStatus(startDate, endDate, status) {
-            let activities = document.querySelectorAll('.evaluation-row'); // Target the table rows
-            let hasVisibleActivity = false;
+		// Function to filter activities based on the selected date range and status
+		function filterActivitiesByDateAndStatus(startDate, endDate, status) {
+			let activities = document.querySelectorAll('.evaluation-row'); // Target the table rows
+			let hasVisibleActivity = false;
 
-            activities.forEach(activity => {
-                let activityDateStr = activity.getAttribute('data-start-date');
-                let activityStatus = activity.getAttribute('data-status'); // Get status from data attribute
+			activities.forEach(activity => {
+				let activityDateStr = activity.getAttribute('data-start-date');
+				let activityStatus = activity.getAttribute('data-status'); // Get status from data attribute
 
-                if (!activityDateStr) return; // Skip if no date
+				if (!activityDateStr) return; // Skip if no date
 
-                let activityDate = new Date(activityDateStr);
+				let activityDate = new Date(activityDateStr);
 
-                // Apply date and status filters
-                if (
-                    activityDate >= startDate &&
-                    activityDate <= endDate &&
-                    (status === "" || activityStatus === status) // Filter by status only if selected
-                ) {
-                    activity.style.display = 'table-row';
-                    hasVisibleActivity = true;
-                } else {
-                    activity.style.display = 'none';
-                }
-            });
+				// Apply date and status filters
+				if (
+					activityDate >= startDate &&
+					activityDate <= endDate &&
+					(status === "" || activityStatus === status) // Filter by status only if selected
+				) {
+					activity.style.display = 'table-row';
+					hasVisibleActivity = true;
+				} else {
+					activity.style.display = 'none';
+				}
+			});
 
-            toggleNoActivityMessage(hasVisibleActivity);
+			toggleNoActivityMessage(hasVisibleActivity);
 
-            // Close the filter modal after applying filters
-            let filterModal = document.getElementById('filterModal');
-            if (filterModal) {
-                let modalInstance = bootstrap.Modal.getInstance(filterModal);
-                if (modalInstance) modalInstance.hide();
-            }
-        }
+			// Close the filter modal after applying filters
+			let filterModal = document.getElementById('filterModal');
+			if (filterModal) {
+				let modalInstance = bootstrap.Modal.getInstance(filterModal);
+				if (modalInstance) modalInstance.hide();
+			}
+		}
 
-        function toggleNoActivityMessage(hasVisibleActivity) {
-            let fallbackMessage = document.getElementById("evaluation-table-fallback");
-            if (hasVisibleActivity) {
-                fallbackMessage.classList.add("d-none");
-            } else {
-                fallbackMessage.classList.remove("d-none");
-            }
-        }
-    });
+		function toggleNoActivityMessage(hasVisibleActivity) {
+			let fallbackMessage = document.getElementById("evaluation-table-fallback");
+			if (hasVisibleActivity) {
+				fallbackMessage.classList.add("d-none");
+			} else {
+				fallbackMessage.classList.remove("d-none");
+			}
+		}
+	});
 </script>

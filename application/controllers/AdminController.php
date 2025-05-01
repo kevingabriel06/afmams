@@ -57,6 +57,7 @@ class AdminController extends CI_Controller
 	{
 		parent::__construct();
 		$this->load->model('Admin_model', 'admin');
+		$this->load->model('Notification_model');
 
 		if (!$this->session->userdata('student_id')) {
 			redirect(site_url('login'));
@@ -321,11 +322,14 @@ class AdminController extends CI_Controller
 	// FUNCTIONALITY FOR THE REGISTRATION
 	public function validate_registrations()
 	{
-		$student_id = $this->input->post('student_id');
-		$activity_id = $this->input->post('activity_id');
-		$reference_number = trim($this->input->post('reference_number'));
-		$action = $this->input->post('action');
-		$remarks = $this->input->post('remarks');
+		$student_id        = $this->input->post('student_id');
+		$activity_id       = $this->input->post('activity_id');
+		$reference_number  = trim($this->input->post('reference_number'));
+		$action            = $this->input->post('action'); // 'Verified' or 'Rejected'
+		$remarks           = $this->input->post('remarks');
+
+		$this->load->model('Notification_model');
+		$this->load->model('Admin_model');
 
 		$record = $this->admin->get_reference_data($student_id, $activity_id);
 
@@ -334,30 +338,72 @@ class AdminController extends CI_Controller
 			return;
 		}
 
+		// Get activity title
+		$activity = $this->db->select('activity_title')->from('activity')->where('activity_id', $activity_id)->get()->row();
+		if (!$activity) {
+			echo json_encode(['success' => false, 'message' => 'Activity not found.']);
+			return;
+		}
+		$activity_title = $activity->activity_title;
+
+		$admin_id = $this->session->userdata('student_id'); // The admin validating
+
+		// Reference mismatch = auto rejection
 		if ($reference_number !== $record->reference_number) {
 			$this->admin->validate_registration($student_id, $activity_id, [
 				'reference_number_admin' => $reference_number,
-				'registration_status' => 'Rejected',
+				'registration_status'    => 'Rejected',
 				'remark' => "Reference number doesn't match the admin's record. Please contact support if this is a mistake."
 			]);
 
-			echo json_encode(['status' => 'warning', 'message' => 'Reference number does not match. Please check it. Contact the student.']);
+			$this->Notification_model->add_notification(
+				$student_id,
+				$admin_id,
+				'registration_rejected',
+				$activity_id,
+				"has rejected your registration for '{$activity_title}' due to mismatched reference number."
+			);
+
+			echo json_encode(['status' => 'warning', 'message' => 'Reference number does not match. Registration rejected.']);
 			return;
 		}
 
+		// If reference number matches
 		$update = $this->admin->validate_registration($student_id, $activity_id, [
 			'reference_number_admin' => $reference_number,
-			'registration_status' => $action,
-			'remark' => $remarks
+			'registration_status'    => $action,
+			'remark'                 => $remarks
 		]);
 
 		if ($update) {
-			// ✅ Only generate receipt if status is Verified
 			if ($action === 'Verified') {
+				// Generate receipt
 				$registration_id = $this->admin->get_registration_id($student_id, $activity_id);
 				if ($registration_id) {
 					$this->generate_and_store_receipt($registration_id);
 				}
+
+				// Notify student of approval
+				$this->Notification_model->add_notification(
+					$student_id,
+					$admin_id,
+					'registration_approved',
+					$activity_id,
+					"has approved your registration for '{$activity_title}'.",
+					null,
+					base_url('student/home/')
+				);
+			} elseif ($action === 'Rejected') {
+				// Notify student of rejection
+				$this->Notification_model->add_notification(
+					$student_id,
+					$admin_id,
+					'registration_rejected',
+					$activity_id,
+					"has rejected your registration for '{$activity_title}'.",
+					null,
+					base_url('student/home/')
+				);
 			}
 
 			echo json_encode(['status' => 'success']);
@@ -510,7 +556,6 @@ class AdminController extends CI_Controller
 	// SHARING ACTIVITY FROM THE ACTIVITY DETAILS
 	public function share_activity()
 	{
-		// Get JSON input
 		$data = json_decode(file_get_contents("php://input"), true);
 
 		if (!isset($data['activity_id'])) {
@@ -520,15 +565,52 @@ class AdminController extends CI_Controller
 
 		$activity_id = $data['activity_id'];
 
-		// Example: Mark activity as shared in the database
+		// Mark the activity as shared
 		$this->db->set('is_shared', 'Yes')->where('activity_id', $activity_id)->update('activity');
 
-		if ($this->db->affected_rows() > 0) {
-			echo json_encode(['success' => true]);
-		} else {
+		if ($this->db->affected_rows() <= 0) {
 			echo json_encode(['success' => false, 'message' => 'Failed to update database.']);
+			return;
 		}
+
+		// Get activity title
+		$activity = $this->db->select('activity_title')->from('activity')->where('activity_id', $activity_id)->get()->row();
+		if (!$activity) {
+			echo json_encode(['success' => false, 'message' => 'Activity not found.']);
+			return;
+		}
+
+		// Get sender ID (admin), fallback to 0
+		$sender_id = $this->session->userdata('student_id') ?? 0;
+
+		// Get all students (exclude admins)
+		$students = $this->db->select('student_id')->where('role', 'student')->get('users')->result_array();
+
+		// Prepare notifications
+		$notification_data = [];
+		foreach ($students as $student) {
+			$notification_data[] = [
+				'recipient_student_id' => $student['student_id'],
+				'recipient_admin_id'   => null,
+				'sender_student_id'    => $sender_id,
+				'type'                 => 'activity_shared',
+				'reference_id'         => $activity_id,
+				'message'              => 'Shared a new activity with you: ' . $activity->activity_title,
+				'is_read'              => 0,
+				'created_at'           => date('Y-m-d H:i:s'),
+				'link' => base_url('student/home/')
+			];
+		}
+
+		// Insert all notifications
+		if (!empty($notification_data)) {
+			$this->db->insert_batch('notifications', $notification_data);
+		}
+
+		echo json_encode(['success' => true]);
 	}
+
+
 
 
 	//UNSHARE ACTIVITY
@@ -792,11 +874,46 @@ class AdminController extends CI_Controller
 			$this->admin->saveFormFields($fieldData); // Save form fields
 		}
 
-		$this->db->trans_complete(); // Complete transaction
+		$this->db->trans_complete();
 
 		if ($this->db->trans_status() === FALSE) {
 			echo json_encode(['success' => false, 'message' => 'Failed to create the form.']);
 		} else {
+			// === SEND NOTIFICATIONS BASED ON ACTIVITY AUDIENCE ===
+			$activity_id = $formData['activity_id'];
+			$activity = $this->admin->get_activity_by_id($activity_id); // Make sure you have this method to get activity details
+
+			$students_to_notify = [];
+
+			if ($activity->audience === 'All') {
+				// Notify all students except admins
+				$this->db->select('student_id, first_name, last_name');
+				$this->db->from('users');
+				$this->db->where('role !=', 'Admin');
+				$students_to_notify = $this->db->get()->result();
+			} else {
+				// Notify students in the specified department
+				$this->db->select('u.student_id, u.first_name, u.last_name');
+				$this->db->from('users u');
+				$this->db->join('department d', 'd.dept_id = u.dept_id');
+				$this->db->where('d.dept_name', $activity->audience);
+				$this->db->where('u.role !=', 'Admin');
+				$students_to_notify = $this->db->get()->result();
+			}
+
+			foreach ($students_to_notify as $student) {
+				$notification_data = [
+					'recipient_student_id' => $student->student_id,
+					'sender_student_id'    => $this->session->userdata('student_id'), // System/Admin
+					'type'                 => 'evaluation_uploaded',
+					'reference_id'         => $formId, // Link to the form
+					'message'              => 'uploaded a new evaluation form for the activity "' . $activity->activity_title . '"',
+					'is_read'              => 0,
+					'created_at'           => date('Y-m-d H:i:s')
+				];
+				$this->db->insert('notifications', $notification_data);
+			}
+
 			echo json_encode([
 				'success' => true,
 				'message' => 'Form created successfully.',
@@ -1102,9 +1219,25 @@ class AdminController extends CI_Controller
 	{
 		$remarks = $this->input->post('remarks');
 		$approvalStatus = $this->input->post('approvalStatus');
-		$excuse_id = $this->input->post('excuse_id');  // Assuming the application ID is passed
+		$excuse_id = $this->input->post('excuse_id');
 		$activity_id = $this->input->post('activity_id');
 		$student_id = $this->input->post('student_id');
+
+
+		// Fetch the student_id from the excuse_application table based on the excuse_id
+		$this->db->select('student_id');
+		$this->db->from('excuse_application');
+		$this->db->where('excuse_id', $excuse_id);
+		$query = $this->db->get();
+
+		// Ensure a valid student_id is found
+		if ($query->num_rows() > 0) {
+			$student_id = $query->row()->student_id;
+		} else {
+			// Handle the case if no student is found for the given excuse_id
+			echo json_encode(['success' => false, 'message' => 'Invalid excuse ID']);
+			return;
+		}
 
 		// Prepare the data for updating the excuse
 		$data = [
@@ -1115,13 +1248,44 @@ class AdminController extends CI_Controller
 
 		// Call the model to update the excuse status
 		$result = $this->admin->updateApprovalStatus($data);
+		$link = base_url('student/excuse-application/list/');
+
 
 		if ($result) {
-			// If approved, also update the attendance status to 'excuse'
+
+			// Prepare the message for the notification
+			$message = ($approvalStatus === 'Approved')
+				? 'has approved your excuse application!'
+				: 'has disapproved your excuse application! Remarks: ' . $remarks;
+
+			// Prepare notification data for the student who applied
+			$notification_data = [
+				'recipient_student_id' => $student_id, // The student receiving the notification
+				'sender_student_id' => $this->session->userdata('student_id'), // Admin sending the notification
+				'type' => ($approvalStatus === 'Approved') ? 'excuse_approved' : 'excuse_not_approved',
+				'reference_id' => $excuse_id, // Reference to the excuse application
+				'message' => $message,
+			];
+
+			// Load the Notification model
+			$this->load->model('Notification_model');
+
+			// Call the add_notification method to insert the notification into the database
+			$this->Notification_model->add_notification(
+				$notification_data['recipient_student_id'],
+				$notification_data['sender_student_id'],
+				$notification_data['type'],
+				$notification_data['reference_id'],
+				$notification_data['message'],
+				null,
+				$link
+			);
+
+			// If approved, update attendance status to 'excuse'
 			if ($approvalStatus === 'Approved') {
-				$this->db->where('student_id', $student_id);
-				$this->db->where('activity_id', $activity_id);
-				$this->db->update('attendance', ['attendance_status' => 'excuse']);
+				$this->db->where('student_id', $student_id)
+					->where('activity_id', $activity_id)
+					->update('attendance', ['attendance_status' => 'excuse']);
 			}
 
 			echo json_encode(['success' => true, 'message' => 'Approval status updated successfully.']);
@@ -1431,7 +1595,31 @@ class AdminController extends CI_Controller
 			// Insert post data into the database
 			$result = $this->admin->insert_data($data);
 
+
 			if ($result) {
+
+
+				// notifications start
+				$students = $this->db->select('student_id')->where('role', 'student')->get('users')->result_array();
+
+				$notification_data = [];
+				foreach ($students as $student) {
+					$notification_data[] = [
+						'recipient_student_id' => $student['student_id'],
+						'sender_student_id' => $student_id, // Admin who posted
+						'type' => 'new_post',
+						'reference_id' => $result, // Post ID
+						'message' => 'created a new post.',
+						'is_read' => 0,
+						'created_at' => date('Y-m-d H:i:s'),
+						'link' => base_url('student/home/')
+					];
+				}
+
+				if (!empty($notification_data)) {
+					$this->db->insert_batch('notifications', $notification_data);
+				} //notifications end
+
 				// Post saved successfully
 				$response = [
 					'status' => 'success',
@@ -2171,18 +2359,23 @@ class AdminController extends CI_Controller
 	//FINES PAYMENTS CONFIRMATION
 	public function confirm_payment()
 	{
+		$this->load->model('Notification_model');
+
 		$student_id = $this->input->post('student_id');
 		$total_fines = $this->input->post('total_fines');
 		$mode_of_payment = $this->input->post('mode_of_payment');
 		$reference_number = trim($this->input->post('reference_number'));
 
 		$record = $this->admin->get_fine_summary($student_id);
+		$admin_student_id = $this->session->userdata('student_id'); // Get logged-in admin's student_id
+
 
 		if (!$record) {
 			echo json_encode(['status' => 'error', 'message' => 'No fines summary found.']);
 			return;
 		}
 
+		// CASE: REFERENCE NUMBER MISMATCH - REJECTED
 		if ($reference_number !== $record->reference_number_students) {
 			$this->admin->update_fines_summary($student_id, [
 				'reference_number_admin' => $reference_number,
@@ -2191,10 +2384,20 @@ class AdminController extends CI_Controller
 				'last_updated' => date('Y-m-d H:i:s')
 			]);
 
+			// ❌ Send rejection notification
+			$this->Notification_model->add_notification(
+				$student_id,                 // recipient_student_id
+				$admin_student_id,                        // sender_student_id (admin)
+				'fine_payment_rejected',          // type
+				$record->summary_id,         // reference_id
+				'Your fine payment could not be confirmed. Please double-check your reference number.'
+			);
+
 			echo json_encode(['status' => 'warning', 'message' => 'Reference mismatch. Payment on hold.']);
 			return;
 		}
 
+		// CASE: REFERENCE MATCH - APPROVED
 		$updated = $this->admin->update_fines_summary_receipt($student_id, [
 			'reference_number_admin' => $reference_number,
 			'fines_status' => 'Paid',
@@ -2206,11 +2409,25 @@ class AdminController extends CI_Controller
 			$summary_id = $record->summary_id;
 			$this->generate_and_store_fine_receipt($summary_id);
 
+			// ✅ Send approval notification
+			$this->Notification_model->add_notification(
+				$student_id,               // recipient_student_id
+				$admin_student_id,                      // sender_student_id (admin)
+				'fine_payment_approved',        // type
+				$summary_id,               // reference_id
+				'has approved your fine payment  and marked as paid.',
+				null,
+				base_url('student/summary-fines/')
+
+
+			);
+
 			echo json_encode(['status' => 'success', 'message' => 'Payment verified and receipt generated.']);
 		} else {
 			echo json_encode(['status' => 'error', 'message' => 'Update failed.']);
 		}
 	}
+
 
 	public function generate_and_store_fine_receipt($summary_id)
 	{

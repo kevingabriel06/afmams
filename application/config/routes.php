@@ -283,3 +283,7 @@ $route['officer/import-students'] = 'OfficerController/import_list';
 $route['officer/generate_bulk_qr'] = 'OfficerController/generate_bulk_qr';
 
 $route['officer/about'] = 'OfficerController/about';
+
+
+
+//NOTIFICATIONS ROUTES
