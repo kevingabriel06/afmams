@@ -554,7 +554,7 @@ class Admin_model extends CI_Model
 	// FETCHING EXCUSE LETTER PER STUDENT
 	public function review_letter($excuse_id)
 	{
-		$this->db->select('excuse_application.*, users.*');
+		$this->db->select('excuse_application.*, users.*, department.dept_name');
 		$this->db->from('excuse_application');
 		$this->db->join('users', 'excuse_application.student_id = users.student_id');
 		$this->db->join('department', 'users.dept_id = department.dept_id');
@@ -1313,6 +1313,8 @@ class Admin_model extends CI_Model
 
 		return $query->row(); // Returns a single activity
 	}
+
+
 
 	// END OF EVALUATION 
 

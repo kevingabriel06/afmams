@@ -47,7 +47,7 @@
 				</div>
 			</div>
 
-			<div class="card-body p-3">
+			<div class="card-body">
 				<div class="table-responsive scrollbar">
 					<?php
 					$previous_organizer = '';

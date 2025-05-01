@@ -56,6 +56,7 @@ class StudentController extends CI_Controller
 
 		$this->load->database();
 		$this->load->model('Student_model', 'student');
+		$this->load->model('Notification_model');
 
 		// CHECK IF THERE'S A STUDENT LOGIN
 		if (!$this->session->userdata('student_id')) {
@@ -67,11 +68,22 @@ class StudentController extends CI_Controller
 	public function student_dashboard()
 	{
 		$data['title'] = 'Home';
+		$this->load->model('Student_model');
+		$this->load->model('Admin_model', 'admin');
+		$this->load->model('Notification_model'); // Load the notification model
+		$this->load->helper('url');
+
+
 		$student_id = $this->session->userdata('student_id');
 
 		// FETCH USER DATA
 		$data['users'] = $this->student->get_student($student_id);
 		$data['authors'] = $this->student->get_user();
+
+		// Fetch student profile picture
+		$current_profile_pic = $this->Student_model->get_profile_pic($student_id);
+		// Ensure a default profile picture if none exists
+		$data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
 
 		// Get offset and limit from AJAX request
 		$limit = $this->input->post('limit') ?: 5;
@@ -94,6 +106,8 @@ class StudentController extends CI_Controller
 			$activity->registration_status = $this->student->get_registration_status_for_activity($activity->activity_id);
 			$activity->attendees_status = $this->student->get_attendees_free_event($activity->activity_id);
 		}
+
+
 
 		// MERGE POSTS & ACTIVITIES BEFORE PAGINATION
 		$merged_feed = array_merge($data['posts'], $data['activities']);
@@ -250,7 +264,7 @@ class StudentController extends CI_Controller
 		$this->form_validation->set_rules('student_id', 'Student ID', 'required');
 		$this->form_validation->set_rules('activity_id', 'Activity ID', 'required');
 		$this->form_validation->set_rules('payment_type', 'Payment Type', 'required|in_list[Cash,Online Payment]');
-		$this->form_validation->set_rules('amount', 'Amount Paid', 'required|numeric');
+		$this->form_validation->set_rules('amount', 'Amount Paid');
 
 		// Additional rule for Online Payment: reference number required
 		if ($this->input->post('payment_type') === 'Online Payment') {
@@ -317,6 +331,25 @@ class StudentController extends CI_Controller
 		];
 
 		if ($this->student->insert_registration($data)) {
+
+			// === Send Notification to Admins ===
+			$this->load->model('Notification_model');
+
+			$activity_name = $this->Notification_model->get_activity_name($activity_id) ?? 'Unknown Activity';
+			$admin_student_ids = $this->Notification_model->get_admin_student_ids(); // Get admin student_ids
+			$notification_message = 'submitted a registration request for "' . $activity_name . '"';
+
+			foreach ($admin_student_ids as $admin_student_id) {
+				$this->Notification_model->add_notification(
+					null,                  // recipient_student_id = NULL
+					$student_id,           // sender_student_id
+					'registration_submitted', // type (you can define it in your system)
+					$activity_id,          // reference_id
+					$notification_message, // message
+					$admin_student_id,     // recipient_admin_id
+					base_url('admin/activity-details/' . $activity_id)
+				);
+			}
 			echo json_encode([
 				'status' => 'success',
 				'message' => 'Registration submitted successfully!'
@@ -451,24 +484,18 @@ class StudentController extends CI_Controller
 
 
 
-
-
-
-
-
-
 	//PAY SUMMARY OF FINES START
 
 	// Handle the payment submission
 	public function pay_fines()
 	{
-		// Load required helpers/libraries if not loaded already
+		$this->load->model('Notification_model');
 		$this->load->helper(['form', 'url']);
 		$this->load->library('upload');
 
 		$student_id = $this->input->post('student_id');
 		$total_fines = $this->input->post('total_fines');
-		$organizer = $this->input->post('organizer'); // <--- GET organizer
+		$organizer = $this->input->post('organizer');
 		$mode_payment = $this->input->post('mode_payment');
 		$reference_number_students = $this->input->post('reference_number_students');
 		$receipt_filename = '';
@@ -487,10 +514,10 @@ class StudentController extends CI_Controller
 			}
 		}
 
-		// Prepare data to insert/update in fines_summary
+		// Insert fine payment record
 		$data = [
 			'student_id' => $student_id,
-			'organizer' => $organizer, // <--- ADD organizer here
+			'organizer' => $organizer,
 			'total_fines' => $total_fines,
 			'fines_status' => 'Pending',
 			'mode_payment' => $mode_payment,
@@ -499,11 +526,35 @@ class StudentController extends CI_Controller
 			'last_updated' => date('Y-m-d H:i:s'),
 		];
 
-		// Insert or update summary — adjust this logic based on your needs
 		$this->db->insert('fines_summary', $data);
+		$fine_summary_id = $this->db->insert_id(); // Reference for notifications
+
+		// Get student name for message
+		$this->db->select('first_name, last_name');
+		$this->db->from('users');
+		$this->db->where('student_id', $student_id);
+		$student = $this->db->get()->row();
+		$student_name = $student ? $student->first_name . ' ' . $student->last_name : 'A student';
+
+		$notification_message = ' submitted a fine payment to ' . $organizer . '.';
+
+		// Notify all admins
+		$admin_student_ids = $this->Notification_model->get_admin_student_ids();
+		foreach ($admin_student_ids as $admin_student_id) {
+			$this->Notification_model->add_notification(
+				null,                      // recipient_student_id
+				$student_id,               // sender_student_id
+				'fine_payment_uploaded',   // type
+				$fine_summary_id,          // reference_id
+				$notification_message,     // message
+				$admin_student_id,       // recipient_admin_id
+				base_url('admin/list-fines/')
+			);
+		}
 
 		echo json_encode(['status' => 'success', 'message' => 'Payment recorded successfully.']);
 	}
+
 
 
 	//PAY SUMMARY OF FINES END
@@ -576,6 +627,29 @@ class StudentController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
+	// EVALUATION LIST - PAGE
+	public function evaluation_form_list()
+	{
+		$data['title'] = 'List Evaluation Form';
+
+		$student_id = $this->session->userdata('student_id');
+
+		// FETCH USER DATA
+		$data['users'] = $this->student->get_student($student_id);
+
+		$data['forms'] = $this->student->list_forms();
+
+		// Fetch open (unanswered) forms
+		$data['evaluation_forms'] = $this->student->get_open_forms_for_student_and_unanswered();
+
+		// // Fetch answered forms
+		// $data['answered_forms'] = $this->student->get_answered_forms($student_id);
+
+		// Load the view files
+		$this->load->view('layout/header', $data);
+		$this->load->view('student/evaluation_forms_list', $data);
+		$this->load->view('layout/footer', $data);
+	}
 
 	// EVALUATION FORM DESIGN OPENED FORM - PAGE
 	public function evaluation_forms()
@@ -672,7 +746,6 @@ class StudentController extends CI_Controller
 			echo json_encode(['success' => false, 'message' => 'Failed to submit answers.']);
 		}
 	}
-
 
 
 	//SUBMIT FORM ANSWERS
@@ -798,6 +871,9 @@ class StudentController extends CI_Controller
 	//EXCUSE APPLICATION SUBMIT
 	public function submit_application()
 	{
+
+
+		$this->load->model('Notification_model');
 		// Set validation rules
 		$this->form_validation->set_rules('student_id', 'Student ID', 'required');
 		$this->form_validation->set_rules('activity_id', 'Activity', 'required');
@@ -869,6 +945,31 @@ class StudentController extends CI_Controller
 
 		// Insert into the model
 		$this->student->insert_application($data);
+
+
+		// Notify Admins (send notifications)
+		$this->load->model('Notification_model');
+		$activity_name = $this->Notification_model->get_activity_name($data['activity_id']) ?? 'Unknown Activity';
+
+
+		$admin_student_ids = $this->Notification_model->get_admin_student_ids(); // Get admin student_ids
+
+		$notification_message = 'submitted an excuse application for "' . $activity_name . '"';
+
+		$sender_student_id = $this->input->post('student_id'); // Already a student_id
+
+		foreach ($admin_student_ids as $admin_student_id) {
+			$this->Notification_model->add_notification(
+				null,                      // recipient_student_id = NULL
+				$sender_student_id,        // sender_student_id
+				'excuse_submitted',        // type
+				$data['activity_id'],      // reference_id
+				$notification_message,     // message
+				$admin_student_id,         // recipient_admin_id is used instead
+				base_url('admin/list-of-excuse-letter/' . $data['activity_id'])
+			);
+		}
+
 
 		// Success response
 		echo json_encode(['status' => 'success', 'message' => 'Your application has been submitted successfully.']);
@@ -1012,6 +1113,26 @@ class StudentController extends CI_Controller
 		echo json_encode(['status' => 'success', 'message' => 'Password updated successfully']);
 	}
 
+	public function get_qr_code_by_student()
+	{
+		// Get student_id from session
+		if ($this->session->has_userdata('student_id')) {
+			$student_id = $this->session->userdata('student_id');
+
+			// Retrieve QR code from the database (ensure you have the correct query in place)
+			$qr_code = $this->student->get_qr_code($student_id);
+
+			if ($qr_code) {
+				// Return the QR code as JSON (base64 string)
+				echo json_encode(['status' => 'success', 'qr_code' => $qr_code]);
+			} else {
+				// No QR code found for the student
+				echo json_encode(['status' => 'error', 'message' => 'QR Code not found for this student.']);
+			}
+		} else {
+			echo json_encode(['status' => 'error', 'message' => 'No student found in session.']);
+		}
+	}
 
 	//RECEIPTS PAGE START
 
@@ -1085,5 +1206,20 @@ class StudentController extends CI_Controller
 		$this->load->view('about', $data);
 		$this->load->view('layout/footer', $data);
 		// $this->load->view('layout/footer');
+	}
+
+	public function about()
+	{
+		$data['title'] = 'About';
+
+		$student_id = $this->session->userdata('student_id');
+
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->student->get_student($student_id);
+
+
+		$this->load->view('layout/header', $data);
+		$this->load->view('admin/about', $data);
+		$this->load->view('layout/footer', $data);
 	}
 }

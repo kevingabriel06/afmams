@@ -574,7 +574,6 @@ class Student_model extends CI_Model
 
 	public function get_activities_for_users_excuse_application()
 	{
-		// Get logged-in student ID
 		$student_id = $this->session->userdata('student_id');
 
 		// Get the student's department and name
@@ -599,10 +598,21 @@ class Student_model extends CI_Model
 			return $org->org_name;
 		}, $orgs);
 
-		// Fetch upcoming activities that exist in excuse_application but where the student has not passed an excuse
+		// Step 1: Get activity IDs where the student already submitted excuse
+		$submitted_excuses = $this->db->select('activity_id')
+			->from('excuse_application')
+			->where('student_id', $student_id)
+			->get()
+			->result();
+
+		$submitted_activity_ids = array_map(function ($row) {
+			return $row->activity_id;
+		}, $submitted_excuses);
+
+		// Step 2: Fetch upcoming activities
 		$this->db->select('activity.*');
 		$this->db->from('activity');
-		$this->db->join('excuse_application', 'excuse_application.activity_id = activity.activity_id', 'inner');
+
 		$this->db->where('activity.status', 'Upcoming');
 
 		// Filter by audience
@@ -616,17 +626,15 @@ class Student_model extends CI_Model
 		}
 		$this->db->group_end();
 
-		// Ensure the student has not passed the excuse application for this activity
-		$this->db->where('excuse_application.student_id', $student_id);
-		//$this->db->where('excuse_application.status !=', 'Approved'); // Check for activities where the excuse is not approved
+		// Exclude activities where the student already submitted an excuse
+		if (!empty($submitted_activity_ids)) {
+			$this->db->where_not_in('activity.activity_id', $submitted_activity_ids);
+		}
 
-		// Optional: Remove duplicates
-		$this->db->group_by('excuse_application.activity_id, excuse_application.student_id');
-
-		// Execute the query
 		$query = $this->db->get();
 		return $query->result();
 	}
+
 
 
 	public function insert_application($data)
@@ -1389,5 +1397,20 @@ class Student_model extends CI_Model
 	{
 		return $this->db->where('student_id', $student_id)
 			->update('users', ['password' => $hashed_password]);
+	}
+
+
+	public function get_qr_code($student_id)
+	{
+		$this->db->select('qr_image');
+		$this->db->from('users');
+		$this->db->where('student_id', $student_id);
+		$query = $this->db->get();
+
+		if ($query->num_rows() > 0) {
+			return $query->row()->qr_image; // Return the base64 encoded QR code
+		}
+
+		return null; // No QR code found for this student
 	}
 }

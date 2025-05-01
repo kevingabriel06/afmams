@@ -378,7 +378,7 @@
 
             <script>
                 document.addEventListener('DOMContentLoaded', function() {
-                    fetch('<?php echo site_url("aofficerdmin/profile/get_qr_code_by_student"); ?>', {
+                    fetch('<?php echo site_url("officer/profile/get_qr_code_by_student"); ?>', {
                             method: 'GET'
                         })
                         .then(response => response.json())

@@ -111,14 +111,14 @@
                 // Initialize webcam
                 window.onload = function() {
                     // Show SweetAlert loading
-                    Swal.fire({
-                        title: 'Loading...',
-                        text: 'Please wait while facial recognition initializes.',
-                        allowOutsideClick: false,
-                        didOpen: () => {
-                            Swal.showLoading();
-                        }
-                    });
+                    // Swal.fire({
+                    //     title: 'Loading...',
+                    //     text: 'Please wait while facial recognition initializes.',
+                    //     allowOutsideClick: false,
+                    //     didOpen: () => {
+                    //         Swal.showLoading();
+                    //     }
+                    // });
 
                     const video = document.getElementById("video");
                     const videoContainer = document.querySelector(".video-container");

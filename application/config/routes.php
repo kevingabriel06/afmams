@@ -109,11 +109,12 @@ $route['student/profile-settings'] = 'StudentController/profile_settings';
 $route['student/profile/update-profile-pic'] = 'StudentController/update_profile_pic';
 $route['student/profile/update-profile'] = 'StudentController/update_profile';
 $route['student/profile/update_password'] = 'StudentController/update_password';
+$route['student/profile/get_qr_code_by_student'] = 'StudentController/get_qr_code_by_student';
 
 //STUDENT RECEIPTS
 $route['student/receipts'] = 'StudentController/receipts_page';
 
-$route['about'] = 'StudentController/about_page';
+$route['student/about'] = 'StudentController/about';
 
 //ADMIN ROUTES
 $route['admin/dashboard'] = 'AdminController/admin_dashboard';
@@ -284,3 +285,7 @@ $route['officer/import-students'] = 'OfficerController/import_list';
 $route['officer/generate_bulk_qr'] = 'OfficerController/generate_bulk_qr';
 
 $route['officer/about'] = 'OfficerController/about';
+
+
+
+//NOTIFICATIONS ROUTES
