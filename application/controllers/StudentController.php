@@ -346,7 +346,8 @@ class StudentController extends CI_Controller
 					'registration_submitted', // type (you can define it in your system)
 					$activity_id,          // reference_id
 					$notification_message, // message
-					$admin_student_id      // recipient_admin_id
+					$admin_student_id,     // recipient_admin_id
+					base_url('admin/activity-details/' . $activity_id)
 				);
 			}
 			echo json_encode([

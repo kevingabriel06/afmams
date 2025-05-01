@@ -391,7 +391,7 @@ class AdminController extends CI_Controller
 					$activity_id,
 					"has approved your registration for '{$activity_title}'.",
 					null,
-					base_url('student/home/')
+					base_url('student/activity-details/' . $activity_id)
 				);
 			} elseif ($action === 'Rejected') {
 				// Notify student of rejection
@@ -402,7 +402,7 @@ class AdminController extends CI_Controller
 					$activity_id,
 					"has rejected your registration for '{$activity_title}'.",
 					null,
-					base_url('student/home/')
+					base_url('student/activity-details/' . $activity_id)
 				);
 			}
 
