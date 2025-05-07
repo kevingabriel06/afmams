@@ -85,6 +85,6 @@ class AuthController extends CI_Controller
     public function logout()
     {
         $this->session->sess_destroy();
-        redirect('login'); // Redirect to login page
+        redirect('/'); // Redirect to login page
     }
 }

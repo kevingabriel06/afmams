@@ -142,9 +142,9 @@
 												<?php echo $student['status']; ?>
 												<span class="ms-1 fas fa-exclamation" data-fa-transform="shrink-2"></span>
 											</span>
-										<?php else: ?>
-											<span class="badge badge rounded-pill d-block p-2 badge-subtle-secondary">
-												No Status
+										<?php elseif ($student['status'] == 'Excused'): ?>
+											<span class="badge badge rounded-pill d-block p-2 badge-subtle-primary">
+												Excused
 											</span>
 										<?php endif; ?>
 									</td>

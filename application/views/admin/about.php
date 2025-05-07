@@ -51,11 +51,6 @@
 		}
 	}
 
-
-
-
-
-
 	.icon-circle {
 		width: 60px;
 		height: 60px;
@@ -214,48 +209,6 @@
 
 	</header>
 
-
-
-	<!-- Features Section 
-	<section id="features" class="py-3">
-		<div class="card mb-3 mb-lg-0">
-			<div class="card-header bg-body-tertiary d-flex justify-content-between">
-				<h5 class="mb-0">Our Features</h5>
-			</div>
-		</div>
-
-		 Space Between Sections 
-	<div class="space" style="height: 20px;"></div>  Adds spacing between sections
-
-
-	<div class="row d-flex align-items-stretch">
-
-		<div class="col-md-4">
-			<div class="features-card text-center h-100">
-				<i class="fas fa-calendar-check fa-3x mb-3 text-primary"></i>
-				<h5>Attendance Monitoring</h5>
-				<p>Track attendance with real-time QR code scanning.</p>
-			</div>
-		</div>
-		<div class="col-md-4">
-			<div class="features-card text-center h-100">
-				<i class="fas fa-money-bill-wave fa-3x mb-3 text-primary"></i>
-				<h5>Fines Monitoring</h5>
-				<p>Track and manage student fines efficiently in real-time.</p>
-			</div>
-
-		</div>
-		<div class="col-md-4">
-			<div class="features-card text-center h-100">
-				<i class="fas fa-calendar-alt fa-3x mb-3 text-primary"></i>
-				<h5>Activity Management</h5>
-				<p>Efficiently organize and oversee events, schedules, and student activities.</p>
-			</div>
-		</div>
-	</div>
-
-	</section> -->
-
 	<!-- About Section -->
 
 	<!-- About Our Project Card -->
@@ -296,11 +249,6 @@
 			</div>
 		</div>
 	</div>
-
-
-
-
-
 
 	<!-- Technologies Used Card -->
 	<div class="card mb-4 shadow-sm border-0">
@@ -383,10 +331,6 @@
 			</div>
 		</div>
 	</div>
-
-
-
-
 	<!-- Future Plans Card -->
 	<div class="card mb-4 shadow-sm">
 		<div class="card-body">
@@ -398,8 +342,6 @@
 			</p>
 		</div>
 	</div>
-
-
 
 	<!-- Team Members Card -->
 	<div class="container my-3 team-section">
@@ -418,11 +360,6 @@
 						<h5 class="card-title">Kevin Gabriel Maranan</h5>
 						<p class="text-muted">Lead Programmer</p>
 						<blockquote class="blockquote small fst-italic text-secondary">“Building solutions that scale.”</blockquote>
-						<div class="mt-auto">
-							<a href="#" class="text-primary mx-1"><i class="fab fa-facebook"></i></a>
-							<a href="#" class="text-info mx-1"><i class="fab fa-twitter"></i></a>
-							<a href="#" class="text-danger mx-1"><i class="fab fa-google-plus"></i></a>
-						</div>
 					</div>
 				</div>
 			</div>
@@ -434,11 +371,6 @@
 						<h5 class="card-title">Jarmaine Neil Mojica</h5>
 						<p class="text-muted">Project Manager</p>
 						<blockquote class="blockquote small fst-italic text-secondary">“Leading with passion and precision.”</blockquote>
-						<div class="mt-auto">
-							<a href="#" class="text-primary mx-1"><i class="fab fa-facebook"></i></a>
-							<a href="#" class="text-info mx-1"><i class="fab fa-twitter"></i></a>
-							<a href="#" class="text-danger mx-1"><i class="fab fa-google-plus"></i></a>
-						</div>
 					</div>
 				</div>
 			</div>
@@ -450,16 +382,9 @@
 						<h5 class="card-title">Jenah Marie Z. Rivero</h5>
 						<p class="text-muted">Programmer</p>
 						<blockquote class="blockquote small fst-italic text-secondary">“Turning coffee into clean code.”</blockquote>
-						<div class="mt-auto">
-							<a href="#" class="text-primary mx-1"><i class="fab fa-facebook"></i></a>
-							<a href="#" class="text-info mx-1"><i class="fab fa-twitter"></i></a>
-							<a href="#" class="text-danger mx-1"><i class="fab fa-google-plus"></i></a>
-						</div>
 					</div>
 				</div>
 			</div>
-
-
 
 			<!-- Second row: 2 members centered -->
 			<div class="col-md-4 text-center glass-card p-4 m-2">
@@ -469,11 +394,6 @@
 						<h5 class="card-title">Shian Nichole Marcos</h5>
 						<p class="text-muted">Documentation</p>
 						<blockquote class="blockquote small fst-italic text-secondary">“Details make the difference.”</blockquote>
-						<div class="mt-auto">
-							<a href="#" class="text-primary mx-1"><i class="fab fa-facebook"></i></a>
-							<a href="#" class="text-info mx-1"><i class="fab fa-twitter"></i></a>
-							<a href="#" class="text-danger mx-1"><i class="fab fa-google-plus"></i></a>
-						</div>
 					</div>
 				</div>
 			</div>
@@ -485,21 +405,9 @@
 						<h5 class="card-title">Niwed Jevett Abad</h5>
 						<p class="text-muted">Designer</p>
 						<blockquote class="blockquote small fst-italic text-secondary">“Designing with empathy and elegance.”</blockquote>
-						<div class="mt-auto">
-							<a href="#" class="text-primary mx-1"><i class="fab fa-facebook"></i></a>
-							<a href="#" class="text-info mx-1"><i class="fab fa-twitter"></i></a>
-							<a href="#" class="text-danger mx-1"><i class="fab fa-google-plus"></i></a>
-						</div>
 					</div>
 				</div>
 			</div>
 		</div>
 	</div>
-
-
-
-
-
-	<!-- </section> -->
-
 </div>

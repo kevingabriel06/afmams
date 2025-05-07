@@ -268,10 +268,15 @@
 
 					<ul class="navbar-nav navbar-nav-icons ms-auto flex-row align-items-center">
 						<!-- NOTIFICATIONS START -->
-						<li class="nav-item dropdown">
-							<a class="nav-link notification-indicator px-0" id="notificationBell" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-								<span class="fas fa-bell" style="font-size: 33px;"></span>
-								<span id="notificationCount" class="badge bg-danger position-absolute top-0 end-0 rounded-circle">0</span>
+						<li class="nav-item dropdown me-2">
+							<a class="nav-link position-relative px-0" id="notificationBell" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+								<i class="fas fa-bell" style="font-size: 24px;"></i>
+								<span id="notificationCount"
+									class="position-absolute badge rounded-circle bg-danger"
+									style="top: 2px; right: -6px; font-size: 0.7rem; padding: 4px 6px;">
+									0
+									<span class="visually-hidden">unread messages</span>
+								</span>
 							</a>
 							<div class="dropdown-menu dropdown-menu-end p-0" style="width: 300px;">
 								<div class="card card-notification shadow-none">
@@ -283,13 +288,10 @@
 											<!-- Notifications go here -->
 										</div>
 									</div>
-									<div class="card-footer text-center border-top p-2" style="width: 100%;">
-										<a href="<?= base_url('notifications/view_all') ?>" class="d-block w-100 text-decoration-none">View all</a>
-									</div>
 								</div>
 							</div>
-
 						</li>
+
 						<!-- NOTIFICATIONS END -->
 
 						<!-- Dynamic Notifications Script -->
@@ -324,14 +326,14 @@
 												});
 
 												listHtml += `
-                    <a href="${notification.link}" class="list-group-item list-group-item-action d-flex align-items-center ${notification.is_read == 0 ? 'bg-light' : ''}">
-                        <img src="${profileImg}" alt="Profile" class="rounded-circle me-2" width="40" height="40">
-                        <div>
-                            <strong>${fullName}</strong><br>
-                            ${message}<br>
-                            <small class="text-muted">${date}</small>
-                        </div>
-                    </a>`;
+												<a href="${notification.link}" class="list-group-item list-group-item-action d-flex align-items-center ${notification.is_read == 0 ? 'bg-light' : ''}">
+													<img src="${profileImg}" alt="Profile" class="rounded-circle me-2" width="40" height="40">
+													<div>
+														<strong>${fullName}</strong><br>
+														${message}<br>
+														<small class="text-muted">${date}</small>
+													</div>
+												</a>`;
 											});
 										}
 
@@ -355,7 +357,8 @@
 						<!-- //NOTIFICATIONS END -->
 
 
-						<li class="nav-item dropdown"><a class="nav-link pe-0 ps-2" id="navbarDropdownUser" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+						<li class="nav-item dropdown">
+							<a class="nav-link pe-0 ps-2" id="navbarDropdownUser" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 								<div class="avatar avatar-xl">
 									<img class="rounded-circle" src="<?= base_url('assets/profile/' . ($users['profile_pic'] ? $users['profile_pic'] : 'default.jpg')) ?>" alt="" />
 								</div>
@@ -368,7 +371,7 @@
 										<div class="dropdown-divider"></div>
 										<a class="dropdown-item" href="<?php echo site_url('student/profile-settings'); ?>">Profile Settings</a>
 										<div class="dropdown-divider"></div>
-										<a class="dropdown-item" href="<?php echo site_url('logout'); ?>">Logout</a>
+										<a class="dropdown-item" href="#" onclick="confirmLogout()">Logout</a>
 									</div>
 								</div>
 							<?php elseif ($users['role'] == 'Admin'): ?>
@@ -381,7 +384,7 @@
 										<a class="dropdown-item" href="<?php echo site_url('admin/general-settings'); ?>">General Settings</a>
 										<a class="dropdown-item" href="<?php echo site_url('admin/manage-officers'); ?> ">Manage Officers</a>
 										<div class="dropdown-divider"></div>
-										<a class="dropdown-item logout" href="<?php echo site_url('logout'); ?>">Logout</a>
+										<a class="dropdown-item" href="#" onclick="confirmLogout()">Logout</a>
 									</div>
 								</div>
 							<?php else : ?>
@@ -391,10 +394,32 @@
 										<div class="dropdown-divider"></div>
 										<a class="dropdown-item" href="<?php echo site_url('officer/profile-settings') ?>">Profile Settings</a>
 										<div class="dropdown-divider"></div>
-										<a class="dropdown-item" href="<?php echo site_url('logout'); ?>">Logout</a>
+										<a class="dropdown-item" href="#" onclick="confirmLogout()">Logout</a>
 									</div>
 								</div>
 							<?php endif; ?>
 						</li>
+
+						<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.5.6/dist/sweetalert2.min.js"></script>
+
+						<script>
+							function confirmLogout() {
+								Swal.fire({
+									title: 'Are you sure?',
+									text: "You will be logged out of your account!",
+									icon: 'warning',
+									showCancelButton: true,
+									confirmButtonText: 'Yes, Log Out',
+									cancelButtonText: 'Cancel',
+									reverseButtons: true
+								}).then((result) => {
+									if (result.isConfirmed) {
+										// Redirect to logout URL
+										window.location.href = '<?php echo site_url('logout'); ?>';
+									}
+								});
+							}
+						</script>
+
 					</ul>
 				</nav>

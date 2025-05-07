@@ -150,39 +150,41 @@ class Admin_model extends CI_Model
 
 		// Query to fetch data including total expected and actual attendees
 		$query = $this->db->query("
-        SELECT 
-            a.activity_id,
-            a.activity_title,
-            a.registration_fee,
-            a.start_date,
+			SELECT 
+				a.activity_id,
+				a.activity_title,
+				a.registration_fee,
+				a.start_date,
 
-            -- Determine semester based on start_date
-            CASE 
-                WHEN MONTH(a.start_date) BETWEEN 7 AND 12 THEN 'First Semester'
-                ELSE 'Second Semester'
-            END AS semester,
+				-- Determine semester based on start_date
+				CASE 
+					WHEN MONTH(a.start_date) BETWEEN 7 AND 12 THEN 'First Semester'
+					ELSE 'Second Semester'
+				END AS semester,
 
-            -- Expected attendees based on registration or attendees table
-            CASE 
-                WHEN a.registration_fee IS NOT NULL AND a.registration_fee > 0 THEN 
-                    (SELECT COUNT(DISTINCT r.student_id) 
-                     FROM registrations r 
-                     WHERE r.activity_id = a.activity_id)
-                ELSE 
-                    (SELECT COUNT(DISTINCT atd.student_id) 
-                     FROM attendees atd 
-                     WHERE atd.activity_id = a.activity_id)
-            END AS expected_attendees,
+				-- Expected attendees based on registration or attendees table
+				CASE 
+					WHEN a.registration_fee IS NOT NULL AND a.registration_fee > 0 THEN 
+						(SELECT COUNT(DISTINCT r.student_id) 
+						FROM registrations r 
+						WHERE r.activity_id = a.activity_id)
+					ELSE 
+						(SELECT COUNT(DISTINCT atd.student_id) 
+						FROM attendees atd 
+						WHERE atd.activity_id = a.activity_id)
+				END AS expected_attendees,
 
-            -- Actual attendees marked Present
-            (SELECT COUNT(DISTINCT att.student_id) 
-             FROM attendance att 
-             WHERE att.activity_id = a.activity_id AND att.attendance_status = 'Present') AS actual_attendees
+				-- Actual attendees marked Present
+				(SELECT COUNT(DISTINCT att.student_id) 
+				FROM attendance att 
+				WHERE att.activity_id = a.activity_id AND att.attendance_status = 'Present') AS actual_attendees
 
-        FROM activity a
-        WHERE YEAR(a.start_date) = '$current_year'
-        ORDER BY a.start_date ASC
-    ");
+			FROM activity a
+			WHERE YEAR(a.start_date) = '$current_year'
+			AND a.organizer = 'Student Parliament'
+			AND a.status = 'Completed'
+			ORDER BY a.start_date ASC
+		");
 
 		// Fetch all results
 		$attendance_data = $query->result();
@@ -199,7 +201,7 @@ class Admin_model extends CI_Model
 		// Calculate attendance rate
 		$attendance_rate = 0;
 		if ($total_expected > 0) {
-			$attendance_rate = ($total_actual / $total_expected) * 100;
+			$attendance_rate = ($total_actual / $total_expected) * 1;
 		}
 
 		// Return data with the calculated overall attendance rate
@@ -209,7 +211,46 @@ class Admin_model extends CI_Model
 		];
 	}
 
+	// Get department-wise attendance data by semester
+	public function get_department_attendance_data()
+	{
+		$today = date('Y-m-d');
+		$current_year = date('Y');
+		$month = date('n');
 
+		// Determine current semester based on the month
+		if ($month >= 7 && $month <= 12) {
+			$semester = 'First Semester';
+			$start_date = "$current_year-07-01";
+			$end_date = "$current_year-12-31";
+		} else {
+			$semester = 'Second Semester';
+			$start_date = "$current_year-01-01";
+			$end_date = "$current_year-06-30";
+		}
+
+		// Query to fetch department-wise attendance data including semester info
+		$this->db->select('a.activity_id, a.activity_title, d.dept_name, 
+        CASE 
+            WHEN MONTH(a.start_date) BETWEEN 7 AND 12 THEN "First Semester"
+            ELSE "Second Semester"
+        END AS semester,
+        COUNT(DISTINCT att.student_id) AS department_attendance');
+		$this->db->from('activity a');
+		$this->db->join('attendance att', 'att.activity_id = a.activity_id', 'left');
+		$this->db->join('users u', 'u.student_id = att.student_id', 'left');
+		$this->db->join('department d', 'd.dept_id = u.dept_id', 'left');
+		$this->db->where('YEAR(a.start_date)', $current_year);
+		$this->db->where('att.attendance_status', 'Present');
+		$this->db->where('a.status', 'Completed');
+		$this->db->where('a.start_date >=', $start_date); // Only activities in the current semester
+		$this->db->where('a.start_date <=', $end_date);   // Only activities in the current semester
+		$this->db->group_by('a.activity_id, d.dept_name, semester');
+		$this->db->order_by('a.activity_id ASC, d.dept_name, semester');
+
+		$query = $this->db->get();
+		return $query->result();
+	}
 
 
 	public function get_total_fines_per_activity()
@@ -234,6 +275,7 @@ class Admin_model extends CI_Model
 		$this->db->from('fines');
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
 		$this->db->where('activity.organizer', 'Student Parliament');
+		$this->db->where('activity.status', 'Completed');
 		$this->db->where('activity.start_date >=', $start_date); // Filter fines by the semester start date
 		$this->db->where('activity.end_date <=', $end_date);   // Filter fines by the semester end date
 		$this->db->group_by('activity.activity_id, activity.activity_title'); // Group by activity to get total per activity
@@ -413,12 +455,61 @@ class Admin_model extends CI_Model
 		return $this->db->delete('activity_time_slots', ['timeslot_id' => $id]);
 	}
 
-	// UPDATING ACTIVITY TO DATABASE *
 	public function update_activity($activity_id, $data)
 	{
-		$this->db->where('activity_id', $activity_id);
-		return $this->db->update('activity', $data);
+		// Step 1: Get original activity
+		$original = $this->db->get_where('activity', ['activity_id' => $activity_id])->row_array();
+		if (!$original) return false;
+
+		// Step 2: Compare changes
+		$changes = [];
+		foreach ($data as $key => $new_value) {
+			if (isset($original[$key]) && $original[$key] != $new_value) {
+				$changes[$key] = [
+					'old' => $original[$key],
+					'new' => $new_value
+				];
+			}
+		}
+
+		// Step 3: If changes exist, update and log
+		if (!empty($changes)) {
+			// (a) Update the activity
+			$this->db->where('activity_id', $activity_id);
+			$this->db->update('activity', $data);
+
+			// (b) Increment edit count
+			$this->db->set('edit_count', 'edit_count + 1', FALSE)
+				->where('activity_id', $activity_id)
+				->update('activity');
+
+			// (c) Insert edit log
+			$log_data = [
+				'activity_id' => $activity_id,
+				'student_id' => $this->session->userdata('student_id'),
+				'edit_time' => date('Y-m-d H:i:s'),
+				'changes' => json_encode($changes)
+			];
+			$this->db->insert('activity_edit_logs', $log_data);
+
+			return true;
+		}
+
+		return false; // No changes to apply
 	}
+
+	public function get_activity_logs($activity_id)
+	{
+		return $this->db
+			->select("activity_edit_logs.*, users.first_name, users.last_name, DATE_FORMAT(activity_edit_logs.edit_time, '%M %e, %Y %l:%i %p') AS formatted_time")
+			->from('activity_edit_logs')
+			->join('users', 'users.student_id = activity_edit_logs.student_id')
+			->where('activity_edit_logs.activity_id', $activity_id)
+			->order_by('activity_edit_logs.edit_time', 'DESC')
+			->get()
+			->result_array();
+	}
+
 
 	// UPDATING SCHEDULE TO DATABASE
 	public function update_schedule($schedule_id, $schedule_data)
@@ -644,8 +735,9 @@ class Admin_model extends CI_Model
 	// FETCHING EXCUSE LETTER PER STUDENT
 	public function review_letter($excuse_id)
 	{
-		$this->db->select('excuse_application.*, users.*, department.dept_name');
+		$this->db->select('excuse_application.*, users.*, department.dept_name, activity.activity_id, activity.status AS act_status');
 		$this->db->from('excuse_application');
+		$this->db->join('activity', 'activity.activity_id = excuse_application.activity_id');
 		$this->db->join('users', 'excuse_application.student_id = users.student_id');
 		$this->db->join('department', 'users.dept_id = department.dept_id');
 		$this->db->where('excuse_application.excuse_id', $excuse_id); // Add condition to filter by excuse_id

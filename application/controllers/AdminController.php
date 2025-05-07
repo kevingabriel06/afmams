@@ -105,6 +105,8 @@ class AdminController extends CI_Controller
 		$data['attendance_data'] = $attendance_data_result['attendance_data'];
 		$data['attendance_rate'] = $attendance_data_result['attendance_rate'];
 
+		$data['dept_attendance_data'] = $this->admin->get_department_attendance_data();
+
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/dashboard', $data);
 		$this->load->view('layout/footer', $data);
@@ -247,6 +249,7 @@ class AdminController extends CI_Controller
 		$this->db->select('u.student_id');
 		$this->db->from('users u');
 		$this->db->join('department d', 'u.dept_id = d.dept_id');
+		$this->db->where('role', 'Student');
 
 		// Filter by department name if provided and not "all"
 		if (!empty($data['audience']) && strtolower($data['audience']) !== 'all') {
@@ -818,6 +821,7 @@ class AdminController extends CI_Controller
 				'organizer'             => 'Student Parliament',
 				'fines'                 => str_replace(",", "", $this->input->post('fines')),
 				'audience'             => implode(',', $this->input->post('audience')),
+
 			];
 
 			// Handle Cover Image Upload
@@ -840,55 +844,88 @@ class AdminController extends CI_Controller
 				$data['qr_code'] = $qrCode['file_name'];
 			}
 
-			// Update Activity
-			$this->admin->update_activity($activity_id, $data);
+			// Get the logged-in user's ID (editor)
+			$editor_id = $this->session->userdata('user_id'); // Or use appropriate session variable
 
-			// Fetch Input Data
-			$start_datetimes = $this->input->post('start_datetime') ?? [];
-			$start_cutoff = $this->input->post('start_cutoff') ?? [];
-			$end_datetimes = $this->input->post('end_datetime') ?? [];
-			$end_cutoff = $this->input->post('end_cutoff') ?? [];
-			$session_types = $this->input->post('session_type') ?? [];
-			$schedule_ids = $this->input->post('timeslot_id') ?? [];
+			// Track changes (this is where we log the changes)
+			$changes = $this->get_activity_changes($activity, $data);
 
-			// Update or Insert Schedules
-			foreach ($start_datetimes as $i => $start_datetime) {
-				// Ensure array indexes exist before accessing them
-				$start_cutoff = $start_cutoff[$i] ?? null;
-				$end_datetime = $end_datetimes[$i] ?? null;
-				$end_cutoff = $end_cutoff[$i] ?? null;
-				$session_type = $session_types[$i] ?? null;
-				$schedule_id = $schedule_ids[$i] ?? null;
+			// Update Activity and log changes
+			$updated = $this->admin->update_activity($activity_id, $data, $editor_id, $changes);
 
-				// Prepare schedule data
-				$schedule_data = [
-					'activity_id'  => $activity_id,
-					'date_time_in' => date('Y-m-d H:i:s', strtotime($start_datetime)),
-					'date_cut_in' => date('Y-m-d H:i:s', strtotime($start_cutoff)),
-					'date_time_out' => date('Y-m-d H:i:s', strtotime($end_datetime)),
-					'date_cut_out' => date('Y-m-d H:i:s', strtotime($end_cutoff)),
-					'slot_name'    => $session_type
-				];
+			if ($updated) {
+				// Fetch Input Data
+				$start_datetimes = $this->input->post('start_datetime') ?? [];
+				$start_cutoff = $this->input->post('start_cutoff') ?? [];
+				$end_datetimes = $this->input->post('end_datetime') ?? [];
+				$end_cutoff = $this->input->post('end_cutoff') ?? [];
+				$session_types = $this->input->post('session_type') ?? [];
+				$schedule_ids = $this->input->post('timeslot_id') ?? [];
 
-				if (!empty($schedule_id)) {
-					// Update existing schedule
-					$this->admin->update_schedule($schedule_id, $schedule_data);
-				} else {
-					// Insert new schedule with created_at timestamp
-					$schedule_data['created_at'] = date('Y-m-d H:i:s');
+				// Update or Insert Schedules
+				foreach ($start_datetimes as $i => $start_datetime) {
+					// Ensure array indexes exist before accessing them
+					$start_cutoff = $start_cutoff[$i] ?? null;
+					$end_datetime = $end_datetimes[$i] ?? null;
+					$end_cutoff = $end_cutoff[$i] ?? null;
+					$session_type = $session_types[$i] ?? null;
+					$schedule_id = $schedule_ids[$i] ?? null;
 
-					$this->admin->save_schedule($schedule_data);
+					// Prepare schedule data
+					$schedule_data = [
+						'activity_id'  => $activity_id,
+						'date_time_in' => date('Y-m-d H:i:s', strtotime($start_datetime)),
+						'date_cut_in' => date('Y-m-d H:i:s', strtotime($start_cutoff)),
+						'date_time_out' => date('Y-m-d H:i:s', strtotime($end_datetime)),
+						'date_cut_out' => date('Y-m-d H:i:s', strtotime($end_cutoff)),
+						'slot_name'    => $session_type
+					];
+
+					if (!empty($schedule_id)) {
+						// Update existing schedule
+						$this->admin->update_schedule($schedule_id, $schedule_data);
+					} else {
+						// Insert new schedule with created_at timestamp
+						$schedule_data['created_at'] = date('Y-m-d H:i:s');
+
+						$this->admin->save_schedule($schedule_data);
+					}
 				}
-			}
 
-			// Return Success Response
-			echo json_encode([
-				'status'   => 'success',
-				'message'  => 'Activity Updated Successfully',
-				'redirect' => site_url('admin/list-of-activity')
-			]);
+				// Return Success Response
+				echo json_encode([
+					'status'   => 'success',
+					'message'  => 'Activity Updated Successfully',
+					'redirect' => site_url('admin/list-of-activity')
+				]);
+			} else {
+				echo json_encode(['status' => 'error', 'errors' => 'No changes detected or update failed.']);
+			}
 		}
 	}
+
+	public function get_edit_logs($activity_id)
+	{
+		$logs = $this->admin->get_activity_logs($activity_id);
+		echo json_encode($logs);
+	}
+
+	// Get the changes made between the original activity and the new data
+	private function get_activity_changes($original, $new_data)
+	{
+		$changes = [];
+		foreach ($new_data as $key => $new_value) {
+			if (isset($original[$key]) && $original[$key] != $new_value) {
+				$changes[$key] = [
+					'old' => $original[$key],
+					'new' => $new_value
+				];
+			}
+		}
+
+		return $changes;
+	}
+
 
 	// EVALUATION LIST - PAGE (FINAL CHECK)
 	public function list_activity_evaluation()
@@ -1403,10 +1440,10 @@ class AdminController extends CI_Controller
 			);
 
 			// If approved, update attendance status to 'excuse'
-			if ($approvalStatus === 'Approved') {
+			if ($approvalStatus == 'Approved') {
 				$this->db->where('student_id', $student_id)
 					->where('activity_id', $activity_id)
-					->update('attendance', ['attendance_status' => 'excuse']);
+					->update('attendance', ['attendance_status' => 'Excused']);
 			}
 
 			echo json_encode(['success' => true, 'message' => 'Approval status updated successfully.']);
@@ -1746,9 +1783,6 @@ class AdminController extends CI_Controller
 
 		$student_id = $this->session->userdata('student_id');
 
-		$dept = $this->admin->admin_dept();
-		$org = $this->admin->admin_org();
-
 		// Check if the form is submitted
 		if ($this->input->post()) {
 			// Set validation rules
@@ -1770,8 +1804,8 @@ class AdminController extends CI_Controller
 				'student_id' => $student_id,
 				'content' => $this->input->post('content'),
 				'privacy' => $this->input->post('privacyStatus'),
-				'dept_id' => !empty($dept->dept_id) ? $dept->dept_id : NULL,
-				'org_id' => !empty($org->org_id) ? $org->org_id : NULL,
+				'dept_id' => NULL,
+				'org_id' => NULL,
 			];
 
 			// Handle file upload if an image is provided

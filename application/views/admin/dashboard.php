@@ -287,19 +287,21 @@
        </div>
        <div class="card-body">
          <?php
-          // Assume $attendance_data is the result from fetch_attendance_data()
+          // Prepare data
           $activityTitles = array_column($attendance_data, 'activity_title');
           $expectedAttendees = array_column($attendance_data, 'expected_attendees');
           $actualAttendees = array_column($attendance_data, 'actual_attendees');
 
-          // Calculate total actual attendees
+          // Total actual attendees
           $totalActual = array_sum($actualAttendees);
           ?>
-
          <!-- Total attendees display -->
          <div class="mb-3">
-           <div class="d-flex align-items-end gap-1">
-             <h1 class="text-success mb-0"><?= $totalActual ?> Attended</h1>
+           <div class="d-flex align-items-center gap-3">
+             <h1 class="text-primary mb-0"><?= $attendance_rate ?>%</h1>
+             <span class="badge bg-primary fs-16">
+               Attendance Rate
+             </span>
            </div>
          </div>
 
@@ -319,13 +321,16 @@
                trigger: 'axis'
              },
              legend: {
-               data: ['Expected', 'Actual']
+               data: ['Expected', 'Actual'],
+               orient: 'horizontal',
+               bottom: 10 // Place legend at the bottom
              },
              xAxis: {
                type: 'category',
                data: activityTitles,
                axisLabel: {
-                 show: false
+                 rotate: 30,
+                 interval: 0
                },
                axisTick: {
                  show: false
@@ -337,167 +342,41 @@
              series: [{
                  name: 'Expected',
                  type: 'line',
-                 data: expectedAttendees,
                  smooth: false,
                  symbol: 'circle',
                  symbolSize: 8,
+                 data: expectedAttendees,
                  lineStyle: {
                    width: 3,
-                   color: '#64b5f6' // Blue line
+                   color: '#64b5f6'
                  },
                  itemStyle: {
-                   color: '#64b5f6', // Dot color matching the line
-                   borderColor: '#64b5f6' // Dot border matching the line
+                   color: '#64b5f6',
+                   borderColor: '#64b5f6'
                  },
                  connectNulls: true
                },
                {
                  name: 'Actual',
                  type: 'line',
-                 data: actualAttendees,
                  smooth: false,
                  symbol: 'circle',
                  symbolSize: 8,
+                 data: actualAttendees,
                  lineStyle: {
                    width: 3,
-                   color: '#1976d2' // Dark blue line
+                   color: '#1976d2'
                  },
                  itemStyle: {
-                   color: '#1976d2', // Dot color matching the line
-                   borderColor: '#1976d2' // Dot border matching the line
+                   color: '#1976d2',
+                   borderColor: '#1976d2'
                  },
                  connectNulls: true
                }
              ],
              grid: {
-               top: 10,
-               bottom: 40,
-               left: 40,
-               right: 10
-             }
-           };
-           myChart.setOption(option);
-           window.addEventListener('resize', () => {
-             myChart.resize();
-           });
-         </script>
-       </div>
-     </div>
-   </div>
-
- </div>
-
-
- <div class="row g-0">
-   <div class="col-md-6 col-xxl-3 pe-md-2 mb-3 mb-xxl-0">
-     <div class="card">
-       <div class="card-header d-flex flex-between-center bg-body-tertiary py-2">
-         <h6 class="mb-0">Officers</h6>
-       </div>
-       <div class="card-body py-2">
-         <div class="d-flex align-items-center position-relative mb-3">
-           <div class="avatar avatar-2xl status-online">
-             <img class="rounded-circle" src="../assets/img/team/1.jpg" alt="" />
-           </div>
-           <div class="flex-1 ms-3">
-             <h6 class="mb-0 fw-semi-bold"><a class="stretched-link text-900" href="../pages/user/profile.html">Emma Watson</a></h6>
-             <p class="text-500 fs-11 mb-0">Admin</p>
-           </div>
-         </div>
-       </div>
-     </div>
-   </div>
-
-   <!-- Expected vs Actual Attendance -->
-   <div class="col-md-6 col-xxl-6">
-     <div class="card h-md-100">
-       <div class="card-header pb-0">
-         <h6 class="mb-0 mt-2 d-flex align-items-center">
-           Attendance per Activity
-           <span class="ms-1 text-400" data-bs-toggle="tooltip" data-bs-placement="top" title="Comparison of expected vs actual attendance this semester">
-             <span class="far fa-question-circle" data-fa-transform="shrink-1"></span>
-           </span>
-         </h6>
-       </div>
-       <div class="card-body">
-         <?php
-          // Assume $attendance_data is the result from fetch_attendance_data()
-          $activityTitles = array_column($attendance_data, 'activity_title');
-          $expectedAttendees = array_column($attendance_data, 'expected_attendees');
-          $actualAttendees = array_column($attendance_data, 'actual_attendees');
-
-          // Calculate total actual attendees
-          $totalActual = array_sum($actualAttendees);
-          ?>
-
-         <!-- Total attendees display -->
-         <div class="mb-3">
-           <div class="d-flex align-items-end gap-1">
-             <h1 class="text-success mb-0"><?= $totalActual ?> Attended</h1>
-           </div>
-         </div>
-
-         <!-- Line Chart -->
-         <div id="attendancePerActivityChart" style="height: 250px;"></div>
-
-         <script>
-           var chartDom = document.getElementById('attendancePerActivityChart');
-           var myChart = echarts.init(chartDom);
-
-           var activityTitles = <?= json_encode($activityTitles) ?>;
-           var expectedAttendees = <?= json_encode($expectedAttendees) ?>;
-           var actualAttendees = <?= json_encode($actualAttendees) ?>;
-
-           var option = {
-             tooltip: {
-               trigger: 'axis'
-             },
-             legend: {
-               data: ['Expected', 'Actual']
-             },
-             xAxis: {
-               type: 'category',
-               data: activityTitles,
-               axisLabel: {
-                 show: false
-               },
-               axisTick: {
-                 show: false
-               }
-             },
-             yAxis: {
-               type: 'value'
-             },
-             series: [{
-                 name: 'Expected',
-                 data: expectedAttendees,
-                 type: 'line',
-                 smooth: true,
-                 lineStyle: {
-                   width: 3
-                 },
-                 itemStyle: {
-                   color: '#ff9800'
-                 },
-                 connectNulls: true
-               },
-               {
-                 name: 'Actual',
-                 data: actualAttendees,
-                 type: 'line',
-                 smooth: true,
-                 lineStyle: {
-                   width: 3
-                 },
-                 itemStyle: {
-                   color: '#4caf50'
-                 },
-                 connectNulls: true
-               }
-             ],
-             grid: {
-               top: 10,
-               bottom: 40,
+               top: 20,
+               bottom: 150, // Increase to avoid overlap with legend
                left: 40,
                right: 10
              }
@@ -512,5 +391,119 @@
        </div>
      </div>
    </div>
+ </div>
 
+ <div class="row g-0">
+   <div class="col-md-12 col-xxl-6 pe-md-2 mb-3 mb-xxl-0">
+     <div class="card h-md-100">
+       <div class="card-header pb-0">
+         <h6 class="mb-0 mt-2 d-flex align-items-center">
+           Department Attendees per Activity
+           <span class="ms-1 text-400" data-bs-toggle="tooltip" data-bs-placement="top" title="Comparison of attendance across departments for the current semester">
+             <span class="far fa-question-circle" data-fa-transform="shrink-1"></span>
+           </span>
+         </h6>
+       </div>
+       <div class="card-body">
+         <?php
+          // Initialize arrays
+          $departmentAttendance = [];
+          $departmentNames = [];
+          $activityTitles = [];
+
+          foreach ($dept_attendance_data as $entry) {
+            $activity = $entry->activity_title;
+            $department = $entry->dept_name;
+            $attendance = $entry->department_attendance;
+
+            $departmentAttendance[$activity][$department] = $attendance;
+
+            $departmentNames[] = $department;
+            $activityTitles[] = $activity;
+          }
+
+          $chartLabels = array_values(array_unique($departmentNames));
+          $activityTitles = array_values(array_unique($activityTitles));
+
+          // Normalize missing values to 0
+          foreach ($activityTitles as $activity) {
+            foreach ($chartLabels as $dept) {
+              $chartData[$activity][$dept] = $departmentAttendance[$activity][$dept] ?? 0;
+            }
+          }
+          ?>
+
+         <!-- Chart Container -->
+         <div id="departmentWiseAttendanceChart" style="height: 350px;"></div>
+
+         <!-- Chart Script -->
+         <script>
+           var chartDom = document.getElementById('departmentWiseAttendanceChart');
+           var myChart = echarts.init(chartDom);
+
+           var activityTitles = <?= json_encode($activityTitles) ?>;
+           var departmentLabels = <?= json_encode($chartLabels) ?>;
+           var departmentAttendanceData = <?= json_encode($chartData) ?>;
+
+           var seriesData = [];
+
+           departmentLabels.forEach(function(department) {
+             var data = [];
+             activityTitles.forEach(function(activity) {
+               data.push(departmentAttendanceData[activity][department] || 0);
+             });
+
+             seriesData.push({
+               name: department,
+               type: 'bar',
+               stack: 'stack',
+               emphasis: {
+                 focus: 'series'
+               },
+               data: data
+             });
+           });
+
+           var option = {
+             tooltip: {
+               trigger: 'axis',
+               axisPointer: {
+                 type: 'shadow'
+               }
+             },
+             legend: {
+               orient: 'horizontal',
+               bottom: 10, // Fixed bottom placement
+               type: 'plain', // Disable pagination
+               itemGap: 10,
+               data: departmentLabels
+             },
+             grid: {
+               top: 40,
+               bottom: 150, // Increased bottom space to avoid overlap
+               left: 50,
+               right: 10
+             },
+             xAxis: {
+               type: 'category',
+               data: activityTitles,
+               axisLabel: {
+                 interval: 0
+               }
+             },
+             yAxis: {
+               type: 'value'
+             },
+             series: seriesData
+           };
+
+           myChart.setOption(option);
+           window.addEventListener('resize', function() {
+             myChart.resize();
+           });
+         </script>
+
+       </div>
+     </div>
+   </div>
  </div>

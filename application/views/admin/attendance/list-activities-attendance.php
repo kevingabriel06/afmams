@@ -58,7 +58,10 @@
                                     <td class="align-middle text-nowrap px-6 py-2 activity">
                                         <div class="d-flex align-items-center">
                                             <div class="avatar avatar-xl">
-                                                <img class="rounded-circle" src="<?php echo base_url('assets/coverEvent/') . $activity->activity_image; ?>" alt="" />
+                                                <img class="rounded-circle"
+                                                    src="<?php echo !empty($activity->activity_image)
+                                                                ? base_url('assets/coverEvent/' . $activity->activity_image)
+                                                                : base_url('assets/image/OIP.jpg'); ?>" />
                                             </div>
                                             <?php if ($activity->status == 'Upcoming'): ?>
                                                 <a class="ms-3 text-decoration-none text-dark fw-semibold d-block link-hover"

@@ -55,7 +55,7 @@
     <!-- ===============================================--><!--    Main Content--><!-- ===============================================-->
     <main class="main" id="top">
         <nav class="navbar navbar-standard navbar-expand-lg fixed-top navbar-dark" data-navbar-darken-on-scroll="data-navbar-darken-on-scroll">
-            <div class="container"><a class="navbar-brand" href="../index.html"><span class="text-white dark__text-white">AFMAMS</span></a><button class="navbar-toggler collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#navbarStandard" aria-controls="navbarStandard" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+            <div class="container"><a class="navbar-brand" href="<?php echo site_url('/'); ?>"><span class="text-white dark__text-white">AFMAMS</span></a><button class="navbar-toggler collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#navbarStandard" aria-controls="navbarStandard" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
                 <div class="collapse navbar-collapse scrollbar" id="navbarStandard">
                     <ul class="navbar-nav ms-auto">
                         <li class="nav-item">
@@ -75,7 +75,10 @@
                         <h1 class="text-white fw-light">Monitor <span class="typed-text fw-bold" data-typed-text='["activities","attendance","fines"]'></span><br />with ease and efficiency</h1>
                         <p class="lead text-white opacity-75">Manage your activities, track attendance, and monitor fines — all in one streamlined system designed to keep things simple and organized.</p><a class="btn btn-outline-light border-2 rounded-pill btn-lg mt-4 fs-9 py-2" href="<?php echo site_url('login'); ?>">Explore the system<span class="fas fa-play ms-2" data-fa-transform="shrink-6 down-1"></span></a>
                     </div>
-                    <!-- <div class="col-xl-7 offset-xl-0 mt-4 mt-xl-0 text-center align-self-end"><a class="img-landing-banner rounded" href=""><img class="img-fluid d-dark-none" src="<//?php echo base_url('assets/img/generic/dashboard-alt.jpg'); ?>" alt="" /><img class="img-fluid d-light-none" src="<//?php echo base_url('assets/img/generic/dashboard-alt-dark.png'); ?>" alt="" /></a></div> -->
+                    <div class="col-xl-7 offset-xl-0 mt-4 mt-xl-0 text-center align-self-end">
+                        <a class="img-landing-banner rounded " href="<?php echo site_url('/'); ?>" style="z-index: 1;"><img class="img-fluid d-dark-none" src="<?php echo base_url('assets/image/markup.png'); ?>" alt="" /><img class="img-fluid d-light-none" src="<?php echo base_url('assets/image/markup.png'); ?>" alt="" href="<?php echo site_url('/'); ?>" /></a>
+                        <a class="img-landing-banner rounded position-absolute" style="top: 50%; left: 55%; width: 55%; height: 70% ;" href="<?php echo site_url('/'); ?>"><img class="img-fluid d-dark-none" src="<?php echo base_url('assets/image/community.png'); ?>" alt="" style="width: 100%;" /><img class=" img-fluid d-light-none" src="<?php echo base_url('assets/image/community.png'); ?>" alt="" /></a>
+                    </div>
                 </div>
             </div><!-- end of .container-->
         </section><!-- <section> close ============================--><!-- ============================================-->
@@ -94,7 +97,7 @@
                 <!-- PLAN -->
                 <div class="row flex-center mt-8">
                     <div class="col-md col-lg-5 col-xl-4 ps-lg-6">
-                        <img class="img-fluid px-6 px-md-0" src="<?php echo base_url('assets/images/icons/planning.png'); ?>" alt="Planning Icon" />
+                        <img class="img-fluid px-6 px-md-0" src="<?php echo base_url('assets/image/OIP__1_-removebg-preview.png'); ?>" alt="Planning Icon" />
                     </div>
                     <div class="col-md col-lg-5 col-xl-4 mt-4 mt-md-0">
                         <h5 class="text-danger"><span class="far fa-calendar-check me-2"></span>PLAN</h5>
@@ -106,7 +109,7 @@
                 <!-- BUILD -->
                 <div class="row flex-center mt-7">
                     <div class="col-md col-lg-5 col-xl-4 pe-lg-6 order-md-2">
-                        <img class="img-fluid px-6 px-md-0" src="<?php echo base_url('assets/images/icons/monitoring.png'); ?>" alt="Monitoring Icon" />
+                        <img class="img-fluid px-6 px-md-0" src="<?php echo base_url('assets/image/OIP__2_-removebg-preview.png'); ?>" alt="Monitoring Icon" />
                     </div>
                     <div class="col-md col-lg-5 col-xl-4 mt-4 mt-md-0">
                         <h5 class="text-info"><span class="fas fa-user-check me-2"></span>TRACK</h5>
@@ -118,7 +121,7 @@
                 <!-- DEPLOY -->
                 <div class="row flex-center mt-7">
                     <div class="col-md col-lg-5 col-xl-4 ps-lg-6">
-                        <img class="img-fluid px-6 px-md-0" src="<?php echo base_url('assets/images/icons/summary-report.png'); ?>" alt="Summary Icon" />
+                        <img class="img-fluid px-6 px-md-0" src="<?php echo base_url('assets/image/editable-design-icon-of-cloud-business-report-vector-removebg-preview.png'); ?>" alt="Summary Icon" />
                     </div>
                     <div class="col-md col-lg-5 col-xl-4 mt-4 mt-md-0">
                         <h5 class="text-success"><span class="fas fa-clipboard-list me-2"></span>REVIEW</h5>
