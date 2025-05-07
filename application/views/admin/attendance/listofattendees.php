@@ -37,11 +37,28 @@
 							<?php if (!empty($activities)): ?>
 								<a href="<?php echo base_url('AdminController/export_attendance_pdf/' . $activities['activity_id']); ?>"
 									target="_blank" title="Export to PDF">
-									<button class="btn btn-sm btn-falcon-default ms-2" type="button">
+									<button class="btn btn-sm btn-falcon-default ms-2" type="button" id="exportPdfBtn" title="Export to PDF">
 										<span class="fas fa-download"></span>
 									</button>
 								</a>
 							<?php endif; ?>
+
+							<!-- script for filtered tables -->
+
+							<script>
+								document.getElementById('exportPdfBtn').addEventListener('click', function() {
+									const status = document.getElementById("status-filter").value;
+									const department = document.getElementById("department-filter").value;
+									const baseUrl = "<?php echo base_url('AdminController/export_attendance_pdf/' . $activities['activity_id']); ?>";
+
+									const url = new URL(baseUrl);
+									if (status) url.searchParams.append("status", status);
+									if (department) url.searchParams.append("department", department);
+
+									window.open(url.toString(), '_blank');
+								});
+							</script>
+
 
 							<a href="<?= base_url('AdminController/view_attendance_reports/' . $activity_id) ?>"
 								title="View Attendance Reports">

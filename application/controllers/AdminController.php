@@ -564,6 +564,123 @@ class AdminController extends CI_Controller
 		}
 	}
 
+
+	public function export_registered_students_pdf()
+	{
+		$activity_id = $this->input->get('activity_id');
+		if (!$activity_id) {
+			show_error('Activity ID is required.');
+		}
+
+		$this->load->model('Admin_model');
+
+		$activity = $this->Admin_model->get_activity_specific($activity_id);
+		if (!$activity) {
+			show_error('Activity not found.');
+		}
+
+		$activity_title = $activity['activity_title'];
+		$registrations = $this->Admin_model->registrations($activity_id);
+
+		// Letter size (8.5 x 11 in), portrait
+		$pdf = new FPDF('P', 'mm', 'Letter');
+		$pdf->SetMargins(5, 10, 5); // Left, Top, Right margins reduced
+		$pdf->AddPage();
+
+		$pdf->SetFont('Arial', 'B', 14);
+		$pdf->Cell(0, 10, 'Registered Participants - Activity: ' . $activity_title, 0, 1, 'C');
+		$pdf->Ln(5);
+
+		$header = ['Student ID', 'Name', 'Department', 'Amount', 'Reference Number', 'Status'];
+
+		// Calculate column widths
+		$pdf->SetFont('Arial', '', 8);
+		$colWidths = [];
+		foreach ($header as $col) {
+			$colWidths[] = $pdf->GetStringWidth($col);
+		}
+
+		foreach ($registrations as $reg) {
+			$row = [
+				$reg->student_id,
+				$reg->first_name . ' ' . $reg->last_name,
+				$reg->dept_name,
+				$reg->amount_paid,
+				$reg->reference_number,
+				$reg->registration_status
+			];
+			foreach ($row as $i => $val) {
+				$w = $pdf->GetStringWidth($val);
+				if ($w > $colWidths[$i]) {
+					$colWidths[$i] = $w;
+				}
+			}
+		}
+
+		// Add padding
+		$padding = 6;
+		foreach ($colWidths as $i => $w) {
+			$colWidths[$i] = $w + $padding;
+		}
+
+		// Scale if too wide for letter page
+		$pageWidth = 215.9; // Letter width in mm
+		$usableWidth = $pageWidth - 10; // Reduced margins: 5mm left + 5mm right
+		$totalWidth = array_sum($colWidths);
+
+		if ($totalWidth > $usableWidth) {
+			$scale = $usableWidth / $totalWidth;
+			foreach ($colWidths as $i => $w) {
+				$colWidths[$i] = $w * $scale;
+			}
+		}
+
+		// Center table
+		$startX = (215.9 - array_sum($colWidths)) / 2;
+		$pdf->SetX($startX);
+
+		// Header row
+		$pdf->SetFont('Arial', 'B', 9);
+		foreach ($header as $i => $colName) {
+			$pdf->Cell($colWidths[$i], 10, $colName, 1, 0, 'C');
+		}
+		$pdf->Ln();
+
+		// Data rows
+		$pdf->SetFont('Arial', '', 9);
+		foreach ($registrations as $reg) {
+			$row = [
+				$reg->student_id,
+				$reg->first_name . ' ' . $reg->last_name,
+				$reg->dept_name,
+				$reg->amount_paid,
+				$reg->reference_number,
+				$reg->registration_status
+			];
+			$pdf->SetX($startX);
+			foreach ($row as $i => $val) {
+				$pdf->Cell($colWidths[$i], 10, $val, 1, 0, 'C');
+			}
+			$pdf->Ln();
+		}
+
+		// Footer
+		$pdf->SetY(-15);
+		$pdf->SetFont('Arial', 'I', 8);
+		$pdf->Cell(0, 10, 'Generated on ' . date('Y-m-d H:i:s'), 0, 0, 'C');
+
+		$filename = preg_replace('/[^a-zA-Z0-9_\-]/', '_', 'Registered_Participants_' . $activity_title) . '.pdf';
+		$pdf->Output('I', $filename);
+	}
+
+
+
+
+
+
+
+
+
 	// SHARING ACTIVITY FROM THE ACTIVITY DETAILS
 	public function share_activity()
 	{
@@ -1297,6 +1414,93 @@ class AdminController extends CI_Controller
 			echo json_encode(['success' => false, 'message' => 'Failed to update approval status.']);
 		}
 	}
+
+
+	public function export_excuse_applications_pdf($activity_id)
+	{
+		$this->load->library('fpdf');
+		$this->load->model('Admin_model');
+
+		$activity = $this->Admin_model->fetch_application($activity_id);
+		$letters = $this->Admin_model->fetch_letters();
+
+		$activity_letters = array_filter($letters, function ($letter) use ($activity_id) {
+			return $letter->activity_id == $activity_id;
+		});
+
+		$pdf = new FPDF('P', 'mm', 'Letter');
+		$pdf->SetMargins(10, 10, 10); // standard margins
+		$pdf->AddPage();
+
+		$pdf->SetFont('Arial', 'B', 14);
+		$pdf->Cell(0, 10, $activity['activity_title'] . ' | List of Excuse Applications', 0, 1, 'C');
+		$pdf->Ln(5);
+
+		// Base font for measurements
+		$pdf->SetFont('Arial', '', 8);
+
+		$headers = [
+			'student' => 'Student',
+			'department' => 'Department',
+			'subject' => 'Subject',
+			'status' => 'Status'
+		];
+
+		// Measure max content width
+		$max_widths = [
+			'student'    => $pdf->GetStringWidth($headers['student']),
+			'department' => $pdf->GetStringWidth($headers['department']),
+			'subject'    => $pdf->GetStringWidth($headers['subject']),
+			'status'     => $pdf->GetStringWidth($headers['status'])
+		];
+
+		foreach ($activity_letters as $letter) {
+			$max_widths['student']    = max($max_widths['student'], $pdf->GetStringWidth($letter->first_name . ' ' . $letter->last_name));
+			$max_widths['department'] = max($max_widths['department'], $pdf->GetStringWidth($letter->dept_name));
+			$max_widths['subject']    = max($max_widths['subject'], $pdf->GetStringWidth($letter->subject));
+			$max_widths['status']     = max($max_widths['status'], $pdf->GetStringWidth($letter->status));
+		}
+
+		// Add padding
+		$padding = 6;
+		foreach ($max_widths as &$width) {
+			$width += $padding;
+		}
+
+		// Scale total width to fit full printable width (Letter: 216mm, margins: 10mm each → usable: 196mm)
+		$total_content_width = array_sum($max_widths);
+		$usable_page_width = 196;
+		$scaling_factor = $usable_page_width / $total_content_width;
+
+		foreach ($max_widths as &$width) {
+			$width = round($width * $scaling_factor, 2); // scale to fit
+		}
+
+		// Table Header
+		$pdf->SetFont('Arial', 'B', 9);
+		foreach (['student', 'department', 'subject', 'status'] as $col) {
+			$pdf->Cell($max_widths[$col], 8, $headers[$col], 1, 0, 'C');
+		}
+		$pdf->Ln();
+
+		// Table Body
+		$pdf->SetFont('Arial', '', 8);
+		foreach ($activity_letters as $letter) {
+			$pdf->Cell($max_widths['student'], 8, $letter->first_name . ' ' . $letter->last_name, 1, 0, 'L');
+			$pdf->Cell($max_widths['department'], 8, $letter->dept_name, 1, 0, 'L');
+			$pdf->Cell($max_widths['subject'], 8, $letter->subject, 1, 0, 'L');
+			$pdf->Cell($max_widths['status'], 8, $letter->status, 1, 1, 'L');
+		}
+
+		$filename = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $activity['activity_title'] . '_Excuse_Applications') . '.pdf';
+		$pdf->Output('I', $filename);
+	}
+
+
+
+
+
+
 
 	// COMMUNITY SECTION (FINAL CHECK)
 
@@ -2035,8 +2239,14 @@ class AdminController extends CI_Controller
 		// Load model
 		$this->load->model('Admin_model');
 
+		$status = $this->input->get('status');
+		$department = $this->input->get('department');
+
+		// Fetch filtered data
+		$students = $this->Admin_model->get_filtered_attendance_by_activity($activity_id, $status, $department);
+
 		// Fetch data
-		$students = $this->Admin_model->get_all_students_attendance_by_activity($activity_id);
+		// $students = $this->Admin_model->get_all_students_attendance_by_activity($activity_id);
 		$timeslots = $this->Admin_model->get_timeslots_by_activity($activity_id);
 		$activity = $this->Admin_model->get_activity_specific($activity_id);
 
@@ -2139,7 +2349,8 @@ class AdminController extends CI_Controller
 		}
 
 		// Output PDF
-		$pdf->Output('I', 'attendance_report.pdf');
+		$filename = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $activity['activity_title']) . '_attendance_report.pdf';
+		$pdf->Output('I', $filename);
 	}
 
 	public function view_attendance_reports($activity_id)
@@ -2385,6 +2596,123 @@ class AdminController extends CI_Controller
 			echo json_encode(["success" => false, "message" => "Update failed"]);
 		}
 	}
+
+
+
+	public function export_fines_pdf()
+	{
+		// Load FPDF
+		$this->load->library('fpdf');
+
+		// Query fines data
+		$this->db->select('users.student_id, users.first_name, users.last_name, department.dept_name, 
+                       activity.activity_title, fines.fines_amount');
+		$this->db->from('fines');
+		$this->db->join('users', 'users.student_id = fines.student_id');
+		$this->db->join('department', 'department.dept_id = users.dept_id');
+		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+		$this->db->order_by('users.student_id, activity.activity_id');
+
+		$fines_data = $this->db->get()->result();
+
+		// Initialize PDF
+		$pdf = new FPDF();
+		$pdf->AddPage('L'); // Landscape orientation
+		$pdf->SetFont('Arial', 'B', 10); // Use smaller font size
+
+		// Title
+		$pdf->Cell(0, 10, 'Student Parliament Fines Report', 0, 1, 'C');
+		$pdf->Ln(5);
+
+		// Create an array to store unique activities
+		$activities = [];
+
+		// Loop through fines data to gather unique activity names
+		foreach ($fines_data as $fine) {
+			if (!in_array($fine->activity_title, $activities)) {
+				$activities[] = $fine->activity_title;
+			}
+		}
+
+		// Table header
+		$pdf->SetFont('Arial', 'B', 9); // Smaller font for table headers
+		$pdf->Cell(25, 10, 'Student ID', 1);
+		$pdf->Cell(45, 10, 'Name', 1);
+		$pdf->Cell(30, 10, 'Department', 1);
+
+		// Create dynamic columns for each activity
+		foreach ($activities as $activity) {
+			$pdf->Cell(20, 10, $activity, 1);
+		}
+
+		$pdf->Cell(20, 10, 'Total Fines', 1);
+		$pdf->Cell(20, 10, 'Status', 1);
+		$pdf->Ln();
+
+		// Table body
+		$pdf->SetFont('Arial', '', 8); // Smaller font for data rows
+		$current_student_id = null;
+		$student_fines = [];
+
+		// Loop through fines data
+		foreach ($fines_data as $fine) {
+			$full_name = $fine->first_name . ' ' . $fine->last_name;
+
+			if ($fine->student_id != $current_student_id) {
+				// If we're on a new student, output the previous student's data
+				if ($current_student_id != null) {
+					// Fill in activity fines
+					foreach ($activities as $activity) {
+						$pdf->Cell(20, 10, isset($student_fines[$activity]) ? '₱' . number_format($student_fines[$activity], 2) : '₱0.00', 1);
+					}
+
+					// Output the total fines and status for the previous student
+					$total_fines = array_sum($student_fines);
+					$status = $total_fines > 0 ? 'Paid' : 'Unpaid';
+
+					$pdf->Cell(20, 10, '₱' . number_format($total_fines, 2), 1);
+					$pdf->Cell(20, 10, $status, 1);
+					$pdf->Ln();
+				}
+
+				// Reset for new student
+				$current_student_id = $fine->student_id;
+				$student_fines = [];
+
+				// Output the student details
+				$pdf->Cell(25, 10, $fine->student_id, 1);
+				$pdf->Cell(45, 10, $full_name, 1);
+				$pdf->Cell(30, 10, $fine->dept_name, 1);
+			}
+
+			// Store the fine amount for the corresponding activity
+			$student_fines[$fine->activity_title] = isset($student_fines[$fine->activity_title])
+				? $student_fines[$fine->activity_title] + $fine->amount
+				: $fine->fines_amount;
+		}
+
+		// Output the last student's data
+		if ($current_student_id != null) {
+			foreach ($activities as $activity) {
+				$pdf->Cell(20, 10, isset($student_fines[$activity]) ? '₱' . number_format($student_fines[$activity], 2) : '₱0.00', 1);
+			}
+
+			$total_fines = array_sum($student_fines);
+			$status = $total_fines > 0 ? 'Paid' : 'Unpaid';
+
+			$pdf->Cell(20, 10, '₱' . number_format($total_fines, 2), 1);
+			$pdf->Cell(20, 10, $status, 1);
+			$pdf->Ln();
+		}
+
+		// Output the PDF
+		$pdf->Output('I', 'student_parliament_fines.pdf');
+	}
+
+
+
+
+
 
 	// OTHER PAGES
 
@@ -2732,14 +3060,42 @@ class AdminController extends CI_Controller
 		$data['title'] = 'General Settings';
 
 		$student_id = $this->session->userdata('student_id');
+		$role       = $this->session->userdata('role');
 
-		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		// FETCH USER PROFILE
 		$data['users'] = $this->admin->get_student($student_id);
 
+		// DYNAMIC DROPDOWN OPTIONS
+		$logo_targets = [];
+
+		if ($role === 'Admin') {
+			$logo_targets[] = ['value' => 'student_parliament', 'label' => 'Student Parliament'];
+		} elseif ($role === 'Officer') {
+			$is_officer = $this->session->userdata('is_officer');
+			$is_officer_dept = $this->session->userdata('is_officer_dept');
+
+			if ($is_officer === 'Yes') {
+				$org = $this->admin->get_organization_by_student($student_id);
+				if ($org) {
+					$logo_targets[] = ['value' => 'organization', 'label' => $org->org_name];
+				}
+			}
+			if ($is_officer_dept === 'Yes') {
+				$dept = $this->admin->get_department_by_id($data['users']->dept_id);
+				if ($dept) {
+					$logo_targets[] = ['value' => 'department', 'label' => $dept->dept_name];
+				}
+			}
+		}
+
+		$data['logo_targets'] = $logo_targets;
+
+		// LOAD VIEW
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/general_settings', $data);
 		$this->load->view('layout/footer', $data);
 	}
+
 
 	// IMPORTING LIST STUDENT
 	public function import_list()
@@ -3175,5 +3531,106 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/about', $data);
 		$this->load->view('layout/footer', $data);
+	}
+
+
+
+	//UPLOAD LOGO
+
+	public function upload_logo()
+	{
+		$this->load->model('Admin_model');
+		$user = $this->session->userdata();
+
+		if (!isset($_FILES['logo_file']['name']) || empty($_FILES['logo_file']['name'])) {
+			echo json_encode(['success' => false, 'message' => 'No file selected.']);
+			return;
+		}
+
+		$upload_path = './uploads/logos/';
+		if (!is_dir($upload_path)) {
+			mkdir($upload_path, 0755, true);
+		}
+
+		$config['upload_path'] = $upload_path;
+		$config['allowed_types'] = 'jpg|jpeg|png|gif';
+		$config['file_name'] = time() . '_' . $_FILES['logo_file']['name'];
+
+		$this->load->library('upload', $config);
+
+		if ($this->upload->do_upload('logo_file')) {
+			$upload_data = $this->upload->data();
+			$file_name = $upload_data['file_name'];
+
+			$this->Admin_model->upload_logo($file_name, $user);
+
+			echo json_encode(['success' => true, 'message' => 'Logo uploaded successfully.']);
+		} else {
+			echo json_encode(['success' => false, 'message' => $this->upload->display_errors('', '')]);
+		}
+	}
+
+
+
+	public function save_header_footer()
+	{
+		$this->load->model('Admin_model');
+		header('Content-Type: application/json'); // Set JSON response header
+
+		// Require both files
+		if (empty($_FILES['header_file']['name']) || empty($_FILES['footer_file']['name'])) {
+			echo json_encode([
+				'success' => false,
+				'message' => 'Both header and footer images are required.'
+			]);
+			return;
+		}
+
+		$uploaded = [];
+		$upload_path = './uploads/headerandfooter/';
+		if (!is_dir($upload_path)) {
+			mkdir($upload_path, 0777, true);
+		}
+
+		$config = [
+			'upload_path' => $upload_path,
+			'allowed_types' => 'jpg|jpeg|png|gif',
+			'max_size' => 2048
+		];
+		$this->load->library('upload');
+
+		// Upload header
+		$config['file_name'] = time() . '_header_' . $_FILES['header_file']['name'];
+		$this->upload->initialize($config);
+		if ($this->upload->do_upload('header_file')) {
+			$uploaded['header'] = $this->upload->data('file_name');
+		} else {
+			echo json_encode([
+				'success' => false,
+				'message' => 'Header upload failed: ' . strip_tags($this->upload->display_errors())
+			]);
+			return;
+		}
+
+		// Upload footer
+		$config['file_name'] = time() . '_footer_' . $_FILES['footer_file']['name'];
+		$this->upload->initialize($config);
+		if ($this->upload->do_upload('footer_file')) {
+			$uploaded['footer'] = $this->upload->data('file_name');
+		} else {
+			echo json_encode([
+				'success' => false,
+				'message' => 'Footer upload failed: ' . strip_tags($this->upload->display_errors())
+			]);
+			return;
+		}
+
+		// Save to DB
+		$this->Admin_model->save_header_footer($uploaded);
+
+		echo json_encode([
+			'success' => true,
+			'message' => 'Header and footer uploaded successfully.'
+		]);
 	}
 }

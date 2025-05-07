@@ -37,9 +37,40 @@
 									</div>
 								</form>
 							</div>
-							<button class="btn btn-sm btn-falcon-default ms-2" type="button">
+							<button class="btn btn-sm btn-falcon-default ms-2" type="button" onclick="exportFinesPDF()">
 								<span class="fas fa-download"></span>
 							</button>
+
+
+							<script>
+								function exportFinesPDF() {
+									const status = document.getElementById('status-filter').value;
+									const department = document.getElementById('department-filter').value;
+
+									const form = document.createElement('form');
+									form.method = 'POST';
+									form.action = '<?= base_url("AdminController/export_fines_pdf") ?>'; // Replace with your actual controller name
+									form.target = '_blank'; // This makes the form submit to a new tab
+
+
+									const statusInput = document.createElement('input');
+									statusInput.type = 'hidden';
+									statusInput.name = 'status';
+									statusInput.value = status;
+
+									const deptInput = document.createElement('input');
+									deptInput.type = 'hidden';
+									deptInput.name = 'department';
+									deptInput.value = department;
+
+									form.appendChild(statusInput);
+									form.appendChild(deptInput);
+									document.body.appendChild(form);
+									form.submit();
+								}
+							</script>
+
+
 
 							<!-- FILTER BUTTON -->
 							<button class="btn btn-sm btn-falcon-default ms-2" type="button" data-bs-toggle="modal" data-bs-target="#filterModal">

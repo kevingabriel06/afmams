@@ -953,6 +953,87 @@ class Admin_model extends CI_Model
 		return $this->db->get()->result();
 	}
 
+	//used for exporting filtered attendance
+
+
+	public function get_filtered_attendance_by_activity($activity_id, $status = null, $department = null)
+	{
+		// Step 1: Get students who have attendance records and match the optional department
+		$this->db->select('users.*, department.dept_name');
+		$this->db->from('attendance');
+		$this->db->join('users', 'attendance.student_id = users.student_id', 'inner');
+		$this->db->join('department', 'department.dept_id = users.dept_id', 'left');
+		$this->db->where('attendance.activity_id', $activity_id);
+		if (!empty($department)) {
+			$this->db->where('department.dept_name', $department);
+		}
+		$this->db->group_by('users.student_id');
+		$students = $this->db->get()->result();
+
+		// Step 2: Get all timeslots for the activity
+		$timeslots = $this->db->get_where('activity_time_slots', ['activity_id' => $activity_id])->result();
+
+		// Step 3: Build and optionally filter by status
+		$data = [];
+
+		foreach ($students as $student) {
+			$row = [
+				'student_id' => $student->student_id,
+				'name'       => $student->first_name . ' ' . $student->last_name,
+				'dept_name'  => isset($student->dept_name) ? $student->dept_name : 'No Department',
+			];
+
+			$slot_statuses = [];
+
+			foreach ($timeslots as $slot) {
+				$period = strtolower($slot->slot_name) === 'morning' ? 'am' : 'pm';
+				$row["in_$period"] = 'No Data';
+				$row["out_$period"] = 'No Data';
+
+				$this->db->where([
+					'student_id'  => $student->student_id,
+					'timeslot_id' => $slot->timeslot_id
+				]);
+				$attendance = $this->db->get('attendance')->row();
+
+				if ($attendance) {
+					$time_in = !empty($attendance->time_in) ? date('F j, Y | g:i a', strtotime($attendance->time_in)) : 'No Data';
+					$time_out = !empty($attendance->time_out) ? date('F j, Y | g:i a', strtotime($attendance->time_out)) : 'No Data';
+
+					$row["in_$period"] = $time_in;
+					$row["out_$period"] = $time_out;
+
+					if ($time_in === 'No Data' && $time_out === 'No Data') {
+						$slot_statuses[] = 'Absent';
+					} elseif ($time_in === 'No Data' || $time_out === 'No Data') {
+						$slot_statuses[] = 'Incomplete';
+					} else {
+						$slot_statuses[] = 'Present';
+					}
+				} else {
+					$slot_statuses[] = 'Absent';
+				}
+			}
+
+			if (count(array_unique($slot_statuses)) === 1 && $slot_statuses[0] === 'Absent') {
+				$row['status'] = 'Absent';
+			} elseif (count(array_unique($slot_statuses)) === 1 && $slot_statuses[0] === 'Present') {
+				$row['status'] = 'Present';
+			} else {
+				$row['status'] = 'Incomplete';
+			}
+
+			// Apply status filter if provided
+			if ($status === null || $row['status'] === $status) {
+				$data[] = $row;
+			}
+		}
+
+		return $data;
+	}
+
+
+
 	public function get_all_students_attendance_by_activity($activity_id)
 	{
 		// Step 1: Get all students who have attendance records with department info
@@ -1870,5 +1951,139 @@ class Admin_model extends CI_Model
 	public function get_student_attendance($student_id)
 	{
 		return $this->db->where('student_id', $student_id)->get('attendance')->row_array();
+	}
+
+
+
+	//UPLOAD LOGO
+
+	public function upload_logo($file_name, $user)
+	{
+		$upload_path = './uploads/logos/';
+		$old_logo = null;
+
+		if ($user['role'] === 'Admin') {
+			// Student Parliament
+			$existing = $this->db->get('student_parliament_settings')->row();
+			if ($existing && $existing->logo) {
+				$old_logo = $existing->logo;
+			}
+
+			$data = [
+				'logo' => $file_name,
+				'updated_at' => date('Y-m-d H:i:s')
+			];
+
+			if ($existing) {
+				$this->db->update('student_parliament_settings', $data);
+			} else {
+				$data['created_at'] = date('Y-m-d H:i:s');
+				$this->db->insert('student_parliament_settings', $data);
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+			// Organization Officer
+			$org = $this->db
+				->select('org_id, logo')
+				->from('organization o')
+				->join('student_org so', 'so.org_id = o.org_id')
+				->where('so.student_id', $user['student_id'])
+				->get()
+				->row();
+
+			if ($org && $org->logo) {
+				$old_logo = $org->logo;
+			}
+
+			if ($org) {
+				$this->db->where('org_id', $org->org_id)->update('organization', ['logo' => $file_name]);
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer_dept'] === 'Yes') {
+			// Department Officer
+			$dept = $this->db->get_where('department', ['dept_id' => $user['dept_id']])->row();
+
+			if ($dept && $dept->logo) {
+				$old_logo = $dept->logo;
+			}
+
+			$this->db->where('dept_id', $user['dept_id'])->update('department', ['logo' => $file_name]);
+		}
+
+		// 🔥 Delete old logo file if it exists
+		if ($old_logo && file_exists($upload_path . $old_logo)) {
+			unlink($upload_path . $old_logo);
+		}
+	}
+
+
+	public function save_header_footer($files)
+	{
+		$user = $this->session->userdata(); // assumes session holds user data
+
+		$data = [
+			'header' => $files['header'],
+			'footer' => $files['footer'],
+			'updated_at' => date('Y-m-d H:i:s')
+		];
+
+		if ($user['role'] === 'Admin') {
+			// Student Parliament
+			$existing = $this->db->get('student_parliament_settings')->row();
+			if ($existing) {
+				// Delete old files if they exist
+				if (!empty($existing->header) && file_exists('./uploads/headerandfooter/' . $existing->header)) {
+					unlink('./uploads/headerandfooter/' . $existing->header);
+				}
+				if (!empty($existing->footer) && file_exists('./uploads/headerandfooter/' . $existing->footer)) {
+					unlink('./uploads/headerandfooter/' . $existing->footer);
+				}
+				$this->db->update('student_parliament_settings', $data);
+			} else {
+				$data['created_at'] = date('Y-m-d H:i:s');
+				$this->db->insert('student_parliament_settings', $data);
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+			// Organization Officer
+			$org = $this->db
+				->select('org_id, header, footer')
+				->where('student_id', $user['student_id'])
+				->join('organization', 'student_org.org_id = organization.org_id')
+				->get('student_org')
+				->row();
+
+			if ($org) {
+				if (!empty($org->header) && file_exists('./uploads/headerandfooter/' . $org->header)) {
+					unlink('./uploads/headerandfooter/' . $org->header);
+				}
+				if (!empty($org->footer) && file_exists('./uploads/headerandfooter/' . $org->footer)) {
+					unlink('./uploads/headerandfooter/' . $org->footer);
+				}
+
+				$this->db->where('org_id', $org->org_id)->update('organization', [
+					'header' => $files['header'],
+					'footer' => $files['footer']
+				]);
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer_dept'] === 'Yes') {
+			// Department Officer
+			$dept = $this->db
+				->select('header, footer')
+				->where('dept_id', $user['dept_id'])
+				->get('department')
+				->row();
+
+			if ($dept) {
+				if (!empty($dept->header) && file_exists('./uploads/headerandfooter/' . $dept->header)) {
+					unlink('./uploads/headerandfooter/' . $dept->header);
+				}
+				if (!empty($dept->footer) && file_exists('./uploads/headerandfooter/' . $dept->footer)) {
+					unlink('./uploads/headerandfooter/' . $dept->footer);
+				}
+
+				$this->db->where('dept_id', $user['dept_id'])->update('department', [
+					'header' => $files['header'],
+					'footer' => $files['footer']
+				]);
+			}
+		}
 	}
 }

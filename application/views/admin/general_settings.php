@@ -763,16 +763,63 @@
 <!-- Header/Footer Modal -->
 <div class="modal fade" id="headerFooterModal" tabindex="-1">
 	<div class="modal-dialog">
-		<form class="modal-content" method="post" action="<?= base_url('settings/save_header_footer') ?>">
+		<form class="modal-content" id="headerFooterForm" method="post" enctype="multipart/form-data" action="<?= base_url('AdminController/save_header_footer') ?>">
 			<div class="modal-header">
 				<h5 class="modal-title">Customize Header & Footer</h5>
 				<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
 			</div>
 			<div class="modal-body">
-				<label>Header:</label>
-				<textarea name="report_header" class="form-control mb-2" rows="2" placeholder="Header text here..."></textarea>
-				<label>Footer:</label>
-				<textarea name="report_footer" class="form-control" rows="2" placeholder="Footer text here..."></textarea>
+
+				<!-- Dropdown -->
+				<div class="mb-3">
+					<label for="hfFor" class="form-label">Apply To:</label>
+					<select class="form-select" name="hf_for" id="hfFor" required>
+						<option value="" disabled selected>Select type</option>
+						<?php foreach ($logo_targets as $target): ?>
+							<option value="<?= $target['value'] ?>"><?= $target['label'] ?></option>
+						<?php endforeach; ?>
+					</select>
+				</div>
+
+				<!-- Header Upload -->
+				<div class="mb-3">
+					<label for="headerFile" class="form-label">Upload Header Image:</label>
+					<input type="file" name="header_file" class="form-control" id="headerFile" accept="image/*">
+				</div>
+
+				<!-- Image Preview -->
+				<div class="mb-3" id="headerPreviewContainer" style="display: none;">
+					<label class="form-label">Header Preview:</label>
+					<div>
+						<img id="headerPreview" src="" alt="Header Preview" style="max-width: 100%; height: auto;">
+					</div>
+				</div>
+
+				<!-- Footer Upload -->
+				<div class="mb-3">
+					<label for="footerFile" class="form-label">Upload Footer Image:</label>
+					<input type="file" name="footer_file" class="form-control" id="footerFile" accept="image/*">
+				</div>
+
+				<!-- Image Preview -->
+				<div class="mb-3" id="footerPreviewContainer" style="display: none;">
+					<label class="form-label">Footer Preview:</label>
+					<div>
+						<img id="footerPreview" src="" alt="Footer Preview" style="max-width: 100%; height: auto;">
+					</div>
+				</div>
+
+				<!-- Paper Preview (combined header and footer) -->
+				<div class="mb-3" id="paperPreviewContainer" style="display: none;">
+					<label class="form-label">Preview on Paper:</label>
+					<div style="border: 1px solid #ccc; padding: 20px; max-width: 100%; width: auto; background-color: #fff; overflow: hidden;">
+						<div id="paperHeader" style="margin-bottom: 20px;"></div>
+						<div id="paperContent" style="min-height: 300px; background-color: #f9f9f9;"></div>
+						<div id="paperFooter" style="margin-top: 20px;"></div>
+					</div>
+				</div>
+
+
 			</div>
 			<div class="modal-footer">
 				<button class="btn btn-success" type="submit">Save</button>
@@ -781,16 +828,166 @@
 	</div>
 </div>
 
+
+<script>
+	// Header preview logic
+	document.getElementById('headerFile').addEventListener('change', function(e) {
+		const file = e.target.files[0];
+		if (file) {
+			const reader = new FileReader();
+			reader.onload = function(event) {
+				document.getElementById('headerPreview').src = event.target.result;
+				document.getElementById('headerPreviewContainer').style.display = 'block';
+			};
+			reader.readAsDataURL(file);
+		}
+	});
+
+	// Footer preview logic
+	document.getElementById('footerFile').addEventListener('change', function(e) {
+		const file = e.target.files[0];
+		if (file) {
+			const reader = new FileReader();
+			reader.onload = function(event) {
+				document.getElementById('footerPreview').src = event.target.result;
+				document.getElementById('footerPreviewContainer').style.display = 'block';
+			};
+			reader.readAsDataURL(file);
+		}
+	});
+</script>
+
+
+<!-- FOR PAPER PREVIEW -->
+<script>
+	// Header preview logic
+	document.getElementById('headerFile').addEventListener('change', function(e) {
+		const file = e.target.files[0];
+		if (file) {
+			const reader = new FileReader();
+			reader.onload = function(event) {
+				// Set header preview image
+				document.getElementById('headerPreview').src = event.target.result;
+				document.getElementById('headerPreviewContainer').style.display = 'block';
+
+				// Update paper preview
+				document.getElementById('paperHeader').innerHTML = `<img src="${event.target.result}" alt="Header Image" style="width: 100%; height: auto;">`;
+				document.getElementById('paperPreviewContainer').style.display = 'block';
+			};
+			reader.readAsDataURL(file);
+		}
+	});
+
+	// Footer preview logic
+	document.getElementById('footerFile').addEventListener('change', function(e) {
+		const file = e.target.files[0];
+		if (file) {
+			const reader = new FileReader();
+			reader.onload = function(event) {
+				// Set footer preview image
+				document.getElementById('footerPreview').src = event.target.result;
+				document.getElementById('footerPreviewContainer').style.display = 'block';
+
+				// Update paper preview
+				document.getElementById('paperFooter').innerHTML = `<img src="${event.target.result}" alt="Footer Image" style="width: 100%; height: auto;">`;
+				document.getElementById('paperPreviewContainer').style.display = 'block';
+			};
+			reader.readAsDataURL(file);
+		}
+	});
+</script>
+
+
+<script>
+	$('#headerFooterForm').on('submit', function(e) {
+		e.preventDefault();
+
+		const formData = new FormData(this);
+
+		Swal.fire({
+			title: 'Uploading...',
+			text: 'Please wait while the header and footer are being uploaded.',
+			didOpen: () => Swal.showLoading(),
+			allowOutsideClick: false
+		});
+
+		$.ajax({
+			url: "<?= base_url('AdminController/save_header_footer') ?>",
+			type: "POST",
+			data: formData,
+			contentType: false,
+			processData: false,
+			dataType: 'json',
+			success: function(response) {
+				Swal.close();
+				if (response.success) {
+					Swal.fire({
+						icon: 'success',
+						title: 'Success!',
+						text: response.message
+					}).then(() => {
+						$('#headerFooterModal').modal('hide');
+						location.reload(); // Refresh to show new preview if needed
+					});
+				} else {
+					Swal.fire({
+						icon: 'error',
+						title: 'Upload Failed',
+						text: response.message
+					});
+				}
+			},
+			error: function() {
+				Swal.close();
+				Swal.fire({
+					icon: 'error',
+					title: 'Error',
+					text: 'An unexpected error occurred. Please try again.'
+				});
+			}
+		});
+	});
+</script>
+
+
+
+
+
 <!-- Logo Upload Modal -->
 <div class="modal fade" id="logoModal" tabindex="-1">
 	<div class="modal-dialog">
-		<form class="modal-content" method="post" enctype="multipart/form-data" action="<?= base_url('settings/upload_logo') ?>">
+		<form class="modal-content" id="logoUploadForm" method="post" enctype="multipart/form-data" action="<?= base_url('AdminController/upload_logo') ?>">
 			<div class="modal-header">
 				<h5 class="modal-title">Upload Logo</h5>
 				<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
 			</div>
 			<div class="modal-body">
-				<input type="file" name="logo_file" class="form-control" accept="image/*" required>
+
+				<!-- Dropdown for selecting logo type -->
+				<div class="mb-3">
+					<label for="logoFor" class="form-label">Upload Logo For:</label>
+					<select class="form-select" name="logo_for" id="logoFor" required>
+						<option value="" disabled selected>Select type</option>
+						<?php foreach ($logo_targets as $target): ?>
+							<option value="<?= $target['value'] ?>"><?= $target['label'] ?></option>
+						<?php endforeach; ?>
+					</select>
+				</div>
+
+				<!-- File input -->
+				<div class="mb-3">
+					<label for="logoFile" class="form-label">Choose Logo:</label>
+					<input type="file" name="logo_file" class="form-control" id="logoFile" accept="image/*" required>
+				</div>
+
+				<!-- Image Preview -->
+				<div class="mb-3" id="logoPreviewContainer" style="display: none;">
+					<label class="form-label">Logo Preview:</label>
+					<div>
+						<img id="logoPreview" src="" alt="Logo Preview" style="max-width: 100%; height: auto;">
+					</div>
+				</div>
+
 			</div>
 			<div class="modal-footer">
 				<button class="btn btn-warning" type="submit">Upload</button>
@@ -798,3 +995,76 @@
 		</form>
 	</div>
 </div>
+
+
+<!-- FOR IMAGE PREVIEW -->
+<script>
+	// Show image preview when a file is selected
+	$('#logoFile').on('change', function(event) {
+		const file = event.target.files[0];
+
+		if (file) {
+			const reader = new FileReader();
+
+			reader.onload = function(e) {
+				$('#logoPreview').attr('src', e.target.result); // Set the preview image
+				$('#logoPreviewContainer').show(); // Show the preview container
+			};
+
+			reader.readAsDataURL(file); // Read the selected file as a Data URL
+		} else {
+			$('#logoPreviewContainer').hide(); // Hide the preview if no file is selected
+		}
+	});
+</script>
+
+<script>
+	$('#logoUploadForm').on('submit', function(e) {
+		e.preventDefault();
+
+		const formData = new FormData(this);
+
+		Swal.fire({
+			title: 'Uploading...',
+			text: 'Please wait while the logo is being uploaded.',
+			didOpen: () => Swal.showLoading(),
+			allowOutsideClick: false
+		});
+
+		$.ajax({
+			url: "<?= base_url('AdminController/upload_logo') ?>",
+			type: "POST",
+			data: formData,
+			contentType: false,
+			processData: false,
+			dataType: 'json',
+			success: function(response) {
+				Swal.close();
+				if (response.success) {
+					Swal.fire({
+						icon: 'success',
+						title: 'Success!',
+						text: response.message
+					}).then(() => {
+						$('#logoModal').modal('hide');
+						location.reload(); // Optional: reload to show the new logo
+					});
+				} else {
+					Swal.fire({
+						icon: 'error',
+						title: 'Upload Failed',
+						text: response.message
+					});
+				}
+			},
+			error: function() {
+				Swal.close();
+				Swal.fire({
+					icon: 'error',
+					title: 'Error',
+					text: 'An unexpected error occurred. Please try again.'
+				});
+			}
+		});
+	});
+</script>
