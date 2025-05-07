@@ -268,10 +268,15 @@
 
 					<ul class="navbar-nav navbar-nav-icons ms-auto flex-row align-items-center">
 						<!-- NOTIFICATIONS START -->
-						<li class="nav-item dropdown">
-							<a class="nav-link notification-indicator px-0" id="notificationBell" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-								<span class="fas fa-bell" style="font-size: 33px;"></span>
-								<span id="notificationCount" class="badge bg-danger position-absolute top-0 end-0 rounded-circle">0</span>
+						<li class="nav-item dropdown me-2">
+							<a class="nav-link position-relative px-0" id="notificationBell" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+								<i class="fas fa-bell" style="font-size: 24px;"></i>
+								<span id="notificationCount"
+									class="position-absolute badge rounded-circle bg-danger"
+									style="top: 2px; right: -6px; font-size: 0.7rem; padding: 4px 6px;">
+									0
+									<span class="visually-hidden">unread messages</span>
+								</span>
 							</a>
 							<div class="dropdown-menu dropdown-menu-end p-0" style="width: 300px;">
 								<div class="card card-notification shadow-none">
@@ -288,8 +293,8 @@
 									</div>
 								</div>
 							</div>
-
 						</li>
+
 						<!-- NOTIFICATIONS END -->
 
 						<!-- Dynamic Notifications Script -->
@@ -324,14 +329,14 @@
 												});
 
 												listHtml += `
-                    <a href="${notification.link}" class="list-group-item list-group-item-action d-flex align-items-center ${notification.is_read == 0 ? 'bg-light' : ''}">
-                        <img src="${profileImg}" alt="Profile" class="rounded-circle me-2" width="40" height="40">
-                        <div>
-                            <strong>${fullName}</strong><br>
-                            ${message}<br>
-                            <small class="text-muted">${date}</small>
-                        </div>
-                    </a>`;
+												<a href="${notification.link}" class="list-group-item list-group-item-action d-flex align-items-center ${notification.is_read == 0 ? 'bg-light' : ''}">
+													<img src="${profileImg}" alt="Profile" class="rounded-circle me-2" width="40" height="40">
+													<div>
+														<strong>${fullName}</strong><br>
+														${message}<br>
+														<small class="text-muted">${date}</small>
+													</div>
+												</a>`;
 											});
 										}
 

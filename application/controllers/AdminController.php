@@ -105,6 +105,8 @@ class AdminController extends CI_Controller
 		$data['attendance_data'] = $attendance_data_result['attendance_data'];
 		$data['attendance_rate'] = $attendance_data_result['attendance_rate'];
 
+		$data['dept_attendance_data'] = $this->admin->get_department_attendance_data();
+
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/dashboard', $data);
 		$this->load->view('layout/footer', $data);
@@ -247,6 +249,7 @@ class AdminController extends CI_Controller
 		$this->db->select('u.student_id');
 		$this->db->from('users u');
 		$this->db->join('department d', 'u.dept_id = d.dept_id');
+		$this->db->where('role', 'Student');
 
 		// Filter by department name if provided and not "all"
 		if (!empty($data['audience']) && strtolower($data['audience']) !== 'all') {
@@ -1286,10 +1289,10 @@ class AdminController extends CI_Controller
 			);
 
 			// If approved, update attendance status to 'excuse'
-			if ($approvalStatus === 'Approved') {
+			if ($approvalStatus == 'Approved') {
 				$this->db->where('student_id', $student_id)
 					->where('activity_id', $activity_id)
-					->update('attendance', ['attendance_status' => 'excuse']);
+					->update('attendance', ['attendance_status' => 'Excused']);
 			}
 
 			echo json_encode(['success' => true, 'message' => 'Approval status updated successfully.']);
@@ -1542,9 +1545,6 @@ class AdminController extends CI_Controller
 
 		$student_id = $this->session->userdata('student_id');
 
-		$dept = $this->admin->admin_dept();
-		$org = $this->admin->admin_org();
-
 		// Check if the form is submitted
 		if ($this->input->post()) {
 			// Set validation rules
@@ -1566,8 +1566,8 @@ class AdminController extends CI_Controller
 				'student_id' => $student_id,
 				'content' => $this->input->post('content'),
 				'privacy' => $this->input->post('privacyStatus'),
-				'dept_id' => !empty($dept->dept_id) ? $dept->dept_id : NULL,
-				'org_id' => !empty($org->org_id) ? $org->org_id : NULL,
+				'dept_id' => NULL,
+				'org_id' => NULL,
 			];
 
 			// Handle file upload if an image is provided

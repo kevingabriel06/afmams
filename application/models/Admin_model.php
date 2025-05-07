@@ -199,7 +199,7 @@ class Admin_model extends CI_Model
 		// Calculate attendance rate
 		$attendance_rate = 0;
 		if ($total_expected > 0) {
-			$attendance_rate = ($total_actual / $total_expected) * 100;
+			$attendance_rate = ($total_actual / $total_expected) * 1;
 		}
 
 		// Return data with the calculated overall attendance rate
@@ -209,7 +209,45 @@ class Admin_model extends CI_Model
 		];
 	}
 
+	// Get department-wise attendance data by semester
+	public function get_department_attendance_data()
+	{
+		$today = date('Y-m-d');
+		$current_year = date('Y');
+		$month = date('n');
 
+		// Determine current semester based on the month
+		if ($month >= 7 && $month <= 12) {
+			$semester = 'First Semester';
+			$start_date = "$current_year-07-01";
+			$end_date = "$current_year-12-31";
+		} else {
+			$semester = 'Second Semester';
+			$start_date = "$current_year-01-01";
+			$end_date = "$current_year-06-30";
+		}
+
+		// Query to fetch department-wise attendance data including semester info
+		$this->db->select('a.activity_id, a.activity_title, d.dept_name, 
+        CASE 
+            WHEN MONTH(a.start_date) BETWEEN 7 AND 12 THEN "First Semester"
+            ELSE "Second Semester"
+        END AS semester,
+        COUNT(DISTINCT att.student_id) AS department_attendance');
+		$this->db->from('activity a');
+		$this->db->join('attendance att', 'att.activity_id = a.activity_id', 'left');
+		$this->db->join('users u', 'u.student_id = att.student_id', 'left');
+		$this->db->join('department d', 'd.dept_id = u.dept_id', 'left');
+		$this->db->where('YEAR(a.start_date)', $current_year);
+		$this->db->where('att.attendance_status', 'Present');
+		$this->db->where('a.start_date >=', $start_date); // Only activities in the current semester
+		$this->db->where('a.start_date <=', $end_date);   // Only activities in the current semester
+		$this->db->group_by('a.activity_id, d.dept_name, semester');
+		$this->db->order_by('a.activity_id ASC, d.dept_name, semester');
+
+		$query = $this->db->get();
+		return $query->result();
+	}
 
 
 	public function get_total_fines_per_activity()
@@ -644,8 +682,9 @@ class Admin_model extends CI_Model
 	// FETCHING EXCUSE LETTER PER STUDENT
 	public function review_letter($excuse_id)
 	{
-		$this->db->select('excuse_application.*, users.*, department.dept_name');
+		$this->db->select('excuse_application.*, users.*, department.dept_name, activity.activity_id, activity.status AS act_status');
 		$this->db->from('excuse_application');
+		$this->db->join('activity', 'activity.activity_id = excuse_application.activity_id');
 		$this->db->join('users', 'excuse_application.student_id = users.student_id');
 		$this->db->join('department', 'users.dept_id = department.dept_id');
 		$this->db->where('excuse_application.excuse_id', $excuse_id); // Add condition to filter by excuse_id

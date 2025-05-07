@@ -362,7 +362,11 @@
 							</script>
 
 
-							<img id="coverPhoto" class="card-img-top" src="<?php echo base_url('assets/coverEvent/') . $item->activity_image; ?>" alt="Event Cover" />
+							<img id="coverPhoto" class="card-img-top"
+								src="<?php echo !empty($item->activity_image)
+											? base_url('assets/coverEvent/' . $item->activity_image)
+											: base_url('assets/image/OIP.jpg'); ?>"
+								alt="Event Cover" />
 							<div class="card-body overflow-hidden">
 								<div class="row justify-content-between align-items-center">
 									<div class="col">

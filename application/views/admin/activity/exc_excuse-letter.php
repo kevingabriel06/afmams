@@ -1,21 +1,32 @@
 <div class="row g-3">
   <div class="col-12 col-xl-8 col-xxl-9 col-xs-12">
     <div class="card">
-      <div class="card-header d-flex flex-between-center"><a class="btn btn-falcon-default btn-sm" href="<?php echo site_url('admin/list-of-excuse-letter/' . $excuse['activity_id']); ?>">
+      <div class="card-header d-flex flex-between-center">
+        <a class="btn btn-falcon-default btn-sm" href="<?php echo site_url('admin/list-of-excuse-letter/' . $excuse['activity_id']); ?>">
           <span class="fas fa-arrow-left"></span>
         </a>
         <div class="d-flex">
           <?php if ($excuse['status'] == 'Pending'): ?>
+            <?php $isCompleted = ($excuse['act_status'] == 'Completed'); ?>
+
             <!-- Approved Button -->
-            <button class="btn btn-falcon-success btn-sm mx-2" type="button" onclick="showApprovalModal('Approved')">
-              <span class="fas fa-check" data-fa-transform="shrink-2 down-2"></span><span class="d-none d-md-inline-block ms-1">Approved</span>
+            <button
+              class="btn btn-falcon-success btn-sm mx-2"
+              type="button"
+              <?php echo $isCompleted ? 'disabled' : 'onclick="showApprovalModal(\'Approved\')"'; ?>>
+              <span class="fas fa-check" data-fa-transform="shrink-2 down-2"></span>
+              <span class="d-none d-md-inline-block ms-1">Approved</span>
             </button>
 
             <!-- Disapproved Button -->
-            <button class="btn btn-falcon-danger btn-sm" type="button" onclick="showApprovalModal('Disapproved')">
-              <span class="fas fa-ban" data-fa-transform="shrink-2 down-1"></span><span class="d-none d-md-inline-block ms-1">Disapproved</span>
-              </button`>
-            <?php endif; ?>
+            <button
+              class="btn btn-falcon-danger btn-sm"
+              type="button"
+              <?php echo $isCompleted ? 'disabled' : 'onclick="showApprovalModal(\'Disapproved\')"'; ?>>
+              <span class="fas fa-ban" data-fa-transform="shrink-2 down-1"></span>
+              <span class="d-none d-md-inline-block ms-1">Disapproved</span>
+            </button>
+          <?php endif; ?>
         </div>
       </div>
     </div>
@@ -32,8 +43,8 @@
             <form id="approvalForm">
               <!-- Hidden field for excuse_id, dynamically populated -->
               <input type="hidden" id="excuse_id" name="excuse_id" value="<?php echo $excuse['excuse_id']; ?>">
-              <input type="hidden" id="student_id" name="student_id" value="<?php echo $excuse['student_id']; ?>">
-              <input type="hidden" id="activity_id" name="activity_id" value="<?php echo $excuse['activity_id']; ?>">
+              <input type="text" id="student_id" name="student_id" value="<?php echo $excuse['student_id']; ?>">
+              <input type="text" id="activity_id" name="activity_id" value="<?php echo $excuse['activity_id']; ?>">
 
               <!-- Remarks textarea -->
               <div class="mb-3">
@@ -205,27 +216,27 @@
     modal.show();
   }
 
-  // Handle form submission
   document.getElementById('approvalForm').addEventListener('submit', function(event) {
-    event.preventDefault(); // Prevent the default form submission
+    event.preventDefault(); // Prevent default submission
 
-    // Show a confirmation dialog before proceeding
     Swal.fire({
       title: 'Are you sure?',
       text: 'Do you want to submit the approval for this excuse application?',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Yes, submit it!',
-      cancelButtonText: 'No, cancel!',
+      cancelButtonText: 'No, cancel!'
     }).then((result) => {
       if (result.isConfirmed) {
-        // Get the values from the form
-        var remarks = document.getElementById('remarks').value;
-        var approvalStatus = document.getElementById('approvalStatus').value; // Set this value dynamically based on button clicked
-        var excuseId = document.getElementById('excuse_id').value;
+        // Collect form data
+        const remarks = document.getElementById('remarks').value.trim();
+        const approvalStatus = document.getElementById('approvalStatus').value;
+        const excuseId = document.getElementById('excuse_id').value;
+        const activityId = document.getElementById('activity_id').value;
+        const studentId = document.getElementById('student_id').value;
 
-        // Validate that the remarks are not empty
-        if (remarks.trim() === "") {
+        // Validate remarks
+        if (remarks === "") {
           Swal.fire({
             icon: 'error',
             title: 'Oops...',
@@ -234,14 +245,16 @@
           return;
         }
 
-        // Prepare the data to send
-        var formData = new FormData();
+        // Prepare form data
+        const formData = new FormData();
         formData.append('remarks', remarks);
         formData.append('approvalStatus', approvalStatus);
         formData.append('excuse_id', excuseId);
+        formData.append('activity_id', activityId);
+        formData.append('student_id', studentId);
 
-        // Send the data via AJAX to the backend
-        fetch('<?php echo site_url('admin/review-excuse-letter/update'); ?>', { // Replace with your correct endpoint URL
+        // Send AJAX request
+        fetch('<?php echo site_url('admin/review-excuse-letter/update'); ?>', {
             method: 'POST',
             body: formData
           })
@@ -250,21 +263,27 @@
             if (data.success) {
               Swal.fire({
                 icon: 'success',
-                title: "Status Updated!",
-                text: data.message,
-                showConfirmButton: true,
+                title: 'Status Updated!',
+                text: data.message
               }).then(() => {
-                setTimeout(function() {
-                  window.location.reload();
-                }, 1000); // Reloads the page after 1 second (1000 milliseconds)
+                // Reload the page
+                window.location.reload();
               });
             } else {
               Swal.fire({
                 icon: 'error',
-                title: 'Failed to approve the excuse application.',
+                title: 'Failed!',
                 text: data.message || 'Please try again later.'
               });
             }
+          })
+          .catch(error => {
+            console.error('Fetch error:', error);
+            Swal.fire({
+              icon: 'error',
+              title: 'Network Error',
+              text: 'Something went wrong. Please try again.'
+            });
           });
       }
     });
