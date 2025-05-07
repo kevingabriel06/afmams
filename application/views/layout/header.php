@@ -357,7 +357,8 @@
 						<!-- //NOTIFICATIONS END -->
 
 
-						<li class="nav-item dropdown"><a class="nav-link pe-0 ps-2" id="navbarDropdownUser" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+						<li class="nav-item dropdown">
+							<a class="nav-link pe-0 ps-2" id="navbarDropdownUser" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 								<div class="avatar avatar-xl">
 									<img class="rounded-circle" src="<?= base_url('assets/profile/' . ($users['profile_pic'] ? $users['profile_pic'] : 'default.jpg')) ?>" alt="" />
 								</div>
@@ -370,7 +371,7 @@
 										<div class="dropdown-divider"></div>
 										<a class="dropdown-item" href="<?php echo site_url('student/profile-settings'); ?>">Profile Settings</a>
 										<div class="dropdown-divider"></div>
-										<a class="dropdown-item" href="<?php echo site_url('logout'); ?>">Logout</a>
+										<a class="dropdown-item" href="#" onclick="confirmLogout()">Logout</a>
 									</div>
 								</div>
 							<?php elseif ($users['role'] == 'Admin'): ?>
@@ -383,7 +384,7 @@
 										<a class="dropdown-item" href="<?php echo site_url('admin/general-settings'); ?>">General Settings</a>
 										<a class="dropdown-item" href="<?php echo site_url('admin/manage-officers'); ?> ">Manage Officers</a>
 										<div class="dropdown-divider"></div>
-										<a class="dropdown-item logout" href="<?php echo site_url('logout'); ?>">Logout</a>
+										<a class="dropdown-item" href="#" onclick="confirmLogout()">Logout</a>
 									</div>
 								</div>
 							<?php else : ?>
@@ -393,10 +394,32 @@
 										<div class="dropdown-divider"></div>
 										<a class="dropdown-item" href="<?php echo site_url('officer/profile-settings') ?>">Profile Settings</a>
 										<div class="dropdown-divider"></div>
-										<a class="dropdown-item" href="<?php echo site_url('logout'); ?>">Logout</a>
+										<a class="dropdown-item" href="#" onclick="confirmLogout()">Logout</a>
 									</div>
 								</div>
 							<?php endif; ?>
 						</li>
+
+						<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.5.6/dist/sweetalert2.min.js"></script>
+
+						<script>
+							function confirmLogout() {
+								Swal.fire({
+									title: 'Are you sure?',
+									text: "You will be logged out of your account!",
+									icon: 'warning',
+									showCancelButton: true,
+									confirmButtonText: 'Yes, Log Out',
+									cancelButtonText: 'Cancel',
+									reverseButtons: true
+								}).then((result) => {
+									if (result.isConfirmed) {
+										// Redirect to logout URL
+										window.location.href = '<?php echo site_url('logout'); ?>';
+									}
+								});
+							}
+						</script>
+
 					</ul>
 				</nav>
