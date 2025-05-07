@@ -154,6 +154,7 @@ $route['admin/activity-details/activity-share']['post'] = 'AdminController/share
 $route['admin/unshare-activity'] = 'AdminController/unshare_activity'; //UNSHARE ACTIVITY
 $route['admin/activity/registration'] = 'AdminController/validate_registrations';
 $route['admin/cash-payment/submit'] = 'AdminController/save_cash_payment';
+$route['admin/view-edit-logs/(:num)'] = 'AdminController/get_edit_logs/$1';
 
 $route['admin/list-activity-evaluation'] = 'AdminController/list_activity_evaluation';
 $route['admin/create-evaluation-form'] = 'AdminController/create_evaluationform';

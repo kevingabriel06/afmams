@@ -451,12 +451,61 @@ class Admin_model extends CI_Model
 		return $this->db->delete('activity_time_slots', ['timeslot_id' => $id]);
 	}
 
-	// UPDATING ACTIVITY TO DATABASE *
 	public function update_activity($activity_id, $data)
 	{
-		$this->db->where('activity_id', $activity_id);
-		return $this->db->update('activity', $data);
+		// Step 1: Get original activity
+		$original = $this->db->get_where('activity', ['activity_id' => $activity_id])->row_array();
+		if (!$original) return false;
+
+		// Step 2: Compare changes
+		$changes = [];
+		foreach ($data as $key => $new_value) {
+			if (isset($original[$key]) && $original[$key] != $new_value) {
+				$changes[$key] = [
+					'old' => $original[$key],
+					'new' => $new_value
+				];
+			}
+		}
+
+		// Step 3: If changes exist, update and log
+		if (!empty($changes)) {
+			// (a) Update the activity
+			$this->db->where('activity_id', $activity_id);
+			$this->db->update('activity', $data);
+
+			// (b) Increment edit count
+			$this->db->set('edit_count', 'edit_count + 1', FALSE)
+				->where('activity_id', $activity_id)
+				->update('activity');
+
+			// (c) Insert edit log
+			$log_data = [
+				'activity_id' => $activity_id,
+				'student_id' => $this->session->userdata('student_id'),
+				'edit_time' => date('Y-m-d H:i:s'),
+				'changes' => json_encode($changes)
+			];
+			$this->db->insert('activity_edit_logs', $log_data);
+
+			return true;
+		}
+
+		return false; // No changes to apply
 	}
+
+	public function get_activity_logs($activity_id)
+	{
+		return $this->db
+			->select("activity_edit_logs.*, users.first_name, users.last_name, DATE_FORMAT(activity_edit_logs.edit_time, '%M %e, %Y %l:%i %p') AS formatted_time")
+			->from('activity_edit_logs')
+			->join('users', 'users.student_id = activity_edit_logs.student_id')
+			->where('activity_edit_logs.activity_id', $activity_id)
+			->order_by('activity_edit_logs.edit_time', 'DESC')
+			->get()
+			->result_array();
+	}
+
 
 	// UPDATING SCHEDULE TO DATABASE
 	public function update_schedule($schedule_id, $schedule_data)

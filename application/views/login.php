@@ -45,11 +45,6 @@
                                 </div>
 
                                 <div class="card-body p-4">
-                                    <div class="row flex-between-center">
-                                        <div class="col-auto">
-                                            <h3>Log In</h3>
-                                        </div>
-                                    </div>
                                     <form method="post" action="<?= site_url('login') ?>">
                                         <div class="mb-3">
                                             <label class="form-label" for="split-login-username">Student ID</label>
