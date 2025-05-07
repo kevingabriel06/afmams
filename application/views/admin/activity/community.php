@@ -62,7 +62,7 @@
 								<span class="ms-2 d-none d-md-inline-block">Activity</span>
 							</button>
 						</div>
-						<div class="col-auto">
+						<div class="col-auto privacy-dropdown"> <!-- 👈 added class -->
 							<!-- Privacy Dropdown -->
 							<div class="dropdown d-inline-block me-1">
 								<button class="btn btn-sm dropdown-toggle px-1" id="dropdownMenuButton" type="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -73,8 +73,10 @@
 									<a class="dropdown-item" href="#" data-privacy="Private">Private</a>
 								</div>
 							</div>
+
 							<!-- Hidden Input to Store Selected Privacy -->
 							<input type="hidden" id="privacyStatus" name="privacyStatus" value="Public" />
+
 							<!-- Submit Button -->
 							<button class="btn btn-primary btn-sm px-4 px-sm-5" type="submit">Share</button>
 						</div>
@@ -613,55 +615,6 @@
 	});
 </script>
 
-<!-- <script>
-	$(document).ready(function() {
-		let offset = 5; // Start after the initial 5 posts
-		const limit = 5; // Number of posts per batch
-		let loading = false;
-		let allPostsLoaded = false;
-
-		function loadMorePosts() {
-			if (loading || allPostsLoaded) return;
-			loading = true;
-			$('#loading').show();
-
-			// ✅ Debug log
-			console.log("Sending offset:", offset, "limit:", limit);
-
-			$.ajax({
-				url: '<?php echo site_url('admin/community'); ?>',
-				type: 'POST',
-				data: {
-					offset: offset,
-					limit: limit
-				},
-				success: function(response) {
-					if ($.trim(response) === '') {
-						allPostsLoaded = true;
-						$('#loading').text('No more posts.');
-					} else {
-						$('#feed-container').append(response);
-						offset += limit;
-					}
-				},
-				complete: function() {
-					$('#loading').hide();
-					loading = false;
-				}
-			});
-		}
-
-		// Infinite scroll trigger
-		$(window).scroll(function() {
-			if (!loading && !allPostsLoaded && $(window).scrollTop() + $(window).height() >= $(document).height() - 100) {
-				loadMorePosts();
-			}
-		});
-	});
-</script> -->
-
-
-
 <script>
 	$(document).ready(function() {
 		// Event listener for the Like button
@@ -1075,6 +1028,7 @@
 		container.find('.post-preview').hide();
 		container.find('.full-content').removeClass('d-none');
 	});
+
 	$(document).on('click', '.view-less', function() {
 		var container = $(this).closest('.card-body');
 		// Hide full content and show preview
@@ -1084,21 +1038,24 @@
 
 
 	$(document).ready(function() {
-		// Handle Privacy Selection
-		$(document).on('click', '.dropdown-menu .dropdown-item', function(e) {
+		// Handle Privacy Selection inside .privacy-dropdown only
+		$(document).on('click', '.privacy-dropdown .dropdown-item', function(e) {
 			e.preventDefault();
 			const selectedPrivacy = $(this).data('privacy');
 			const privacyIcon = $('#privacy-icon');
+
 			// Change icon based on selected privacy
 			if (selectedPrivacy === 'Public') {
 				privacyIcon.removeClass('fa-users').addClass('fa-globe-americas');
 			} else if (selectedPrivacy === 'Private') {
 				privacyIcon.removeClass('fa-globe-americas').addClass('fa-users');
 			}
+
 			// Store selection in hidden input
 			$('#privacyStatus').val(selectedPrivacy);
 		});
 	});
+
 
 	// IMAGE HANDLING - PREVIEW AND REMOVE
 	$(document).ready(function() {
@@ -1133,6 +1090,7 @@
 			reader.readAsDataURL(file);
 		}
 	});
+
 	// Remove Image Functionality
 	document.querySelector(".remove-image").addEventListener("click", function(e) {
 		e.preventDefault();

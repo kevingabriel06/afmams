@@ -3,8 +3,15 @@
 	<div class="card-header bg-light">
 		<h5 class="mb-0">General Settings</h5>
 	</div>
+</div>
+
+<!-- Importing Students -->
+<div class="card mb-3">
+	<div class="card-header bg-light">
+		<h6 class="mb-0">Student and Officer Section</h6>
+	</div>
 	<div class="card-body">
-		<div class="row g-4">
+		<div class="row g-3">
 			<!-- Importing of List -->
 			<div class="col-md-6">
 				<div class="border rounded p-3 h-100 d-flex flex-column justify-content-between">
@@ -27,6 +34,98 @@
 					</div>
 				</div>
 			</div>
+
+			<!-- Import Modal -->
+			<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+				<div class="modal-dialog">
+					<form class="modal-content" id="importForm">
+						<div class="modal-header">
+							<h5 class="modal-title" id="importModalLabel">Import List</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						</div>
+						<div class="modal-body">
+							<div class="mb-3">
+								<label for="importFile" class="form-label">Choose a file</label>
+								<input type="file" name="import_file" class="form-control" id="importFile" accept=".csv, .xlsx" required>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+							<button type="submit" class="btn btn-primary">Upload</button>
+						</div>
+					</form>
+				</div>
+			</div>
+
+			<script>
+				$(document).ready(function() {
+					$('#importForm').submit(function(e) {
+						e.preventDefault();
+
+						// Show confirmation prompt
+						Swal.fire({
+							title: 'Are you sure?',
+							text: "This action is not reversible. Make sure all details are correct before proceeding.",
+							icon: 'warning',
+							showCancelButton: true,
+							confirmButtonColor: '#3085d6',
+							cancelButtonColor: '#d33',
+							confirmButtonText: 'Yes, upload it!',
+							cancelButtonText: 'Cancel'
+						}).then((result) => {
+							if (result.isConfirmed) {
+								var formData = new FormData(this);
+
+								// Show loading state
+								Swal.fire({
+									title: 'Uploading...',
+									text: 'Please wait while we import your file.',
+									allowOutsideClick: false,
+									didOpen: () => {
+										Swal.showLoading();
+									}
+								});
+
+								$.ajax({
+									url: "<?= site_url('admin/import-students'); ?>",
+									type: "POST",
+									data: formData,
+									contentType: false,
+									processData: false,
+									dataType: 'json',
+									success: function(response) {
+										Swal.close();
+
+										if (response.success) {
+											Swal.fire({
+												icon: 'success',
+												title: 'Success!',
+												text: response.message
+											}).then(() => {
+												$('#importModal').modal('hide');
+											});
+										} else {
+											Swal.fire({
+												icon: 'error',
+												title: 'Import Failed',
+												text: response.message
+											});
+										}
+									},
+									error: function() {
+										Swal.close();
+										Swal.fire({
+											icon: 'error',
+											title: 'Error',
+											text: 'An unexpected error occurred. Please try again.'
+										});
+									}
+								});
+							}
+						});
+					});
+				});
+			</script>
 
 			<!-- Importing of Department Officers -->
 			<div class="col-md-6">
@@ -256,20 +355,26 @@
 				});
 			</script>
 
-
+			<!-- QR Code Generator Section -->
 			<!-- QR Code Generator Section -->
 			<div class="col-md-6">
-				<div class="border rounded p-3 h-100 d-flex justify-content-between align-items-start">
+				<div class="border rounded p-3 h-100 d-flex flex-column">
 					<div class="d-flex">
 						<div class="me-3">
 							<span class="fs-4 text-info"><i class="fas fa-qrcode"></i></span>
 						</div>
 						<div>
-							<h6 class="mb-1">QR Code Generation</h6>
+							<h6 class="mb-1 fw-bold">QR Code Generation</h6>
 							<p class="mb-0 text-muted small">Automatically generate QR codes for students who don't have one yet.</p>
 						</div>
 					</div>
-					<button class="btn btn-sm btn-outline-info" id="openQRModal" data-bs-toggle="modal" data-bs-target="#qrModal">Open</button>
+					<!-- Spacer pushes button to bottom -->
+					<div class="mt-auto align-self-end">
+						<button class="btn btn-sm btn-outline-info mt-3"
+							id="openQRModal" data-bs-toggle="modal" data-bs-target="#qrModal">
+							Open
+						</button>
+					</div>
 				</div>
 			</div>
 
@@ -360,6 +465,264 @@
 				});
 			</script>
 
+			<!-- Manage Organization -->
+			<div class="col-md-6">
+				<div class="border rounded p-3 h-100 d-flex flex-column justify-content-between position-relative">
+					<div class="d-flex">
+						<div class="me-3">
+							<span class="fs-4 text-success"><i class="fas fa-building"></i></span>
+						</div>
+						<div>
+							<h6 class="mb-1 fw-bold">Manage Organization</h6>
+							<p class="mb-0 text-muted small">
+								Add new organizations, view existing ones, and update organization.
+							</p>
+						</div>
+					</div>
+					<div class="d-flex justify-content-end gap-2 mt-3">
+						<button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#viewOrganizationsModal">View</button>
+						<button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addOrganizationModal">Add</button>
+					</div>
+				</div>
+			</div>
+
+			<!-- Add Organization Modal -->
+			<div class="modal fade" id="addOrganizationModal" tabindex="-1" role="dialog" aria-labelledby="addOrganizationModalLabel" aria-hidden="true">
+				<div class="modal-dialog" role="document">
+					<form id="addOrganizationForm" enctype="multipart/form-data">
+						<div class="modal-content">
+							<div class="modal-header">
+								<h5 class="modal-title">Add Organization</h5>
+								<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+							</div>
+							<div class="modal-body">
+								<div class="mb-3">
+									<label for="org_name" class="form-label">Organization Name</label>
+									<input type="text" class="form-control" id="org_name" name="org_name" required>
+								</div>
+								<div class="mb-3">
+									<label for="org_logo" class="form-label">Organization Logo</label>
+									<input type="file" class="form-control" id="org_logo" name="org_logo" accept="image/*">
+								</div>
+							</div>
+							<div class="modal-footer">
+								<button type="submit" class="btn btn-primary">Save</button>
+							</div>
+						</div>
+					</form>
+				</div>
+			</div>
+
+			<script>
+				$('#addOrganizationForm').on('submit', function(e) {
+					e.preventDefault();
+
+					const form = this;
+					const formData = new FormData(form);
+
+					Swal.fire({
+						title: 'Are you sure?',
+						text: "Do you want to add this organization?",
+						icon: 'question',
+						showCancelButton: true,
+						confirmButtonText: 'Yes, add it!',
+						cancelButtonText: 'Cancel'
+					}).then((result) => {
+						if (result.isConfirmed) {
+							$.ajax({
+								url: "<?php echo site_url('admin/save-organization'); ?>",
+								type: 'POST',
+								data: formData,
+								contentType: false,
+								processData: false,
+								dataType: 'json',
+								success: function(response) {
+									if (response.success) {
+										Swal.fire({
+											icon: 'success',
+											title: 'Success',
+											text: 'Organization added successfully!',
+											confirmButtonColor: '#3085d6',
+											timer: 2000,
+											showConfirmButton: false
+										});
+
+										$('#addOrganizationModal').modal('hide');
+										$('#addOrganizationForm')[0].reset();
+										// Optionally refresh a table or list here
+									} else {
+										Swal.fire({
+											icon: 'error',
+											title: 'Error',
+											text: response.message || 'An error occurred while saving.'
+										});
+									}
+								},
+								error: function() {
+									Swal.fire({
+										icon: 'error',
+										title: 'Request Failed',
+										text: 'Something went wrong while saving the organization.'
+									});
+								}
+							});
+						}
+					});
+				});
+			</script>
+
+			<!-- View Organizations Modal -->
+			<div class="modal fade" id="viewOrganizationsModal" tabindex="-1" aria-labelledby="viewOrganizationsModalLabel" aria-hidden="true">
+				<div class="modal-dialog modal-lg">
+					<div class="modal-content">
+						<div class="modal-header bg-light">
+							<h5 class="modal-title" id="viewOrganizationsModalLabel">Manage Organizations</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						</div>
+						<div class="modal-body">
+							<div class="table-responsive">
+								<table class="table table-hover align-middle" id="orgTable">
+									<thead class="table-light">
+										<tr>
+											<th>#</th>
+											<th>Logo</th>
+											<th>Organization Name</th>
+											<th>Actions</th>
+										</tr>
+									</thead>
+									<tbody>
+										<!-- Dynamic rows via AJAX -->
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Edit Organization Modal -->
+			<div class="modal fade" id="editOrganizationModal" tabindex="-1" aria-labelledby="editOrganizationModalLabel" aria-hidden="true">
+				<div class="modal-dialog">
+					<form id="editOrganizationForm" enctype="multipart/form-data">
+						<div class="modal-content">
+							<div class="modal-header bg-light">
+								<h5 class="modal-title">Edit Organization</h5>
+								<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+							</div>
+							<div class="modal-body">
+								<input type="hidden" name="id" id="editOrgId">
+								<div class="mb-3">
+									<label for="editOrgName" class="form-label">Organization Name</label>
+									<input type="text" name="org_name" id="editOrgName" class="form-control" required>
+								</div>
+								<div class="mb-3">
+									<label class="form-label">New Logo (optional)</label>
+									<input type="file" name="logo" class="form-control">
+								</div>
+							</div>
+							<div class="modal-footer">
+								<button type="submit" class="btn btn-primary">Update</button>
+								<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+							</div>
+						</div>
+					</form>
+				</div>
+			</div>
+
+			<script>
+				// Fetch and display organizations in modal
+				function loadOrganizations() {
+					$.ajax({
+						url: "<?php echo site_url('admin/get_organizations'); ?>",
+						method: 'GET',
+						dataType: 'json',
+						success: function(data) {
+							let html = '';
+							const baseUrl = "<?php echo base_url('assets/imageOrg/'); ?>";
+
+							data.forEach((org, index) => {
+								html += `
+					<tr>
+						<td>${index + 1}</td>
+						<td><img src="${baseUrl}${org.logo}" class="rounded" width="40" height="40" /></td>
+						<td>${org.org_name}</td>
+						<td>
+							<button class="btn btn-sm btn-primary edit-org" data-id="${org.org_id}" data-name="${org.org_name}" data-logo="${org.logo}">
+								<i class="fas fa-edit"></i>
+							</button>
+						</td>
+					</tr>`;
+							});
+
+							$('#orgTable tbody').html(html);
+						},
+						error: function() {
+							Swal.fire('Error', 'Failed to load organizations.', 'error');
+						}
+					});
+				}
+
+				// Trigger the function when the modal is shown
+				$('#viewOrganizationsModal').on('shown.bs.modal', loadOrganizations);
+
+				// Edit button opens modal pre-filled
+				$(document).on('click', '.edit-org', function() {
+					const id = $(this).data('id');
+					const name = $(this).data('name');
+					const logo = $(this).data('logo');
+
+					$('#editOrgId').val(id);
+					$('#editOrgName').val(name);
+					$('#currentOrgLogo').attr('src', "<?php echo base_url('assets/imageOrg/'); ?>" + logo);
+					$('#editOrganizationModal').modal('show');
+				});
+
+				// Submit update with confirmation
+				$('#editOrganizationForm').submit(function(e) {
+					e.preventDefault();
+					const form = this;
+					const formData = new FormData(form);
+
+					Swal.fire({
+						title: 'Are you sure?',
+						text: "Do you want to update this organization?",
+						icon: 'question',
+						showCancelButton: true,
+						confirmButtonText: 'Yes, update it!',
+						cancelButtonText: 'Cancel'
+					}).then((result) => {
+						if (result.isConfirmed) {
+							$.ajax({
+								url: "<?php echo site_url('admin/update-organization'); ?>",
+								type: 'POST',
+								data: formData,
+								contentType: false,
+								processData: false,
+								success: function(response) {
+									Swal.fire('Updated!', 'Organization updated successfully.', 'success');
+									$('#editOrganizationModal').modal('hide');
+									loadOrganizations();
+								},
+								error: function() {
+									Swal.fire('Error!', 'Update failed.', 'error');
+								}
+							});
+						}
+					});
+				});
+			</script>
+		</div>
+	</div>
+</div>
+
+
+<!-- Other Section -->
+<div class="card mb-3">
+	<div class="card-header bg-light">
+		<h6 class="mb-0">Customize</h6>
+	</div>
+	<div class="card-body">
+		<div class="row g-3">
 			<!-- Header and Footer -->
 			<div class="col-md-6">
 				<div class="border rounded p-3 h-100 d-flex justify-content-between align-items-start">
@@ -393,145 +756,7 @@
 			</div>
 
 
-			<!-- Record Cash Payment -->
-			<div class="col-md-6">
-				<div class="border rounded p-3 h-100 d-flex justify-content-between align-items-start">
-					<div class="d-flex">
-						<div class="me-3">
-							<span class="fs-4 text-danger"><i class="fas fa-money-bill-wave"></i></span>
-						</div>
-						<div>
-							<h6 class="mb-1">Record Cash Payment</h6>
-							<p class="mb-0 text-muted small">Manually input registration details for students who paid via cash.</p>
-						</div>
-					</div>
-					<a href="<?= base_url('admin/record-cash-payment') ?>" class="btn btn-sm btn-outline-danger">
-						Open
-					</a>
-
-				</div>
-			</div>
-
-
-
 		</div>
-	</div>
-</div>
-
-<!-- Add these modals at the bottom of your file -->
-
-<!-- Import Modal -->
-<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
-	<div class="modal-dialog">
-		<form class="modal-content" id="importForm">
-			<div class="modal-header">
-				<h5 class="modal-title" id="importModalLabel">Import List</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-			</div>
-			<div class="modal-body">
-				<div class="mb-3">
-					<label for="importFile" class="form-label">Choose a file</label>
-					<input type="file" name="import_file" class="form-control" id="importFile" accept=".csv, .xlsx" required>
-				</div>
-			</div>
-			<div class="modal-footer">
-				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-				<button type="submit" class="btn btn-primary">Upload</button>
-			</div>
-		</form>
-	</div>
-</div>
-
-<!-- Include SweetAlert2 -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-<script>
-	$(document).ready(function() {
-		$('#importForm').submit(function(e) {
-			e.preventDefault();
-
-			// Show confirmation prompt
-			Swal.fire({
-				title: 'Are you sure?',
-				text: "This action is not reversible. Make sure all details are correct before proceeding.",
-				icon: 'warning',
-				showCancelButton: true,
-				confirmButtonColor: '#3085d6',
-				cancelButtonColor: '#d33',
-				confirmButtonText: 'Yes, upload it!',
-				cancelButtonText: 'Cancel'
-			}).then((result) => {
-				if (result.isConfirmed) {
-					var formData = new FormData(this);
-
-					// Show loading state
-					Swal.fire({
-						title: 'Uploading...',
-						text: 'Please wait while we import your file.',
-						allowOutsideClick: false,
-						didOpen: () => {
-							Swal.showLoading();
-						}
-					});
-
-					$.ajax({
-						url: "<?= site_url('admin/import-students'); ?>",
-						type: "POST",
-						data: formData,
-						contentType: false,
-						processData: false,
-						dataType: 'json',
-						success: function(response) {
-							Swal.close();
-
-							if (response.success) {
-								Swal.fire({
-									icon: 'success',
-									title: 'Success!',
-									text: response.message
-								}).then(() => {
-									$('#importModal').modal('hide');
-								});
-							} else {
-								Swal.fire({
-									icon: 'error',
-									title: 'Import Failed',
-									text: response.message
-								});
-							}
-						},
-						error: function() {
-							Swal.close();
-							Swal.fire({
-								icon: 'error',
-								title: 'Error',
-								text: 'An unexpected error occurred. Please try again.'
-							});
-						}
-					});
-				}
-			});
-		});
-	});
-</script>
-
-
-
-<!-- QR Modal -->
-<div class="modal fade" id="qrModal" tabindex="-1">
-	<div class="modal-dialog">
-		<form class="modal-content" method="post" action="<?= base_url('settings/generate_qr') ?>">
-			<div class="modal-header">
-				<h5 class="modal-title">Generate QR Code</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-			</div>
-			<div class="modal-body">
-				<input type="text" name="qr_data" class="form-control" placeholder="Enter data to encode" required>
-			</div>
-			<div class="modal-footer">
-				<button class="btn btn-info" type="submit">Generate</button>
-			</div>
-		</form>
 	</div>
 </div>
 

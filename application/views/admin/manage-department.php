@@ -1,9 +1,4 @@
-<!-- jQuery -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<!-- SweetAlert2 -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-<form id="privilegeForm" action="<?= site_url('admin/manage-officers-department/update_privileges') ?>" method="post">
+<form id="privilegeForm">
     <input type="hidden" name="dept_id" value="<?= $dept_id; ?>">
 
     <div class="card mb-4">
@@ -11,7 +6,7 @@
             <h5 class="mb-0">
                 <?php foreach ($department as $dept): ?>
                     <?php if ($dept_id == $dept->dept_id): ?>
-                        List of Officers - <?= $dept->dept_name; ?>
+                        List of Officers - <?= htmlspecialchars($dept->dept_name); ?>
                     <?php endif; ?>
                 <?php endforeach; ?>
             </h5>
@@ -22,37 +17,85 @@
                 <table class="table table-hover table-striped mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th>Name</th>
-                            <th>Manage Fines</th>
-                            <th>Manage Evaluation</th>
-                            <th>Manage Excuse Application</th>
-                            <th>Able to Scan</th>
-                            <th>Able to Create Activity</th>
+                            <th class="text-nowrap">Name</th>
+                            <th class="text-nowrap" scope="col">Manage Fines</th>
+                            <th class="text-nowrap" scope="col">Manage Evaluation</th>
+                            <th class="text-nowrap" scope="col">Manage Excuse Application</th>
+                            <th class="text-nowrap" scope="col">Able to Scan</th>
+                            <th class="text-nowrap" scope="col">Able to Create Activity</th>
+                            <th class="text-nowrap" scope="col">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($privileges as $privilege): ?>
-                            <tr>
-                                <!-- Full Name -->
-                                <td class="text-nowrap align-middle">
-                                    <?= $privilege->first_name . " " . $privilege->last_name; ?>
-                                </td>
-
-                                <!-- Privileges Checkboxes -->
-                                <?php
-                                $fields = ['manage_fines', 'manage_evaluation', 'manage_applications', 'able_scan', 'able_create_activity'];
-                                foreach ($fields as $field):
-                                ?>
-                                    <td class="text-center align-middle">
-                                        <div class="form-check form-switch d-inline-block">
-                                            <input class="form-check-input" type="checkbox"
-                                                name="privileges[<?= $privilege->privilege_id ?>][<?= $field ?>]"
-                                                <?= $privilege->$field === 'Yes' ? 'checked' : ''; ?>>
-                                        </div>
+                            <?php if ($privilege->dept_id == $dept_id): ?> <!-- Check if dept_id matches -->
+                                <tr>
+                                    <td class="text-nowrap align-middle">
+                                        <?= htmlspecialchars($privilege->first_name . " " . $privilege->last_name); ?>
                                     </td>
-                                <?php endforeach; ?>
-                            </tr>
+
+                                    <?php
+                                    $fields = ['manage_fines', 'manage_evaluation', 'manage_applications', 'able_scan', 'able_create_activity'];
+                                    foreach ($fields as $field):
+                                    ?>
+                                        <td class="text-center align-middle">
+                                            <div class="form-check form-switch d-inline-block">
+                                                <input class="form-check-input" type="checkbox"
+                                                    name="privileges[<?= $privilege->privilege_id ?>][<?= $field ?>]"
+                                                    value="1"
+                                                    <?= $privilege->$field === 'Yes' ? 'checked' : ''; ?>>
+                                            </div>
+                                        </td>
+                                    <?php endforeach; ?>
+                                    <td>
+                                        <button class="btn btn-sm btn-danger delete-officer" data-id="<?= $privilege->student_id; ?>">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </td>
+
+                                    <script>
+                                        $(document).on('click', '.delete-officer', function(e) {
+                                            e.preventDefault(); // ✅ Prevent form submission
+                                            const officerId = $(this).data('id');
+
+                                            Swal.fire({
+                                                title: 'Are you sure?',
+                                                text: "This officer will be permanently removed and this account cannot be accessed.",
+                                                icon: 'warning',
+                                                showCancelButton: true,
+                                                confirmButtonText: 'Yes, delete it!',
+                                                cancelButtonText: 'Cancel'
+                                            }).then((result) => {
+                                                if (result.isConfirmed) {
+                                                    $.ajax({
+                                                        url: "<?php echo site_url('admin/manage-officers-department/delete-officer'); ?>",
+                                                        type: 'POST',
+                                                        data: {
+                                                            id: officerId
+                                                        },
+                                                        dataType: 'json',
+                                                        success: function(response) {
+                                                            if (response.success) {
+                                                                Swal.fire('Deleted!', 'Officer has been removed.', 'success');
+                                                                // Optionally remove the row dynamically
+                                                                location.reload(); // or $('#officerRow-' + officerId).remove();
+                                                            } else {
+                                                                Swal.fire('Error', response.message || 'Failed to delete officer.', 'error');
+                                                            }
+                                                        },
+                                                        error: function() {
+                                                            Swal.fire('Error', 'Server error occurred.', 'error');
+                                                        }
+                                                    });
+                                                }
+                                            });
+                                        });
+                                    </script>
+
+                                </tr>
+                            <?php endif; ?>
                         <?php endforeach; ?>
+
                     </tbody>
                 </table>
             </div>
@@ -69,39 +112,54 @@
         $('#privilegeForm').on('submit', function(event) {
             event.preventDefault();
 
-            var form = $(this);
-            var formData = form.serialize();
-
-            $.ajax({
-                url: form.attr('action'),
-                method: 'POST',
-                data: formData,
-                dataType: 'json',
-                success: function(response) {
-                    if (response.success) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: 'Privileges updated successfully.',
-                            confirmButtonColor: '#3085d6'
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Update Failed',
-                            text: 'An error occurred while updating privileges.',
-                            confirmButtonColor: '#d33'
-                        });
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error(xhr.responseText);
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Server Error',
-                        text: 'Something went wrong. Please try again.',
-                        footer: '<small>' + error + '</small>',
-                        confirmButtonColor: '#d33'
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "Do you want to save the changes to privileges?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, save it!',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: "<?= site_url('admin/manage-officers-department/update_privileges') ?>",
+                        method: "POST",
+                        data: $('#privilegeForm').serialize(),
+                        dataType: "json",
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Success',
+                                    text: 'Privileges updated successfully.',
+                                    confirmButtonColor: '#3085d6'
+                                }).then(() => {
+                                    location.reload(); // Reload the page after confirmation
+                                });
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Update Failed',
+                                    text: response.error || 'An error occurred.',
+                                    confirmButtonColor: '#d33'
+                                });
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.log(xhr.responseText);
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Server Error',
+                                text: 'Please try again later.',
+                                footer: '<small>' + error + '</small>',
+                                confirmButtonColor: '#d33'
+                            });
+                        }
                     });
                 }
             });

@@ -53,7 +53,7 @@
               <?php foreach ($letters as $letter) : ?>
                 <?php if ($letter->activity_id == $activities['activity_id']): ?>
                   <tr class="letter-row" data-status="<?php echo $letter->status; ?>">
-                    <td class="align-middle text-nowrap px-6 py-2 student">
+                    <td class="align-middle text-nowrap student">
                       <div class="d-flex align-items-center">
                         <div class="avatar avatar-xl me-3">
                           <img class="rounded-circle" src="<?php echo base_url('assets/profile/' . (!empty($letter->profile_pic) ? $letter->profile_pic : 'default.jpg')); ?>" alt="" />
@@ -61,13 +61,13 @@
                         <h6 class="mb-0 fw-semibold text-dark"><?php echo $letter->first_name . " " . $letter->last_name; ?></h6>
                       </div>
                     </td>
-                    <td class="align-middle subject px-6 py-2 subject">
+                    <td class="align-middle subject department">
                       <?php echo $letter->dept_name; ?>
                     </td>
-                    <td class="align-middle subject px-6 py-2 subject">
+                    <td class="align-middle subject subject">
                       <a class="fw-semi-bold" href="<?php echo site_url('admin/review-excuse-letter/' . $letter->excuse_id); ?>"><?php echo $letter->subject; ?></a>
                     </td>
-                    <td class="px-7 py-2 status">
+                    <td class="status">
                       <?php if ($letter->status === 'Approved'): ?>
                         <span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Approved<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span>
                       <?php elseif ($letter->status === 'Disapproved'): ?>

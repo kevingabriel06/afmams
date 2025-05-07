@@ -140,9 +140,11 @@ $route['admin/fines-payment/confirm'] = 'AdminController/confirm_payment';
 $route['admin/fines/update_status']['post'] = 'AdminController/update_status';
 
 
-//<======= CREATION ACTIVITY ======>
+// CREATE ACTIVITY
 $route['admin/create-activity'] = 'AdminController/create_activity'; // VIEW CREATE ACTIVITY PAGE
 $route['admin/create-activity/add']['post'] = 'AdminController/save_activity'; // SAVING ACTIVITY TO DATABASE
+
+
 $route['admin/edit-activity/(:num)'] = 'AdminController/edit_activity/$1'; // VIEW EDIT ACTIVITY PAGE
 $route['admin/edit-activity/update/(:num)'] = 'AdminController/update_activity/$1'; // UPDATING ACTIVITY TO DATABASE
 $route['admin/delete-schedule/(:num)'] = 'AdminController/delete_schedule/$1';
@@ -168,9 +170,8 @@ $route['admin/list-of-excuse-letter/(:num)'] = 'AdminController/list_excuse_lett
 $route['admin/review-excuse-letter/(:num)'] = 'AdminController/review_excuse_letter/$1'; // Excuse Application
 $route['admin/review-excuse-letter/update']['POST'] = 'AdminController/updateApprovalStatus'; // Remarks of the application
 
-// <===== COMMUNITY SECTION =======>
+// COMMUNITY SECTION
 $route['admin/community'] = 'AdminController/community';
-//$route['admin/community/posts']['post'] = 'AdminController/fetch_more_posts';
 $route['admin/community/like-post/(:num)'] = 'AdminController/like_post/$1'; // Route for liking a post
 $route['admin/view_likes/(:num)'] = 'AdminController/view_likes/$1'; // Route for the viewing of user who like the post
 $route['admin/community/unlike-post/(:num)'] = 'AdminController/unlike_post/$1'; // Route for unliking a post
@@ -179,26 +180,32 @@ $route['admin/community/add-post']['post'] = 'AdminController/add_post'; // Rout
 $route['admin/community/share-activity']['post'] = 'AdminController/share'; // Route for sharing activity
 $route['admin/community/delete-post']['post'] = 'AdminController/delete_post'; // Route for deleting post
 
-// PROFILE SETTINGS ========>
-//PROFILE UPDATES
+//PROFILE SETTINGS
 $route['admin/profile-settings'] = 'AdminController/profile_settings';
 $route['admin/profile/update-profile-pic'] = 'AdminController/update_profile_pic';
 $route['admin/profile/update-profile'] = 'AdminController/update_profile';
 $route['admin/profile/update_password'] = 'AdminController/update_password';
 $route['admin/profile/get_qr_code_by_student'] = 'AdminController/get_qr_code_by_student';
 
-
+// MANAGE OFFICER AND PRIVILEGE
 $route['admin/manage-officers'] = 'AdminController/manage_officers';
 $route['admin/manage-officers-department/(:num)'] = 'AdminController/list_officers_dept/$1';
-$route['admin/manage-officers-department/update_privileges']['post'] = 'AdminController/update_privileges';
+$route['admin/manage-officers-department/update_privileges'] = 'AdminController/update_privileges_dept';
+$route['admin/manage-officers-department/delete-officer'] = 'AdminController/delete_officer_dept';
 $route['admin/manage-officers-organization/(:num)'] = 'AdminController/list_officers_org/$1';
-$route['admin/manage-officers-organization/update_status']['post'] = 'AdminController/update_status_org';
+$route['admin/manage-officers-organization/update_privileges'] = 'AdminController/update_privileges_org';
+$route['admin/manage-officers-organization/delete-officer'] = 'AdminController/delete_officer_org';
 
+// GENERAL SETTINGS
 $route['admin/general-settings'] = 'AdminController/general_settings';
 $route['admin/import-students'] = 'AdminController/import_list';
 $route['admin/import-department-officers'] = 'AdminController/import_list_dept';
 $route['admin/import-organization-officers'] = 'AdminController/import_list_org';
 $route['admin/generate_bulk_qr'] = 'AdminController/generate_bulk_qr';
+$route['admin/save-organization'] = 'AdminController/save_organization';
+$route['admin/get_organizations'] = 'AdminController/get_organizations';
+$route['admin/delete_organization/(:num)'] = 'AdminController/delete_organization/$1';
+$route['admin/update-organization'] = 'AdminController/update_organization';
 
 $route['admin/about'] = 'AdminController/about';
 

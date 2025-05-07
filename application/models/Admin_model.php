@@ -144,21 +144,104 @@ class Admin_model extends CI_Model
 		];
 	}
 
-	// public function get_attendance_student(){
-
-	//     thi
-	// }
-
-	public function get_total_fines()
+	public function fetch_attendance_data()
 	{
-		$this->db->select('SUM(fines.fines_amount) as total_fines');
+		$current_year = date('Y');
+
+		// Query to fetch data including total expected and actual attendees
+		$query = $this->db->query("
+        SELECT 
+            a.activity_id,
+            a.activity_title,
+            a.registration_fee,
+            a.start_date,
+
+            -- Determine semester based on start_date
+            CASE 
+                WHEN MONTH(a.start_date) BETWEEN 7 AND 12 THEN 'First Semester'
+                ELSE 'Second Semester'
+            END AS semester,
+
+            -- Expected attendees based on registration or attendees table
+            CASE 
+                WHEN a.registration_fee IS NOT NULL AND a.registration_fee > 0 THEN 
+                    (SELECT COUNT(DISTINCT r.student_id) 
+                     FROM registrations r 
+                     WHERE r.activity_id = a.activity_id)
+                ELSE 
+                    (SELECT COUNT(DISTINCT atd.student_id) 
+                     FROM attendees atd 
+                     WHERE atd.activity_id = a.activity_id)
+            END AS expected_attendees,
+
+            -- Actual attendees marked Present
+            (SELECT COUNT(DISTINCT att.student_id) 
+             FROM attendance att 
+             WHERE att.activity_id = a.activity_id AND att.attendance_status = 'Present') AS actual_attendees
+
+        FROM activity a
+        WHERE YEAR(a.start_date) = '$current_year'
+        ORDER BY a.start_date ASC
+    ");
+
+		// Fetch all results
+		$attendance_data = $query->result();
+
+		// Calculate total expected and actual attendees
+		$total_expected = 0;
+		$total_actual = 0;
+
+		foreach ($attendance_data as $data) {
+			$total_expected += $data->expected_attendees;
+			$total_actual += $data->actual_attendees;
+		}
+
+		// Calculate attendance rate
+		$attendance_rate = 0;
+		if ($total_expected > 0) {
+			$attendance_rate = ($total_actual / $total_expected) * 100;
+		}
+
+		// Return data with the calculated overall attendance rate
+		return [
+			'attendance_data' => $attendance_data,
+			'attendance_rate' => round($attendance_rate, 2) // round to 2 decimal places
+		];
+	}
+
+
+
+
+	public function get_total_fines_per_activity()
+	{
+		$today = date('Y-m-d');
+		$current_year = date('Y');
+		$month = date('n');
+
+		// Determine current semester based on the month
+		if ($month >= 7 && $month <= 12) {
+			$semester = 'First Semester';
+			$start_date = "$current_year-07-01";
+			$end_date = "$current_year-12-31";
+		} else {
+			$semester = 'Second Semester';
+			$start_date = "$current_year-01-01";
+			$end_date = "$current_year-06-30";
+		}
+
+		// Select the sum of fines per activity for the current semester
+		$this->db->select('activity.activity_id, activity.activity_title, SUM(fines.fines_amount) as total_fines');
 		$this->db->from('fines');
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
 		$this->db->where('activity.organizer', 'Student Parliament');
+		$this->db->where('activity.start_date >=', $start_date); // Filter fines by the semester start date
+		$this->db->where('activity.end_date <=', $end_date);   // Filter fines by the semester end date
+		$this->db->group_by('activity.activity_id, activity.activity_title'); // Group by activity to get total per activity
 
 		$query = $this->db->get();
-		return $query->row(); // Returns the result as a single row object
+		return $query->result(); // Returns an array of objects, one for each activity
 	}
+
 
 	// CREATING ACTIVITY
 	public function get_department()
@@ -232,9 +315,17 @@ class Admin_model extends CI_Model
 	}
 
 	// FOR REGISTRATION
+	public function is_student_registered($student_id, $activity_id)
+	{
+		$this->db->where('student_id', $student_id);
+		$this->db->where('activity_id', $activity_id);
+		$query = $this->db->get('registrations');
+
+		return $query->num_rows() > 0;
+	}
+
 	public function registrations($activity_id)
 	{
-
 		$this->db->select('registrations.*, users.*, department.*');
 		$this->db->from('registrations');
 		$this->db->join('users', 'registrations.student_id = users.student_id');
@@ -305,7 +396,7 @@ class Admin_model extends CI_Model
 		return $result->total; // Return the count
 	}
 
-	//registration receipt
+	// REGISTRATION RECEIPT
 	public function get_registration_id($student_id, $activity_id)
 	{
 		return $this->db->select('registration_id')
@@ -481,7 +572,6 @@ class Admin_model extends CI_Model
 	{
 		$this->db->select('formfields.form_id, formfields.form_fields_id, formfields.label AS question, 
                        AVG(response_answer.answer) AS avg_rating, 
-                       SUM(CASE WHEN response_answer.answer = 5 THEN 1 ELSE 0 END) AS five_star,
                        SUM(CASE WHEN response_answer.answer = 4 THEN 1 ELSE 0 END) AS four_star,
                        SUM(CASE WHEN response_answer.answer = 3 THEN 1 ELSE 0 END) AS three_star,
                        SUM(CASE WHEN response_answer.answer = 2 THEN 1 ELSE 0 END) AS two_star,
@@ -531,7 +621,7 @@ class Admin_model extends CI_Model
 		return $query->result_array();
 	}
 
-	// EXCUSE APPLICATION
+	// EXCUSE APPLICATION (FINAL CHECK)
 
 	// FETCHING EXCUSE APPLICATION PER EVENT
 	public function fetch_application($activity_id)
@@ -602,8 +692,7 @@ class Admin_model extends CI_Model
 		}
 	}
 
-	// GETTING POST DETAILS AND AUTHOR *
-	public function get_all_posts($limit, $offset)
+	public function get_all_posts()
 	{
 		$this->db->select('*');
 		$this->db->from('post');
@@ -611,9 +700,6 @@ class Admin_model extends CI_Model
 		$this->db->join('department', 'department.dept_id = post.dept_id', 'left');
 		$this->db->join('organization', 'organization.org_id = post.org_id', 'left');
 		$this->db->order_by('post.post_id', 'DESC');
-
-		// Add LIMIT and OFFSET for pagination
-		$this->db->limit($limit, $offset);
 
 		$query = $this->db->get();
 		return $query->result();
@@ -629,13 +715,13 @@ class Admin_model extends CI_Model
 		return $query->result();
 	}
 
-	public function get_shared_activities($limit, $offset)
+	public function get_shared_activities()
 	{
 		$this->db->select('*');
 		$this->db->from('activity');
 		$this->db->where('is_shared', 'Yes');
 		$this->db->order_by('updated_at', 'DESC'); // Sort by newest activity first
-		$this->db->limit($limit, $offset); // Apply pagination
+		// $this->db->limit($limit, $offset); // Apply pagination
 
 		$query = $this->db->get();
 		return $query->result();
@@ -947,8 +1033,6 @@ class Admin_model extends CI_Model
 		return $data;
 	}
 
-
-
 	//ATTENDANCE REPORT WITH GRAPHS START
 	public function get_attendance_status_counts($activity_id)
 	{
@@ -965,8 +1049,6 @@ class Admin_model extends CI_Model
 
 		return $result;
 	}
-
-
 
 	public function get_attendance_by_department($activity_id)
 	{
@@ -992,7 +1074,6 @@ class Admin_model extends CI_Model
 			->result();
 	}
 
-
 	public function get_total_attendees($activity_id)
 	{
 		return $this->db->where('activity_id', $activity_id)
@@ -1000,16 +1081,6 @@ class Admin_model extends CI_Model
 			->distinct()
 			->count_all_results('attendance');
 	}
-
-
-
-
-
-
-
-
-
-	//END
 
 	// CONNECTING FINES AND ATTENDANCE
 	public function get_fines_amount($activity_id)
@@ -1208,72 +1279,7 @@ class Admin_model extends CI_Model
 		}
 	}
 
-
-	//
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	//ACTIVITY DROPDOWN BASED ON LOGGED IN USER
-
-	public function get_filtered_activities()
-	{
-		$this->db->select('*');
-		$this->db->from('activity');
-
-		return $this->db->get()->result();
-	}
-
-	// Function to fetch activities for Admin (where org_id and dept_id are NULL) || used for list activity evaluations
-	public function get_admin_activities()
-	{
-		$this->db->select('activity_id, activity_title, status, activity_image');
-		$this->db->from('activity');
-		$this->db->where('org_id', NULL);
-		$this->db->where('dept_id', NULL);
-		$query = $this->db->get();
-
-		// Return the result as an array of objects
-		return $query->result();
-	}
-
-
-	// When activity is clicked, forms are fetched
-	public function get_forms_by_activity($activity_id)
-	{
-		$this->db->where('activity_id', $activity_id);
-		$query = $this->db->get('forms');
-		return $query->result();  // Return forms for the specific activity
-	}
-
-
-	// FOR VIEW RESPONSE BUTTON
-	public function get_responses_by_form($form_id)
-	{
-		$this->db->where('form_id', $form_id);
-		$query = $this->db->get('evaluation_responses');
-		return $query->result();  // This should now include 'evaluation_response_id'
-	}
-
-
+	// GET STUDENT ID
 	public function get_student_by_id($student_id)
 	{
 		$this->db->where('student_id', $student_id);
@@ -1281,97 +1287,13 @@ class Admin_model extends CI_Model
 		return $query->row();  // Return a single user record
 	}
 
-
-	//FETCH FORM ANSWERS WHEN CLICKING VIEW RESPONSE BUTTON
-
-	public function get_form_by_id($form_id)
-	{
-		// Select form details based on form_id
-		$this->db->where('form_id', $form_id);
-		$query = $this->db->get('forms');
-
-		return $query->row();  // Return a single row (form details)
-	}
-
-
-	public function get_answers_by_evaluation_response($evaluation_response_id)
-	{
-		// Select the answer, label (question), type (question type), and form_id
-		$this->db->select('response_answer.answer, formfields.label, formfields.type, formfields.form_id');
-		$this->db->from('response_answer');
-		$this->db->join('formfields', 'formfields.form_fields_id = response_answer.form_fields_id');
-		$this->db->where('response_answer.evaluation_response_id', $evaluation_response_id);
-		$query = $this->db->get();
-
-		return $query->result();  // Return all answers for the evaluation response
-	}
-
+	// GET ACTIVITY BY ID
 	public function get_activity_by_id($activity_id)
 	{
 		$this->db->where('activity_id', $activity_id);
 		$query = $this->db->get('activity'); // Assuming your table name is 'activities'
 
 		return $query->row(); // Returns a single activity
-	}
-
-
-
-	// END OF EVALUATION 
-
-	// START COMMUNITY SECTION
-
-
-	// FETCHING ORGANIZATION WHERE THE ADMIN BELONGS - CONTAINS ORGID AND ORGNAME *
-	public function admin_org()
-	{
-		$student_id = $this->session->userdata('student_id');
-
-		$this->db->select('student_org.org_id, organization.org_name');
-		$this->db->from('users');
-		$this->db->join('student_org', 'student_org.student_id = users.student_id');
-		$this->db->join('organization', 'student_org.org_id = organization.org_id');
-		$this->db->where('users.student_id', $student_id);
-		$this->db->where('users.is_admin', 'Yes');
-		$this->db->where('student_org.is_officer', 'Yes');
-
-		$query = $this->db->get();
-		return $query->row(); // Returns a single row as an object
-	}
-
-	// FETCHING DEPARTMENT WHERE THE ADMIN BELONGS - CONTAINS DEPTID AND DEPTNAME *
-	public function admin_dept()
-	{
-		$student_id = $this->session->userdata('student_id');
-
-		$this->db->select('users.dept_id, department.dept_name');
-		$this->db->from('users');
-		$this->db->join('department', 'department.dept_id = users.dept_id');
-		$this->db->where('users.student_id', $student_id);
-		$this->db->where('users.is_admin', 'Yes');
-		$this->db->where('users.is_officer_dept', 'Yes');
-
-		$result = $this->db->get()->row();
-		return $result;  // Return department data for the logged-in user
-	}
-
-
-	// START FINES
-
-
-	public function get_activity_fines()
-	{
-		$this->db->where('organizer', 'Student Parliament'); // Apply WHERE condition before fetching
-		return $this->db->get('activity')->result_array(); // Fetch all events
-	}
-
-	public function get_students()
-	{
-		return $this->db->get('users')->result_array(); // Fetch all students
-	}
-
-	public function get_fines()
-	{
-		return $this->db->get('fines')->result_array(); // Fetch all fines
 	}
 
 	public function flash_fines()
@@ -1403,43 +1325,6 @@ class Admin_model extends CI_Model
 		return false;
 	}
 
-
-	//FINES RECEIPT START
-
-	public function update_payment_status($student_id, $reference_number, $mode_of_payment)
-	{
-		// Check reference match
-		$this->db->where('student_id', $student_id);
-		$summary = $this->db->get('fines_summary')->row();
-
-		if ($summary &&  $summary->reference_number_students === $reference_number) {
-			// Reference number matched – mark as Paid
-			$this->db->where('student_id', $student_id);
-			$this->db->update('fines_summary', [
-				'mode_payment' => $mode_of_payment,
-				'reference_number_admin' => $reference_number,
-				'fines_status' => 'Paid'
-			]);
-
-			$this->db->where('student_id', $student_id);
-			$this->db->update('fines', ['status' => 'Paid']);
-
-			return true;  // Payment marked as "Paid"
-		} else {
-			// Reference number mismatched or not yet assigned – mark as Processing
-			$this->db->where('student_id', $student_id);
-			$this->db->update('fines_summary', [
-				'mode_payment' => $mode_of_payment,
-				'reference_number_admin' => $reference_number,
-				'fines_status' => 'Pending'
-			]);
-
-			return false;  // Payment is "Pending"
-		}
-	}
-
-
-
 	public function get_fine_summary($student_id)
 	{
 		return $this->db->get_where('fines_summary', ['student_id' => $student_id])->row();
@@ -1451,18 +1336,7 @@ class Admin_model extends CI_Model
 		return $this->db->update('fines_summary', $data);
 	}
 
-	public function get_payment_id($student_id)
-	{
-		// Since you already have the `summary_id`, this might be unnecessary
-		$record = $this->get_fine_summary($student_id);
-		return $record ? $record->summary_id : null;
-	}
-
-
-	//FINES RECEIPT END
-
-
-	// PROFILE SETTINGS
+	// PROFILE SETTINGS (FINAL CHECK)
 	public function get_user_profile()
 	{
 		$student_id = $this->session->userdata('student_id');
@@ -1533,13 +1407,15 @@ class Admin_model extends CI_Model
 			->update('users', ['password' => $hashed_password]);
 	}
 
-	// MANAGE OFFICER AND PRIVILEGE
-	public function manage_privilege()
+	// MANAGE OFFICER AND PRIVILEGE (FINAL CHECK)
+	public function manage_privilege_dept()
 	{
 		// Select the columns you need
 		$this->db->select('privilege.*, users.*');  // Adjust the columns to your need
 		$this->db->from('privilege');
 		$this->db->join('users', 'users.student_id = privilege.student_id', 'left');  // Adjust join type as necessary
+		$this->db->where('role', 'Officer');
+		$this->db->where('is_officer_dept', 'Yes');
 
 		// Execute the query
 		$query = $this->db->get();
@@ -1548,8 +1424,10 @@ class Admin_model extends CI_Model
 		return $query->result();
 	}
 
-	public function update_privileges($privileges_data)
+	public function update_privileges_dept($privileges_data)
 	{
+		$this->db->trans_start(); // Start a transaction
+
 		foreach ($privileges_data as $privilege) {
 			if (!isset($privilege['privilege_id'])) {
 				continue; // Skip if privilege_id is missing
@@ -1557,69 +1435,194 @@ class Admin_model extends CI_Model
 
 			$data = [];
 
-			// Only update columns that are set in the privilege data
-			if (isset($privilege['manage_fines'])) {
-				$data['manage_fines'] = $privilege['manage_fines'] === 'Yes' ? 'Yes' : 'No';
-			}
-			if (isset($privilege['manage_evaluation'])) {
-				$data['manage_evaluation'] = $privilege['manage_evaluation'] === 'Yes' ? 'Yes' : 'No';
-			}
-			if (isset($privilege['manage_applications'])) {
-				$data['manage_applications'] = $privilege['manage_applications'] === 'Yes' ? 'Yes' : 'No';
-			}
-			if (isset($privilege['able_scan'])) {
-				$data['able_scan'] = $privilege['able_scan'] === 'Yes' ? 'Yes' : 'No';
-			}
-			if (isset($privilege['able_create_activity'])) {
-				$data['able_create_activity'] = $privilege['able_create_activity'] === 'Yes' ? 'Yes' : 'No';
+			// Prepare data based on incoming privilege values
+			foreach (['manage_fines', 'manage_evaluation', 'manage_applications', 'able_scan', 'able_create_activity'] as $field) {
+				if (isset($privilege[$field])) {
+					$data[$field] = $privilege[$field] === 'Yes' ? 'Yes' : 'No';
+				}
 			}
 
-			// Only proceed if there's at least one column to update
+			// Update only if there's data to update
 			if (!empty($data)) {
 				$this->db->where('privilege_id', $privilege['privilege_id']);
 				$this->db->update('privilege', $data);
 			}
 		}
 
-		return $this->db->affected_rows() > 0;
+		$this->db->trans_complete(); // Complete the transaction
+
+		// Return whether any rows were updated
+		return $this->db->trans_status();
 	}
 
-	public function get_qr_code_by_student_id($student_id)
+	public function delete_officer_dept($id)
 	{
-		$student_id = $this->session->userdata('student_id');
+		// Start transaction
+		$this->db->trans_start();
 
+		// Delete from privilege table
+		$this->db->where('student_id', $id);
+		$this->db->delete('privilege');
+
+		// Delete from users table
+		$this->db->where('student_id', $id);
+		$this->db->delete('users');
+
+		// Complete transaction
+		$this->db->trans_complete();
+
+		return $this->db->trans_status(); // returns TRUE if all queries were successful
+	}
+
+	public function delete_officer_org($id)
+	{
+		// Start transaction
+		$this->db->trans_start();
+
+		// Delete from privilege table
+		$this->db->where('student_id', $id);
+		$this->db->delete('privilege');
+
+		// Delete from users table
+		$this->db->where('student_id', $id);
+		$this->db->delete('users');
+
+		// Delete from users table
+		$this->db->where('student_id', $id);
+		$this->db->delete('student_org');
+
+		// Complete transaction
+		$this->db->trans_complete();
+
+		return $this->db->trans_status(); // returns TRUE if all queries were successful
+	}
+
+	public function manage_privilege_org()
+	{
+		// Select the columns you need
+		$this->db->select('privilege.*, users.*, student_org.*');  // Adjust the columns to your need
+		$this->db->from('privilege');
+		$this->db->join('users', 'users.student_id = privilege.student_id', 'left');  // Adjust join type as necessary
+		$this->db->join('student_org', 'student_org.student_id = users.student_id', 'left');
+		$this->db->where('role', 'Officer');
+		$this->db->where('student_org.is_officer', 'Yes');
+
+		// Execute the query
+		$query = $this->db->get();
+
+		// Return the results
+		return $query->result();
+	}
+
+	public function update_privileges_org($privileges_data)
+	{
+		$this->db->trans_start(); // Start a transaction
+
+		foreach ($privileges_data as $privilege) {
+			if (!isset($privilege['privilege_id'])) {
+				continue; // Skip if privilege_id is missing
+			}
+
+			$data = [];
+
+			// Prepare data based on incoming privilege values
+			foreach (['manage_fines', 'manage_evaluation', 'manage_applications', 'able_scan', 'able_create_activity'] as $field) {
+				if (isset($privilege[$field])) {
+					$data[$field] = $privilege[$field] === 'Yes' ? 'Yes' : 'No';
+				}
+			}
+
+			// Update only if there's data to update
+			if (!empty($data)) {
+				$this->db->where('privilege_id', $privilege['privilege_id']);
+				$this->db->update('privilege', $data);
+			}
+		}
+
+		$this->db->trans_complete(); // Complete the transaction
+
+		// Return whether any rows were updated
+		return $this->db->trans_status();
+	}
+
+
+	// GENERAL SETTINGS (FINAL CHECK)
+	protected $table = 'users'; // Your database table name
+
+	public function insert_student($user_data_batch, $privilege_batch)
+	{
+		$this->db->trans_start();
+		$this->db->insert_batch($this->table, $user_data_batch);
+		$this->db->trans_complete();
+
+		return $this->db->trans_status(); // Returns true on success, false on failure
+	}
+
+	public function insert_dept_officers_batch($user_data_batch, $privilege_batch)
+	{
+		$this->db->trans_start();
+		$this->db->insert_batch($this->table, $user_data_batch);
+		$this->db->insert_batch('privilege', $privilege_batch);
+		$this->db->trans_complete();
+
+		return $this->db->trans_status(); // Returns true on success, false on failure
+	}
+
+	public function insert_org_officers_batch($user_data_batch, $org_data_batch, $privilege_batch)
+	{
+		$this->db->trans_start();
+		$this->db->insert_batch($this->table, $user_data_batch);
+		$this->db->insert_batch('student_org', $org_data_batch);
+		$this->db->insert_batch('privilege', $privilege_batch);
+		$this->db->trans_complete();
+
+		return $this->db->trans_status(); // Returns true on success, false on failure
+	}
+
+	public function insert_organization($data)
+	{
+		return $this->db->insert('organization', $data);
+	}
+
+	public function get_all()
+	{
+		return $this->db->get('organization')->result();
+	}
+
+	public function update($id, $org_name, $logo = null)
+	{
+		$data = ['org_name' => $org_name];
+		if ($logo) {
+			$data['logo'] = $logo;
+		}
+		return $this->db->where('org_id', $id)->update('organization', $data);
+	}
+
+	public function get_students_without_qr()
+	{
+		return $this->db->where('qr_image IS NULL')->get('users')->result();
+	}
+
+	public function assign_qr($student_id, $qrBase64)
+	{
+		// Assuming you have a 'students' table with a 'qr_code' column
+		$this->db->where('student_id', $student_id);
+		$this->db->update('users', ['qr_image' => $qrBase64]);
+	}
+
+	public function get_qr_code($student_id)
+	{
 		$this->db->select('qr_image');
 		$this->db->from('users');
 		$this->db->where('student_id', $student_id);
 		$query = $this->db->get();
 
 		if ($query->num_rows() > 0) {
-			return $query->row()->qr_image;
+			return $query->row()->qr_image; // Return the base64 encoded QR code
 		}
 
-		return null;  // QR code not found
+		return null; // No QR code found for this student
 	}
-
-
-	// GENERAL SETTINGS
-	protected $table = 'users'; // Your database table name
-
-	public function insert_batch($data_batch)
-	{
-		return $this->db->insert_batch($this->table, $data_batch);
-	}
-
-	public function insert_org_officers_batch($user_data_batch, $org_data_batch)
-	{
-		$this->db->trans_start();
-		$this->db->insert_batch($this->table, $user_data_batch);
-		$this->db->insert_batch('student_org', $org_data_batch);
-		$this->db->trans_complete();
-
-		return $this->db->trans_status(); // Returns true on success, false on failure
-	}
-
-
 
 
 
@@ -1867,33 +1870,5 @@ class Admin_model extends CI_Model
 	public function get_student_attendance($student_id)
 	{
 		return $this->db->where('student_id', $student_id)->get('attendance')->row_array();
-	}
-
-
-	// GENERAL SETTINGS
-	public function get_students_without_qr()
-	{
-		return $this->db->where('qr_image IS NULL')->get('users')->result();
-	}
-
-	public function assign_qr($student_id, $qrBase64)
-	{
-		// Assuming you have a 'students' table with a 'qr_code' column
-		$this->db->where('student_id', $student_id);
-		$this->db->update('users', ['qr_image' => $qrBase64]);
-	}
-
-	public function get_qr_code($student_id)
-	{
-		$this->db->select('qr_image');
-		$this->db->from('users');
-		$this->db->where('student_id', $student_id);
-		$query = $this->db->get();
-
-		if ($query->num_rows() > 0) {
-			return $query->row()->qr_image; // Return the base64 encoded QR code
-		}
-
-		return null; // No QR code found for this student
 	}
 }

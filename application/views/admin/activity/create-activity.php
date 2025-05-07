@@ -269,8 +269,6 @@
             });
         </script>
 
-
-
         <!-- JS to handle "Select All" logic -->
         <script>
             document.addEventListener('DOMContentLoaded', function() {
@@ -592,34 +590,41 @@
         const coverUpload = document.getElementById('coverUpload');
         const removeCover = document.getElementById('removeCover');
 
-        // Default image (in case of reset)
-        const defaultImage = "<?php echo base_url(); ?>assets/image/OIP.jpg";
+        // Correct default image URL
+        const defaultImage = "<?php echo base_url(); ?>assets/coverEvent/default.jpg";
 
-        // Function to handle image upload
+        function isDefaultImage() {
+            return coverPhoto.src.includes('assets/coverEvent/default.jpg');
+        }
+
+        // Handle upload
         coverUpload.addEventListener('change', function(event) {
             const file = event.target.files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     coverPhoto.src = e.target.result;
-                    removeCover.style.display = 'block'; // Show remove button
+                    removeCover.style.display = 'block';
                 };
                 reader.readAsDataURL(file);
             }
         });
 
-        // Function to remove image
+        // Handle remove
         removeCover.addEventListener('click', function() {
-            coverPhoto.src = defaultImage; // Reset to default image
-            coverUpload.value = ""; // Clear file input
-            removeCover.style.display = 'none'; // Hide remove button
+            coverPhoto.src = defaultImage;
+            coverUpload.value = "";
+            removeCover.style.display = 'none';
         });
 
-        // Show remove button if a custom image is loaded
-        if (coverPhoto.src !== defaultImage) {
+        // Initial state
+        if (isDefaultImage()) {
+            removeCover.style.display = 'none';
+        } else {
             removeCover.style.display = 'block';
         }
     });
+
 
     // SCRIPT FOR THE QR REGISTRATION
     document.addEventListener("DOMContentLoaded", function() {
@@ -663,48 +668,55 @@
 
     // INSERTING ACTIVITY
     $(document).ready(function() {
-        // Initialize the form submission process
         $('#activityCreate').on('submit', function(e) {
-            e.preventDefault(); // Prevent default form submission behavior
+            e.preventDefault(); // Prevent default form submission
 
-            var formData = new FormData(this); // Collect form data
+            Swal.fire({
+                title: 'Are you sure?',
+                text: 'Do you want to create this activity?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#aaa',
+                confirmButtonText: 'Yes, create it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    var formData = new FormData(this);
 
-            $.ajax({
-                url: '<?php echo site_url("admin/create-activity/add"); ?>',
-                type: 'POST',
-                data: formData,
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status === 'error') {
-                        // Display error using SweetAlert
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error!',
-                            html: response.errors,
-                            confirmButtonColor: '#d33',
-                        });
-                    } else if (response.status === 'success') {
-                        // Display success using SweetAlert
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: response.message,
-                            confirmButtonColor: '#3085d6',
-                        }).then(() => {
-                            // Redirect after clicking 'OK' on the alert
-                            window.location.href = response.redirect;
-                        });
-                    }
-                },
-                error: function() {
-                    // Handle unexpected errors with SweetAlert
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Oops!',
-                        text: 'Something went wrong, please try again.',
-                        confirmButtonColor: '#d33',
+                    $.ajax({
+                        url: '<?php echo site_url("admin/create-activity/add"); ?>',
+                        type: 'POST',
+                        data: formData,
+                        contentType: false,
+                        processData: false,
+                        dataType: 'json',
+                        success: function(response) {
+                            if (response.status === 'error') {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error!',
+                                    html: response.errors,
+                                    confirmButtonColor: '#d33',
+                                });
+                            } else if (response.status === 'success') {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Success!',
+                                    text: response.message,
+                                    confirmButtonColor: '#3085d6',
+                                }).then(() => {
+                                    window.location.href = response.redirect;
+                                });
+                            }
+                        },
+                        error: function() {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Oops!',
+                                text: 'Something went wrong, please try again.',
+                                confirmButtonColor: '#d33',
+                            });
+                        }
                     });
                 }
             });

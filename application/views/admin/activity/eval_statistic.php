@@ -44,9 +44,14 @@
                     </thead>
                     <tbody>
                         <tr>
-                            <td>1 - 2</td>
-                            <td>Needs Improvement</td>
+                            <td>1</td>
+                            <td>Poor</td>
                             <td style="color: red;">🔴 Red</td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td>Needs Improvement</td>
+                            <td style="color: orange;">🟠 Orange</td>
                         </tr>
                         <tr>
                             <td>3</td>
@@ -58,11 +63,6 @@
                             <td>Good</td>
                             <td style="color: lightgreen;">🟢 Light Green</td>
                         </tr>
-                        <tr>
-                            <td>5</td>
-                            <td>Excellent</td>
-                            <td style="color: green;">🟢 Green</td>
-                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -70,43 +70,69 @@
             <!-- Rating Questions Summary -->
             <div class="section-container mb-4">
                 <h4>Rating Questions Summary</h4>
-                <table class="table table-bordered table-hover">
-                    <thead class="table-primary">
-                        <tr>
-                            <th>Question</th>
-                            <th>Average Rating</th>
-                            <th>5★</th>
-                            <th>4★</th>
-                            <th>3★</th>
-                            <th>2★</th>
-                            <th>1★</th>
-                            <th>Total Responses</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($rating_summary as $rating): ?>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead class="table-primary">
                             <tr>
-                                <td><?= $rating['question'] ?></td>
-                                <td><?= number_format($rating['avg_rating'], 2) ?></td>
-                                <td><?= $rating['five_star'] ?>%</td>
-                                <td><?= $rating['four_star'] ?>%</td>
-                                <td><?= $rating['three_star'] ?>%</td>
-                                <td><?= $rating['two_star'] ?>%</td>
-                                <td><?= $rating['one_star'] ?>%</td>
-                                <td><strong><?= $rating['total_responses'] ?></strong></td>
+                                <th>Question</th>
+                                <th>Average Rating</th>
+                                <th>4★</th>
+                                <th>3★</th>
+                                <th>2★</th>
+                                <th>1★</th>
+                                <th>Total Responses</th>
                             </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                    <tfoot>
-                        <tr class="fw-bold" style="background-color: #f8f9fa;">
-                            <td colspan="5" class="text-end">Overall Average Rating:</td>
-                            <td colspan="2" style="font-size: 1.2em; color: green;">
-                                <?= number_format($overall_rating, 2) ?> (🟢 Excellent)
-                            </td>
-                        </tr>
-                    </tfoot>
-                </table>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($rating_summary as $rating): ?>
+                                <tr>
+                                    <td><?= $rating['question'] ?></td>
+                                    <td><?= number_format($rating['avg_rating'], 2) ?></td>
+                                    <td><?= $rating['four_star'] ?>%</td>
+                                    <td><?= $rating['three_star'] ?>%</td>
+                                    <td><?= $rating['two_star'] ?>%</td>
+                                    <td><?= $rating['one_star'] ?>%</td>
+                                    <td><strong><?= $rating['total_responses'] ?></strong></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                        <?php
+                        // Define dynamic rating label and color based on 1-4 scale
+                        $rating_text = '';
+                        $rating_icon = '';
+                        $rating_color = '';
+
+                        if ($overall_rating >= 4) {
+                            $rating_text = 'Good';
+                            $rating_icon = '🟢';
+                            $rating_color = 'lightgreen';
+                        } elseif ($overall_rating >= 3) {
+                            $rating_text = 'Average';
+                            $rating_icon = '🟡';
+                            $rating_color = 'yellow';
+                        } elseif ($overall_rating >= 2) {
+                            $rating_text = 'Needs Improvement';
+                            $rating_icon = '🟠';
+                            $rating_color = 'orange';
+                        } else {
+                            $rating_text = 'Poor';
+                            $rating_icon = '🔴';
+                            $rating_color = 'red';
+                        }
+                        ?>
+
+                        <tfoot>
+                            <tr class="fw-bold" style="background-color: #f8f9fa;">
+                                <td colspan="5" class="text-end">Overall Average Rating:</td>
+                                <td colspan="2" style="font-size: 1.2em; color: <?= $rating_color ?>;">
+                                    <?= number_format($overall_rating, 2) ?> (<?= $rating_icon ?> <?= $rating_text ?>)
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
             </div>
+
 
             <!-- Long Answer Questions Summary -->
             <div class="section-container mb-4">

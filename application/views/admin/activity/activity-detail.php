@@ -364,7 +364,6 @@
           });
         </script>
 
-
         <!-- VALIDATE REGISTRATION MODAL -->
         <div class="modal fade" id="validateModal" tabindex="-1" aria-labelledby="validateModalLabel" aria-hidden="true">
           <div class="modal-dialog modal-md modal-dialog-centered">
@@ -429,50 +428,60 @@
             $('#validateForm').on('submit', function(e) {
               e.preventDefault();
 
-              $.ajax({
-                url: '<?php echo site_url('admin/activity/registration'); ?>',
-                type: 'POST',
-                data: $(this).serialize(),
-                dataType: 'json',
-                success: function(res) {
-                  if (res.status === 'success') {
-                    Swal.fire({
-                      icon: 'success',
-                      title: 'Success',
-                      text: 'Registration validated successfully!',
-                      timer: 2000,
-                      showConfirmButton: false
-                    }).then(() => {
-                      $('#validateModal').modal('hide');
-                      location.reload();
-                    });
-
-                  } else if (res.status === 'warning') {
-                    Swal.fire({
-                      icon: 'warning',
-                      title: 'Warning',
-                      text: res.message
-                    });
-
-                  } else {
-                    Swal.fire({
-                      icon: 'error',
-                      title: 'Error',
-                      text: res.message
-                    });
-                  }
-                },
-                error: function() {
-                  Swal.fire({
-                    icon: 'error',
-                    title: 'Request Failed',
-                    text: 'Something went wrong. Please try again later.'
+              Swal.fire({
+                title: 'Are you sure?',
+                text: 'Do you want to validate this registration?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, validate it!',
+                cancelButtonText: 'Cancel'
+              }).then((result) => {
+                if (result.isConfirmed) {
+                  $.ajax({
+                    url: '<?php echo site_url('admin/activity/registration'); ?>',
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    dataType: 'json',
+                    success: function(res) {
+                      if (res.status === 'success') {
+                        Swal.fire({
+                          icon: 'success',
+                          title: 'Success',
+                          text: 'Registration validated successfully!',
+                          timer: 2000,
+                          showConfirmButton: false
+                        }).then(() => {
+                          $('#validateModal').modal('hide');
+                          location.reload();
+                        });
+                      } else if (res.status === 'warning') {
+                        Swal.fire({
+                          icon: 'warning',
+                          title: 'Warning',
+                          text: res.message
+                        });
+                      } else {
+                        Swal.fire({
+                          icon: 'error',
+                          title: 'Error',
+                          text: res.message
+                        });
+                      }
+                    },
+                    error: function() {
+                      Swal.fire({
+                        icon: 'error',
+                        title: 'Request Failed',
+                        text: 'Something went wrong. Please try again later.'
+                      });
+                    }
                   });
                 }
               });
             });
           });
         </script>
+
 
         <!-- FOR CASH REGISTRATION -->
         <div class="modal fade" id="recordCashPaymentModal" tabindex="-1" aria-labelledby="recordCashPaymentLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
@@ -487,7 +496,7 @@
               <div class="modal-body px-4 py-3">
                 <form id="cashPaymentForm">
                   <div class="row g-3">
-                    <input type="text" name="activity_id" value="<?php echo $activity['activity_id']; ?>">
+                    <input type="hidden" name="activity_id" value="<?php echo $activity['activity_id']; ?>">
 
                     <!-- Student ID -->
                     <div class="col-md-6">
@@ -503,7 +512,7 @@
                     <!-- Amount Paid -->
                     <div class="col-md-6">
                       <label class="form-label fw-semibold">Amount Paid</label>
-                      <input type="number" step="0.01" class="form-control" name="amount_paid" value="<?php echo $activity['registration_fee']; ?>">
+                      <input type="number" step="0.01" class="form-control" name="amount_paid" value="<?php echo $activity['registration_fee']; ?>" readonly>
                     </div>
 
                     <!-- Remark -->
@@ -530,46 +539,53 @@
           $('#cashPaymentForm').submit(function(e) {
             e.preventDefault(); // Prevent the default form submission
 
-            // Collect form data
-            var formData = $(this).serialize();
+            Swal.fire({
+              title: 'Confirm Payment',
+              text: 'Are you sure you want to record this cash payment?',
+              icon: 'question',
+              showCancelButton: true,
+              confirmButtonText: 'Yes, submit it!',
+              cancelButtonText: 'Cancel'
+            }).then((result) => {
+              if (result.isConfirmed) {
+                // Collect form data
+                var formData = $(this).serialize();
 
-            // Send the AJAX request
-            $.ajax({
-              url: '<?php echo site_url('admin/cash-payment/submit'); ?>', // Adjust the URL accordingly
-              type: 'POST',
-              data: formData,
-              dataType: 'json', // Expecting a JSON response
-              success: function(response) {
-                // Handle the success response
-                if (response.status === 'success') {
-                  // Show success alert using SweetAlert
-                  Swal.fire({
-                    icon: 'success',
-                    title: 'Payment Recorded!',
-                    text: response.message,
-                    confirmButtonText: 'OK'
-                  }).then(function() {
-                    // Optionally close the modal and reset the form
-                    $('#recordCashPaymentModal').modal('hide');
-                    $('#cashPaymentForm')[0].reset();
-                  });
-                } else {
-                  // Show error alert using SweetAlert
-                  Swal.fire({
-                    icon: 'error',
-                    title: 'Oops...',
-                    text: response.message,
-                    confirmButtonText: 'Try Again'
-                  });
-                }
-              },
-              error: function(xhr, status, error) {
-                // Handle AJAX errors
-                Swal.fire({
-                  icon: 'error',
-                  title: 'Request Failed!',
-                  text: 'There was an error processing your request. Please try again.',
-                  confirmButtonText: 'Close'
+                // Send the AJAX request
+                $.ajax({
+                  url: '<?php echo site_url('admin/cash-payment/submit'); ?>',
+                  type: 'POST',
+                  data: formData,
+                  dataType: 'json',
+                  success: function(response) {
+                    if (response.status === 'success') {
+                      Swal.fire({
+                        icon: 'success',
+                        title: 'Payment Recorded!',
+                        text: response.message,
+                        confirmButtonText: 'OK'
+                      }).then(() => {
+                        $('#recordCashPaymentModal').modal('hide');
+                        $('#cashPaymentForm')[0].reset();
+                        location.reload();
+                      });
+                    } else {
+                      Swal.fire({
+                        icon: 'error',
+                        title: 'Oops...',
+                        text: response.message,
+                        confirmButtonText: 'Try Again'
+                      });
+                    }
+                  },
+                  error: function(xhr, status, error) {
+                    Swal.fire({
+                      icon: 'error',
+                      title: 'Request Failed!',
+                      text: 'There was an error processing your request. Please try again.',
+                      confirmButtonText: 'Close'
+                    });
+                  }
                 });
               }
             });
@@ -582,12 +598,6 @@
             modal.show();
           });
         </script>
-
-
-
-
-
-
 
         <!-- Filter Modal -->
         <div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
@@ -676,8 +686,6 @@
             });
           });
         </script>
-
-
 
         <?php if ($activity['organizer'] == 'Student Parliament') : ?>
           <?php if ($activity['status'] == 'Upcoming' || $activity['status'] == 'Ongoing') : ?>
@@ -838,21 +846,26 @@
           <h5 class="mb-0">Upcoming Activities</h5>
         </div>
         <div class="card-body fs-10">
-          <?php if (!empty($activities)) {
-            shuffle($activities); // Shuffle only if activities exist 
-          }
+          <?php
+          $hasUpcomingActivities = false;
+          $count = 0;
 
-          $hasUpcomingActivities = false; // Default to false
+          // Filter activities with status 'Upcoming' and exclude current activity
+          $upcomingActivities = array_filter($activities, function ($act) use ($activity) {
+            return $act->activity_id != $activity['activity_id'] && $act->status === 'Upcoming';
+          });
 
-          foreach ($activities as $act) {
-            // Skip the current activity being viewed
-            if ($act->activity_id == $activity['activity_id']) {
-              continue;
-            }
+          // Sort by start_date ascending
+          usort($upcomingActivities, function ($a, $b) {
+            return strtotime($a->start_date) - strtotime($b->start_date);
+          });
 
-            $hasUpcomingActivities = true; // Mark that at least one upcoming activity exists
+          // Display up to 3 upcoming activities
+          foreach ($upcomingActivities as $act) {
+            if ($count >= 2) break;
+            $hasUpcomingActivities = true;
+            $count++;
           ?>
-
             <div class="d-flex btn-reveal-trigger mb-3">
               <div class="calendar text-center me-3">
                 <?php
@@ -875,9 +888,7 @@
                 <div class="border-bottom border-dashed my-3"></div>
               </div>
             </div>
-
-          <?php } // End foreach 
-          ?>
+          <?php } ?>
 
           <?php if (!$hasUpcomingActivities): ?>
             <div class="text-center my-4">
@@ -891,6 +902,7 @@
           </a>
         </div>
       </div>
+
     </div>
   </div>
 </div>

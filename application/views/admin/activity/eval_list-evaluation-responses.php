@@ -71,8 +71,8 @@
                         $rating = is_numeric($answer) ? (int)$answer : 0;
                         ?>
 
-                        <?php if (isset($response['type'][$q]) && $response['type'][$q] === 'rating' && $rating >= 1 && $rating <= 5): ?>
-                          <?php for ($i = 1; $i <= 5; $i++): ?>
+                        <?php if (isset($response['type'][$q]) && $response['type'][$q] === 'rating' && $rating >= 1 && $rating <= 4): ?>
+                          <?php for ($i = 1; $i <= 4; $i++): ?>
                             <?= $i <= $rating ? '⭐' : '☆'; ?>
                           <?php endfor; ?>
                         <?php else: ?>

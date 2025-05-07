@@ -6,8 +6,7 @@
 
 <div class="row gx-3">
     <div class="col-xxl-10 col-xl-12">
-        <div class="card" id="evaluationTable"
-            data-list='{"valueNames":["form","activity","status"],"page":10,"pagination":true}'>
+        <div class="card" id="evaluationTable" data-list='{"valueNames":["form","activity","status"],"page":10,"pagination":true}'>
             <div class="card-header border-bottom border-200 px-0">
                 <div class="d-lg-flex justify-content-between">
                     <h5 class="mb-0 px-x1">List of Evaluation Forms</h5>
@@ -25,8 +24,8 @@
                 </div>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive scrollbar">
-                    <table class="table table-hover table-striped overflow-hidden">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped">
                         <thead class="bg-200">
                             <tr>
                                 <th>Form Title</th>
@@ -67,8 +66,8 @@
                                         <div class="dropdown font-sans-serif position-static">
                                             <button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal border rounded-circle p-2"
                                                 style="width: 36px; height: 36px;" type="button"
-                                                data-bs-toggle="dropdown" data-boundary="window"
-                                                aria-haspopup="true" aria-expanded="false">
+                                                data-bs-toggle="dropdown" aria-haspopup="true"
+                                                aria-expanded="false">
                                                 <span class="fas fa-ellipsis-h fs-10"></span>
                                             </button>
                                             <div class="dropdown-menu dropdown-menu-end border py-0">
@@ -104,6 +103,7 @@
             </div>
         </div>
     </div>
+
 </div>
 
 <!-- Modal for Filter -->

@@ -1,13 +1,3 @@
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
-
-<!-- SweetAlert2 JavaScript -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 <div class="card mb-3">
   <div class="card-body">
     <div class="row flex-between-center">
@@ -112,7 +102,7 @@
       </div>
       `;
     } else if (type === "rating") {
-      let stars = [1, 2, 3, 4, 5]
+      let stars = [1, 2, 3, 4]
         .map(
           (i) => `<i class="far fa-star star fs-5" data-value="${i}" data-field="${fieldId}"></i>`
         )
@@ -170,84 +160,4 @@
     });
     document.querySelector(`#${fieldId}-value`).value = rating;
   }
-</script>
-
-<script>
-  $("#editForm").on("submit", function(e) {
-    e.preventDefault();
-
-    let formId = $(this).find("button[type='submit']").data("form-id");
-    const formData = new FormData();
-
-    // Collect form fields dynamically
-    const fields = [];
-    $("#form-fields .form-group").each(function() {
-      fields.push({
-        field_id: $(this).data("field-id") || null, // Include field ID if updating existing fields
-        label: $(this).find('input[name="labels[]"]').val(),
-        type: $(this).find('input[name="type[]"]').val(),
-        placeholder: $(this).find('input[name="answers[]"]').val() || null,
-        required: $(this).find('input[type="checkbox"]').prop("checked") ? 1 : 0, // Ensure correct boolean value
-      });
-    });
-
-    // Append form fields
-    formData.append("form_id", formId);
-    formData.append("activity", $("#activity").val());
-    formData.append("formtitle", $("#formtitle").val());
-    formData.append("formdescription", $("#formdescription").val());
-    formData.append("startdate", $("#time_start").val());
-    formData.append("enddate", $("#time_end").val());
-
-    // Append file (if selected)
-    const coverFile = $("#coverUpload")[0].files[0]; // Get the selected file
-    if (coverFile) {
-      formData.append("coverUpload", coverFile);
-    }
-
-    // Append fields array as JSON string
-    formData.append("fields", JSON.stringify(fields));
-
-
-    $.ajax({
-      url: "<?php echo site_url('admin/edit-evaluation-form/update/'); ?>" + formId,
-      method: "POST",
-      data: formData,
-      processData: false, // Important for FormData
-      contentType: false, // Important for FormData
-      dataType: "json",
-      success: function(response) {
-        if (response.success) {
-          Swal.fire({
-            icon: "success",
-            title: "Form Updated!",
-            text: response.message,
-            showConfirmButton: true,
-          }).then(() => {
-            if (response.redirect) {
-              window.location.href = response.redirect;
-            } else {
-              location.reload();
-            }
-          });
-        } else {
-          Swal.fire({
-            icon: "error",
-            title: "Error!",
-            text: response.message || "Update failed.",
-            showConfirmButton: true,
-          });
-        }
-      },
-      error: function(xhr) {
-        Swal.fire({
-          icon: "error",
-          title: "Update Failed!",
-          text: "An error occurred while updating the form. Please try again.",
-          showConfirmButton: true,
-        });
-      },
-    });
-
-  });
 </script>

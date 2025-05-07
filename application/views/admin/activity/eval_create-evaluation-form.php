@@ -259,7 +259,7 @@
         <div class="input-group has-validation">
         <input class="form-control mb-2" id="question-${fieldCount}" type="text" placeholder="Enter your question" name="questions[]" required />
         </div>
-        <textarea class="form-control mb-2" id="answer-${fieldCount}" rows="3" placeholder="Long Answer" name="answers[]" disbaled></textarea>
+        <textarea class="form-control mb-2" id="answer-${fieldCount}" rows="3" placeholder="Long Answer" name="answers[]" disabled></textarea>
         <input type="hidden" name="type[]" id="type-${fieldCount}" value="textarea" />
         <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')">Remove</button>
       </div>
@@ -278,7 +278,7 @@
         <input class="form-control mb-2" id="question-${fieldCount}" type="text" placeholder="Enter your question" name="questions[]" required/>
         </div>
         <div class="rating-stars mb-2" id="rating-${fieldCount}">
-          ${[1, 2, 3, 4, 5]
+          ${[1, 2, 3, 4]
             .map(
               (i) =>
                 `<i class="far fa-star" onclick="setRating(this, ${i})" data-value="${i}"></i>`
@@ -366,82 +366,82 @@
     validateField("#time_start", "Please enter a start date.");
     validateField("#time_end", "Please enter an end date.");
 
-    // If form is valid, proceed with submission
+    // If form is valid, proceed with confirmation
     if (isValid) {
-      const fields = [];
-      $("#form-fields .form-group").each(function() {
-        fields.push({
-          label: $(this).find('input[name="questions[]"]').val(),
-          type: $(this).find('input[name="type[]"]').val(),
-          placeholder: $(this).find('input[name="answers[]"]').val() || null,
-          required: $(this).find('input[type="checkbox"]').is(":checked") ? 1 : 0,
-        });
-      });
-
-      // Create FormData object for file handling
-      const formData = new FormData();
-      formData.append("activity", $("#activity").val());
-      formData.append("formtitle", $("#formtitle").val());
-      formData.append("formdescription", $("#formdescription").val());
-      formData.append("startdate", $("#time_start").val());
-      formData.append("enddate", $("#time_end").val());
-
-      // Append fields as JSON string
-      formData.append("fields", JSON.stringify(fields));
-
-      // Append cover file (if selected)
-      const coverFile = $("#coverUpload")[0]?.files[0]; // Ensure no errors if empty
-      if (coverFile) {
-        formData.append("coverUpload", coverFile);
-      }
-
-      // Submit form using AJAX
-      $.ajax({
-        url: "<?php echo site_url('admin/create-evaluation-form/create'); ?>", // Target URL
-        method: "POST",
-        data: formData,
-        processData: false, // Prevent jQuery from processing data
-        contentType: false, // Set content type to multipart/form-data
-        dataType: "json", // Expect JSON response from the server
-        success: function(response) {
-          if (response.success) {
-            // Show success alert if form creation was successful
-            Swal.fire({
-              icon: "success",
-              title: "Form Created!",
-              text: "Your form has been created successfully.",
-              showConfirmButton: true,
-            }).then(() => {
-              // Reset the form, clear dynamic fields, and reload or redirect
-              $("#createForm")[0].reset();
-              $("#form-fields").empty();
-
-              // Reload or redirect if specified in the response
-              if (response.redirect_url) {
-                window.location.href = response.redirect_url;
-              } else {
-                location.reload(); // Default reload
-              }
+      Swal.fire({
+        title: 'Confirm Submission',
+        text: "Are you sure you want to create this form?",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, create it!'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          const fields = [];
+          $("#form-fields .form-group").each(function() {
+            fields.push({
+              label: $(this).find('input[name="questions[]"]').val(),
+              type: $(this).find('input[name="type[]"]').val(),
+              placeholder: $(this).find('input[name="answers[]"]').val() || null,
+              required: $(this).find('input[type="checkbox"]').is(":checked") ? 1 : 0,
             });
-          } else {
-            // Handle any server-side validation feedback
-            Swal.fire({
-              icon: "error",
-              title: "Validation Error!",
-              text: response.message || "Please review the form and try again.",
-              showConfirmButton: true,
-            });
-          }
-        },
-        error: function() {
-          // Show error alert if AJAX request fails
-          Swal.fire({
-            icon: "error",
-            title: "Form Creation Failed!",
-            text: "An error occurred while creating the form. Please try again.",
-            showConfirmButton: true,
           });
-        },
+
+          const formData = new FormData();
+          formData.append("activity", $("#activity").val());
+          formData.append("formtitle", $("#formtitle").val());
+          formData.append("formdescription", $("#formdescription").val());
+          formData.append("startdate", $("#time_start").val());
+          formData.append("enddate", $("#time_end").val());
+          formData.append("fields", JSON.stringify(fields));
+
+          const coverFile = $("#coverUpload")[0]?.files[0];
+          if (coverFile) {
+            formData.append("coverUpload", coverFile);
+          }
+
+          $.ajax({
+            url: "<?php echo site_url('admin/create-evaluation-form/create'); ?>",
+            method: "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            dataType: "json",
+            success: function(response) {
+              if (response.success) {
+                Swal.fire({
+                  icon: "success",
+                  title: "Form Created!",
+                  text: "Your form has been created successfully.",
+                  showConfirmButton: true,
+                }).then(() => {
+                  $("#createForm")[0].reset();
+                  $("#form-fields").empty();
+
+                  if (response.redirect_url) {
+                    window.location.href = response.redirect_url;
+                  } else {
+                    location.reload();
+                  }
+                });
+              } else {
+                Swal.fire({
+                  icon: "error",
+                  title: "Validation Error!",
+                  text: response.message || "Please review the form and try again.",
+                });
+              }
+            },
+            error: function() {
+              Swal.fire({
+                icon: "error",
+                title: "Form Creation Failed!",
+                text: "An error occurred while creating the form. Please try again.",
+              });
+            }
+          });
+        }
       });
     }
   });

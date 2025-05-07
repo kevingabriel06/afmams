@@ -1,9 +1,3 @@
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 <!-- CUSTOM CSS TO SET STADARDIZE -->
 <style>
     #coverPhoto {
@@ -24,11 +18,13 @@
             <div class="card-body">
                 <div class="row flex-between-center">
                     <div class="col-md">
-                        <h5 class="mb-2 mb-md-0">Create Activity</h5>
+                        <h5 class="mb-2 mb-md-0">Edit Activity</h5>
                     </div>
                 </div>
             </div>
         </div>
+
+        <?php $isOngoing = ($activity['status'] === 'Ongoing'); ?>
 
         <!-- COVER PHOTO SECTION -->
         <div class="card-header position-relative text-center" style="max-width: 100%; overflow: hidden;">
@@ -44,7 +40,7 @@
             </button>
 
             <!-- Hidden File Input -->
-            <input type="file" id="coverUpload" accept="image/*" class="d-none" name="coverUpload">
+            <input type="file" id="coverUpload" accept="image/*" class="d-none" name="coverUpload" <?php echo $isOngoing ? 'readonly' : ''; ?>>
 
             <!-- Upload Button (Overlay at Top Left) -->
             <label for="coverUpload" class="btn btn-dark position-absolute top-0 start-0 m-3 px-3 py-2 shadow-sm"
@@ -65,14 +61,14 @@
                     <div class="mb-3">
                         <label class="form-label" for="activity-title">Activity Title <span class="text-danger">*</span></label>
                         <input class="form-control" id="activity-title" type="text" name="title" placeholder="Activity Title"
-                            required value="<?php echo $activity['activity_title']; ?>" />
+                            required value="<?php echo $activity['activity_title']; ?>" <?php echo $isOngoing ? 'readonly' : ''; ?> />
                         <div class="invalid-feedback">Enter an activity title.</div>
                     </div>
 
                     <!-- Description Section -->
                     <div class="mb-3">
                         <label class="form-label" for="description">Description</label>
-                        <textarea class="form-control" id="description" name="description" rows="6"><?php echo $activity['description']; ?></textarea>
+                        <textarea class="form-control" id="description" name="description" rows="6" <?php echo $isOngoing ? 'readonly' : ''; ?>><?php echo $activity['description']; ?></textarea>
                     </div>
 
                     <div class="row">
@@ -83,10 +79,14 @@
                                 <input class="form-control datetimepicker" id="date_start" type="text" name="date_start" placeholder="yyyy-mm-dd"
                                     pattern="\d{4}-\d{2}-\d{2}" aria-describedby="calendarHelp"
                                     data-options='{"dateFormat":"Y-m-d","disableMobile":true, "minDate": "today"}' required
-                                    value="<?php echo $activity['start_date']; ?>" />
+                                    value="<?php echo $activity['start_date']; ?>"
+                                    <?php echo $isOngoing ? 'readonly' : ''; ?> />
                                 <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
                                 <div class="invalid-feedback">Enter a valid start date.</div>
                             </div>
+
+                            <!-- Hidden Input to Store Start Date Value -->
+                            <input type="hidden" name="date_start" value="<?php echo $activity['start_date']; ?>" />
                         </div>
 
                         <!-- End Date Section -->
@@ -96,12 +96,17 @@
                                 <input class="form-control datetimepicker" id="date_end" type="text" name="date_end" placeholder="yyyy-mm-dd"
                                     pattern="\d{4}-\d{2}-\d{2}" aria-describedby="calendarHelp"
                                     data-options='{"dateFormat":"Y-m-d","disableMobile":true}' required
-                                    value="<?php echo $activity['end_date']; ?>" />
+                                    value="<?php echo $activity['end_date']; ?>"
+                                    <?php echo $isOngoing ? 'readonly' : ''; ?> />
                                 <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
                                 <div class="invalid-feedback" id="date-error">End date must be greater than or equal to the start date.</div>
                             </div>
+
+                            <!-- Hidden Input to Store End Date Value -->
+                            <input type="hidden" name="date_end" value="<?php echo $activity['end_date']; ?>" />
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>
@@ -140,7 +145,7 @@
                         <label class="form-label mb-0 me-3" for="registration-fee-switch">Has Registration Fee?</label>
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="registration-fee-switch"
-                                <?php if (!empty($activity['registration_fee']) && $activity['registration_fee'] != '0') echo 'checked'; ?> />
+                                <?php if (!empty($activity['registration_fee']) && $activity['registration_fee'] != '0') echo 'checked'; ?> <?php echo $isOngoing ? 'readonly' : ''; ?> />
                             <label class="form-check-label mb-0" for="registration-fee-switch">Yes</label>
                         </div>
                     </div>
@@ -157,7 +162,8 @@
                                     placeholder="yyyy-mm-dd" name="registration_deadline"
                                     pattern="\d{4}-\d{2}-\d{2}" aria-describedby="calendarHelp"
                                     data-options='{"dateFormat":"Y-m-d","disableMobile":true, "minDate": "today"}'
-                                    value="<?php echo $activity['registration_deadline']; ?>" />
+                                    value="<?php echo $activity['registration_deadline']; ?>"
+                                    <?php echo $isOngoing ? 'disabled' : ''; ?> />
                                 <span class="input-group-text" id="calendar-icon" title="Pick a date">
                                     <i class="fas fa-calendar-alt"></i>
                                 </span>
@@ -168,7 +174,7 @@
 
                             <label class="form-label mt-3" for="registration-fee">Registration Fee</label>
                             <input class="form-control" id="registration-fee" type="text" placeholder="₱ 00.00"
-                                name="registration_fee" value="<?php echo $activity['registration_fee']; ?>" />
+                                name="registration_fee" value="<?php echo $activity['registration_fee']; ?>" <?php echo $isOngoing ? 'readonly' : ''; ?> />
                         </div>
 
                         <!-- Right Column: QR Code Upload & Preview -->
@@ -189,7 +195,7 @@
                                     style="font-size: 2rem;"></i>
                             </div>
 
-                            <input type="file" id="qr-upload" name="qrcode" accept="image/*" class="d-none" />
+                            <input type="file" id="qr-upload" name="qrcode" accept="image/*" class="d-none" <?php echo $isOngoing ? 'readonly' : ''; ?> />
 
                             <p id="qr-placeholder-text" class="text-muted <?php echo !empty($activity['qr_code']) ? 'd-none' : ''; ?>">
                                 No QR Code uploaded
@@ -217,31 +223,104 @@
                         <div class="mb-3">
                             <label class="form-label" for="fines">Fines <span class="text-danger">*</span></label>
                             <input class="form-control" id="fines" type="text" placeholder="₱ 00.00" name="fines"
-                                pattern="^\₱\s?\d+(?:,\d{3})*(?:\.\d{2})?$" required value="<?php echo $activity['fines']; ?>" />
+                                pattern="^\₱\s?\d+(?:,\d{3})*(?:\.\d{2})?$" required value="<?php echo $activity['fines']; ?>" <?php echo $isOngoing ? 'readonly' : ''; ?> />
                             <div class="invalid-feedback">Enter a valid fines amount.</div>
                         </div>
                         <div class="form-text"><i>* Note: Input the fines amount per attendance.</i></div>
                     </div>
 
                     <!-- Listing Privacy Section -->
+                    <?php $selected_audience = isset($activity['audience']) ? explode(',', $activity['audience']) : []; ?>
                     <div class="col-md-6">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="mb-0">Listing Privacy</h5>
-                        </div>
+                        <h5 class="mb-3">Listing Privacy</h5>
+                        <input type="hidden" name="audience[]" value="<?php echo htmlspecialchars($activity['audience']); ?>">
                         <div class="mb-3">
-                            <label class="form-label" for="audience">Audience</label>
-                            <select class="form-control" id="audience" name="audience">
-                                <option value="All" <?php echo ($activity['audience'] == 0) ? 'selected' : ''; ?>>All</option>
-                                <?php foreach ($dept as $depts) : ?>
-                                    <option value="<?php echo $depts->dept_name; ?>"
-                                        <?php echo ($depts->dept_name == $activity['audience']) ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($depts->dept_name); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
+                            <label class="form-label" for="audienceDropdown">Audience</label>
+                            <div class="dropdown">
+                                <button class="form-select text-start" type="button" id="audienceDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Select Audience
+                                </button>
+                                <ul class="dropdown-menu w-100 p-3" style="max-height: 300px; overflow-y: auto; color: black;">
+                                    <li>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="selectAllAudience" name="audience[]" value="All"
+                                                <?php echo in_array('All', $selected_audience) ? 'checked' : ''; ?> <?php echo $isOngoing ? 'disabled' : ''; ?>>
+                                            <label class="form-check-label" for="selectAllAudience">All</label>
+                                        </div>
+                                    </li>
+                                    <hr>
+                                    <?php foreach ($dept as $depts) : ?>
+                                        <li>
+                                            <div class="form-check">
+                                                <input class="form-check-input audience-checkbox" type="checkbox" name="audience[]"
+                                                    value="<?php echo $depts->dept_name; ?>"
+                                                    id="aud_<?php echo md5($depts->dept_name); ?>"
+                                                    <?php echo in_array($depts->dept_name, $selected_audience) ? 'checked' : ''; ?> <?php echo $isOngoing ? 'disabled' : ''; ?>>
+                                                <label class="form-check-label" for="aud_<?php echo md5($depts->dept_name); ?>">
+                                                    <?php echo $depts->dept_name; ?>
+                                                </label>
+                                            </div>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
                         </div>
-                        <div class="form-text"><i>* Note: Select the target audience of the activity.</i></div>
+                        <div class="form-text">
+                            <i>* Note: Select the target audience of the activity.</i>
+                        </div>
                     </div>
+
+                    <script>
+                        const selectAll = document.getElementById('selectAllAudience');
+                        const checkboxes = document.querySelectorAll('.audience-checkbox');
+
+                        // When "All" is checked, disable other checkboxes (but do NOT check them)
+                        selectAll.addEventListener('change', function() {
+                            if (this.checked) {
+                                checkboxes.forEach(cb => {
+                                    cb.checked = false;
+                                    cb.disabled = true;
+                                });
+                            } else {
+                                checkboxes.forEach(cb => {
+                                    cb.disabled = false;
+                                });
+                            }
+                        });
+
+                        // If user checks any individual checkbox, uncheck and enable "All"
+                        checkboxes.forEach(cb => {
+                            cb.addEventListener('change', function() {
+                                if (!this.disabled) {
+                                    selectAll.checked = false;
+                                    checkboxes.forEach(box => box.disabled = false);
+                                }
+                            });
+                        });
+                    </script>
+
+                    <!-- JS to handle "Select All" logic -->
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const selectAllCheckbox = document.getElementById('selectAllAudience');
+                            const audienceCheckboxes = document.querySelectorAll('.audience-checkbox');
+
+                            selectAllCheckbox.addEventListener('change', function() {
+                                audienceCheckboxes.forEach(cb => cb.checked = this.checked);
+                            });
+
+                            audienceCheckboxes.forEach(cb => {
+                                cb.addEventListener('change', function() {
+                                    if (!this.checked) {
+                                        selectAllCheckbox.checked = false;
+                                    } else {
+                                        const allChecked = Array.from(audienceCheckboxes).every(cb => cb.checked);
+                                        selectAllCheckbox.checked = allChecked;
+                                    }
+                                });
+                            });
+                        });
+                    </script>
                 </div>
             </div>
         </div>
@@ -556,58 +635,66 @@
 
 <script>
     $(document).ready(function() {
-        // Handle Activity Edit Form Submission
         $('#activityEdit').on('submit', function(e) {
             e.preventDefault(); // Prevent default form submission
 
-            var formData = new FormData(this);
+            // Show confirmation dialog before submitting
+            Swal.fire({
+                title: 'Are you sure?',
+                text: 'Do you want to save the changes to this activity?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, save it!',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    var formData = new FormData(this);
 
-            $.ajax({
-                url: '<?php echo site_url('admin/edit-activity/update/') . $activity['activity_id']; ?>',
-                type: 'POST',
-                data: formData,
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status === 'error') {
-                        // Show error notification using SweetAlert2
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: response.errors,
-                            showConfirmButton: true,
-                            timer: 3000
-                        });
-                    } else if (response.status === 'success') {
-                        // Show success notification using SweetAlert2
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success',
-                            text: response.message,
-                            showConfirmButton: false,
-                            timer: 2000
-                        });
+                    $.ajax({
+                        url: '<?php echo site_url('admin/edit-activity/update/') . $activity['activity_id']; ?>',
+                        type: 'POST',
+                        data: formData,
+                        contentType: false,
+                        processData: false,
+                        dataType: 'json',
+                        success: function(response) {
+                            if (response.status === 'error') {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: response.errors,
+                                    showConfirmButton: true,
+                                    timer: 3000
+                                });
+                            } else if (response.status === 'success') {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Success',
+                                    text: response.message,
+                                    showConfirmButton: false,
+                                    timer: 2000
+                                });
 
-                        // Optional: Redirect after showing the success message
-                        setTimeout(function() {
-                            window.location.href = response.redirect;
-                        }, 2000);
-                    }
-                },
-                error: function() {
-                    // Handle AJAX errors
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Oops...',
-                        text: 'Something went wrong, please try again!',
-                        showConfirmButton: true
+                                setTimeout(function() {
+                                    window.location.href = response.redirect;
+                                }, 2000);
+                            }
+                        },
+                        error: function() {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Oops...',
+                                text: 'Something went wrong, please try again!',
+                                showConfirmButton: true
+                            });
+                        }
                     });
                 }
             });
         });
     });
 </script>
+
 
 
 

@@ -381,7 +381,7 @@
 										<a class="dropdown-item" href="<?php echo site_url('admin/general-settings'); ?>">General Settings</a>
 										<a class="dropdown-item" href="<?php echo site_url('admin/manage-officers'); ?> ">Manage Officers</a>
 										<div class="dropdown-divider"></div>
-										<a class="dropdown-item" href="<?php echo site_url('logout'); ?>">Logout</a>
+										<a class="dropdown-item logout" href="<?php echo site_url('logout'); ?>">Logout</a>
 									</div>
 								</div>
 							<?php else : ?>

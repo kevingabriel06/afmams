@@ -96,8 +96,14 @@ class AdminController extends CI_Controller
 		$data['activity_count'] = $this->admin->get_current_semester_count_organized();
 
 		// TOTAL FINES
-		$data['fines'] = $this->admin->get_total_fines();
+		$data['fines_per_activity'] = $this->admin->get_total_fines_per_activity();
 
+		// EXPECTED ATTENDEES TO ACTUAL
+		$attendance_data_result = $this->admin->fetch_attendance_data();
+
+		// Assigning the fetched data and the attendance rate to $data
+		$data['attendance_data'] = $attendance_data_result['attendance_data'];
+		$data['attendance_rate'] = $attendance_data_result['attendance_rate'];
 
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/dashboard', $data);
@@ -107,7 +113,7 @@ class AdminController extends CI_Controller
 
 	// ACTIVITY MANAGEMENT
 
-	// CREATING ACTIVITY - PAGE
+	// CREATING ACTIVITY - PAGE (FINAL CHECK)
 	public function create_activity()
 	{
 		$data['title'] = 'Create Activity';
@@ -276,7 +282,7 @@ class AdminController extends CI_Controller
 		}
 	}
 
-	// FETCHING ACTIVITY (STUDENT PARLIAMENT) - PAGE
+	// FETCHING ACTIVITY (STUDENT PARLIAMENT) - PAGE (FINAL CHECK)
 	public function list_activity()
 	{
 		$data['title'] = 'List of Activities';
@@ -294,7 +300,7 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
-	// FETCHING DETAILS OF THE ACTIVITY - PAGE
+	// FETCHING DETAILS OF THE ACTIVITY - PAGE (FINAL CHECK)
 	public function activity_details($activity_id)
 	{
 		$data['title'] = 'Activity Details';
@@ -328,8 +334,7 @@ class AdminController extends CI_Controller
 		$action            = $this->input->post('action'); // 'Verified' or 'Rejected'
 		$remarks           = $this->input->post('remarks');
 
-		$this->load->model('Notification_model');
-		$this->load->model('Admin_model');
+		$this->load->model('Notification_model');;
 
 		$record = $this->admin->get_reference_data($student_id, $activity_id);
 
@@ -411,7 +416,6 @@ class AdminController extends CI_Controller
 			echo json_encode(['status' => 'error', 'message' => 'Update failed.']);
 		}
 	}
-
 
 	public function generate_and_store_receipt($registration_id)
 	{
@@ -500,11 +504,9 @@ class AdminController extends CI_Controller
 		]);
 	}
 
-
 	// CASH REGISTRATION
 	public function save_cash_payment()
 	{
-
 		$student_id = $this->input->post('student_id', TRUE);  // Sanitize input
 		$activity_id = $this->input->post('activity_id', TRUE);
 		$receipt_number = $this->input->post('receipt_number', TRUE);
@@ -520,13 +522,24 @@ class AdminController extends CI_Controller
 			return;
 		}
 
+		// Check if student is already registered for this activity
+		$already_registered = $this->admin->is_student_registered($student_id, $activity_id);
+
+		if ($already_registered) {
+			echo json_encode([
+				'status' => 'error',
+				'message' => 'This student is already registered for the selected activity.'
+			]);
+			return;
+		}
+
 		// Prepare data for insertion
 		$data = array(
 			'student_id'             => $student_id,
 			'activity_id'            => $activity_id,
 			'payment_type'           => 'Cash',
 			'reference_number'       => $receipt_number,
-			'reference_number_admin' => $receipt_number,  // Assuming same as receipt number
+			'reference_number_admin' => $receipt_number,
 			'amount_paid'            => $amount_paid,
 			'registration_status'    => 'Verified',
 			'remark'                 => $remark,
@@ -550,8 +563,6 @@ class AdminController extends CI_Controller
 			]);
 		}
 	}
-
-
 
 	// SHARING ACTIVITY FROM THE ACTIVITY DETAILS
 	public function share_activity()
@@ -610,11 +621,7 @@ class AdminController extends CI_Controller
 		echo json_encode(['success' => true]);
 	}
 
-
-
-
 	//UNSHARE ACTIVITY
-
 	public function unshare_activity()
 	{
 		$activity_id = $this->input->post('activity_id');
@@ -628,7 +635,6 @@ class AdminController extends CI_Controller
 			echo json_encode(['status' => 'error', 'message' => 'Invalid activity ID']);
 		}
 	}
-
 
 	// EDITING OF ACTIVITY - PAGE
 	public function edit_activity($activity_id)
@@ -694,7 +700,7 @@ class AdminController extends CI_Controller
 				'registration_fee'      => str_replace(",", "", $this->input->post('registration_fee')),
 				'organizer'             => 'Student Parliament',
 				'fines'                 => str_replace(",", "", $this->input->post('fines')),
-				'audience'              => $this->input->post('audience')
+				'audience'             => implode(',', $this->input->post('audience')),
 			];
 
 			// Handle Cover Image Upload
@@ -767,9 +773,7 @@ class AdminController extends CI_Controller
 		}
 	}
 
-	// END EDITING OF ACTIVITY
-
-	// EVALUATION LIST - PAGE
+	// EVALUATION LIST - PAGE (FINAL CHECK)
 	public function list_activity_evaluation()
 	{
 		$data['title'] = 'List of Evaluation';
@@ -788,7 +792,7 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
-	// CREATE EVALUATION - PAGE
+	// CREATE EVALUATION - PAGE (FINAL CHECK)
 	public function create_evaluationform()
 	{
 		$data['title'] = 'Create Evaluation Form';
@@ -922,7 +926,7 @@ class AdminController extends CI_Controller
 		}
 	}
 
-	// EDITING EVALUATION - PAGE
+	// EDITING EVALUATION - PAGE (FINAL CHECK)
 	public function edit_evaluationform($form_id)
 	{
 		$data['title'] = 'Edit Evaluation Form';
@@ -1044,7 +1048,7 @@ class AdminController extends CI_Controller
 		}
 	}
 
-	// VIEWING OF EVALUATION FORM - PAGE
+	// VIEWING OF EVALUATION FORM - PAGE (FINAL CHECK)
 	public function view_evaluationform($form_id)
 	{
 		$data['title'] = 'View Evaluation Form';
@@ -1066,7 +1070,7 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
-	// EVALUATION RESPONSES - PAGE
+	// EVALUATION RESPONSES - PAGE (FINAL CHECK)
 	public function list_evaluation_responses($form_id)
 	{
 		$data['title'] = 'Evaluation Responses';
@@ -1124,7 +1128,7 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
-	// EVALUATION STATISTIC - PAGE
+	// EVALUATION STATISTIC - PAGE (FINAL CHECK)
 	public function evaluation_statistic($form_id)
 	{
 		$data['title'] = 'Evaluation Statistic';
@@ -1161,7 +1165,7 @@ class AdminController extends CI_Controller
 
 	//  EXCUSE APPLICATION
 
-	// FETCHING ACTIVITY - PAGE
+	// FETCHING ACTIVITY - PAGE (FINAL CHECK)
 	public function list_activity_excuse()
 	{
 		$data['title'] = 'List of Activity for Excuse Letter';
@@ -1178,7 +1182,7 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
-	// LIST OF APPLICATION PER EVENT - PAGE
+	// LIST OF APPLICATION PER EVENT - PAGE (FINAL CHECK)
 	public function list_excuse_letter($activity_id)
 	{
 		$data['title'] = 'List of Excuse Letter';
@@ -1197,7 +1201,7 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
-	// EXCUSE LETTER PER STUDENT - PAGE
+	// EXCUSE LETTER PER STUDENT - PAGE (FINAL CHECK)
 	public function review_excuse_letter($excuse_id)
 	{
 		$data['title'] = 'Review Excuse Letter';
@@ -1294,8 +1298,7 @@ class AdminController extends CI_Controller
 		}
 	}
 
-
-	// COMMUNITY SECTION
+	// COMMUNITY SECTION (FINAL CHECK)
 
 	// COMMUNITY - PAGE
 	public function community()
@@ -1312,7 +1315,7 @@ class AdminController extends CI_Controller
 		$offset = $this->input->post('offset') ?: 0;
 
 		// GET LIMITED POSTS
-		$data['posts'] = $this->admin->get_all_posts($limit, $offset);
+		$data['posts'] = $this->admin->get_all_posts();
 		foreach ($data['posts'] as &$post) {
 			$post->like_count = $this->admin->get_like_count($post->post_id);
 			$post->user_has_liked_post = $this->admin->user_has_liked($post->post_id, $student_id);
@@ -1322,7 +1325,7 @@ class AdminController extends CI_Controller
 		}
 
 		// GET LIMITED ACTIVITIES
-		$data['activities'] = $this->admin->get_shared_activities($limit, $offset);
+		$data['activities'] = $this->admin->get_shared_activities();
 		foreach ($data['activities'] as &$activity) {
 			$activity->type = 'activity';
 		}
@@ -1597,8 +1600,6 @@ class AdminController extends CI_Controller
 
 
 			if ($result) {
-
-
 				// notifications start
 				$students = $this->db->select('student_id')->where('role', 'student')->get('users')->result_array();
 
@@ -1647,7 +1648,6 @@ class AdminController extends CI_Controller
 		echo json_encode($response);
 	}
 
-
 	// ATTENDANCE RECORDING
 
 	// GETTING THE FACES 
@@ -1665,7 +1665,7 @@ class AdminController extends CI_Controller
 		echo json_encode($faces);
 	}
 
-	// SCANNING AND FACIAL RECOGNITION - PAGE
+	// SCANNING AND FACIAL RECOGNITION - PAGE (FINAL CHECK)
 	public function time_in($activity_id)
 	{
 		$data['title'] = 'Taking Attendance - Time in';
@@ -1686,7 +1686,7 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
-	// SCANNING AND FACIAL RECOGNITION - PAGE
+	// SCANNING AND FACIAL RECOGNITION - PAGE (FINAL CHECK)
 	public function time_out($activity_id)
 	{
 		$data['title'] = 'Taking Attendance - Time out';
@@ -1706,82 +1706,6 @@ class AdminController extends CI_Controller
 		$this->load->view('admin/attendance/scanqr_timeout', $data);
 		$this->load->view('layout/footer', $data);
 	}
-
-	// SCANNING AND FACIAL RECOGNITION FUNCTIONALITY
-	// public function scanUnified_timein()
-	// {
-	// 	date_default_timezone_set('Asia/Manila');
-
-	// 	// Get JSON input or fallback to POST
-	// 	$raw_input = json_decode(trim(file_get_contents("php://input")), true);
-
-	// 	$student_id = $raw_input['student_id'] ?? $this->input->post('student_id');
-	// 	$activity_id = $raw_input['activity_id'] ?? $this->input->post('activity_id');
-	// 	$timeslot_id = $raw_input['timeslot_id'] ?? $this->input->post('timeslot_id');
-
-	// 	if (!$student_id || !$activity_id || !$timeslot_id) {
-	// 		return $this->output
-	// 			->set_content_type('application/json')
-	// 			->set_status_header(400)
-	// 			->set_output(json_encode([
-	// 				'status' => 'error',
-	// 				'message' => 'Student ID and Activity ID are required.'
-	// 			]));
-	// 	}
-
-	// 	// Get current datetime
-	// 	$current_datetime = date('Y-m-d H:i:s');
-
-	// 	// Check if activity exists
-	// 	$activity = $this->admin->get_activity_schedule($activity_id);
-	// 	if (!$activity) {
-	// 		return $this->output
-	// 			->set_content_type('application/json')
-	// 			->set_status_header(404)
-	// 			->set_output(json_encode([
-	// 				'status' => 'error',
-	// 				'message' => 'Activity not found.'
-	// 			]));
-	// 	}
-
-	// 	// Get student details
-	// 	$student = $this->admin->get_student_by_id($student_id);
-	// 	$full_name = $student ? $student->first_name . ' ' . $student->last_name : 'Student';
-
-	// 	// Check if student already has time_in
-	// 	$existing_attendance = $this->admin->get_attendance_record_time_in($student_id, $activity_id, $timeslot_id);
-	// 	if ($existing_attendance && !empty($existing_attendance->time_in)) {
-	// 		return $this->output
-	// 			->set_content_type('application/json')
-	// 			->set_status_header(200)
-	// 			->set_output(json_encode([
-	// 				'status' => 'info',
-	// 				'message' => "Student ID - $student_id - $full_name has already been recorded."
-	// 			]));
-	// 	}
-
-	// 	// Update attendance
-	// 	$update_data = ['time_in' => $current_datetime];
-	// 	$updated = $this->admin->update_attendance_time_in($student_id, $activity_id, $timeslot_id, $update_data);
-
-	// 	if ($updated) {
-	// 		return $this->output
-	// 			->set_content_type('application/json')
-	// 			->set_status_header(200)
-	// 			->set_output(json_encode([
-	// 				'status' => 'success',
-	// 				'message' => "$full_name successfully recorded."
-	// 			]));
-	// 	} else {
-	// 		return $this->output
-	// 			->set_content_type('application/json')
-	// 			->set_status_header(200)
-	// 			->set_output(json_encode([
-	// 				'status' => 'error',
-	// 				'message' => 'No changes made or record not found.'
-	// 			]));
-	// 	}
-	// }
 
 	public function scanUnified_timein()
 	{
@@ -1943,81 +1867,6 @@ class AdminController extends CI_Controller
 		echo "Auto fines executed at " . date('Y-m-d H:i:s');
 	}
 
-	// public function scanUnified_timeout()
-	// {
-	// 	date_default_timezone_set('Asia/Manila');
-
-	// 	// Get JSON input or fallback to POST
-	// 	$raw_input = json_decode(trim(file_get_contents("php://input")), true);
-
-	// 	$student_id = $raw_input['student_id'] ?? $this->input->post('student_id');
-	// 	$activity_id = $raw_input['activity_id'] ?? $this->input->post('activity_id');
-	// 	$timeslot_id = $raw_input['timeslot_id'] ?? $this->input->post('timeslot_id');
-
-	// 	if (!$student_id || !$activity_id || !$timeslot_id) {
-	// 		return $this->output
-	// 			->set_content_type('application/json')
-	// 			->set_status_header(400)
-	// 			->set_output(json_encode([
-	// 				'status' => 'error',
-	// 				'message' => 'Student ID and Activity ID are required.'
-	// 			]));
-	// 	}
-
-	// 	// Get current datetime
-	// 	$current_datetime = date('Y-m-d H:i:s');
-
-	// 	// Check if activity exists
-	// 	$activity = $this->admin->get_activity_schedule($activity_id);
-	// 	if (!$activity) {
-	// 		return $this->output
-	// 			->set_content_type('application/json')
-	// 			->set_status_header(404)
-	// 			->set_output(json_encode([
-	// 				'status' => 'error',
-	// 				'message' => 'Activity not found.'
-	// 			]));
-	// 	}
-
-	// 	// Get student details
-	// 	$student = $this->admin->get_student_by_id($student_id);
-	// 	$full_name = $student ? $student->first_name . ' ' . $student->last_name : 'Student';
-
-	// 	// Check if student already has time_in
-	// 	$existing_attendance = $this->admin->get_attendance_record_time_out($student_id, $activity_id, $timeslot_id);
-	// 	if ($existing_attendance && !empty($existing_attendance->time_out)) {
-	// 		return $this->output
-	// 			->set_content_type('application/json')
-	// 			->set_status_header(200)
-	// 			->set_output(json_encode([
-	// 				'status' => 'info',
-	// 				'message' => "Student ID - $student_id - $full_name has already been recorded."
-	// 			]));
-	// 	}
-
-	// 	// Update attendance
-	// 	$update_data = ['time_out' => $current_datetime];
-	// 	$updated = $this->admin->update_attendance_time_out($student_id, $activity_id, $timeslot_id, $update_data);
-
-	// 	if ($updated) {
-	// 		return $this->output
-	// 			->set_content_type('application/json')
-	// 			->set_status_header(200)
-	// 			->set_output(json_encode([
-	// 				'status' => 'success',
-	// 				'message' => "$full_name successfully recorded."
-	// 			]));
-	// 	} else {
-	// 		return $this->output
-	// 			->set_content_type('application/json')
-	// 			->set_status_header(200)
-	// 			->set_output(json_encode([
-	// 				'status' => 'error',
-	// 				'message' => 'No changes made or record not found.'
-	// 			]));
-	// 	}
-	// }
-
 	public function scanUnified_timeout()
 	{
 		date_default_timezone_set('Asia/Manila');
@@ -2058,9 +1907,9 @@ class AdminController extends CI_Controller
 		$student = $this->admin->get_student_by_id($student_id);
 		$full_name = $student ? $student->first_name . ' ' . $student->last_name : 'Student';
 
-		// Check if student already has time_in
+		// Check if student already has time_out
 		$existing_attendance = $this->admin->get_attendance_record_time_out($student_id, $activity_id, $timeslot_id);
-		if ($existing_attendance && !empty($existing_attendance->time_in)) {
+		if ($existing_attendance && !empty($existing_attendance->time_out)) {
 			return $this->output
 				->set_content_type('application/json')
 				->set_status_header(200)
@@ -2139,7 +1988,7 @@ class AdminController extends CI_Controller
 		}
 	}
 
-	// LISTING OF THE ATTENDEES - PAGE
+	// LISTING OF THE ATTENDEES - PAGE (FINAL CHECK)
 	public function list_activities_attendance()
 	{
 		$data['title'] = 'List of Activities';
@@ -2156,7 +2005,7 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
-	// SHOWING ATTENDANCE LIST - PAGE
+	// SHOWING ATTENDANCE LIST - PAGE (FINAL CHECK)
 	public function list_attendees($activity_id)
 	{
 		$data['title'] = 'List of Attendees';
@@ -2177,8 +2026,6 @@ class AdminController extends CI_Controller
 		$this->load->view('admin/attendance/listofattendees', $data);
 		$this->load->view('layout/footer', $data);
 	}
-
-
 
 	public function export_attendance_pdf($activity_id)
 	{
@@ -2295,8 +2142,6 @@ class AdminController extends CI_Controller
 		$pdf->Output('I', 'attendance_report.pdf');
 	}
 
-
-
 	public function view_attendance_reports($activity_id)
 	{
 
@@ -2324,18 +2169,6 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
-
-
-
-
-
-
-
-
-
-
-
-
 	//CONNECTING ATTENDANCE AND FINES
 	public function update_fines() {}
 
@@ -2348,13 +2181,13 @@ class AdminController extends CI_Controller
 
 		$data['users'] = $this->admin->get_student($student_id);
 
+		$data['departments'] = $this->admin->get_department();
 		$data['fines'] = $this->admin->flash_fines();
 
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/fines/listoffines', $data);
 		$this->load->view('layout/footer', $data);
 	}
-
 
 	//FINES PAYMENTS CONFIRMATION
 	public function confirm_payment()
@@ -2531,8 +2364,6 @@ class AdminController extends CI_Controller
 		]);
 	}
 
-
-
 	public function update_status()
 	{
 		$input = json_decode(file_get_contents("php://input"), true);
@@ -2557,7 +2388,7 @@ class AdminController extends CI_Controller
 
 	// OTHER PAGES
 
-	//PROFILE SETTINGS - PAGE
+	//PROFILE SETTINGS - PAGE (FINAL CHECK)
 	public function profile_settings()
 	{
 		$data['title'] = 'Profile Settings';
@@ -2714,8 +2545,7 @@ class AdminController extends CI_Controller
 		}
 	}
 
-
-	// MANAGE OFFICERS AND PRIVILEGE - PAGE
+	// MANAGE OFFICERS AND PRIVILEGE - PAGE (FINAL CHECK)
 	public function manage_officers()
 	{
 		$data['title'] = 'Manage Officers and Privilege';
@@ -2749,9 +2579,7 @@ class AdminController extends CI_Controller
 		$data['department'] = $this->admin->get_department();
 		$data['dept_id'] = $dept_id;
 
-		$data['officers'] = $this->admin->get_officer_dept();
-
-		$data['privileges'] = $this->admin->manage_privilege();
+		$data['privileges'] = $this->admin->manage_privilege_dept();
 
 
 		$this->load->view('layout/header', $data);
@@ -2759,69 +2587,51 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
-	public function update_privileges()
+	public function update_privileges_dept()
 	{
-		if ($this->input->is_ajax_request()) {
-			$privileges_input = $this->input->post('privileges');
-
-			if (!empty($privileges_input)) {
-				$sanitized_data = [];
-
-				foreach ($privileges_input as $privilege_id => $values) {
-					$entry = ['privilege_id' => $privilege_id];
-
-					if (isset($values['manage_fines'])) {
-						$entry['manage_fines'] = 'Yes';
-					}
-
-					if (isset($values['manage_evaluation'])) {
-						$entry['manage_evaluation'] = 'Yes';
-					}
-
-					if (isset($values['manage_applications'])) {
-						$entry['manage_applications'] = 'Yes';
-					}
-
-					if (isset($values['able_scan'])) {
-						$entry['able_scan'] = 'Yes';
-					}
-
-					if (isset($values['able_create_activity'])) {
-						$entry['able_create_activity'] = 'Yes';
-					}
-
-					$sanitized_data[] = $entry;
-				}
-
-				$update_status = $this->admin->update_privileges($sanitized_data);
-
-				echo json_encode(['success' => $update_status]);
-			} else {
-				echo json_encode(['success' => false, 'error' => 'No data received']);
-			}
-		} else {
+		if (!$this->input->is_ajax_request()) {
 			show_error('No direct script access allowed');
 		}
-	}
 
-	public function update_status_dept()
-	{
-		$input = json_decode(file_get_contents("php://input"), true);
+		$privileges_input = $this->input->post('privileges');
 
-		// Ensure required parameters exist
-		if (!isset($input['student_id']) || !isset($input['is_admin'])) {
-			echo json_encode(["success" => false, "message" => "Invalid request"]);
+		if (empty($privileges_input)) {
+			echo json_encode(['success' => false, 'error' => 'No data received']);
 			return;
 		}
 
-		$student_id = $input['student_id'];
-		$new_status = ($input['is_admin'] === "Yes") ? "Yes" : "No";
+		$sanitized_data = [];
 
-		// Update only the specific record with both student_id & activity_id
-		if ($this->admin->update_status_dept($student_id, $new_status)) {
-			echo json_encode(["success" => true, "message" => "Update admin updated"]);
+		foreach ($privileges_input as $privilege_id => $values) {
+			$sanitized_data[] = [
+				'privilege_id' => $privilege_id,
+				'manage_fines' => isset($values['manage_fines']) ? 'Yes' : 'No',
+				'manage_evaluation' => isset($values['manage_evaluation']) ? 'Yes' : 'No',
+				'manage_applications' => isset($values['manage_applications']) ? 'Yes' : 'No',
+				'able_scan' => isset($values['able_scan']) ? 'Yes' : 'No',
+				'able_create_activity' => isset($values['able_create_activity']) ? 'Yes' : 'No'
+			];
+		}
+
+		$update = $this->admin->update_privileges_dept($sanitized_data);
+
+		echo json_encode(['success' => $update]);
+	}
+
+	public function delete_officer_dept()
+	{
+		$id = $this->input->post('id');
+
+		if ($id) {
+			$deleted = $this->admin->delete_officer_dept($id);
+
+			if ($deleted) {
+				echo json_encode(['success' => true]);
+			} else {
+				echo json_encode(['success' => false, 'message' => 'Database deletion failed.']);
+			}
 		} else {
-			echo json_encode(["success" => false, "message" => "Update failed"]);
+			echo json_encode(['success' => false, 'message' => 'Invalid officer ID.']);
 		}
 	}
 
@@ -2840,10 +2650,42 @@ class AdminController extends CI_Controller
 
 		$data['officers'] = $this->admin->get_officer_org();
 
+		$data['privileges'] = $this->admin->manage_privilege_org();
 
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/manage-organization', $data);
 		$this->load->view('layout/footer', $data);
+	}
+
+	public function update_privileges_org()
+	{
+		if (!$this->input->is_ajax_request()) {
+			show_error('No direct script access allowed');
+		}
+
+		$privileges_input = $this->input->post('privileges');
+
+		if (empty($privileges_input)) {
+			echo json_encode(['success' => false, 'error' => 'No data received']);
+			return;
+		}
+
+		$sanitized_data = [];
+
+		foreach ($privileges_input as $privilege_id => $values) {
+			$sanitized_data[] = [
+				'privilege_id' => $privilege_id,
+				'manage_fines' => isset($values['manage_fines']) ? 'Yes' : 'No',
+				'manage_evaluation' => isset($values['manage_evaluation']) ? 'Yes' : 'No',
+				'manage_applications' => isset($values['manage_applications']) ? 'Yes' : 'No',
+				'able_scan' => isset($values['able_scan']) ? 'Yes' : 'No',
+				'able_create_activity' => isset($values['able_create_activity']) ? 'Yes' : 'No'
+			];
+		}
+
+		$update = $this->admin->update_privileges_org($sanitized_data);
+
+		echo json_encode(['success' => $update]);
 	}
 
 	public function update_status_org()
@@ -2867,7 +2709,24 @@ class AdminController extends CI_Controller
 		}
 	}
 
-	// GENERAL SETTINGS
+	public function delete_officer_org()
+	{
+		$id = $this->input->post('id');
+
+		if ($id) {
+			$deleted = $this->admin->delete_officer_org($id);
+
+			if ($deleted) {
+				echo json_encode(['success' => true]);
+			} else {
+				echo json_encode(['success' => false, 'message' => 'Database deletion failed.']);
+			}
+		} else {
+			echo json_encode(['success' => false, 'message' => 'Invalid officer ID.']);
+		}
+	}
+
+	// GENERAL SETTINGS PAGE (FINAL CHECK)
 	public function general_settings()
 	{
 		$data['title'] = 'General Settings';
@@ -2905,7 +2764,7 @@ class AdminController extends CI_Controller
 
 				// Insert into database
 				if (!empty($data)) {
-					$this->admin->insert_batch($data);
+					$this->admin->insert_student($data);
 					echo json_encode(['success' => true, 'message' => 'File uploaded and data imported successfully!']);
 				} else {
 					echo json_encode(['success' => false, 'message' => 'No valid data found in the file.']);
@@ -2986,7 +2845,7 @@ class AdminController extends CI_Controller
 	// IMPORT DEPARTMENT OFFICERS
 	public function import_list_dept()
 	{
-		require_once FCPATH . 'vendor/autoload.php'; // Load PhpSpreadsheet
+		require_once FCPATH . 'vendor/autoload.php';
 
 		if ($_FILES['import_file']['error'] === UPLOAD_ERR_OK) {
 			$fileTmpPath = $_FILES['import_file']['tmp_name'];
@@ -3003,9 +2862,13 @@ class AdminController extends CI_Controller
 					return;
 				}
 
-				if (!empty($data)) {
-					$this->admin->insert_batch($data);
-					echo json_encode(['success' => true, 'message' => 'Department officers imported successfully.']);
+				if (!empty($data['users']) && !empty($data['privilege'])) {
+					$success = $this->admin->insert_dept_officers_batch($data['users'], $data['privilege']);
+					if ($success) {
+						echo json_encode(['success' => true, 'message' => 'Department officers imported successfully.']);
+					} else {
+						echo json_encode(['success' => false, 'message' => 'Database transaction failed.']);
+					}
 				} else {
 					echo json_encode(['success' => false, 'message' => 'No valid data found in the file.']);
 				}
@@ -3017,61 +2880,13 @@ class AdminController extends CI_Controller
 		}
 	}
 
-	private function readCSVDept($filePath)
+	private function parseDeptFile($rows)
 	{
-		$data = [];
-		if (($handle = fopen($filePath, "r")) !== FALSE) {
-			$isHeader = true;
-			while (($row = fgetcsv($handle, 1000, ",")) !== FALSE) {
-				if ($isHeader) {
-					$isHeader = false;
-					continue;
-				}
-
-				// Skip empty or invalid rows
-				if (count($row) < 9 || empty(trim($row[0])) || empty(trim($row[7])) || !is_numeric(trim($row[7]))) {
-					continue;
-				}
-
-				$rawId = trim($row[0]);
-				$studentId = 'DEPT' . $rawId;
-				$idParts = explode('-', $studentId);
-				$last4 = isset($idParts[1]) ? substr($idParts[1], -4) : substr($studentId, -4);
-				$generatedPassword = 'dept' . $last4;
-				$hashedPassword = password_hash($generatedPassword, PASSWORD_DEFAULT); // Hash the password
-				$position = strtolower(trim($row[8]));
-
-				$data[] = [
-					'student_id'      => $studentId,
-					'first_name'      => trim($row[1]),
-					'middle_name'     => trim($row[2]),
-					'last_name'       => trim($row[3]),
-					'sex'             => trim($row[4]),
-					'year_level'      => trim($row[5]),
-					'email'           => trim($row[6]),
-					'password'        => $hashedPassword, // Use hashed password
-					'dept_id'         => trim($row[7]),
-					'role'            => 'Officer',
-					'is_officer_dept' => 'Yes',
-					'is_admin'        => ($position === 'president') ? 'Yes' : 'No',
-				];
-			}
-			fclose($handle);
-		}
-		return $data;
-	}
-
-	private function readXLSXDept($filePath)
-	{
-		$spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filePath);
-		$sheet = $spreadsheet->getActiveSheet();
-		$rows = $sheet->toArray();
-		$data = [];
+		$users = [];
 
 		foreach ($rows as $index => $row) {
 			if ($index === 0) continue; // Skip header
 
-			// Skip empty or invalid rows
 			if (count($row) < 9 || empty(trim($row[0])) || empty(trim($row[7])) || !is_numeric(trim($row[7]))) {
 				continue;
 			}
@@ -3081,25 +2896,50 @@ class AdminController extends CI_Controller
 			$idParts = explode('-', $studentId);
 			$last4 = isset($idParts[1]) ? substr($idParts[1], -4) : substr($studentId, -4);
 			$generatedPassword = 'dept' . $last4;
-			$hashedPassword = password_hash($generatedPassword, PASSWORD_DEFAULT); // Hash the password
+			$hashedPassword = password_hash($generatedPassword, PASSWORD_DEFAULT);
 			$position = strtolower(trim($row[8]));
 
-			$data[] = [
-				'student_id'      => $studentId,
-				'first_name'      => trim($row[1]),
-				'middle_name'     => trim($row[2]),
-				'last_name'       => trim($row[3]),
-				'sex'             => trim($row[4]),
-				'year_level'      => trim($row[5]),
-				'email'           => trim($row[6]),
-				'password'        => $hashedPassword, // Use hashed password
-				'dept_id'         => trim($row[7]),
-				'role'            => 'Officer',
-				'is_officer_dept' => 'Yes',
+			$users[] = [
+				'student_id'       => $studentId,
+				'first_name'       => trim($row[1]),
+				'middle_name'      => trim($row[2]),
+				'last_name'        => trim($row[3]),
+				'sex'              => trim($row[4]),
+				'year_level'       => trim($row[5]),
+				'email'            => trim($row[6]),
+				'password'         => $hashedPassword,
+				'dept_id'		=> $row[7],
+				'role'             => 'Officer',
+				'is_officer_dept'  => 'Yes',
 				'is_admin'        => ($position === 'president') ? 'Yes' : 'No',
 			];
+
+			$privilege[] = [
+				'student_id' => $studentId
+			];
 		}
-		return $data;
+
+		return ['users' => $users, 'privilege' => $privilege];
+	}
+
+	private function readCSVDept($filePath)
+	{
+		$rows = [];
+		if (($handle = fopen($filePath, "r")) !== FALSE) {
+			while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+				$rows[] = $data;
+			}
+			fclose($handle);
+		}
+		return $this->parseDeptFile($rows);
+	}
+
+	private function readXLSXDept($filePath)
+	{
+		$spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filePath);
+		$sheet = $spreadsheet->getActiveSheet();
+		$rows = $sheet->toArray();
+		return $this->parseDeptFile($rows);
 	}
 
 	// IMPORTING ORGANIZATION OFFICERS
@@ -3122,8 +2962,8 @@ class AdminController extends CI_Controller
 					return;
 				}
 
-				if (!empty($data['users']) && !empty($data['student_org'])) {
-					$success = $this->admin->insert_org_officers_batch($data['users'], $data['student_org']);
+				if (!empty($data['users']) && !empty($data['student_org']) && !empty($data['privilege'])) {
+					$success = $this->admin->insert_org_officers_batch($data['users'], $data['student_org'], $data['privilege']);
 					if ($success) {
 						echo json_encode(['success' => true, 'message' => 'Organization officers imported successfully.']);
 					} else {
@@ -3182,9 +3022,13 @@ class AdminController extends CI_Controller
 				'is_admin'   => ($position === 'president') ? 'Yes' : 'No',
 				'is_officer' => 'Yes',
 			];
+
+			$privilege[] = [
+				'student_id' => $studentId
+			];
 		}
 
-		return ['users' => $users, 'student_org' => $student_org];
+		return ['users' => $users, 'student_org' => $student_org, 'privilege' => $privilege];
 	}
 
 	private function readCSVOrg($filePath)
@@ -3206,8 +3050,6 @@ class AdminController extends CI_Controller
 		$rows = $sheet->toArray();
 		return $this->parseOrgFile($rows);
 	}
-
-
 
 	// GENERATING QR
 	public function generate_bulk_qr()
@@ -3238,6 +3080,88 @@ class AdminController extends CI_Controller
 		echo json_encode(['status' => 'success', 'count' => $count]);
 	}
 
+	// MANAGING ORGANIZATION
+	public function save_organization()
+	{
+		$org_name = trim($this->input->post('org_name'));
+		$logo_path = '';
+
+		if (empty($org_name)) {
+			echo json_encode(['success' => false, 'message' => 'Organization name is required.']);
+			return;
+		}
+
+		// Handle file upload
+		if (!empty($_FILES['org_logo']['name'])) {
+			$config['upload_path'] = './assets/imageOrg/';
+			$config['allowed_types'] = 'jpg|jpeg|png|gif';
+			$config['file_name'] = time() . '_' . $_FILES['org_logo']['name'];
+			$config['max_size'] = 2048;
+
+			$this->load->library('upload', $config);
+
+			if (!$this->upload->do_upload('org_logo')) {
+				echo json_encode(['success' => false, 'message' => $this->upload->display_errors('', '')]);
+				return;
+			} else {
+				$upload_data = $this->upload->data();
+				$logo_path = $upload_data['file_name'];
+			}
+		}
+
+		$data = [
+			'org_name' => $org_name,
+			'logo' => $logo_path,
+		];
+
+		$inserted = $this->admin->insert_organization($data);
+
+		echo json_encode(['success' => $inserted]);
+	}
+
+	public function get_organizations()
+	{
+		$data = $this->admin->get_all();
+		echo json_encode($data);
+	}
+
+	public function update_organization()
+	{
+		$id = $this->input->post('id');
+		$org_name = $this->input->post('org_name');
+
+		$logo = $_FILES['logo']['name'] ? $_FILES['logo']['name'] : null;
+		$new_logo = null;
+
+		if ($logo) {
+			$config['upload_path'] = './assets/imageOrg/';
+			$config['allowed_types'] = 'jpg|jpeg|png|gif';
+			$config['file_name'] = time() . '_' . $logo;
+			$config['overwrite'] = true;
+
+			$this->load->library('upload', $config);
+
+			if ($this->upload->do_upload('logo')) {
+				$new_logo = $this->upload->data('file_name');
+			} else {
+				echo json_encode([
+					'success' => false,
+					'message' => $this->upload->display_errors()
+				]);
+				return;
+			}
+		}
+
+		// Pass null if no new logo is uploaded (so existing logo remains)
+		$result = $this->admin->update($id, $org_name, $new_logo);
+
+		echo json_encode([
+			'success' => $result,
+			'message' => $result ? 'Organization updated successfully.' : 'Failed to update organization.'
+		]);
+	}
+
+
 	public function about()
 	{
 		$data['title'] = 'About';
@@ -3252,74 +3176,4 @@ class AdminController extends CI_Controller
 		$this->load->view('admin/about', $data);
 		$this->load->view('layout/footer', $data);
 	}
-
-
-
-
-
-
-
-
-
-
-
-
-	// // Function to Compute and Update Total Fine
-	// private function compute_and_update_fine($student_id, $activity_id)
-	// {
-	//     $this->db->query(
-	//         "
-	//         UPDATE fines
-	//         SET total_amount = (
-	//             COALESCE(am_in, 0) + COALESCE(am_out, 0) + 
-	//             COALESCE(pm_in, 0) + COALESCE(pm_out, 0)
-	//         )
-	//         WHERE student_id = ? AND activity_id = ?",
-	//         [$student_id, $activity_id]
-	//     );
-	// }
-
-
-	// <====== FINES MONITORING =====>
-	// public function list_activities_fines()
-	// {
-	//     $data['title'] = 'All Activities';
-
-	//     // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
-	//     $data['users'] = $this->admin->get_student($student_id);
-
-	//     // CROSS CHECKING OF THE WHERE THE USER IS ADMIN
-	//     $data['organization'] = $this->admin->admin_org();
-	//     $data['department'] = $this->admin->admin_dept();
-
-	//     $data['activities'] = $this->admin->get_activities();
-
-	//     $this->load->view('layout/header', $data);
-	//     $this->load->view('admin/fines/list-activities-fines', $data);
-	//     $this->load->view('layout/footer', $data);
-	// }
-
-	// public function list_department_fines($activity_id)
-	// {
-	//     $data['title'] = 'List of Department';
-
-	//     $student_id = $this->session->userdata('student_id');
-
-	//     // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
-	//     $data['users'] = $this->admin->get_student($student_id);
-
-	//     // FETCHING ALL THE DEPARTMENT
-	//     $data['department'] = $this->admin->get_department();
-
-	//     $data['activity_id'] = $activity_id;
-
-	//     $this->load->view('layout/header', $data);
-	//     $this->load->view('admin/fines/department', $data);
-	//     $this->load->view('layout/footer', $data);
-	// }
-
-
-	//======> FINES
-
-
 }

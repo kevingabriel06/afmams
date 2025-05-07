@@ -8,8 +8,6 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
 
-
-
 <div class="card mb-3 mb-lg-0">
 	<div class="card-header bg-body-tertiary d-flex justify-content-between">
 		<h5 class="mb-0"> Attendance Reports </h5>

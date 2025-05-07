@@ -71,11 +71,12 @@
   <div class="card mt-3">
     <div class="card-body bg-body-tertiary">
       <form id="editForm" class="row g-3 needs-validation" novalidate="" data-dropzone="data-dropzone" enctype="multipart/form-data">
+        <?php $isOngoing = ($forms['status_evaluation'] == 'Ongoing'); ?>
         <!-- Select Activity Dropdown -->
         <div class="mb-3">
           <label class="form-label" for="activity">Select Activity</label>
           <div class="input-group has-validation">
-            <select class="form-control" id="activity" name="activity" required>
+            <select class="form-control" id="activity" name="activity" required <?php echo $isOngoing ? 'disabled' : ''; ?>>
               <option value="<?= $forms['activity_id'] ?>" selected>
                 <?= htmlspecialchars($forms['activity_title']); ?>
               </option>
@@ -88,12 +89,12 @@
         <div class="mb-3">
           <label class="form-label" for="formtitle">Form Title</label>
           <div class="input-group has-validation">
-            <input class="form-control" id="formtitle" type="text" name="formtitle" placeholder="Untitled Form" required value="<?php echo $forms['title']; ?>" />
+            <input class="form-control" id="formtitle" type="text" name="formtitle" placeholder="Untitled Form" required value="<?php echo $forms['title']; ?>" <?php echo $isOngoing ? 'readonly' : ''; ?> />
           </div>
         </div>
         <div class="mb-3">
           <label class="form-label" for="formdescription">Form Description</label>
-          <textarea class="form-control" id="formdescription" name="formdescription" rows="3"><?php echo $forms['form_description']; ?></textarea>
+          <textarea class="form-control" id="formdescription" name="formdescription" rows="3" <?php echo $isOngoing ? 'readonly' : ''; ?>><?php echo $forms['form_description']; ?></textarea>
         </div>
 
         <!-- Start Date and End Date (Two Columns) -->
@@ -236,16 +237,16 @@
           <label for="label-${fieldCount}" class="form-label">Question</label>
           <div class="form-check">
             <input type="hidden" name="required[${fieldId}]" value="0">
-            <input class="form-check-input" type="checkbox" id="required-${fieldCount}" name="required[${fieldId}]" value="1" ${checked} onchange="toggleRequired('${fieldId}', this)" />
+            <input class="form-check-input" type="checkbox" id="required-${fieldCount}" name="required[${fieldId}]" value="1" ${checked} onchange="toggleRequired('${fieldId}', this)" <?php echo $isOngoing ? 'disabled' : ''; ?>/>
             <label class="form-check-label" for="required-${fieldCount}">Required</label>
           </div>
         </div>
         <div class="input-group has-validation">
-          <input class="form-control mb-2" id="label-${fieldCount}" type="text" name="labels[]" value="${label}" placeholder="Enter your question" required/>
+          <input class="form-control mb-2" id="label-${fieldCount}" type="text" name="labels[]" value="${label}" placeholder="Enter your question" required <?php echo $isOngoing ? 'readonly' : ''; ?>/>
         </div>
         <input class="form-control mb-2" id="answer-${fieldCount}" type="text" name="answers[]" placeholder="Short Answer" disabled/>
-        <input type="hidden" name="type[]" id="type-${fieldCount}" value="short"/>
-        <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')">Remove</button>
+        <input type="hidden" name="type[]" id="type-${fieldCount}" value="short" />
+        <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')" <?php echo $isOngoing ? 'disabled' : ''; ?>>Remove</button>
       </div>
     `;
     } else if (type === "textarea") {
@@ -255,20 +256,20 @@
           <label for="label-${fieldCount}" class="form-label">Question</label>
           <div class="form-check">
           <input type="hidden" name="required[${fieldId}]" value="0">
-            <input class="form-check-input" type="checkbox" id="required-${fieldCount}" name="required[${fieldId}]" value="1" ${checked} onchange="toggleRequired('${fieldId}', this)" />
+            <input class="form-check-input" type="checkbox" id="required-${fieldCount}" name="required[${fieldId}]" value="1" ${checked} onchange="toggleRequired('${fieldId}', this)" <?php echo $isOngoing ? 'disabled' : ''; ?>/>
             <label class="form-check-label" for="required-${fieldCount}">Required</label>
           </div>
         </div>
         <div class="input-group has-validation">
-          <input class="form-control mb-2" id="label-${fieldCount}" type="text" name="labels[]" value="${label}" placeholder="Enter your question" required />
+          <input class="form-control mb-2" id="label-${fieldCount}" type="text" name="labels[]" value="${label}" placeholder="Enter your question" required <?php echo $isOngoing ? 'readonly' : ''; ?>/>
         </div>
         <textarea class="form-control mb-2" id="answer-${fieldCount}" rows="3" name="answers[]" placeholder="Long Answer" disabled></textarea>
         <input type="hidden" name="type[]" id="type-${fieldCount}" value="textarea" />
-        <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')">Remove</button>
+        <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')" <?php echo $isOngoing ? 'disabled' : ''; ?>>Remove</button>
       </div>
     `;
     } else if (type === "rating") {
-      let stars = [1, 2, 3, 4, 5]
+      let stars = [1, 2, 3, 4]
         .map(
           (i) => `<i class="far fa-star ${answer == i ? "fas" : ""}" onclick="setRating(this, ${i})" data-value="${i}"></i>`
         )
@@ -280,19 +281,19 @@
           <label for="label-${fieldCount}" class="form-label">Question</label>
           <div class="form-check">
             <input type="hidden" name="required[${fieldId}]" value="0">
-            <input class="form-check-input" type="checkbox" id="required-${fieldCount}" name="required[${fieldId}]" value="1" ${checked} onchange="toggleRequired('${fieldId}', this)" />
+            <input class="form-check-input" type="checkbox" id="required-${fieldCount}" name="required[${fieldId}]" value="1" ${checked} onchange="toggleRequired('${fieldId}', this)" <?php echo $isOngoing ? 'disabled' : ''; ?> />
             <label class="form-check-label" for="required-${fieldCount}">Required</label>
           </div>
         </div>
         <div class="input-group has-validation">
-          <input class="form-control mb-2" id="label-${fieldCount}" type="text" name="labels[]" value="${label}" placeholder="Enter your question" required/>
+          <input class="form-control mb-2" id="label-${fieldCount}" type="text" name="labels[]" value="${label}" placeholder="Enter your question" required <?php echo $isOngoing ? 'readonly' : ''; ?>/>
         </div>
         <div class="rating-stars mb-2" id="rating-${fieldCount}">
           ${stars}
         </div>
         <input type="hidden" name="answers[]" id="rating-value-${fieldCount}" value="${answer}" />
         <input type="hidden" name="type[]" id="type-${fieldCount}" value="rating" />
-        <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')">Remove</button>
+        <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')" <?php echo $isOngoing ? 'disabled' : ''; ?>>Remove</button>
       </div>
     `;
     }
@@ -373,268 +374,59 @@
     formData.append("fields", JSON.stringify(fields));
 
 
-    $.ajax({
-      url: "<?php echo site_url('admin/edit-evaluation-form/update/'); ?>" + formId,
-      method: "POST",
-      data: formData,
-      processData: false, // Important for FormData
-      contentType: false, // Important for FormData
-      dataType: "json",
-      success: function(response) {
-        if (response.success) {
-          Swal.fire({
-            icon: "success",
-            title: "Form Updated!",
-            text: response.message,
-            showConfirmButton: true,
-          }).then(() => {
-            if (response.redirect) {
-              window.location.href = response.redirect;
+    Swal.fire({
+      title: 'Are you sure?',
+      text: 'Do you want to update the evaluation form?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, update it!',
+      cancelButtonText: 'No, cancel!',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // Proceed with AJAX request
+        $.ajax({
+          url: "<?php echo site_url('admin/edit-evaluation-form/update/'); ?>" + formId,
+          method: "POST",
+          data: formData,
+          processData: false, // Important for FormData
+          contentType: false, // Important for FormData
+          dataType: "json",
+          success: function(response) {
+            if (response.success) {
+              Swal.fire({
+                icon: "success",
+                title: "Form Updated!",
+                text: response.message,
+                showConfirmButton: true,
+              }).then(() => {
+                if (response.redirect) {
+                  window.location.href = response.redirect;
+                } else {
+                  location.reload();
+                }
+              });
             } else {
-              location.reload();
+              Swal.fire({
+                icon: "error",
+                title: "Error!",
+                text: response.message || "Update failed.",
+                showConfirmButton: true,
+              });
             }
-          });
-        } else {
-          Swal.fire({
-            icon: "error",
-            title: "Error!",
-            text: response.message || "Update failed.",
-            showConfirmButton: true,
-          });
-        }
-      },
-      error: function(xhr) {
-        Swal.fire({
-          icon: "error",
-          title: "Update Failed!",
-          text: "An error occurred while updating the form. Please try again.",
-          showConfirmButton: true,
+          },
+          error: function(xhr) {
+            Swal.fire({
+              icon: "error",
+              title: "Update Failed!",
+              text: "An error occurred while updating the form. Please try again.",
+              showConfirmButton: true,
+            });
+          },
         });
-      },
+      }
     });
+
+
 
   });
 </script>
-
-<!-- <script>
-  $("#createForm").on("submit", function(e) {
-    e.preventDefault();
-
-    // Retrieve form ID from the button inside the form
-    let formId = $(this).find("button[type='submit']").data("form-id");
-    let isValid = true;
-    $(".invalid-feedback").remove();
-    $("input, select, textarea").removeClass("is-invalid is-valid");
-
-    console.log("Form ID:", formId);
-
-    // Validate required fields
-    $("#form-fields .form-group").each(function() {
-      const question = $(this).find('input[name="questions[]"]').val();
-      if (!question) {
-        $(this).find('input[name="questions[]"]').addClass("is-invalid").after('<div class="invalid-feedback">Please enter a question.</div>');
-        isValid = false;
-      }
-    });
-
-    // Validate general form fields
-    const validateField = (selector, message) => {
-      const inputField = $(selector);
-      if (!inputField.val()) {
-        inputField.addClass("is-invalid").after(`<div class="invalid-feedback">${message}</div>`);
-        isValid = false;
-      }
-    };
-
-    validateField("#activity", "Please select an activity.");
-    validateField("#formtitle", "Please enter the form title.");
-    validateField("#formdescription", "Please enter a description.");
-    validateField("#time_start", "Please enter a start date.");
-    validateField("#time_end", "Please enter an end date.");
-
-    if (isValid) {
-      const fields = [];
-      $("#form-fields .form-group").each(function() {
-        fields.push({
-          label: $(this).find('input[name="questions[]"]').val(),
-          type: $(this).find('input[name="type[]"]').val(),
-          placeholder: $(this).find('input[name="answers[]"]').val() || null,
-          required: $(this).find('input[type="checkbox"]').is(":checked"),
-        });
-      });
-
-      const dataToSend = {
-        form_id: formId,
-        activity: $("#activity").val(),
-        formtitle: $("#formtitle").val(),
-        formdescription: $("#formdescription").val(),
-        startdate: $("#time_start").val(),
-        enddate: $("#time_end").val(),
-        fields: fields,
-      };
-
-      // Send AJAX request
-      $.ajax({
-        url: "<?php echo site_url('admin/edit-evaluation-form/update/'); ?>" + formId,
-        method: "POST",
-        data: dataToSend,
-        dataType: "json",
-        success: function(response) {
-          if (response.success) {
-            Swal.fire({
-              icon: "success",
-              title: "Form Updated!",
-              text: response.message,
-              showConfirmButton: true,
-            }).then(() => {
-              window.location.href = response.redirect_url || location.reload();
-            });
-          } else {
-            Swal.fire({
-              icon: "error",
-              title: "Error!",
-              text: response.message || "Update failed.",
-              showConfirmButton: true,
-            });
-          }
-        },
-        error: function(xhr) {
-          Swal.fire({
-            icon: "error",
-            title: "Update Failed!",
-            text: "An error occurred while updating the form. Please try again.",
-            showConfirmButton: true,
-          });
-        },
-      });
-    }
-  });
-</script> -->
-
-
-<!-- <script>
-  $("#createForm").on("submit", function(e) {
-    e.preventDefault();
-    let isValid = true;
-    $(".invalid-feedback").remove();
-    $("input, select, textarea").removeClass("is-invalid").removeClass("is-valid"); // Remove all validation classes first
-
-    // Loop through required fields and validate
-    $("#form-fields .form-group").each(function() {
-      const question = $(this).find('input[name="questions[]"]').val();
-      const type = $(this).find('input[name="type[]"]').val();
-
-      if (!question) {
-        $(this)
-          .find('input[name="questions[]"]')
-          .addClass("is-invalid")
-          .after('<div class="invalid-feedback">Please enter a question.</div>');
-        isValid = false;
-      } else {
-        $(this).find('input[name="questions[]"]').addClass("is-valid"); // Mark valid field
-      }
-
-      if (!type) {
-        $(this)
-          .find('input[name="type[]"]')
-          .addClass("is-invalid")
-          .after('<div class="invalid-feedback">Please enter the type.</div>');
-        isValid = false;
-      } else {
-        $(this).find('input[name="type[]"]').addClass("is-valid");
-      }
-    });
-
-    // Validate general form fields similarly
-    const validateField = (selector, message) => {
-      const inputField = $(selector);
-      if (!inputField.val()) {
-        inputField.addClass("is-invalid").after(`<div class="invalid-feedback">${message}</div>`);
-        isValid = false;
-      } else {
-        inputField.addClass("is-valid");
-      }
-    };
-
-    validateField("#activity", "Please select an activity.");
-    validateField("#formtitle", "Please enter the form title.");
-    validateField("#formdescription", "Please enter a description.");
-    validateField("#time_start", "Please enter a start date.");
-    validateField("#time_end", "Please enter an end date.");
-
-    // If form is valid, proceed with submission
-    if (isValid) {
-      const fields = [];
-      $("#form-fields .form-group").each(function() {
-        const answerField = $(this).find('input[name="answers[]"]');
-        const answerValue = answerField.length > 0 ? answerField.val() : null;
-
-        fields.push({
-          label: $(this).find('input[name="questions[]"]').val(),
-          type: $(this).find('input[name="type[]"]').val(),
-          placeholder: answerValue || null, // Ensures empty values convert to null
-          required: $(this).find('input[type="checkbox"]').is(":checked"),
-        });
-      });
-
-      const dataToSend = {
-        form_id: $("#form_id").val(),
-        activity: $("#activity").val(), // Send selected activity ID
-        formtitle: $("#formtitle").val(),
-        formdescription: $("#formdescription").val(),
-        startdate: $("#time_start").val(), // Fixed date input name and ID
-        enddate: $("#time_end").val(),
-        fields: fields,
-      };
-
-
-
-      // Submit form using AJAX
-      $.ajax({
-        url: "<?php echo site_url('admin/edit-evaluation-form/update/' . $forms['form_id']); ?>", // Target URL
-        method: "POST", // HTTP method
-        data: dataToSend, // Serialized form data
-        dataType: "json", // Expect JSON response from the server
-        success: function(response) {
-          if (response.success) {
-            // Show success alert if form creation was successful
-            Swal.fire({
-              icon: "success",
-              title: "Form Created!",
-              text: "Your form has been created successfully.",
-              showConfirmButton: true,
-            }).then(() => {
-              // Reset the form, clear dynamic fields, and reload or redirect
-              $("#createForm").get(0).reset();
-              $("#form-fields").empty();
-
-              // Reload or redirect to a new page if specified in the response
-              if (response.redirect_url) {
-                window.location.href = response.redirect_url;
-              } else {
-                location.reload(); // Default reload if no redirect_url is provided
-              }
-            });
-          } else {
-            // Handle any server-side validation feedback (if response.success is false)
-            Swal.fire({
-              icon: "error",
-              title: "Validation Error!",
-              text: response.message || "Please review the form and try again.",
-              showConfirmButton: true,
-            });
-          }
-        },
-        error: function(xhr) {
-          // Show error alert if AJAX request fails
-          Swal.fire({
-            icon: "error",
-            title: "Form Creation Failed!",
-            text: "An error occurred while creating the form. Please try again.",
-            showConfirmButton: true,
-          });
-        },
-      });
-    }
-  });
-</script> -->
