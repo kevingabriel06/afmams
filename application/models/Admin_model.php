@@ -150,39 +150,41 @@ class Admin_model extends CI_Model
 
 		// Query to fetch data including total expected and actual attendees
 		$query = $this->db->query("
-        SELECT 
-            a.activity_id,
-            a.activity_title,
-            a.registration_fee,
-            a.start_date,
+			SELECT 
+				a.activity_id,
+				a.activity_title,
+				a.registration_fee,
+				a.start_date,
 
-            -- Determine semester based on start_date
-            CASE 
-                WHEN MONTH(a.start_date) BETWEEN 7 AND 12 THEN 'First Semester'
-                ELSE 'Second Semester'
-            END AS semester,
+				-- Determine semester based on start_date
+				CASE 
+					WHEN MONTH(a.start_date) BETWEEN 7 AND 12 THEN 'First Semester'
+					ELSE 'Second Semester'
+				END AS semester,
 
-            -- Expected attendees based on registration or attendees table
-            CASE 
-                WHEN a.registration_fee IS NOT NULL AND a.registration_fee > 0 THEN 
-                    (SELECT COUNT(DISTINCT r.student_id) 
-                     FROM registrations r 
-                     WHERE r.activity_id = a.activity_id)
-                ELSE 
-                    (SELECT COUNT(DISTINCT atd.student_id) 
-                     FROM attendees atd 
-                     WHERE atd.activity_id = a.activity_id)
-            END AS expected_attendees,
+				-- Expected attendees based on registration or attendees table
+				CASE 
+					WHEN a.registration_fee IS NOT NULL AND a.registration_fee > 0 THEN 
+						(SELECT COUNT(DISTINCT r.student_id) 
+						FROM registrations r 
+						WHERE r.activity_id = a.activity_id)
+					ELSE 
+						(SELECT COUNT(DISTINCT atd.student_id) 
+						FROM attendees atd 
+						WHERE atd.activity_id = a.activity_id)
+				END AS expected_attendees,
 
-            -- Actual attendees marked Present
-            (SELECT COUNT(DISTINCT att.student_id) 
-             FROM attendance att 
-             WHERE att.activity_id = a.activity_id AND att.attendance_status = 'Present') AS actual_attendees
+				-- Actual attendees marked Present
+				(SELECT COUNT(DISTINCT att.student_id) 
+				FROM attendance att 
+				WHERE att.activity_id = a.activity_id AND att.attendance_status = 'Present') AS actual_attendees
 
-        FROM activity a
-        WHERE YEAR(a.start_date) = '$current_year'
-        ORDER BY a.start_date ASC
-    ");
+			FROM activity a
+			WHERE YEAR(a.start_date) = '$current_year'
+			AND a.organizer = 'Student Parliament'
+			AND a.status = 'Completed'
+			ORDER BY a.start_date ASC
+		");
 
 		// Fetch all results
 		$attendance_data = $query->result();
@@ -240,6 +242,7 @@ class Admin_model extends CI_Model
 		$this->db->join('department d', 'd.dept_id = u.dept_id', 'left');
 		$this->db->where('YEAR(a.start_date)', $current_year);
 		$this->db->where('att.attendance_status', 'Present');
+		$this->db->where('a.status', 'Completed');
 		$this->db->where('a.start_date >=', $start_date); // Only activities in the current semester
 		$this->db->where('a.start_date <=', $end_date);   // Only activities in the current semester
 		$this->db->group_by('a.activity_id, d.dept_name, semester');
@@ -272,6 +275,7 @@ class Admin_model extends CI_Model
 		$this->db->from('fines');
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
 		$this->db->where('activity.organizer', 'Student Parliament');
+		$this->db->where('activity.status', 'Completed');
 		$this->db->where('activity.start_date >=', $start_date); // Filter fines by the semester start date
 		$this->db->where('activity.end_date <=', $end_date);   // Filter fines by the semester end date
 		$this->db->group_by('activity.activity_id, activity.activity_title'); // Group by activity to get total per activity
