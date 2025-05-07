@@ -288,9 +288,6 @@
 											<!-- Notifications go here -->
 										</div>
 									</div>
-									<div class="card-footer text-center border-top p-2" style="width: 100%;">
-										<a href="<?= base_url('notifications/view_all') ?>" class="d-block w-100 text-decoration-none">View all</a>
-									</div>
 								</div>
 							</div>
 						</li>
