@@ -65,14 +65,14 @@
                     <div class="mb-3">
                         <label class="form-label" for="activity-title">Activity Title <span class="text-danger">*</span></label>
                         <input class="form-control" id="activity-title" type="text" name="title" placeholder="Activity Title"
-                            required value="<?php echo $activity['activity_title']; ?>" />
+                            required value="<?php echo $activity['activity_title']; ?>" <?= ($activity['status'] === 'Ongoing') ? 'readonly' : ''; ?> />
                         <div class="invalid-feedback">Enter an activity title.</div>
                     </div>
 
                     <!-- Description Section -->
                     <div class="mb-3">
                         <label class="form-label" for="description">Description</label>
-                        <textarea class="form-control" id="description" name="description" rows="6"><?php echo $activity['description']; ?></textarea>
+                        <textarea class="form-control" id="description" name="description" rows="6" <?= ($activity['status'] === 'Ongoing') ? 'readonly' : ''; ?>><?php echo $activity['description']; ?></textarea>
                     </div>
 
                     <div class="row">
@@ -83,10 +83,13 @@
                                 <input class="form-control datetimepicker" id="date_start" type="text" name="date_start" placeholder="yyyy-mm-dd"
                                     pattern="\d{4}-\d{2}-\d{2}" aria-describedby="calendarHelp"
                                     data-options='{"dateFormat":"Y-m-d","disableMobile":true, "minDate": "today"}' required
-                                    value="<?php echo $activity['start_date']; ?>" />
+                                    value="<?php echo $activity['start_date']; ?>" <?php echo ($activity['status'] === 'Ongoing') ? 'disabled' : ''; ?> />
                                 <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
                                 <div class="invalid-feedback">Enter a valid start date.</div>
                             </div>
+
+                            <!-- Hidden input field to store the date value -->
+                            <input type="hidden" name="date_start" value="<?php echo $activity['start_date']; ?>" <?php echo $activity['status'] == 'Upcoming' ? 'disabled' : ''; ?> />
                         </div>
 
                         <!-- End Date Section -->
@@ -96,10 +99,14 @@
                                 <input class="form-control datetimepicker" id="date_end" type="text" name="date_end" placeholder="yyyy-mm-dd"
                                     pattern="\d{4}-\d{2}-\d{2}" aria-describedby="calendarHelp"
                                     data-options='{"dateFormat":"Y-m-d","disableMobile":true}' required
-                                    value="<?php echo $activity['end_date']; ?>" />
+                                    value="<?php echo $activity['end_date']; ?>" <?php echo ($activity['status'] === 'Ongoing') ? 'disabled' : ''; ?> />
                                 <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
                                 <div class="invalid-feedback" id="date-error">End date must be greater than or equal to the start date.</div>
                             </div>
+
+                            <!-- Hidden input field to store the date value -->
+                            <input type="hidden" name="date_end" value="<?php echo $activity['end_date']; ?>" <?php echo $activity['status'] == 'Upcoming' ? 'disabled' : ''; ?> />
+
                         </div>
                     </div>
                 </div>
@@ -140,7 +147,7 @@
                         <label class="form-label mb-0 me-3" for="registration-fee-switch">Has Registration Fee?</label>
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="registration-fee-switch"
-                                <?php if (!empty($activity['registration_fee']) && $activity['registration_fee'] != '0') echo 'checked'; ?> />
+                                <?php if (!empty($activity['registration_fee']) && $activity['registration_fee'] != '0') echo 'checked'; ?> <?= ($activity['status'] === 'Ongoing') ? 'disabled' : ''; ?> />
                             <label class="form-check-label mb-0" for="registration-fee-switch">Yes</label>
                         </div>
                     </div>
@@ -157,18 +164,23 @@
                                     placeholder="yyyy-mm-dd" name="registration_deadline"
                                     pattern="\d{4}-\d{2}-\d{2}" aria-describedby="calendarHelp"
                                     data-options='{"dateFormat":"Y-m-d","disableMobile":true, "minDate": "today"}'
-                                    value="<?php echo $activity['registration_deadline']; ?>" />
+                                    value="<?php echo date('Y-m-d', strtotime($activity['registration_deadline'])); ?>"
+                                    <?php echo ($activity['status'] === 'Ongoing') ? 'disabled' : ''; ?> />
                                 <span class="input-group-text" id="calendar-icon" title="Pick a date">
                                     <i class="fas fa-calendar-alt"></i>
                                 </span>
                             </div>
+
+                            <!-- Hidden input field to store the date value -->
+                            <input type="hidden" name="registration_deadline" value="<?php echo $activity['registration_deadline']; ?>" <?php echo $activity['status'] == 'Upcoming' ? 'disabled' : ''; ?> />
+
                             <div class="invalid-feedback" id="registration-deadline-feedback">
                                 Please enter a registration deadline before the start date.
                             </div>
 
                             <label class="form-label mt-3" for="registration-fee">Registration Fee</label>
                             <input class="form-control" id="registration-fee" type="text" placeholder="₱ 00.00"
-                                name="registration_fee" value="<?php echo $activity['registration_fee']; ?>" />
+                                name="registration_fee" value="<?php echo $activity['registration_fee']; ?>" <?= ($activity['status'] === 'Ongoing') ? 'readonly' : ''; ?> />
                         </div>
 
                         <!-- Right Column: QR Code Upload & Preview -->
@@ -189,7 +201,7 @@
                                     style="font-size: 2rem;"></i>
                             </div>
 
-                            <input type="file" id="qr-upload" name="qrcode" accept="image/*" class="d-none" />
+                            <input type="file" id="qr-upload" name="qrcode" accept="image/*" class="d-none" <?= ($activity['status'] === 'Ongoing') ? 'readonly' : ''; ?> />
 
                             <p id="qr-placeholder-text" class="text-muted <?php echo !empty($activity['qr_code']) ? 'd-none' : ''; ?>">
                                 No QR Code uploaded
@@ -217,7 +229,7 @@
                         <div class="mb-3">
                             <label class="form-label" for="fines">Fines <span class="text-danger">*</span></label>
                             <input class="form-control" id="fines" type="text" placeholder="₱ 00.00" name="fines"
-                                pattern="^\₱\s?\d+(?:,\d{3})*(?:\.\d{2})?$" required value="<?php echo $activity['fines']; ?>" />
+                                pattern="^\₱\s?\d+(?:,\d{3})*(?:\.\d{2})?$" required value="<?php echo $activity['fines']; ?>" <?= ($activity['status'] === 'Ongoing') ? 'readonly' : ''; ?> />
                             <div class="invalid-feedback">Enter a valid fines amount.</div>
                         </div>
                         <div class="form-text"><i>* Note: Input the fines amount per attendance.</i></div>
@@ -230,14 +242,15 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label" for="audience">Audience</label>
-                            <select class="form-control" id="audience" name="audience">
-                                <option value="All" <?php echo ($activity['audience'] == 0) ? 'selected' : ''; ?>>All</option>
-                                <?php foreach ($dept as $depts) : ?>
-                                    <option value="<?php echo $depts->dept_name; ?>"
-                                        <?php echo ($depts->dept_name == $activity['audience']) ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($depts->dept_name); ?>
-                                    </option>
-                                <?php endforeach; ?>
+                            <input type="hidden" value="<?php echo $this->session->userdata('dept_name') ?: $this->session->userdata('org_name'); ?>" name="audience">
+                            <select class="form-control" id="audience" name="audience"
+                                <?= ($activity['status'] === 'Ongoing') ? 'disabled' : ''; ?>>
+                                <?php
+                                $name = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+                                ?>
+                                <option value="<?php echo $name; ?>">
+                                    <?php echo $name; ?>
+                                </option>
                             </select>
                         </div>
                         <div class="form-text"><i>* Note: Select the target audience of the activity.</i></div>
@@ -363,11 +376,6 @@
             }
         });
     });
-
-
-
-
-
 
     document.addEventListener("DOMContentLoaded", function() {
         let timeSlotsContainer = document.getElementById("time_slots_container");
@@ -556,62 +564,67 @@
 
 <script>
     $(document).ready(function() {
-        // Handle Activity Edit Form Submission
+        // Handle Activity Edit Form Submission with confirmation
         $('#activityEdit').on('submit', function(e) {
             e.preventDefault(); // Prevent default form submission
 
-            var formData = new FormData(this);
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "Do you want to save these changes?",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, save it!',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    var formData = new FormData(this);
 
-            $.ajax({
-                url: '<?php echo site_url('officer/edit-activity/update/') . $activity['activity_id']; ?>',
-                type: 'POST',
-                data: formData,
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status === 'error') {
-                        // Show error notification using SweetAlert2
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: response.errors,
-                            showConfirmButton: true,
-                            timer: 3000
-                        });
-                    } else if (response.status === 'success') {
-                        // Show success notification using SweetAlert2
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success',
-                            text: response.message,
-                            showConfirmButton: false,
-                            timer: 2000
-                        });
+                    $.ajax({
+                        url: '<?php echo site_url('officer/edit-activity/update/') . $activity['activity_id']; ?>',
+                        type: 'POST',
+                        data: formData,
+                        contentType: false,
+                        processData: false,
+                        dataType: 'json',
+                        success: function(response) {
+                            if (response.status === 'error') {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: response.errors,
+                                    showConfirmButton: true,
+                                    timer: 3000
+                                });
+                            } else if (response.status === 'success') {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Success',
+                                    text: response.message,
+                                    showConfirmButton: false,
+                                    timer: 2000
+                                });
 
-                        // Optional: Redirect after showing the success message
-                        setTimeout(function() {
-                            window.location.href = response.redirect;
-                        }, 2000);
-                    }
-                },
-                error: function() {
-                    // Handle AJAX errors
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Oops...',
-                        text: 'Something went wrong, please try again!',
-                        showConfirmButton: true
+                                setTimeout(function() {
+                                    window.location.href = response.redirect;
+                                }, 2000);
+                            }
+                        },
+                        error: function() {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Oops...',
+                                text: 'Something went wrong, please try again!',
+                                showConfirmButton: true
+                            });
+                        }
                     });
                 }
             });
         });
     });
 </script>
-
-
-
-
 
 <script>
     // SCRIPT FOR THE FIELDS ACCEPTING NUMBERS ONLY

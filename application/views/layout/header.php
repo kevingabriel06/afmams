@@ -487,6 +487,8 @@
 										<a class="dropdown-item fw-bold text-warning"><span>Officer Account</span></a>
 										<div class="dropdown-divider"></div>
 										<a class="dropdown-item" href="<?php echo site_url('officer/profile-settings') ?>">Profile Settings</a>
+										<a class="dropdown-item" href="<?php echo site_url('officer/manage-officers'); ?> ">Manage Officers</a>
+										<a class="dropdown-item" href="<?php echo site_url('officer/general-settings'); ?>">General Settings</a>
 										<div class="dropdown-divider"></div>
 										<a class="dropdown-item" href="#" onclick="confirmLogout()">Logout</a>
 									</div>

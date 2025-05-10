@@ -198,7 +198,7 @@ class Officer_model extends CI_Model
     // LISTING AND VIEWING OF ACTIVITY
     public function get_activities()
     {
-        $organizer = $this->session->userdata('dept_name');
+        $organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
 
         $this->db->select('a.*, MIN(ats.date_time_in) as first_schedule'); // Pick the earliest schedule
         $this->db->from('activity a');
@@ -355,7 +355,7 @@ class Officer_model extends CI_Model
     // LIST OF EVALUATION FORM
     public function evaluation_form()
     {
-        $organizer = $this->session->userdata('dept_name');
+        $organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
 
         $this->db->select('*');
         $this->db->from('forms');
@@ -368,7 +368,7 @@ class Officer_model extends CI_Model
     // FETCHING ACTIVITIES
     public function activity_organized()
     {
-        $organizer = $this->session->userdata('dept_name');
+        $organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
 
         $this->db->select('activity.*');  // Select all columns from the activity table
         $this->db->from('activity');
@@ -400,7 +400,7 @@ class Officer_model extends CI_Model
 
     public function get_evaluation_by_id($form_id)
     {
-        $this->db->select('*'); // Select form & activity details
+        $this->db->select('activity.*, forms.*'); // Select form & activity details
         $this->db->from('forms');
         $this->db->join('activity', 'activity.activity_id = forms.activity_id');
         $this->db->where('forms.form_id', $form_id);
@@ -472,6 +472,7 @@ class Officer_model extends CI_Model
             $this->db->select('student_id');
             $this->db->from('attendance');
             $this->db->where('activity_id', $activity_id);
+            $this->db->where('attendance_status', 'Present');
             $query = $this->db->get();
 
             return $query->num_rows();
@@ -492,7 +493,6 @@ class Officer_model extends CI_Model
     {
         $this->db->select('formfields.form_id, formfields.form_fields_id, formfields.label AS question, 
                        AVG(response_answer.answer) AS avg_rating, 
-                       SUM(CASE WHEN response_answer.answer = 5 THEN 1 ELSE 0 END) AS five_star,
                        SUM(CASE WHEN response_answer.answer = 4 THEN 1 ELSE 0 END) AS four_star,
                        SUM(CASE WHEN response_answer.answer = 3 THEN 1 ELSE 0 END) AS three_star,
                        SUM(CASE WHEN response_answer.answer = 2 THEN 1 ELSE 0 END) AS two_star,
@@ -565,8 +565,9 @@ class Officer_model extends CI_Model
     // FETCHING EXCUSE LETTER PER STUDENT
     public function review_letter($excuse_id)
     {
-        $this->db->select('excuse_application.*, users.*');
+        $this->db->select('excuse_application.*, users.*, department.dept_name, activity.status AS act_status');
         $this->db->from('excuse_application');
+        $this->db->join('activity', 'activity.activity_id = excuse_application.activity_id');
         $this->db->join('users', 'excuse_application.student_id = users.student_id');
         $this->db->join('department', 'users.dept_id = department.dept_id');
         $this->db->where('excuse_application.excuse_id', $excuse_id); // Add condition to filter by excuse_id
@@ -614,17 +615,32 @@ class Officer_model extends CI_Model
     }
 
     // GETTING POST DETAILS AND AUTHOR *
-    public function get_all_posts($limit, $offset)
+    public function get_all_posts()
     {
+        $user_dept_id = $this->session->userdata('dept_id');
+        $user_org_id = $this->session->userdata('org_id');
+
         $this->db->select('*');
         $this->db->from('post');
         $this->db->join('users', 'post.student_id = users.student_id', 'left');
         $this->db->join('department', 'department.dept_id = post.dept_id', 'left');
         $this->db->join('organization', 'organization.org_id = post.org_id', 'left');
-        $this->db->order_by('post.post_id', 'DESC');
 
-        // Add LIMIT and OFFSET for pagination
-        $this->db->limit($limit, $offset);
+        // WHERE condition to show:
+        // - Public posts
+        // - Private posts only if user belongs to the same dept or org
+        $this->db->group_start(); // Start bracket
+        $this->db->where('post.privacy', 'Public');
+        $this->db->or_group_start(); // OR (start)
+        $this->db->where('post.privacy', 'Private');
+        $this->db->group_start(); // AND (user matches org or dept)
+        $this->db->where('post.dept_id', $user_dept_id);
+        $this->db->or_where('post.org_id', $user_org_id);
+        $this->db->group_end(); // end of AND (org or dept match)
+        $this->db->group_end(); // end of OR
+        $this->db->group_end(); // End bracket
+
+        $this->db->order_by('post.post_id', 'DESC');
 
         $query = $this->db->get();
         return $query->result();
@@ -632,21 +648,28 @@ class Officer_model extends CI_Model
 
     public function get_activities_upcoming()
     {
+        $organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+
         $this->db->select('*');
         $this->db->from('activity');
         $this->db->where('status', 'Upcoming');
+        $this->db->where('organizer', $organizer);
 
         $query = $this->db->get();
         return $query->result();
     }
 
-    public function get_shared_activities($limit, $offset)
+    public function get_shared_activities()
     {
+        $organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+
         $this->db->select('*');
         $this->db->from('activity');
         $this->db->where('is_shared', 'Yes');
+        $this->db->where('organizer', $organizer);
+        $this->db->or_where('organizer', 'Student Parliament');
         $this->db->order_by('updated_at', 'DESC'); // Sort by newest activity first
-        $this->db->limit($limit, $offset); // Apply pagination
+        //$this->db->limit($limit, $offset); // Apply pagination
 
         $query = $this->db->get();
         return $query->result();
@@ -1325,19 +1348,55 @@ class Officer_model extends CI_Model
 
     public function flash_fines()
     {
-        $organizer = $this->session->userdata('dept_name');
+        // Get dept_id and org_id from session
+        $dept_id = $this->session->userdata('dept_id');
+        $org_id = $this->session->userdata('org_id');
+        $organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
 
-        $this->db->select('*');
+        // Start building the query
+        $this->db->select('users.student_id, users.first_name, users.last_name, department.dept_name, organization.org_name, fines_summary.*, fines.*, activity.activity_id, activity.activity_title');
         $this->db->from('fines_summary');
-        $this->db->join('users', 'users.student_id = fines_summary.student_id'); // Fixed join condition
-        $this->db->join('department', 'department.dept_id = users.dept_id');
-        $this->db->join('fines', 'fines.student_id = fines_summary.student_id'); // Ensures fines are matched by both activity_id and student_id
-        $this->db->join('activity', 'activity.activity_id = fines.activity_id'); // Fixed join condition
-        $this->db->where('activity.organizer', $organizer); // Apply correct where condition
-        $this->db->order_by('users.student_id, activity.activity_id'); // Order by student and then event/activity
 
+        // Join with users to get student details
+        $this->db->join('users', 'users.student_id = fines_summary.student_id', 'left');
+
+        // Join with department table to get dept_name
+        $this->db->join('department', 'department.dept_id = users.dept_id', 'left');
+
+        // Join with student_org table to get org_name
+        $this->db->join('student_org', 'student_org.student_id = users.student_id', 'left');
+        $this->db->join('organization', 'organization.org_id = student_org.org_id', 'left');
+
+        // Join with fines table to get the fines details
+        $this->db->join('fines', 'fines.student_id = fines_summary.student_id', 'left'); // Ensure fines are matched by student_id
+
+        // Join with activity table to get the activity related to the fine
+        $this->db->join('activity', 'activity.activity_id = fines.activity_id', 'left'); // Get activity details
+
+        // Apply condition for activity organizer (check if it's "Student Parliament")
+        $this->db->where('activity.organizer', $organizer); // Apply correct where condition
+
+        // Apply conditions for either dept_id or org_id based on session
+        $this->db->group_start(); // Start grouping for OR conditions
+
+        // Check if dept_id is available in session and apply the filter
+        if (!empty($dept_id)) {
+            $this->db->where('users.dept_id', $dept_id); // Filter by department
+        }
+
+        // Check if org_id is available in session and apply the filter
+        if (!empty($org_id)) {
+            $this->db->or_where('student_org.org_id', $org_id); // Filter by organization
+        }
+
+        $this->db->group_end(); // End grouping for OR conditions
+
+        // Order by student_id and activity_id (or any other preference)
+        $this->db->order_by('users.student_id, activity.activity_id');
+
+        // Execute the query and return the result
         $query = $this->db->get();
-        return $query->result_array(); // Return result as an array
+        return $query->result_array(); // Return the result as an array
     }
 
     public function verify_reference($student_id, $reference_number)
@@ -1487,20 +1546,33 @@ class Officer_model extends CI_Model
     // MANAGE OFFICER AND PRIVILEGE
     public function manage_privilege()
     {
-        // Select the columns you need
-        $this->db->select('privilege.*, users.*');  // Adjust the columns to your need
+        $dept_id = $this->session->userdata('dept_id');
+        $org_id = $this->session->userdata('org_id');
+
+        $this->db->select('privilege.*, users.*, department.dept_name, organization.org_name');
         $this->db->from('privilege');
-        $this->db->join('users', 'users.student_id = privilege.student_id', 'left');  // Adjust join type as necessary
+        $this->db->join('users', 'users.student_id = privilege.student_id', 'left');
+        $this->db->join('department', 'department.dept_id = users.dept_id', 'left');
+        $this->db->join('student_org', 'student_org.student_id = users.student_id', 'left');
+        $this->db->join('organization', 'organization.org_id = student_org.org_id', 'left');
 
-        // Execute the query
+        // Apply filters based on dept or org
+        if (!empty($dept_id)) {
+            $this->db->where('users.dept_id', $dept_id);
+            $this->db->where('users.is_officer_dept', 'Yes');
+        } elseif (!empty($org_id)) {
+            $this->db->where('student_org.org_id', $org_id);
+            $this->db->where('student_org.is_officer', 'Yes');
+        }
+
         $query = $this->db->get();
-
-        // Return the results
         return $query->result();
     }
 
     public function update_privileges($privileges_data)
     {
+        $this->db->trans_start(); // Start a transaction
+
         foreach ($privileges_data as $privilege) {
             if (!isset($privilege['privilege_id'])) {
                 continue; // Skip if privilege_id is missing
@@ -1508,32 +1580,26 @@ class Officer_model extends CI_Model
 
             $data = [];
 
-            // Only update columns that are set in the privilege data
-            if (isset($privilege['manage_fines'])) {
-                $data['manage_fines'] = $privilege['manage_fines'] === 'Yes' ? 'Yes' : 'No';
-            }
-            if (isset($privilege['manage_evaluation'])) {
-                $data['manage_evaluation'] = $privilege['manage_evaluation'] === 'Yes' ? 'Yes' : 'No';
-            }
-            if (isset($privilege['manage_applications'])) {
-                $data['manage_applications'] = $privilege['manage_applications'] === 'Yes' ? 'Yes' : 'No';
-            }
-            if (isset($privilege['able_scan'])) {
-                $data['able_scan'] = $privilege['able_scan'] === 'Yes' ? 'Yes' : 'No';
-            }
-            if (isset($privilege['able_create_activity'])) {
-                $data['able_create_activity'] = $privilege['able_create_activity'] === 'Yes' ? 'Yes' : 'No';
+            // Prepare data based on incoming privilege values
+            foreach (['manage_fines', 'manage_evaluation', 'manage_applications', 'able_scan', 'able_create_activity'] as $field) {
+                if (isset($privilege[$field])) {
+                    $data[$field] = $privilege[$field] === 'Yes' ? 'Yes' : 'No';
+                }
             }
 
-            // Only proceed if there's at least one column to update
+            // Update only if there's data to update
             if (!empty($data)) {
                 $this->db->where('privilege_id', $privilege['privilege_id']);
                 $this->db->update('privilege', $data);
             }
         }
 
-        return $this->db->affected_rows() > 0;
+        $this->db->trans_complete(); // Complete the transaction
+
+        // Return whether any rows were updated
+        return $this->db->trans_status();
     }
+
 
     public function get_qr_code_by_student_id($student_id)
     {
@@ -1741,6 +1807,37 @@ class Officer_model extends CI_Model
         $this->db->where('student_id', $student_id);
         $this->db->where('activity_id', $activity_id); // Ensure correct activity
         return $this->db->update('fines', ['is_paid' => $status]); // Update only one record
+    }
+
+    public function get_officer()
+    {
+        $dept_id = $this->session->userdata('dept_id');
+        $org_id = $this->session->userdata('org_id');
+
+        $this->db->select('users.*, department.dept_name, organization.org_name');
+        $this->db->from('users');
+
+        // Join for department info
+        $this->db->join('department', 'department.dept_id = users.dept_id', 'left');
+
+        // Join for organization info
+        $this->db->join('student_org', 'student_org.student_id = users.student_id', 'left');
+        $this->db->join('organization', 'organization.org_id = student_org.org_id', 'left');
+
+        // Common officer filter
+        $this->db->where('users.role', 'Officer');
+
+        // Conditional filtering for department or organization officer
+        if (!empty($dept_id)) {
+            $this->db->where('users.dept_id', $dept_id);
+            $this->db->where('users.is_officer_dept', 'Yes');
+        } elseif (!empty($org_id)) {
+            $this->db->where('student_org.org_id', $org_id);
+            $this->db->where('student_org.is_officer', 'Yes');
+        }
+
+        $query = $this->db->get();
+        return $query->result();
     }
 
     public function get_officer_dept()

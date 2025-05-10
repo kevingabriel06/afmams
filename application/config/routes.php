@@ -190,7 +190,7 @@ $route['admin/profile/get_qr_code_by_student'] = 'AdminController/get_qr_code_by
 
 // MANAGE OFFICER AND PRIVILEGE
 $route['admin/manage-officers'] = 'AdminController/manage_officers';
-$route['admin/manage-officers-department/(:num)'] = 'AdminController/list_officers_dept/$1';
+$route['admin/manage-officers-department/(:num)'] = 'AdminController/list_officers/$1';
 $route['admin/manage-officers-department/update_privileges'] = 'AdminController/update_privileges_dept';
 $route['admin/manage-officers-department/delete-officer'] = 'AdminController/delete_officer_dept';
 $route['admin/manage-officers-organization/(:num)'] = 'AdminController/list_officers_org/$1';
@@ -285,12 +285,9 @@ $route['officer/profile/update-profile'] = 'OfficerController/update_profile';
 $route['officer/profile/update_password'] = 'OfficerController/update_password';
 $route['officer/profile/get_qr_code_by_student'] = 'OfficerController/get_qr_code_by_student';
 
-
-$route['officer/manage-officers'] = 'OfficerController/manage_officers';
-$route['officer/manage-officers-department/(:num)'] = 'OfficerController/list_officers_dept/$1';
-$route['officer/manage-officers-department/update_privileges']['post'] = 'OfficerController/update_privileges';
-$route['officer/manage-officers-organization/(:num)'] = 'OfficerController/list_officers_org/$1';
-$route['officer/manage-officers-organization/update_status']['post'] = 'OfficerController/update_status_org';
+$route['officer/manage-officers'] = 'OfficerController/list_officers';
+$route['officer/manage-officers/update_privileges'] = 'OfficerController/update_privileges';
+$route['officer/manage-officers/delete-officer'] = 'OfficerController/delete_officer_dept';
 
 $route['officer/general-settings'] = 'OfficerController/general_settings';
 $route['officer/import-students'] = 'OfficerController/import_list';
