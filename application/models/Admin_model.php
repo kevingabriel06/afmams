@@ -2107,6 +2107,32 @@ class Admin_model extends CI_Model
 	}
 
 
+	public function get_current_logo($user)
+	{
+		if ($user['role'] === 'Admin') {
+			$settings = $this->db->get('student_parliament_settings')->row();
+			return $settings && $settings->logo ? $settings->logo : null;
+		} elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+			$org = $this->db
+				->select('o.logo')
+				->from('organization o')
+				->join('student_org so', 'so.org_id = o.org_id')
+				->where('so.student_id', $user['student_id'])
+				->get()
+				->row();
+			return $org && $org->logo ? $org->logo : null;
+		} elseif ($user['role'] === 'Officer' && $user['is_officer_dept'] === 'Yes') {
+			$dept = $this->db->get_where('department', ['dept_id' => $user['dept_id']])->row();
+			return $dept && $dept->logo ? $dept->logo : null;
+		}
+
+		return null;
+	}
+
+
+
+
+
 	public function save_header_footer($files)
 	{
 		$user = $this->session->userdata(); // assumes session holds user data
@@ -2177,5 +2203,37 @@ class Admin_model extends CI_Model
 				]);
 			}
 		}
+	}
+
+
+	public function get_current_header_footer($user)
+	{
+		if ($user['role'] === 'Admin') {
+			$settings = $this->db->get('student_parliament_settings')->row();
+			return [
+				'header' => $settings->header ?? null,
+				'footer' => $settings->footer ?? null,
+			];
+		} elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+			$org = $this->db
+				->select('o.header, o.footer')
+				->from('organization o')
+				->join('student_org so', 'so.org_id = o.org_id')
+				->where('so.student_id', $user['student_id'])
+				->get()
+				->row();
+			return [
+				'header' => $org->header ?? null,
+				'footer' => $org->footer ?? null,
+			];
+		} elseif ($user['role'] === 'Officer' && $user['is_officer_dept'] === 'Yes') {
+			$dept = $this->db->get_where('department', ['dept_id' => $user['dept_id']])->row();
+			return [
+				'header' => $dept->header ?? null,
+				'footer' => $dept->footer ?? null,
+			];
+		}
+
+		return ['header' => null, 'footer' => null];
 	}
 }

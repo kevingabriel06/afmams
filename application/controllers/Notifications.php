@@ -36,9 +36,18 @@ class Notifications extends CI_Controller
 	}
 
 
-	public function mark_as_read($notification_id)
+	public function mark_all_as_read()
 	{
-		$this->load->model('Notification_model');
-		$this->Notification_model->mark_as_read($notification_id);
+		$student_id = $this->input->post('student_id');
+		$role = $this->input->post('role');
+
+		if ($role === 'Student') {
+			$this->db->where('recipient_student_id', $student_id);
+		} else if ($role === 'Admin') {
+			$this->db->where('recipient_admin_id', $student_id); // or admin_id if stored differently
+		}
+
+		$this->db->update('notifications', ['is_read' => 1]);
+		echo json_encode(['status' => 'success']);
 	}
 }

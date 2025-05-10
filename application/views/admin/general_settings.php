@@ -513,6 +513,29 @@
 				</div>
 			</div>
 
+
+			<!-- Verify Receipt -->
+			<div class="col-md-6">
+				<div class="border rounded p-3 h-100 d-flex flex-column justify-content-between position-relative">
+					<div class="d-flex">
+						<div class="me-3">
+							<span class="fs-4 text-info"><i class="fas fa-receipt"></i></span>
+						</div>
+						<div>
+							<h6 class="mb-1 fw-bold">Verify Receipt</h6>
+							<p class="mb-0 text-muted small">
+								Search for and validate a receipt by reference number.
+							</p>
+						</div>
+					</div>
+					<div class="d-flex justify-content-end gap-2 mt-3">
+						<!-- Example trigger to open a modal or redirect to a verify receipt page -->
+						<a href="<?= base_url('admin/verify-receipt-page') ?>" class="btn btn-sm btn-outline-success">Go</a>
+					</div>
+				</div>
+			</div>
+
+
 			<script>
 				$('#addOrganizationForm').on('submit', function(e) {
 					e.preventDefault();
@@ -781,6 +804,16 @@
 					</select>
 				</div>
 
+				<!-- Show Current Header -->
+				<?php if (!empty($current_header) && file_exists($current_header)): ?>
+					<div class="mb-3">
+						<label class="form-label">Current Header:</label>
+						<div>
+							<img src="<?= base_url($current_header) ?>" alt="Current Header" style="max-width: 100%; height: auto;">
+						</div>
+					</div>
+				<?php endif; ?>
+
 				<!-- Header Upload -->
 				<div class="mb-3">
 					<label for="headerFile" class="form-label">Upload Header Image:</label>
@@ -794,6 +827,17 @@
 						<img id="headerPreview" src="" alt="Header Preview" style="max-width: 100%; height: auto;">
 					</div>
 				</div>
+
+
+				<!-- Show Current Footer -->
+				<?php if (!empty($current_footer) && file_exists($current_footer)): ?>
+					<div class="mb-3">
+						<label class="form-label">Current Footer:</label>
+						<div>
+							<img src="<?= base_url($current_footer) ?>" alt="Current Footer" style="max-width: 100%; height: auto;">
+						</div>
+					</div>
+				<?php endif; ?>
 
 				<!-- Footer Upload -->
 				<div class="mb-3">
@@ -830,7 +874,7 @@
 
 
 <script>
-	// Header preview logic
+	// Header input preview
 	document.getElementById('headerFile').addEventListener('change', function(e) {
 		const file = e.target.files[0];
 		if (file) {
@@ -838,12 +882,14 @@
 			reader.onload = function(event) {
 				document.getElementById('headerPreview').src = event.target.result;
 				document.getElementById('headerPreviewContainer').style.display = 'block';
+				document.getElementById('paperHeader').innerHTML = `<img src="${event.target.result}" style="width: 100%; height: auto;">`;
+				document.getElementById('paperPreviewContainer').style.display = 'block';
 			};
 			reader.readAsDataURL(file);
 		}
 	});
 
-	// Footer preview logic
+	// Footer input preview
 	document.getElementById('footerFile').addEventListener('change', function(e) {
 		const file = e.target.files[0];
 		if (file) {
@@ -851,6 +897,8 @@
 			reader.onload = function(event) {
 				document.getElementById('footerPreview').src = event.target.result;
 				document.getElementById('footerPreviewContainer').style.display = 'block';
+				document.getElementById('paperFooter').innerHTML = `<img src="${event.target.result}" style="width: 100%; height: auto;">`;
+				document.getElementById('paperPreviewContainer').style.display = 'block';
 			};
 			reader.readAsDataURL(file);
 		}
@@ -894,6 +942,47 @@
 			};
 			reader.readAsDataURL(file);
 		}
+	});
+</script>
+
+<!-- CURRENT HEADER and FOOTER -->
+
+<script>
+	function fetchCurrentHeaderFooter() {
+		$.ajax({
+			url: '<?= base_url('AdminController/get_current_header_footer') ?>',
+			method: 'GET',
+			dataType: 'json',
+			success: function(response) {
+				let hasContent = false;
+
+				if (response.header) {
+					$('#paperHeader').html(`<img src="${response.header}" style="width: 100%; height: auto;">`);
+					hasContent = true;
+				} else {
+					$('#paperHeader').html('<p class="text-muted">No current header uploaded yet.</p>');
+				}
+
+				if (response.footer) {
+					$('#paperFooter').html(`<img src="${response.footer}" style="width: 100%; height: auto;">`);
+					hasContent = true;
+				} else {
+					$('#paperFooter').html('<p class="text-muted">No current footer uploaded yet.</p>');
+				}
+
+				$('#paperPreviewContainer').toggle(true); // Always show the preview
+			},
+			error: function() {
+				$('#paperHeader').html('<p class="text-danger">Failed to load header.</p>');
+				$('#paperFooter').html('<p class="text-danger">Failed to load footer.</p>');
+				$('#paperPreviewContainer').show();
+			}
+		});
+	}
+
+	// Call fetch when modal opens
+	$('#headerFooterModal').on('show.bs.modal', function() {
+		fetchCurrentHeaderFooter();
 	});
 </script>
 
@@ -979,6 +1068,61 @@
 					<label for="logoFile" class="form-label">Choose Logo:</label>
 					<input type="file" name="logo_file" class="form-control" id="logoFile" accept="image/*" required>
 				</div>
+
+
+				<!-- Current Logo Preview -->
+				<div class="mb-3" id="currentLogoContainer">
+					<label class="form-label">Current Logo:</label>
+					<div id="currentLogoWrapper">
+						<p class="text-muted">No current logo yet.</p>
+					</div>
+				</div>
+
+
+				<script>
+					function loadCurrentLogo() {
+						$.ajax({
+							url: "<?= base_url('AdminController/get_current_logo') ?>",
+							method: 'GET',
+							dataType: 'json',
+							success: function(res) {
+								if (res.success) {
+									$('#currentLogoWrapper').html(
+										'<img src="' + res.logo + '" alt="Current Logo" style="max-width: 100%; height: auto;">'
+									);
+								} else {
+									$('#currentLogoWrapper').html(
+										'<p class="text-muted">No current logo yet.</p>'
+									);
+								}
+							},
+							error: function() {
+								console.error("Could not fetch current logo.");
+							}
+						});
+					}
+
+					$(document).ready(function() {
+						$('#logoModal').on('shown.bs.modal', function() {
+							loadCurrentLogo();
+						});
+
+						$('#logoFor').on('change', function() {
+							loadCurrentLogo(); // Just call the function directly
+						});
+					});
+				</script>
+
+
+				<script>
+					$(document).ready(function() {
+						// Reload current logo preview when dropdown changes
+						$('#logoFor').on('change', function() {
+							$('#logoModal').trigger('shown.bs.modal'); // Simulate modal show to refresh the current logo
+						});
+					});
+				</script>
+
 
 				<!-- Image Preview -->
 				<div class="mb-3" id="logoPreviewContainer" style="display: none;">

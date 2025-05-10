@@ -269,7 +269,7 @@
 					<ul class="navbar-nav navbar-nav-icons ms-auto flex-row align-items-center">
 						<!-- NOTIFICATIONS START -->
 						<li class="nav-item dropdown me-2">
-							<a class="nav-link position-relative px-0" id="notificationBell" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+							<a class="nav-link position-relative px-0" id="notificationBell" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" onclick="markNotificationsAsRead()">
 								<i class="fas fa-bell" style="font-size: 24px;"></i>
 								<span id="notificationCount"
 									class="position-absolute badge rounded-circle bg-danger"
@@ -278,19 +278,48 @@
 									<span class="visually-hidden">unread messages</span>
 								</span>
 							</a>
-							<div class="dropdown-menu dropdown-menu-end p-0" style="width: 300px;">
-								<div class="card card-notification shadow-none">
-									<div class="card-header">
+
+							<script>
+								function markNotificationsAsRead() {
+									$.ajax({
+										url: '<?= base_url("Notifications/mark_all_as_read") ?>',
+										method: 'POST',
+										data: {
+											student_id: '<?= $this->session->userdata('student_id') ?>',
+											role: '<?= $this->session->userdata('role') ?>'
+										},
+										success: function(response) {
+											// Optionally refresh the notifications after marking them as read
+											fetchNotifications();
+										},
+										error: function(jqXHR, textStatus, errorThrown) {
+											console.error("Failed to mark notifications as read:", textStatus);
+										}
+									});
+								}
+							</script>
+
+							<div class="dropdown-menu dropdown-menu-end p-0" style="width: 300px; height: 400px; overflow: hidden;">
+
+								<div class="card card-notification shadow-none" style="border: none; margin-bottom: 0; display: flex; flex-direction: column; height: 100%;">
+
+									<div class="card-header" style="padding-bottom: 0; border-bottom: none;">
 										<h6 class="card-header-title mb-0">Notifications</h6>
 									</div>
-									<div style="max-height: 19rem; overflow-y: auto;" class="scrollbar-overlay">
-										<div id="notificationList" class="list-group list-group-flush fw-normal fs-10">
-											<!-- Notifications go here -->
+									<div style="height: 100%; overflow: hidden;">
+										<div id="notificationList"
+											class="list-group list-group-flush fw-normal fs-10"
+											style="max-height: 360px; overflow-y: auto; padding: 0; margin: 0;">
+											<div id="notificationList" class="list-group list-group-flush fw-normal fs-10" style="padding: 0; margin: 0;">
+
+												<!-- Notifications go here -->
+											</div>
 										</div>
 									</div>
 								</div>
-							</div>
 						</li>
+
+
 
 						<!-- NOTIFICATIONS END -->
 
@@ -301,19 +330,21 @@
 									url: '<?= base_url("Notifications/get_notifications") ?>',
 									method: 'GET',
 									data: {
-										student_id: '<?= $this->session->userdata('student_id') ?>', // Pass the student_id from session
-										role: '<?= $this->session->userdata('role') ?>' // Pass the role from session (Student or Admin)
+										student_id: '<?= $this->session->userdata('student_id') ?>',
+										role: '<?= $this->session->userdata('role') ?>'
 									},
 									dataType: 'json',
 									success: function(data) {
-										let count = data.length;
+										let unreadCount = 0;
 										let listHtml = '';
 
-										if (count === 0) {
+										if (data.length === 0) {
 											listHtml = '<div class="text-center text-muted py-3">No notifications</div>';
 										} else {
-											$('#notificationList').empty(); // Clear existing placeholder before appending
+											$('#notificationList').empty();
 											data.forEach(notification => {
+												if (notification.is_read == 0) unreadCount++;
+
 												const profileImg = '<?= base_url("assets/profile/") ?>' + notification.profile_pic;
 												const fullName = notification.first_name + ' ' + notification.last_name;
 												const message = notification.message;
@@ -325,20 +356,53 @@
 													minute: '2-digit'
 												});
 
+												const highlightStyle = notification.is_read == 0 ? 'background-color: #e3f2fd;' : '';
+
 												listHtml += `
-												<a href="${notification.link}" class="list-group-item list-group-item-action d-flex align-items-center ${notification.is_read == 0 ? 'bg-light' : ''}">
-													<img src="${profileImg}" alt="Profile" class="rounded-circle me-2" width="40" height="40">
-													<div>
-														<strong>${fullName}</strong><br>
-														${message}<br>
-														<small class="text-muted">${date}</small>
-													</div>
-												</a>`;
+                        <a href="${notification.link}" 
+                            class="list-group-item list-group-item-action d-flex align-items-center" 
+                            style="${highlightStyle}" 
+                            data-id="${notification.id}">
+                            <img src="${profileImg}" alt="Profile" class="rounded-circle me-2" width="40" height="40">
+                            <div>
+                                <strong>${fullName}</strong><br>
+                                ${message}<br>
+                                <small class="text-muted">${date}</small>
+                            </div>
+                        </a>`;
 											});
 										}
 
-										$('#notificationCount').text(count);
+										if (unreadCount > 0) {
+											$('#notificationCount').text(unreadCount).show();
+										} else {
+											$('#notificationCount').hide();
+										}
+
 										$('#notificationList').html(listHtml);
+
+										// Highlight removal after 10 seconds
+										$('#notificationList .list-group-item').each(function() {
+											if ($(this).css('background-color') === 'rgb(227, 242, 253)') { // #e3f2fd color
+												const $notif = $(this);
+												const id = $notif.data('id');
+
+												setTimeout(() => {
+													$notif.animate({
+														backgroundColor: "#ffffff"
+													}, 500);
+
+													// After 10 seconds, mark as read
+													$.ajax({
+														url: '<?= base_url("Notifications/mark_as_read") ?>',
+														method: 'POST',
+														data: {
+															id: id
+														}
+													});
+												}, 10000); // 10 seconds
+											}
+										});
 									},
 									error: function(jqXHR, textStatus, errorThrown) {
 										console.error("AJAX Error: " + textStatus + " - " + errorThrown);
@@ -347,12 +411,42 @@
 								});
 							}
 
-							// Fetch notifications on page load
+							// Call on page load
 							fetchNotifications();
 
-							// Refresh every 60 seconds (optional)
+							// Optional: Auto-refresh
 							setInterval(fetchNotifications, 60000);
+
+							// Mark as read when clicking a notification
+							$(document).on('click', '#notificationList a', function(e) {
+								e.preventDefault();
+
+								const $notif = $(this);
+								const id = $notif.data('id');
+								const link = $notif.attr('href');
+
+								$notif.animate({
+										backgroundColor: "#ffffff"
+									},
+									500,
+									function() {
+										window.location.href = link;
+									}
+								);
+
+								// Mark as read immediately when clicked (optional behavior)
+								$.ajax({
+									url: '<?= base_url("Notifications/mark_as_read") ?>',
+									method: 'POST',
+									data: {
+										id: id
+									}
+								});
+							});
 						</script>
+
+						<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+
 
 						<!-- //NOTIFICATIONS END -->
 

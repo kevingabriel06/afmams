@@ -274,6 +274,31 @@ class Student_model extends CI_Model
 		$this->update_like_count($post_id); // Update like count in the post table
 	}
 
+	public function get_post_likers($post_id)
+	{
+		$this->db->select('users.student_id, users.first_name, users.last_name');
+		$this->db->from('likes');
+		$this->db->join('users', 'users.student_id = likes.student_id');
+		$this->db->where('likes.post_id', $post_id);
+		$query = $this->db->get();
+		return $query->result(); // array of objects
+	}
+
+
+
+
+
+	//FOR NOTIFICATIONS
+	public function get_post_by_id($post_id)
+	{
+		return $this->db->select('post_id, student_id') // Add other fields if needed
+			->from('post') // Make sure this is your actual posts table name
+			->where('post_id', $post_id)
+			->get()
+			->row();
+	}
+
+
 	// ADDING OF COMMENTS
 	public function add_comment($data = null)
 	{
@@ -721,6 +746,22 @@ class Student_model extends CI_Model
 	}
 
 
+	//for deleting image when excuse is cancelled
+	public function get_excuse_by_id($excuse_id)
+	{
+		return $this->db->get_where('excuse_application', ['excuse_id' => $excuse_id])->row();
+	}
+
+
+	public function delete_excuse_application($excuse_id)
+	{
+		$this->db->where('excuse_id', $excuse_id); // use your primary key name
+		return $this->db->delete('excuse_application'); // table name
+	}
+
+
+
+
 
 
 
@@ -816,8 +857,13 @@ class Student_model extends CI_Model
 			return $org->org_name;
 		}, $orgs);
 
-		// Fetch open forms where the student has not answered yet
-		$this->db->select('forms.*, activity.*');
+		// Fetch open forms where the student has not answered yet or where the response is Pending
+		$this->db->select(' forms.*, activity.*, 
+    IF(
+        forms.status_evaluation = "Completed" AND evaluation_responses.remarks IS NULL, 
+        "Missing", 
+        IFNULL(evaluation_responses.remarks, "Pending")
+    ) AS remarks');
 		$this->db->from('forms');
 		$this->db->join('activity', 'activity.activity_id = forms.activity_id', 'inner');
 		$this->db->join('evaluation_responses', 'evaluation_responses.form_id = forms.form_id AND evaluation_responses.student_id = ' . $this->db->escape($student_id), 'left');
@@ -1276,7 +1322,7 @@ class Student_model extends CI_Model
 	public function get_receipt_by_id($registration_id)
 	{
 		$this->db->select('r.*, a.activity_title, r.generated_receipt, u.student_id, 
-                       u.first_name, u.last_name'); // ✅ Include student details
+                       u.first_name, u.last_name, u.middle_name'); // ✅ Include student details
 		$this->db->from('registrations r');
 		$this->db->join('activity a', 'r.activity_id = a.activity_id', 'left');
 		$this->db->join('users u', 'r.student_id = u.student_id', 'left'); // ✅ Join users table
@@ -1305,7 +1351,7 @@ class Student_model extends CI_Model
 	public function get_registration_by_code($verification_code)
 	{
 		// Selecting the necessary fields
-		$this->db->select('registrations.student_id, activity.activity_title, registrations.amount_paid, registrations.status, registrations.registered_at');
+		$this->db->select('registrations.student_id, activity.activity_title, registrations.amount_paid, registrations.registration_status, registrations.registered_at');
 		$this->db->from('registrations');
 		$this->db->join('activity', 'activity.activity_id = registrations.activity_id', 'left'); // Ensure left join for activity_title
 		$this->db->where('registrations.verification_code', $verification_code); // Match the verification code

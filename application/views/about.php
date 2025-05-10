@@ -414,7 +414,7 @@
 			<div class="col-md-4 mb-4">
 				<div class="card glass-card text-center h-100 shadow-sm">
 					<div class="card-body d-flex flex-column">
-						<img src="<?= base_url('assets/team/kevin.jpg'); ?>" class="rounded-circle mx-auto mb-3" width="100" height="100" alt="Kevin Gabriel Maranan">
+						<img src="<?= base_url('assets/team/kevin.jpg'); ?>" class="rounded-circle mx-auto mb-3" width="100" height="100" alt="Kevin Gabriel Maranan" style="object-fit: cover;">
 						<h5 class="card-title">Kevin Gabriel Maranan</h5>
 						<p class="text-muted">Lead Programmer</p>
 						<blockquote class="blockquote small fst-italic text-secondary">“Building solutions that scale.”</blockquote>
@@ -430,7 +430,7 @@
 			<div class="col-md-4 mb-4">
 				<div class="card glass-card text-center h-100 shadow-sm">
 					<div class="card-body d-flex flex-column">
-						<img src="<?= base_url('assets/team/jarmaine.jpg'); ?>" class="rounded-circle mx-auto mb-3" width="100" height="100" alt="Jarmaine Neil Mojica">
+						<img src="<?= base_url('assets/team/jarmaine.jpg'); ?>" class="rounded-circle mx-auto mb-3" width="100" height="100" alt="Jarmaine Neil Mojica" style="object-fit: cover;">
 						<h5 class="card-title">Jarmaine Neil Mojica</h5>
 						<p class="text-muted">Project Manager</p>
 						<blockquote class="blockquote small fst-italic text-secondary">“Leading with passion and precision.”</blockquote>
@@ -465,7 +465,7 @@
 			<div class="col-md-4 text-center glass-card p-4 m-2">
 				<div class="card text-center h-100 shadow-sm border rounded-4">
 					<div class="card-body d-flex flex-column">
-						<img src="<?= base_url('assets/team/shiann.jpg'); ?>" class="rounded-circle mx-auto mb-3" width="100" height="100" alt="Shian Nichole Marcos">
+						<img src="<?= base_url('assets/team/shiann.jpg'); ?>" class="rounded-circle mx-auto mb-3" width="100" height="100" alt="Shian Nichole Marcos" style="object-fit: cover;">
 						<h5 class="card-title">Shian Nichole Marcos</h5>
 						<p class="text-muted">Documentation</p>
 						<blockquote class="blockquote small fst-italic text-secondary">“Details make the difference.”</blockquote>
@@ -481,9 +481,9 @@
 			<div class="col-md-4 text-center glass-card p-4 m-2">
 				<div class="card text-center h-100 shadow-sm border rounded-4">
 					<div class="card-body d-flex flex-column">
-						<img src="<?= base_url('assets/team/niwed.jpg'); ?>" class="rounded-circle mx-auto mb-3" width="100" height="100" alt="Niwed Jevett Abad">
+						<img src="<?= base_url('assets/team/niwed.jpg'); ?>" class="rounded-circle mx-auto mb-3" width="100" height="100" alt="Niwed Jevett Abad" style="object-fit: cover;">
 						<h5 class="card-title">Niwed Jevett Abad</h5>
-						<p class="text-muted">Designer</p>
+						<p class="text-muted">Quality Analyst</p>
 						<blockquote class="blockquote small fst-italic text-secondary">“Designing with empathy and elegance.”</blockquote>
 						<div class="mt-auto">
 							<a href="#" class="text-primary mx-1"><i class="fab fa-facebook"></i></a>

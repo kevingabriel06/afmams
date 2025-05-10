@@ -74,4 +74,18 @@ class Notification_model extends CI_Model
 
 		return null;
 	}
+
+
+	public function mark_all_as_read($student_id)
+	{
+		$this->db->where('recipient_student_id', $student_id);
+		$this->db->update('notifications', ['is_read' => 1]);
+	}
+
+	public function delete_notifications_by_reference($reference_id, $type)
+	{
+		$this->db->where('reference_id', $reference_id);
+		$this->db->where('type', $type);
+		return $this->db->delete('notifications');
+	}
 }

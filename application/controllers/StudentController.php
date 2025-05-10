@@ -178,17 +178,78 @@ class StudentController extends CI_Controller
 	{
 		$student_id = $this->session->userdata('student_id');
 
+		// Fetch the post details
+		$post = $this->student->get_post_by_id($post_id); // Make sure this returns the post
+
+		// Check if the post exists
+		if (!$post) {
+			// Handle case where the post does not exist
+			echo json_encode(['status' => 'error', 'message' => 'Post not found']);
+			return;
+		}
+
 		// Check if the user already liked the post
 		if ($this->student->user_has_liked($post_id, $student_id)) {
 			// User already liked, so we will "unlike" the post
 			$this->student->unlike_post($post_id, $student_id);
 			$like_img = base_url() . 'assets/img/icons/spot-illustrations/like-inactive.png';
 			$like_text = 'Like';
+
+			// ❌ Delete the notification when unliked
+			$this->db->delete('notifications', [
+				'sender_student_id' => $student_id,
+				'reference_id' => $post_id,
+				'type' => 'post_liked'
+			]);
 		} else {
 			// User has not liked the post yet, so we will "like" the post
 			$this->student->like_post($post_id, $student_id);
 			$like_img = base_url() . 'assets/img/icons/spot-illustrations/like-active.png';
 			$like_text = 'Liked';
+
+			// Fetch all likers except the current sender and post creator/admin
+			$likers = $this->student->get_post_likers($post_id); // Includes all likers
+			$other_likers = array_filter($likers, function ($liker) use ($student_id, $post) {
+				return $liker->student_id != $student_id && $liker->student_id != $post->student_id; // Exclude post creator/admin
+			});
+			$other_likers = array_values($other_likers); // Reindex array
+			$other_count = count($other_likers);
+
+			// Build message
+			if ($other_count === 0) {
+				$message = 'liked your post.';
+			} else {
+				// Get the first other liker's name
+				$name = ' and ' . $other_likers[0]->first_name . ' ' . $other_likers[0]->last_name;
+
+				// Calculate how many other likers there are
+				$remaining = $other_count - 1;
+
+				// If there are remaining likers, append "and X other(s)"
+				if ($remaining > 0) {
+					$message = $name . ' and ' . $remaining . ' other' . ($remaining > 1 ? 's' : '') . ' liked your post.';
+				} else {
+					// Otherwise, just display the first liker
+					$message = $name . ' liked your post.';
+				}
+			}
+
+
+
+			// ✅ Send notification to post owner (admin or student who posted)
+			if ($post && !empty($post->student_id)) {
+				$this->db->insert('notifications', [
+					'recipient_student_id' => null,
+					'recipient_admin_id'   => $post->student_id,
+					'sender_student_id'    => $student_id,
+					'type'                 => 'post_liked',
+					'reference_id'         => $post_id,
+					'message'              => $message,
+					'is_read'              => 0,
+					'created_at'           => date('Y-m-d H:i:s'),
+					'link'                 => base_url('admin/community/')
+				]);
+			}
 		}
 
 		// Get the updated like count
@@ -201,6 +262,7 @@ class StudentController extends CI_Controller
 			'new_like_count' => $new_like_count
 		]);
 	}
+
 
 	// ADDING COMMENTS
 	public function add_comment()
@@ -225,6 +287,22 @@ class StudentController extends CI_Controller
 				$result = $this->student->add_comment($data);
 				if ($result) {
 					$post_id = $this->input->post('post_id');
+
+					// ✅ Send notification to the post owner
+					$post = $this->student->get_post_by_id($post_id); // You should have this method in your model
+					if ($post && !empty($post->student_id) && $post->student_id !== $this->session->userdata('student_id')) {
+						$this->db->insert('notifications', [
+							'recipient_student_id' => null,
+							'recipient_admin_id'   => $post->student_id,
+							'sender_student_id'    => $this->session->userdata('student_id'),
+							'type'                 => 'commented',
+							'reference_id'         => $post_id,
+							'message'              => 'commented on your post.',
+							'is_read'              => 0,
+							'created_at'           => date('Y-m-d H:i:s'),
+							'link'                 => base_url('admin/community/')
+						]);
+					}
 
 					// Fetch updated comment count
 					$comments_count = $this->student->get_comment_count($post_id);
@@ -947,6 +1025,7 @@ class StudentController extends CI_Controller
 		$this->student->insert_application($data);
 
 
+
 		// Notify Admins (send notifications)
 		$this->load->model('Notification_model');
 		$activity_name = $this->Notification_model->get_activity_name($data['activity_id']) ?? 'Unknown Activity';
@@ -974,6 +1053,38 @@ class StudentController extends CI_Controller
 		// Success response
 		echo json_encode(['status' => 'success', 'message' => 'Your application has been submitted successfully.']);
 	}
+
+
+	public function cancel_excuse_application($excuse_id)
+	{
+		$this->load->model('Student_model');
+		$this->load->model('Notification_model');
+
+		// Step 1: Get the document filename
+		$excuse = $this->Student_model->get_excuse_by_id($excuse_id); // Make sure this function exists
+
+		if ($excuse && !empty($excuse->document)) {
+			$file_path = FCPATH . 'assets/excuseFiles/' . $excuse->document;
+
+			// Step 2: Delete the file if it exists
+			if (file_exists($file_path)) {
+				unlink($file_path); // Delete the file from disk
+			}
+		}
+
+		// Step 3: Delete the excuse application
+		$deleted = $this->Student_model->delete_excuse_application($excuse_id);
+
+		if ($deleted) {
+			$this->Notification_model->delete_notifications_by_reference($excuse_id, 'excuse_submitted');
+
+			echo json_encode(['status' => 'success', 'message' => 'Application cancelled and file deleted.']);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => 'Failed to cancel application.']);
+		}
+	}
+
+
 
 	// OTHER PAGES 
 

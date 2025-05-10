@@ -20,35 +20,57 @@ defined('BASEPATH') or exit('No direct script access allowed');
 require_once(APPPATH . 'third_party/fpdf.php');
 class PDF extends FPDF
 {
+	public $headerImage = '';
+	public $footerImage = '';
+	public $watermarkPath = '';
+
 	function Header()
 	{
-		// Get the full path of the logo image
-		$logoPath = APPPATH . 'third_party/header.jpg'; // Ensure the correct path
+		if (!empty($this->headerImage)) {
+			$pageWidth = $this->GetPageWidth();
+			$this->Image('./uploads/headerandfooter/' . $this->headerImage, 0, 0, $pageWidth, 40);
+			$this->SetY(45);
+		}
+		// Watermark
 
-		// Get page width dynamically
-		$pageWidth = $this->GetPageWidth();
-
-		// Set the image to cover the full width (assuming A4 width is 210mm)
-		$this->Image($logoPath, 0, 0, $pageWidth, 40); // Adjust height as needed
-
-		// Move the cursor below the image to avoid overlapping
-		$this->SetY(45); // Adjust if necessary
+		if (!empty($this->watermarkPath) && file_exists($this->watermarkPath)) {
+			$this->Image($this->watermarkPath, 35, 70, 140, 100, '', '', '', true); // Watermark centered
+		}
 	}
 
 	function Footer()
 	{
-		// Get the full path of the footer image
-		$footerImage = APPPATH . 'third_party/footer.jpg';
+		if (!empty($this->footerImage)) {
+			$pageWidth = $this->GetPageWidth();
+			$pageHeight = $this->GetPageHeight();
+			$this->Image('./uploads/headerandfooter/' . $this->footerImage, 0, $pageHeight - 20, $pageWidth, 20);
+		}
+	}
 
-		// Get page width and height dynamically
-		$pageWidth = $this->GetPageWidth();
-		$pageHeight = $this->GetPageHeight();
-		$footerHeight = 20; // Adjust footer height as needed
-
-		// Position the footer at the exact bottom with no margin
-		$this->Image($footerImage, 0, $pageHeight - $footerHeight, $pageWidth, $footerHeight);
+	// Add transparency support
+	function SetAlpha($alpha, $bm = 'Normal')
+	{
+		// only available with PDF alpha support (FPDI or modified FPDF)
+		if ($this->PDFVersion < '1.4') {
+			$this->PDFVersion = '1.4';
+		}
+		$gs = sprintf('/GS%d gs', 1);
+		$this->_out(sprintf('/GS%d << /ca %.3F /CA %.3F /BM /%s >>', 1, $alpha, $alpha, $bm));
+		$this->_out($gs);
 	}
 }
+
+
+function Footer()
+{
+	if (!empty($this->footerImage)) {
+		$pageWidth = $this->GetPageWidth();
+		$pageHeight = $this->GetPageHeight();
+		$this->Image('./uploads/headerandfooter/' . $this->footerImage, 0, $pageHeight - 20, $pageWidth, 20);
+	}
+}
+
+
 class AdminController extends CI_Controller
 {
 
@@ -173,6 +195,7 @@ class AdminController extends CI_Controller
 					echo json_encode(['status' => 'error', 'errors' => $coverImage['error']]);
 					return;
 				}
+
 				$data['activity_image'] = $coverImage['file_name'];
 			}
 
@@ -438,14 +461,64 @@ class AdminController extends CI_Controller
 
 		$verification_code = strtoupper(substr(md5($registration_id . time()), 0, 8));
 
+		// Step 1: Session role info
+		$user = [
+			'role'             => $this->session->userdata('role'),
+			'student_id'       => $this->session->userdata('student_id'),
+			'is_officer'       => $this->session->userdata('is_officer'),
+			'is_officer_dept'  => $this->session->userdata('is_officer_dept'),
+			'dept_id'          => $this->session->userdata('dept_id'),
+		];
+
+		$headerImage = '';
+		$footerImage = '';
+		$watermarkPath = ''; // default empty
+
+		// Step 2: Dynamic header/footer retrieval
+		if ($user['role'] === 'Admin') {
+			$settings = $this->db->get('student_parliament_settings')->row();
+			if ($settings) {
+				$headerImage = $settings->header;
+				$footerImage = $settings->footer;
+
+				if (!empty($settings->logo)) {
+					$watermarkPath = $settings->logo;
+				}
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+			$org = $this->db->select('organization.header, organization.footer, organization.logo')
+				->join('organization', 'student_org.org_id = organization.org_id')
+				->where('student_org.student_id', $user['student_id'])
+				->get('student_org')->row();
+			if ($org) {
+				$headerImage = $org->header;
+				$footerImage = $org->footer;
+
+				if (!empty($org->logo)) {
+					$watermarkPath = $org->logo;
+				}
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer_dept'] === 'Yes') {
+			$dept = $this->db->select('header, footer, logo')->where('dept_id', $user['dept_id'])->get('department')->row();
+			if ($dept) {
+				$headerImage = $dept->header;
+				$footerImage = $dept->footer;
+
+				if (!empty($dept->logo)) {
+					$watermarkPath = $dept->logo;
+				}
+			}
+		}
+
+
+		// Step 3: Use custom PDF with header/footer support
 		$pdf = new PDF();
+		$pdf->headerImage = $headerImage;
+		$pdf->footerImage = $footerImage;
+		$pdf->watermarkPath = $watermarkPath;
+
 		$pdf->AddPage();
 		$pdf->SetAutoPageBreak(true, 10);
-
-		$watermarkPath = FCPATH . 'application/third_party/receiptlogo.png';
-		if (file_exists($watermarkPath)) {
-			$pdf->Image($watermarkPath, 35, 70, 140, 100, 'PNG');
-		}
 
 		$pdf->SetFont('Arial', 'B', 16);
 		$pdf->Cell(0, 10, 'OFFICIAL RECEIPT', 0, 1, 'C');
@@ -466,7 +539,7 @@ class AdminController extends CI_Controller
 		$pdf->SetFont('Arial', 'B', 10);
 		$pdf->Cell(50, 8, 'Received By:', 0, 0, 'L');
 		$pdf->SetFont('Arial', '', 10);
-		$pdf->Cell(0, 8, strtoupper($receipt_data['student_id'] . ' - ' . $receipt_data['first_name'] . ' ' . $receipt_data['last_name']), 0, 1, 'L');
+		$pdf->Cell(0, 8, strtoupper($receipt_data['student_id'] . ' - ' . $receipt_data['first_name'] . ' ' . $receipt_data['middle_name'] . ' ' . $receipt_data['last_name']), 0, 1, 'L');
 
 		$pdf->Ln(5);
 		$pdf->SetFont('Arial', 'B', 10);
@@ -499,13 +572,14 @@ class AdminController extends CI_Controller
 
 		$pdf->Output($filepath, 'F');
 
-		// ✅ Update the `generated_receipt` and verification code
 		$this->db->where('registration_id', $registration_id);
 		$this->db->update('registrations', [
 			'generated_receipt' => $filename,
 			'remark' => 'Receipt generated.',
+			'verification_code' => $verification_code,
 		]);
 	}
+
 
 	// CASH REGISTRATION
 	public function save_cash_payment()
@@ -585,9 +659,57 @@ class AdminController extends CI_Controller
 		$activity_title = $activity['activity_title'];
 		$registrations = $this->Admin_model->registrations($activity_id);
 
-		// Letter size (8.5 x 11 in), portrait
-		$pdf = new FPDF('P', 'mm', 'Letter');
-		$pdf->SetMargins(5, 10, 5); // Left, Top, Right margins reduced
+		// Manually build the user array from session data
+		$user = [
+			'role'             => $this->session->userdata('role'),
+			'student_id'       => $this->session->userdata('student_id'),
+			'is_officer'       => $this->session->userdata('is_officer'),
+			'is_officer_dept'  => $this->session->userdata('is_officer_dept'),
+			'dept_id'          => $this->session->userdata('dept_id'),
+		];
+
+		if (!$user['role'] || !$user['student_id']) {
+			echo json_encode(['success' => false, 'message' => 'Missing session data.']);
+			return;
+		}
+
+		$headerImage = '';
+		$footerImage = '';
+
+		// Determine correct header/footer based on role
+		if ($user['role'] === 'Admin') {
+			$settings = $this->db->get('student_parliament_settings')->row();
+			if ($settings) {
+				$headerImage = $settings->header;
+				$footerImage = $settings->footer;
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+			$org = $this->db
+				->select('organization.header, organization.footer')
+				->join('organization', 'student_org.org_id = organization.org_id')
+				->where('student_org.student_id', $user['student_id'])
+				->get('student_org')->row();
+			if ($org) {
+				$headerImage = $org->header;
+				$footerImage = $org->footer;
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer_dept'] === 'Yes') {
+			$dept = $this->db
+				->select('header, footer')
+				->where('dept_id', $user['dept_id'])
+				->get('department')->row();
+			if ($dept) {
+				$headerImage = $dept->header;
+				$footerImage = $dept->footer;
+			}
+		}
+
+
+		// Setup PDF using custom class
+		$pdf = new PDF('P', 'mm', 'Letter');
+		$pdf->headerImage = $headerImage; // Set header image
+		$pdf->footerImage = $footerImage; // Set footer image
+		$pdf->SetMargins(10, 10, 10); // standard margins
 		$pdf->AddPage();
 
 		$pdf->SetFont('Arial', 'B', 14);
@@ -622,28 +744,25 @@ class AdminController extends CI_Controller
 
 		// Add padding
 		$padding = 6;
-		foreach ($colWidths as $i => $w) {
-			$colWidths[$i] = $w + $padding;
+		foreach ($colWidths as &$width) {
+			$width += $padding;
 		}
 
-		// Scale if too wide for letter page
-		$pageWidth = 215.9; // Letter width in mm
-		$usableWidth = $pageWidth - 10; // Reduced margins: 5mm left + 5mm right
-		$totalWidth = array_sum($colWidths);
+		// Scale total width to fit printable area (Letter width = 215.9mm, margins = 10mm on each side)
+		$total_content_width = array_sum($colWidths);
+		$usable_page_width = 215.9 - 20; // 10mm margins on each side
+		$scaling_factor = $usable_page_width / $total_content_width;
 
-		if ($totalWidth > $usableWidth) {
-			$scale = $usableWidth / $totalWidth;
-			foreach ($colWidths as $i => $w) {
-				$colWidths[$i] = $w * $scale;
-			}
+		foreach ($colWidths as &$width) {
+			$width = round($width * $scaling_factor, 2); // scale to fit
 		}
 
 		// Center table
-		$startX = (215.9 - array_sum($colWidths)) / 2;
-		$pdf->SetX($startX);
+		$startX = 10 + ($usable_page_width - array_sum($colWidths)) / 2;
 
 		// Header row
 		$pdf->SetFont('Arial', 'B', 9);
+		$pdf->SetX($startX);
 		foreach ($header as $i => $colName) {
 			$pdf->Cell($colWidths[$i], 10, $colName, 1, 0, 'C');
 		}
@@ -660,21 +779,20 @@ class AdminController extends CI_Controller
 				$reg->reference_number,
 				$reg->registration_status
 			];
+
 			$pdf->SetX($startX);
 			foreach ($row as $i => $val) {
-				$pdf->Cell($colWidths[$i], 10, $val, 1, 0, 'C');
+				$pdf->Cell($colWidths[$i], 8, $val, 1, 0, 'C');
 			}
 			$pdf->Ln();
 		}
 
-		// Footer
-		$pdf->SetY(-15);
-		$pdf->SetFont('Arial', 'I', 8);
-		$pdf->Cell(0, 10, 'Generated on ' . date('Y-m-d H:i:s'), 0, 0, 'C');
-
-		$filename = preg_replace('/[^a-zA-Z0-9_\-]/', '_', 'Registered_Participants_' . $activity_title) . '.pdf';
+		// Output PDF
+		$filename = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $activity_title) . '_registered_participants.pdf';
 		$pdf->Output('I', $filename);
 	}
+
+
 
 
 
@@ -979,12 +1097,14 @@ class AdminController extends CI_Controller
 
 		// Prepare form data from POST request
 		$formData = array(
-			'title'       => $this->input->post('formtitle'),
-			'form_description' => $this->input->post('formdescription'),
-			'activity_id' => $this->input->post('activity'),
-			'start_date_evaluation'  => $this->input->post('startdate') ?: date('Y-m-d H:i:s'),
-			'end_date_evaluation'    => $this->input->post('enddate') ?: date('Y-m-d H:i:s', strtotime('+1 week')),
+			'title'              => $this->input->post('formtitle'),
+			'form_description'   => $this->input->post('formdescription'),
+			'activity_id'        => $this->input->post('activity'),
+			'start_date_evaluation' => $this->input->post('startdate') ?: date('Y-m-d H:i:s'),
+			'end_date_evaluation'   => $this->input->post('enddate') ?: date('Y-m-d H:i:s', strtotime('+1 week')),
+			'status_evaluation'     => $this->input->post('status_evaluation'),
 		);
+
 
 		// Handle Cover Image Upload
 		if (!empty($_FILES['coverUpload']['name'])) {
@@ -1067,7 +1187,9 @@ class AdminController extends CI_Controller
 					'reference_id'         => $formId, // Link to the form
 					'message'              => 'uploaded a new evaluation form for the activity "' . $activity->activity_title . '"',
 					'is_read'              => 0,
-					'created_at'           => date('Y-m-d H:i:s')
+					'created_at'           => date('Y-m-d H:i:s'),
+					'link' => base_url('student/evaluation-form/list')
+
 				];
 				$this->db->insert('notifications', $notification_data);
 			}
@@ -1311,6 +1433,8 @@ class AdminController extends CI_Controller
 			'respondent_percentage' => $percentage
 		];
 
+		$data['forms'] = $this->admin->forms($form_id);
+
 		// Load the views
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/activity/eval_statistic', $data);
@@ -1465,7 +1589,50 @@ class AdminController extends CI_Controller
 			return $letter->activity_id == $activity_id;
 		});
 
-		$pdf = new FPDF('P', 'mm', 'Letter');
+
+		$user = [
+			'role'             => $this->session->userdata('role'),
+			'student_id'       => $this->session->userdata('student_id'),
+			'is_officer'       => $this->session->userdata('is_officer'),
+			'is_officer_dept'  => $this->session->userdata('is_officer_dept'),
+			'dept_id'          => $this->session->userdata('dept_id'),
+		];
+
+		$headerImage = '';
+		$footerImage = '';
+
+		if ($user['role'] === 'Admin') {
+			$settings = $this->db->get('student_parliament_settings')->row();
+			if ($settings) {
+				$headerImage = $settings->header;
+				$footerImage = $settings->footer;
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+			$org = $this->db
+				->select('organization.header, organization.footer')
+				->join('organization', 'student_org.org_id = organization.org_id')
+				->where('student_org.student_id', $user['student_id'])
+				->get('student_org')->row();
+			if ($org) {
+				$headerImage = $org->header;
+				$footerImage = $org->footer;
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer_dept'] === 'Yes') {
+			$dept = $this->db
+				->select('header, footer')
+				->where('dept_id', $user['dept_id'])
+				->get('department')->row();
+			if ($dept) {
+				$headerImage = $dept->header;
+				$footerImage = $dept->footer;
+			}
+		}
+
+
+		$pdf = new PDF('P', 'mm', 'Letter');
+		$pdf->headerImage = $headerImage;
+		$pdf->footerImage = $footerImage;
+
 		$pdf->SetMargins(10, 10, 10); // standard margins
 		$pdf->AddPage();
 
@@ -1529,7 +1696,7 @@ class AdminController extends CI_Controller
 			$pdf->Cell($max_widths['status'], 8, $letter->status, 1, 1, 'L');
 		}
 
-		$filename = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $activity['activity_title'] . '_Excuse_Applications') . '.pdf';
+		$filename = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $activity['activity_title'] . '_excuse_applications') . '.pdf';
 		$pdf->Output('I', $filename);
 	}
 
@@ -2284,14 +2451,68 @@ class AdminController extends CI_Controller
 		$timeslots = $this->Admin_model->get_timeslots_by_activity($activity_id);
 		$activity = $this->Admin_model->get_activity_specific($activity_id);
 
+
+
+		// Manually build the user array from session data
+		$user = [
+			'role'             => $this->session->userdata('role'),
+			'student_id'       => $this->session->userdata('student_id'),
+			'is_officer'       => $this->session->userdata('is_officer'),
+			'is_officer_dept'  => $this->session->userdata('is_officer_dept'),
+			'dept_id'          => $this->session->userdata('dept_id'),
+		];
+
+		if (!$user['role'] || !$user['student_id']) {
+			echo json_encode(['success' => false, 'message' => 'Missing session data.']);
+			return;
+		}
+
+		$headerImage = '';
+		$footerImage = '';
+
+		// Determine correct header/footer based on role
+		if ($user['role'] === 'Admin') {
+			$settings = $this->db->get('student_parliament_settings')->row();
+			if ($settings) {
+				$headerImage = $settings->header;
+				$footerImage = $settings->footer;
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+			$org = $this->db
+				->select('organization.header, organization.footer')
+				->join('organization', 'student_org.org_id = organization.org_id')
+				->where('student_org.student_id', $user['student_id'])
+				->get('student_org')->row();
+			if ($org) {
+				$headerImage = $org->header;
+				$footerImage = $org->footer;
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer_dept'] === 'Yes') {
+			$dept = $this->db
+				->select('header, footer')
+				->where('dept_id', $user['dept_id'])
+				->get('department')->row();
+			if ($dept) {
+				$headerImage = $dept->header;
+				$footerImage = $dept->footer;
+			}
+		}
+
+
 		// Setup PDF
-		$pdf = new PDF('L', 'mm', 'A4'); // Use your custom PDF class!
+		$pdf = new PDF('P', 'mm', 'Legal');
+		$pdf->headerImage = $headerImage;
+		$pdf->footerImage = $footerImage;
+		$pdf->SetMargins(10, 10, 10); // standard margins
 		$pdf->AddPage();
 		$pdf->SetFont('Arial', 'B', 14);
 		$pdf->Cell(0, 10, 'Attendance Report - Activity: ' . ($activity ? $activity['activity_title'] : 'N/A'), 0, 1, 'C');
 		$pdf->Ln(5);
 
-		// Prepare columns
+		// Base font for measurements
+		$pdf->SetFont('Arial', '', 8);
+
+		// Headers for the table
 		$header = ['Student ID', 'Name', 'Department'];
 		foreach ($timeslots as $slot) {
 			$period = strtolower($slot->slot_name);
@@ -2301,15 +2522,13 @@ class AdminController extends CI_Controller
 		}
 		$header[] = 'Status';
 
-		// Font for table
-		$pdf->SetFont('Arial', '', 10);
-
-		// Calculate maximum width for each column
-		$colWidths = [];
+		// Measure max content width
+		$max_widths = [];
 		foreach ($header as $col) {
-			$colWidths[] = $pdf->GetStringWidth($col) + 6;
+			$max_widths[] = $pdf->GetStringWidth($col);
 		}
 
+		// Measure content for each row dynamically
 		foreach ($students as $student) {
 			$dataRow = [
 				$student['student_id'],
@@ -2325,39 +2544,37 @@ class AdminController extends CI_Controller
 
 			$dataRow[] = $student['status'];
 
-			foreach ($dataRow as $index => $cell) {
-				$cellWidth = $pdf->GetStringWidth($cell) + 6;
-				if ($cellWidth > $colWidths[$index]) {
-					$colWidths[$index] = $cellWidth;
-				}
+			// Update column widths dynamically based on content
+			foreach ($dataRow as $i => $cell) {
+				$max_widths[$i] = max($max_widths[$i], $pdf->GetStringWidth($cell));
 			}
 		}
 
-		// Normalize total width if too wide
-		$pageWidth = 297 - 20; // A4 landscape - margins
-		$totalWidth = array_sum($colWidths);
-
-		if ($totalWidth > $pageWidth) {
-			$scale = $pageWidth / $totalWidth;
-			foreach ($colWidths as $i => $w) {
-				$colWidths[$i] = $w * $scale;
-			}
-			$totalWidth = array_sum($colWidths);
+		// Add padding to widths
+		$padding = 6;
+		foreach ($max_widths as &$width) {
+			$width += $padding;
 		}
 
-		// Center the table by setting X position
-		$startX = ($pageWidth - $totalWidth) / 2 + 10; // +10 for left margin
-		$pdf->SetX($startX);
+		// Scale total width to fit the Letter page width (usable width = 196mm)
+		$total_content_width = array_sum($max_widths);
+		$usable_page_width = 196;
+		$scaling_factor = $usable_page_width / $total_content_width;
+
+		// Scale column widths
+		foreach ($max_widths as &$width) {
+			$width = round($width * $scaling_factor, 2);
+		}
 
 		// Output table header
-		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->SetFont('Arial', 'B', 9);
 		foreach ($header as $i => $colName) {
-			$pdf->Cell($colWidths[$i], 10, $colName, 1, 0, 'C');
+			$pdf->Cell($max_widths[$i], 8, $colName, 1, 0, 'C');
 		}
 		$pdf->Ln();
 
-		// Table rows
-		$pdf->SetFont('Arial', '', 9);
+		// Output table rows
+		$pdf->SetFont('Arial', '', 8);
 		foreach ($students as $student) {
 			$dataRow = [
 				$student['student_id'],
@@ -2373,11 +2590,9 @@ class AdminController extends CI_Controller
 
 			$dataRow[] = $student['status'];
 
-			// Reset X before each row to keep table centered
-			$pdf->SetX($startX);
-
+			// Output each row
 			foreach ($dataRow as $i => $cell) {
-				$pdf->Cell($colWidths[$i], 10, $cell, 1, 0, 'C');
+				$pdf->Cell($max_widths[$i], 8, $cell, 1, 0, 'L');
 			}
 			$pdf->Ln();
 		}
@@ -2649,17 +2864,66 @@ class AdminController extends CI_Controller
 
 		$fines_data = $this->db->get()->result();
 
+
+		// Manually build the user array from session data
+		$user = [
+			'role'             => $this->session->userdata('role'),
+			'student_id'       => $this->session->userdata('student_id'),
+			'is_officer'       => $this->session->userdata('is_officer'),
+			'is_officer_dept'  => $this->session->userdata('is_officer_dept'),
+			'dept_id'          => $this->session->userdata('dept_id'),
+		];
+
+		if (!$user['role'] || !$user['student_id']) {
+			echo json_encode(['success' => false, 'message' => 'Missing session data.']);
+			return;
+		}
+
+		$headerImage = '';
+		$footerImage = '';
+
+		// Determine correct header/footer based on role
+		if ($user['role'] === 'Admin') {
+			$settings = $this->db->get('student_parliament_settings')->row();
+			if ($settings) {
+				$headerImage = $settings->header;
+				$footerImage = $settings->footer;
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+			$org = $this->db
+				->select('organization.header, organization.footer')
+				->join('organization', 'student_org.org_id = organization.org_id')
+				->where('student_org.student_id', $user['student_id'])
+				->get('student_org')->row();
+			if ($org) {
+				$headerImage = $org->header;
+				$footerImage = $org->footer;
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer_dept'] === 'Yes') {
+			$dept = $this->db
+				->select('header, footer')
+				->where('dept_id', $user['dept_id'])
+				->get('department')->row();
+			if ($dept) {
+				$headerImage = $dept->header;
+				$footerImage = $dept->footer;
+			}
+		}
+
 		// Initialize PDF
-		$pdf = new FPDF();
+		$pdf = new PDF();
+		$pdf->headerImage = $headerImage;
+		$pdf->footerImage = $footerImage;
 		$pdf->AddPage('L'); // Landscape orientation
-		$pdf->SetFont('Arial', 'B', 10); // Use smaller font size
+		$pdf->SetFont('Arial', 'B', 6); // Use smaller font size
 
 		// Title
-		$pdf->Cell(0, 10, 'Student Parliament Fines Report', 0, 1, 'C');
+		$pdf->Cell(0, 8, 'Student Parliament Fines Report', 0, 1, 'C');
 		$pdf->Ln(5);
 
 		// Create an array to store unique activities
 		$activities = [];
+		$activity_widths = [];
 
 		// Loop through fines data to gather unique activity names
 		foreach ($fines_data as $fine) {
@@ -2668,23 +2932,70 @@ class AdminController extends CI_Controller
 			}
 		}
 
-		// Table header
-		$pdf->SetFont('Arial', 'B', 9); // Smaller font for table headers
-		$pdf->Cell(25, 10, 'Student ID', 1);
-		$pdf->Cell(45, 10, 'Name', 1);
-		$pdf->Cell(30, 10, 'Department', 1);
+		// Calculate dynamic column widths for Student ID, Name, Department
+		$max_student_id_width = $pdf->GetStringWidth('Student ID');
+		$max_name_width = $pdf->GetStringWidth('Name');
+		$max_dept_name_width = $pdf->GetStringWidth('Department');
 
-		// Create dynamic columns for each activity
-		foreach ($activities as $activity) {
-			$pdf->Cell(20, 10, $activity, 1);
+		// Loop through fines data to calculate the maximum string width for each column
+		foreach ($fines_data as $fine) {
+			$max_student_id_width = max($max_student_id_width, $pdf->GetStringWidth($fine->student_id));
+			$max_name_width = max($max_name_width, $pdf->GetStringWidth($fine->first_name . ' ' . $fine->last_name));
+			$max_dept_name_width = max($max_dept_name_width, $pdf->GetStringWidth($fine->dept_name));
+
+			foreach ($activities as $activity) {
+				if (!isset($activity_widths[$activity])) {
+					$activity_widths[$activity] = 0;
+				}
+				$activity_widths[$activity] = max($activity_widths[$activity], $pdf->GetStringWidth(isset($fine->activity_title) ? $fine->activity_title : ''));
+			}
 		}
 
-		$pdf->Cell(20, 10, 'Total Fines', 1);
-		$pdf->Cell(20, 10, 'Status', 1);
+		// Add padding to columns
+		$padding = 1;
+		$student_id_width = $max_student_id_width + $padding;
+		$name_width = $max_name_width + $padding;
+		$dept_name_width = $max_dept_name_width + $padding;
+
+		// Adjust activity column widths
+		foreach ($activities as $activity) {
+			$activity_widths[$activity] = max($activity_widths[$activity], $pdf->GetStringWidth($activity)) + $padding;
+		}
+
+		// Calculate the total width of the table
+		$total_width = $student_id_width + $name_width + $dept_name_width + array_sum($activity_widths) + 30; // 30 for the last two columns (Total Fines & Status)
+
+		// Define paper width in landscape mode (297mm)
+		$page_width = 297;
+
+		// If total table width exceeds the page width, scale down the columns proportionally
+		if ($total_width > $page_width) {
+			$scale_factor = $page_width / $total_width;
+			$student_id_width *= $scale_factor;
+			$name_width *= $scale_factor;
+			$dept_name_width *= $scale_factor;
+
+			foreach ($activities as $activity) {
+				$activity_widths[$activity] *= $scale_factor;
+			}
+		}
+
+		// Table header
+		$pdf->Cell($student_id_width, 8, 'Student ID', 1, 0, 'C');
+		$pdf->Cell($name_width, 8, 'Name', 1, 0, 'C');
+		$pdf->Cell($dept_name_width, 8, 'Department', 1, 0, 'C');
+
+		// Dynamic activity columns
+		foreach ($activities as $activity) {
+			$pdf->Cell($activity_widths[$activity], 8, $activity, 1, 0, 'C');
+		}
+
+		$pdf->Cell(15, 8, 'Total Fines', 1, 0, 'C');
+		$pdf->Cell(15, 8, 'Status', 1, 1, 'C');
 		$pdf->Ln();
 
 		// Table body
-		$pdf->SetFont('Arial', '', 8); // Smaller font for data rows
+		$pdf->SetFont('Arial', '', 6); // Smaller font for data rows
 		$current_student_id = null;
 		$student_fines = [];
 
@@ -2693,19 +3004,16 @@ class AdminController extends CI_Controller
 			$full_name = $fine->first_name . ' ' . $fine->last_name;
 
 			if ($fine->student_id != $current_student_id) {
-				// If we're on a new student, output the previous student's data
 				if ($current_student_id != null) {
-					// Fill in activity fines
 					foreach ($activities as $activity) {
-						$pdf->Cell(20, 10, isset($student_fines[$activity]) ? '₱' . number_format($student_fines[$activity], 2) : '₱0.00', 1);
+						$pdf->Cell($activity_widths[$activity], 8, isset($student_fines[$activity]) ? 'PHP ' . number_format($student_fines[$activity], 2) : 'PHP 0.00', 1);
 					}
 
-					// Output the total fines and status for the previous student
 					$total_fines = array_sum($student_fines);
 					$status = $total_fines > 0 ? 'Paid' : 'Unpaid';
 
-					$pdf->Cell(20, 10, '₱' . number_format($total_fines, 2), 1);
-					$pdf->Cell(20, 10, $status, 1);
+					$pdf->Cell(15, 8, 'PHP ' . number_format($total_fines, 2), 1);  // Using 'PHP' as a prefix
+					$pdf->Cell(15, 8, $status, 1);
 					$pdf->Ln();
 				}
 
@@ -2714,34 +3022,35 @@ class AdminController extends CI_Controller
 				$student_fines = [];
 
 				// Output the student details
-				$pdf->Cell(25, 10, $fine->student_id, 1);
-				$pdf->Cell(45, 10, $full_name, 1);
-				$pdf->Cell(30, 10, $fine->dept_name, 1);
+				$pdf->Cell($student_id_width, 8, $fine->student_id, 1);
+				$pdf->Cell($name_width, 8, $full_name, 1);
+				$pdf->Cell($dept_name_width, 8, $fine->dept_name, 1);
 			}
 
 			// Store the fine amount for the corresponding activity
 			$student_fines[$fine->activity_title] = isset($student_fines[$fine->activity_title])
-				? $student_fines[$fine->activity_title] + $fine->amount
+				? $student_fines[$fine->activity_title] + $fine->fines_amount
 				: $fine->fines_amount;
 		}
 
 		// Output the last student's data
 		if ($current_student_id != null) {
 			foreach ($activities as $activity) {
-				$pdf->Cell(20, 10, isset($student_fines[$activity]) ? '₱' . number_format($student_fines[$activity], 2) : '₱0.00', 1);
+				$pdf->Cell($activity_widths[$activity], 8, isset($student_fines[$activity]) ? 'PHP ' . number_format($student_fines[$activity], 2) : 'PHP 0.00', 1);
 			}
 
 			$total_fines = array_sum($student_fines);
 			$status = $total_fines > 0 ? 'Paid' : 'Unpaid';
 
-			$pdf->Cell(20, 10, '₱' . number_format($total_fines, 2), 1);
-			$pdf->Cell(20, 10, $status, 1);
+			$pdf->Cell(15, 8, 'PHP ' . number_format($total_fines, 2), 1);  // Using 'PHP' as a prefix
+			$pdf->Cell(15, 8, $status, 1);
 			$pdf->Ln();
 		}
 
 		// Output the PDF
-		$pdf->Output('I', 'student_parliament_fines.pdf');
+		$pdf->Output('I', 'StudentParliament_fines_report.pdf');
 	}
+
 
 
 
@@ -3605,6 +3914,41 @@ class AdminController extends CI_Controller
 	}
 
 
+	public function get_current_logo()
+	{
+		// Manually build the user array from session data
+		$user = [
+			'role'             => $this->session->userdata('role'),
+			'student_id'       => $this->session->userdata('student_id'),
+			'is_officer'       => $this->session->userdata('is_officer'),
+			'is_officer_dept'  => $this->session->userdata('is_officer_dept'),
+			'dept_id'          => $this->session->userdata('dept_id'), // if it's stored
+		];
+
+		if (!$user['role'] || !$user['student_id']) {
+			echo json_encode(['success' => false, 'message' => 'Missing session data.']);
+			return;
+		}
+
+		$this->load->model('Admin_model');
+		$logo = $this->Admin_model->get_current_logo($user);
+
+		if ($logo && file_exists(FCPATH . 'uploads/logos/' . $logo)) {
+			echo json_encode([
+				'success' => true,
+				'logo' => base_url('uploads/logos/' . $logo)
+			]);
+		} else {
+			echo json_encode(['success' => false]);
+		}
+	}
+
+
+
+
+
+
+
 
 	public function save_header_footer()
 	{
@@ -3667,4 +4011,111 @@ class AdminController extends CI_Controller
 			'message' => 'Header and footer uploaded successfully.'
 		]);
 	}
+
+
+	public function get_current_header_footer()
+	{
+		// Manually build the user array from session data
+		$user = [
+			'role'             => $this->session->userdata('role'),
+			'student_id'       => $this->session->userdata('student_id'),
+			'is_officer'       => $this->session->userdata('is_officer'),
+			'is_officer_dept'  => $this->session->userdata('is_officer_dept'),
+			'dept_id'          => $this->session->userdata('dept_id'),
+		];
+
+		if (!$user['role'] || !$user['student_id']) {
+			echo json_encode(['success' => false, 'message' => 'Missing session data.']);
+			return;
+		}
+
+		$this->load->model('Admin_model');
+		$result = $this->Admin_model->get_current_header_footer($user);
+
+		if (!is_array($result)) {
+			echo json_encode([
+				'success' => false,
+				'message' => 'No header or footer found.',
+			]);
+			return;
+		}
+
+		$base = base_url('uploads/headerandfooter/');
+
+		echo json_encode([
+			'success' => true,
+			'header'  => !empty($result['header']) ? $base . $result['header'] : null,
+			'footer'  => !empty($result['footer']) ? $base . $result['footer'] : null,
+		]);
+	}
+
+
+
+
+
+
+	//VERIFY RECEIPT START
+
+
+	public function verify_receipt_page()
+	{
+		$data['title'] = 'Verify Receipt';
+
+		$this->load->model('Student_model');
+
+		$student_id = $this->session->userdata('student_id');
+
+		// Fetch student profile picture
+		$current_profile_pic = $this->Student_model->get_profile_pic($student_id);
+		$data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
+
+		// Fetch user role
+		// $users = $this->admin->get_roles($student_id);
+		// $data['role'] = $users['role'];
+
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->admin->get_student($student_id);
+
+
+		$this->load->view('layout/header', $data);
+		$this->load->view('admin/verify-receipt');
+		$this->load->view('layout/footer', $data);
+	}
+
+	// This is for actually verifying the receipt
+	public function verify_receipt()
+	{
+
+		$this->load->model('Student_model');
+
+		$verification_code = $this->input->post('verification_code');
+
+		if (!$verification_code) {
+			echo json_encode(['status' => 'error', 'message' => 'Verification code is required.']);
+			return;
+		}
+
+		// Get receipt details by verification code
+		$receipt = $this->Student_model->get_registration_by_code($verification_code);
+
+		if ($receipt) {
+			echo json_encode([
+				'status' => 'success',
+				'data' => [
+					'student_id'  => $receipt['student_id'],
+					'activity'    => $receipt['activity_title'] ?? 'Activity not found',  // Handle missing activity
+					'amount_paid' => '₱' . number_format($receipt['amount_paid'], 2),
+					'status'      => '✅ Approved',
+					'date_issued' => date('F j, Y', strtotime($receipt['registered_at']))
+				]
+			]);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => 'Invalid verification code. No receipt found.']);
+		}
+	}
+
+
+
+
+	//VERIFY RECEIPT END
 }

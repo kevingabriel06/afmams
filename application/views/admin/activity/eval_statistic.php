@@ -2,8 +2,8 @@
 
 	<div class="card mb-3 mb-lg-0">
 		<div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center">
-			<h5 class="mb-0">Evaluation Statistic</h5>
-			<a href="#" class="btn btn-sm btn-falcon-default ms-2" title="Download PDF" onclick="downloadPageAsPDF()" target="_blank">
+			<h5 class="mb-0"> <?php echo $forms->title; ?> - Evaluation Statistic</h5>
+			<a href="#" class="btn btn-sm btn-falcon-default ms-2" title="Download PDF" onclick="downloadPageAsPDF()">
 				<span class="fas fa-download"></span>
 			</a>
 

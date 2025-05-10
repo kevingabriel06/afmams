@@ -208,6 +208,10 @@ $route['admin/get_organizations'] = 'AdminController/get_organizations';
 $route['admin/delete_organization/(:num)'] = 'AdminController/delete_organization/$1';
 $route['admin/update-organization'] = 'AdminController/update_organization';
 
+
+$route['admin/verify-receipt-page'] = 'AdminController/verify_receipt_page';
+$route['admin/verify-receipt'] = 'AdminController/verify_receipt';
+
 $route['admin/about'] = 'AdminController/about';
 
 // OFFICER ROUTES
