@@ -259,8 +259,8 @@
         <div class="input-group has-validation">
         <input class="form-control mb-2" id="question-${fieldCount}" type="text" placeholder="Enter your question" name="questions[]" required />
         </div>
-        <textarea class="form-control mb-2" id="answer-${fieldCount}" rows="3" placeholder="Long Answer" name="answers[]" disbaled></textarea>
-        <input type="hidden" name="type[]" id="type-${fieldCount}" value="textarea" />
+        <textarea class="form-control mb-2" id="answer-${fieldCount}" rows="3" placeholder="Long Answer" name="answers[]" readonly></textarea>
+        <input type="hidden" name="type[]" id="type-${fieldCount}" value="textarea"/>
         <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')">Remove</button>
       </div>
     `;
@@ -278,7 +278,7 @@
         <input class="form-control mb-2" id="question-${fieldCount}" type="text" placeholder="Enter your question" name="questions[]" required/>
         </div>
         <div class="rating-stars mb-2" id="rating-${fieldCount}">
-          ${[1, 2, 3, 4, 5]
+          ${[1, 2, 3, 4]
             .map(
               (i) =>
                 `<i class="far fa-star" onclick="setRating(this, ${i})" data-value="${i}"></i>`
@@ -395,54 +395,62 @@
         formData.append("coverUpload", coverFile);
       }
 
-      // Submit form using AJAX
-      $.ajax({
-        url: "<?php echo site_url('officer/create-evaluation-form/create'); ?>", // Target URL
-        method: "POST",
-        data: formData,
-        processData: false, // Prevent jQuery from processing data
-        contentType: false, // Set content type to multipart/form-data
-        dataType: "json", // Expect JSON response from the server
-        success: function(response) {
-          if (response.success) {
-            // Show success alert if form creation was successful
-            Swal.fire({
-              icon: "success",
-              title: "Form Created!",
-              text: "Your form has been created successfully.",
-              showConfirmButton: true,
-            }).then(() => {
-              // Reset the form, clear dynamic fields, and reload or redirect
-              $("#createForm")[0].reset();
-              $("#form-fields").empty();
+      // Trigger confirmation before submitting form
+      Swal.fire({
+        title: "Are you sure?",
+        text: "Do you want to create this evaluation form?",
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonText: "Yes, create it!",
+        cancelButtonText: "Cancel"
+      }).then((result) => {
+        if (result.isConfirmed) {
+          // Proceed to submit the form via AJAX
+          $.ajax({
+            url: "<?php echo site_url('officer/create-evaluation-form/create'); ?>",
+            method: "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            dataType: "json",
+            success: function(response) {
+              if (response.success) {
+                Swal.fire({
+                  icon: "success",
+                  title: "Form Created!",
+                  text: "Your form has been created successfully.",
+                  showConfirmButton: true,
+                }).then(() => {
+                  $("#createForm")[0].reset();
+                  $("#form-fields").empty();
 
-              // Reload or redirect if specified in the response
-              if (response.redirect_url) {
-                window.location.href = response.redirect_url;
+                  if (response.redirect_url) {
+                    window.location.href = response.redirect_url;
+                  } else {
+                    location.reload();
+                  }
+                });
               } else {
-                location.reload(); // Default reload
+                Swal.fire({
+                  icon: "error",
+                  title: "Validation Error!",
+                  text: response.message || "Please review the form and try again.",
+                  showConfirmButton: true,
+                });
               }
-            });
-          } else {
-            // Handle any server-side validation feedback
-            Swal.fire({
-              icon: "error",
-              title: "Validation Error!",
-              text: response.message || "Please review the form and try again.",
-              showConfirmButton: true,
-            });
-          }
-        },
-        error: function() {
-          // Show error alert if AJAX request fails
-          Swal.fire({
-            icon: "error",
-            title: "Form Creation Failed!",
-            text: "An error occurred while creating the form. Please try again.",
-            showConfirmButton: true,
+            },
+            error: function() {
+              Swal.fire({
+                icon: "error",
+                title: "Form Creation Failed!",
+                text: "An error occurred while creating the form. Please try again.",
+                showConfirmButton: true,
+              });
+            }
           });
-        },
+        }
       });
+
     }
   });
 </script>

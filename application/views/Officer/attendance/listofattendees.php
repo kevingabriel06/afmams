@@ -172,10 +172,19 @@
 					<div class="mb-3">
 						<label for="department-filter" class="form-label">Department</label>
 						<select id="department-filter" class="form-select">
-							<option value="" selected>Select Department</option>
-							<?php foreach ($departments as $department): ?>
-								<option value="<?php echo $department->dept_name; ?>"><?php echo $department->dept_name; ?></option>
-							<?php endforeach; ?>
+							<?php if ($this->session->userdata('org_id')): ?>
+								<!-- If org_id exists, show all departments -->
+								<option value="" selected>Select Department</option>
+								<?php foreach ($departments as $department): ?>
+									<option value="<?php echo $department->dept_name; ?>"><?php echo $department->dept_name; ?></option>
+								<?php endforeach; ?>
+							<?php elseif ($this->session->userdata('dept_id')): ?>
+								<!-- If dept_id exists, show only the department in the session -->
+								<?php
+								$dept_name = $this->session->userdata('dept_name'); // Get the dept_name from session
+								?>
+								<option value="<?php echo $dept_name; ?>" selected><?php echo $dept_name; ?></option>
+							<?php endif; ?>
 						</select>
 					</div>
 				</div>

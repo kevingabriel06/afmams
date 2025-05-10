@@ -207,30 +207,15 @@
                         <h5 class="mb-3">Listing Privacy</h5>
                         <div class="mb-3">
                             <label class="form-label" for="audienceDropdown">Audience</label>
-                            <div class="dropdown">
-                                <button class="form-select text-start" type="button" id="audienceDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                    Select Audience
-                                </button>
-                                <ul class="dropdown-menu w-100 p-3" style="max-height: 300px; overflow-y: auto; color: black;">
-                                    <li>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="selectAllAudience" name="audience[]" value="All">
-                                            <label class="form-check-label" for="selectAllAudience">All</label>
-                                        </div>
-                                    </li>
-                                    <hr>
-                                    <?php foreach ($dept as $depts) : ?>
-                                        <li>
-                                            <div class="form-check">
-                                                <input class="form-check-input audience-checkbox" type="checkbox" name="audience[]" value="<?php echo $depts->dept_name; ?>" id="aud_<?php echo md5($depts->dept_name); ?>">
-                                                <label class="form-check-label" for="aud_<?php echo md5($depts->dept_name); ?>">
-                                                    <?php echo $depts->dept_name; ?>
-                                                </label>
-                                            </div>
-                                        </li>
-                                    <?php endforeach; ?>
-                                </ul>
-                            </div>
+                            <select class="form-control" id="audience" name="audience">
+                                <?php
+                                $name = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+                                ?>
+
+                                <option value="<?php echo $name; ?>">
+                                    <?php echo $name; ?>
+                                </option>
+                            </select>
                         </div>
                         <div class="form-text">
                             <i>* Note: Select the target audience of the activity.</i>
@@ -239,61 +224,6 @@
                 </div>
             </div>
         </div>
-
-        <script>
-            const selectAll = document.getElementById('selectAllAudience');
-            const checkboxes = document.querySelectorAll('.audience-checkbox');
-
-            // When "All" is checked, disable other checkboxes (but do NOT check them)
-            selectAll.addEventListener('change', function() {
-                if (this.checked) {
-                    checkboxes.forEach(cb => {
-                        cb.checked = false;
-                        cb.disabled = true;
-                    });
-                } else {
-                    checkboxes.forEach(cb => {
-                        cb.disabled = false;
-                    });
-                }
-            });
-
-            // If user checks any individual checkbox, uncheck and enable "All"
-            checkboxes.forEach(cb => {
-                cb.addEventListener('change', function() {
-                    if (!this.disabled) {
-                        selectAll.checked = false;
-                        checkboxes.forEach(box => box.disabled = false);
-                    }
-                });
-            });
-        </script>
-
-
-
-        <!-- JS to handle "Select All" logic -->
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                const selectAllCheckbox = document.getElementById('selectAllAudience');
-                const audienceCheckboxes = document.querySelectorAll('.audience-checkbox');
-
-                selectAllCheckbox.addEventListener('change', function() {
-                    audienceCheckboxes.forEach(cb => cb.checked = this.checked);
-                });
-
-                audienceCheckboxes.forEach(cb => {
-                    cb.addEventListener('change', function() {
-                        if (!this.checked) {
-                            selectAllCheckbox.checked = false;
-                        } else {
-                            const allChecked = Array.from(audienceCheckboxes).every(cb => cb.checked);
-                            selectAllCheckbox.checked = allChecked;
-                        }
-                    });
-                });
-            });
-        </script>
-
 
         <div class="card mb-3">
             <div class="card-body">
@@ -667,44 +597,58 @@
         $('#activityCreate').on('submit', function(e) {
             e.preventDefault(); // Prevent default form submission behavior
 
-            var formData = new FormData(this); // Collect form data
+            // Show confirmation dialog before submitting
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "You are about to create a new activity.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, create it!',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    var formData = new FormData(this); // Collect form data
 
-            $.ajax({
-                url: '<?php echo site_url("officer/create-activity/add"); ?>',
-                type: 'POST',
-                data: formData,
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status === 'error') {
-                        // Display error using SweetAlert
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error!',
-                            html: response.errors,
-                            confirmButtonColor: '#d33',
-                        });
-                    } else if (response.status === 'success') {
-                        // Display success using SweetAlert
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: response.message,
-                            confirmButtonColor: '#3085d6',
-                        }).then(() => {
-                            // Redirect after clicking 'OK' on the alert
-                            window.location.href = response.redirect;
-                        });
-                    }
-                },
-                error: function() {
-                    // Handle unexpected errors with SweetAlert
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Oops!',
-                        text: 'Something went wrong, please try again.',
-                        confirmButtonColor: '#d33',
+                    $.ajax({
+                        url: '<?php echo site_url("officer/create-activity/add"); ?>',
+                        type: 'POST',
+                        data: formData,
+                        contentType: false,
+                        processData: false,
+                        dataType: 'json',
+                        success: function(response) {
+                            if (response.status === 'error') {
+                                // Display error using SweetAlert
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error!',
+                                    html: response.errors,
+                                    confirmButtonColor: '#d33',
+                                });
+                            } else if (response.status === 'success') {
+                                // Display success using SweetAlert
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Success!',
+                                    text: response.message,
+                                    confirmButtonColor: '#3085d6',
+                                }).then(() => {
+                                    // Redirect after clicking 'OK' on the alert
+                                    window.location.href = response.redirect;
+                                });
+                            }
+                        },
+                        error: function() {
+                            // Handle unexpected errors with SweetAlert
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Oops!',
+                                text: 'Something went wrong, please try again.',
+                                confirmButtonColor: '#d33',
+                            });
+                        }
                     });
                 }
             });

@@ -643,6 +643,7 @@ class Admin_model extends CI_Model
 			$this->db->select('student_id');
 			$this->db->from('attendance');
 			$this->db->where('activity_id', $activity_id);
+			$this->db->where('attendance_status', 'Present');
 			$query = $this->db->get();
 
 			return $query->num_rows();

@@ -47,20 +47,25 @@ class AuthController extends CI_Controller
                     ]);
                     redirect('student/home');
                 } else {
-                    // Check if officer with department and admin privileges
-                    $officer = $this->auth->get_user_by_student($student_id);
+                    // Check if student is officer and admin of either department or organization
+                    $officer = $this->auth->is_student_admin($student_id);
 
-                    if ($officer && $officer->is_officer_dept === 'Yes' && $officer->is_admin === 'Yes') {
+                    if ($officer && $officer['is_admin']) {
+                        // Set session data for officer role
                         $this->session->set_userdata([
-                            'student_id' => $officer->student_id,
-                            'role' => 'Officer',
-                            'is_officer_dept' => '$officer->is_officer_dept',
-                            'is_admin' => $officer->is_admin,
-                            'dept_name' => $officer->dept_name
+                            'student_id'       => $student_id, // Use the provided student_id
+                            'role'             => 'Officer',
+                            'is_officer_dept'  => isset($officer['dept_id']) ? 'Yes' : 'No',
+                            'is_officer_org'   => isset($officer['org_id']) ? 'Yes' : 'No',
+                            'is_admin'         => 'Yes',
+                            'dept_id'          => $officer['dept_id'] ?? null,
+                            'dept_name'        => $officer['dept_name'] ?? null,
+                            'org_id'           => $officer['org_id'] ?? null,
+                            'org_name'         => $officer['org_name'] ?? null
                         ]);
+
                         redirect('officer/dashboard');
                     } else {
-                        // If user doesn't match any role or officer condition
                         $this->session->set_flashdata('error', 'Unauthorized access.');
                         redirect('login');
                     }

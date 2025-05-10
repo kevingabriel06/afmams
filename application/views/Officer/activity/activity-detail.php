@@ -241,9 +241,7 @@
                                       <?php if ($registration->registration_status == 'Verified') : ?>
                                         <a class="dropdown-item view-registration"
                                           href="#"
-                                          data-bs-toggle="modal"
-                                          data-bs-target="#viewRegistrationModal"
-                                          data-student-name="<?php echo $registration->first_name . " " . $registration->last_name; ?>"
+                                          data-student-name="<?php echo $registration->first_name . ' ' . $registration->last_name; ?>"
                                           data-department="<?php echo $registration->dept_name; ?>"
                                           data-reference-number="<?php echo $registration->reference_number; ?>"
                                           data-status="<?php echo $registration->registration_status; ?>"
@@ -318,14 +316,16 @@
 
         <script>
           $(document).ready(function() {
-            $('.view-registration').on('click', function() {
+            $('.view-registration').on('click', function(e) {
+              e.preventDefault(); // prevent default link behavior
+
               const studentName = $(this).data('student-name');
               const department = $(this).data('department');
               const referenceNumber = $(this).data('reference-number');
               const remarks = $(this).data('remarks');
               const status = $(this).data('status');
-              const paymentType = $(this).data('payment'); // 'Cash' or something else
-              const receipt = $(this).data('receipt'); // File name or null
+              const paymentType = $(this).data('payment');
+              const receipt = $(this).data('receipt');
 
               $('#modalStudentName').text(studentName);
               $('#modalDepartment').text(department);
@@ -338,7 +338,6 @@
                 .addClass('badge rounded-pill')
                 .addClass(getStatusBadgeClass(status));
 
-              // Receipt display logic
               if (paymentType === 'Cash') {
                 $('#receiptContainer').html('<p class="mb-0 fw-semibold">Cash Payment – No Receipt Image</p>');
               } else {
@@ -347,6 +346,12 @@
                   `<img id="modalReceiptImage" src="${imagePath}" alt="Payment Receipt" class="img-fluid rounded" style="max-height: 300px;">`
                 );
               }
+
+              // ✅ Show the modal without closing the parent
+              $('#viewRegistrationModal').modal({
+                backdrop: 'static',
+                keyboard: false
+              }).modal('show');
             });
 
             function getStatusBadgeClass(status) {
@@ -363,7 +368,6 @@
             }
           });
         </script>
-
 
         <!-- VALIDATE REGISTRATION MODAL -->
         <div class="modal fade" id="validateModal" tabindex="-1" aria-labelledby="validateModalLabel" aria-hidden="true">
@@ -429,44 +433,59 @@
             $('#validateForm').on('submit', function(e) {
               e.preventDefault();
 
-              $.ajax({
-                url: '<?php echo site_url('officer/activity/registration'); ?>',
-                type: 'POST',
-                data: $(this).serialize(),
-                dataType: 'json',
-                success: function(res) {
-                  if (res.status === 'success') {
-                    Swal.fire({
-                      icon: 'success',
-                      title: 'Success',
-                      text: 'Registration validated successfully!',
-                      timer: 2000,
-                      showConfirmButton: false
-                    }).then(() => {
-                      $('#validateModal').modal('hide');
-                      location.reload();
-                    });
+              // Show confirmation prompt before submission
+              Swal.fire({
+                title: 'Confirm Validation',
+                text: 'Are you sure you want to validate this registration?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, validate it',
+                cancelButtonText: 'Cancel'
+              }).then((result) => {
+                if (result.isConfirmed) {
+                  // Proceed with AJAX if confirmed
+                  $.ajax({
+                    url: '<?php echo site_url('officer/activity/registration'); ?>',
+                    type: 'POST',
+                    data: $('#validateForm').serialize(),
+                    dataType: 'json',
+                    success: function(res) {
+                      if (res.status === 'success') {
+                        Swal.fire({
+                          icon: 'success',
+                          title: 'Success',
+                          text: 'Registration validated successfully!',
+                          timer: 2000,
+                          showConfirmButton: false
+                        }).then(() => {
+                          $('#validateModal').modal('hide');
+                          location.reload();
+                        });
 
-                  } else if (res.status === 'warning') {
-                    Swal.fire({
-                      icon: 'warning',
-                      title: 'Warning',
-                      text: res.message
-                    });
+                      } else if (res.status === 'warning') {
+                        Swal.fire({
+                          icon: 'warning',
+                          title: 'Warning',
+                          text: res.message
+                        });
 
-                  } else {
-                    Swal.fire({
-                      icon: 'error',
-                      title: 'Error',
-                      text: res.message
-                    });
-                  }
-                },
-                error: function() {
-                  Swal.fire({
-                    icon: 'error',
-                    title: 'Request Failed',
-                    text: 'Something went wrong. Please try again later.'
+                      } else {
+                        Swal.fire({
+                          icon: 'error',
+                          title: 'Error',
+                          text: res.message
+                        });
+                      }
+                    },
+                    error: function() {
+                      Swal.fire({
+                        icon: 'error',
+                        title: 'Request Failed',
+                        text: 'Something went wrong. Please try again later.'
+                      });
+                    }
                   });
                 }
               });
@@ -487,7 +506,7 @@
               <div class="modal-body px-4 py-3">
                 <form id="cashPaymentForm">
                   <div class="row g-3">
-                    <input type="text" name="activity_id" value="<?php echo $activity['activity_id']; ?>">
+                    <input type="hidden" name="activity_id" value="<?php echo $activity['activity_id']; ?>">
 
                     <!-- Student ID -->
                     <div class="col-md-6">
@@ -530,46 +549,55 @@
           $('#cashPaymentForm').submit(function(e) {
             e.preventDefault(); // Prevent the default form submission
 
-            // Collect form data
-            var formData = $(this).serialize();
+            // Show confirmation prompt
+            Swal.fire({
+              title: 'Confirm Payment',
+              text: "Are you sure you want to record this payment?",
+              icon: 'warning',
+              showCancelButton: true,
+              confirmButtonColor: '#3085d6',
+              cancelButtonColor: '#d33',
+              confirmButtonText: 'Yes, record it!',
+              cancelButtonText: 'Cancel'
+            }).then((result) => {
+              if (result.isConfirmed) {
+                // Collect form data
+                var formData = $(this).serialize();
 
-            // Send the AJAX request
-            $.ajax({
-              url: '<?php echo site_url('officer/cash-payment/submit'); ?>', // Adjust the URL accordingly
-              type: 'POST',
-              data: formData,
-              dataType: 'json', // Expecting a JSON response
-              success: function(response) {
-                // Handle the success response
-                if (response.status === 'success') {
-                  // Show success alert using SweetAlert
-                  Swal.fire({
-                    icon: 'success',
-                    title: 'Payment Recorded!',
-                    text: response.message,
-                    confirmButtonText: 'OK'
-                  }).then(function() {
-                    // Optionally close the modal and reset the form
-                    $('#recordCashPaymentModal').modal('hide');
-                    $('#cashPaymentForm')[0].reset();
-                  });
-                } else {
-                  // Show error alert using SweetAlert
-                  Swal.fire({
-                    icon: 'error',
-                    title: 'Oops...',
-                    text: response.message,
-                    confirmButtonText: 'Try Again'
-                  });
-                }
-              },
-              error: function(xhr, status, error) {
-                // Handle AJAX errors
-                Swal.fire({
-                  icon: 'error',
-                  title: 'Request Failed!',
-                  text: 'There was an error processing your request. Please try again.',
-                  confirmButtonText: 'Close'
+                // Send the AJAX request
+                $.ajax({
+                  url: '<?php echo site_url('officer/cash-payment/submit'); ?>',
+                  type: 'POST',
+                  data: formData,
+                  dataType: 'json',
+                  success: function(response) {
+                    if (response.status === 'success') {
+                      Swal.fire({
+                        icon: 'success',
+                        title: 'Payment Recorded!',
+                        text: response.message,
+                        confirmButtonText: 'OK'
+                      }).then(function() {
+                        $('#recordCashPaymentModal').modal('hide');
+                        $('#cashPaymentForm')[0].reset();
+                      });
+                    } else {
+                      Swal.fire({
+                        icon: 'error',
+                        title: 'Oops...',
+                        text: response.message,
+                        confirmButtonText: 'Try Again'
+                      });
+                    }
+                  },
+                  error: function(xhr, status, error) {
+                    Swal.fire({
+                      icon: 'error',
+                      title: 'Request Failed!',
+                      text: 'There was an error processing your request. Please try again.',
+                      confirmButtonText: 'Close'
+                    });
+                  }
                 });
               }
             });
@@ -582,12 +610,6 @@
             modal.show();
           });
         </script>
-
-
-
-
-
-
 
         <!-- Filter Modal -->
         <div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
@@ -609,15 +631,26 @@
                       <option value="Pending">Pending</option>
                     </select>
                   </div>
-                  <div class="mb-3">
-                    <label for="departmentFilter" class="form-label">Department</label>
-                    <select class="form-select" id="departmentFilter" name="department">
-                      <option value="">All</option>
-                      <?php foreach ($departments as $department): ?>
-                        <option value="<?php echo $department->dept_name; ?>"><?php echo $department->dept_name; ?></option>
-                      <?php endforeach; ?>
-                    </select>
-                  </div>
+                  <?php if ($this->session->userdata('org_id')): ?>
+                    <div class="mb-3">
+                      <label for="departmentFilter" class="form-label">Department</label>
+                      <select class="form-select" id="departmentFilter" name="department">
+                        <option value="">All</option>
+                        <?php foreach ($departments as $department): ?>
+                          <option value="<?php echo $department->dept_name; ?>"><?php echo $department->dept_name; ?></option>
+                        <?php endforeach; ?>
+                      </select>
+                    </div>
+                  <?php else: ?>
+                    <div class="mb-3">
+                      <label for="departmentFilter" class="form-label">Department</label>
+                      <select class="form-select" id="departmentFilter" name="department">
+                        <option value="">All</option>
+                        <option value="<?php echo $this->session->userdata('dept_name'); ?>"><?php echo $this->session->userdata('dept_name'); ?></option>
+                      </select>
+                    </div>
+
+                  <?php endif; ?>
                 </div>
 
                 <div class="modal-footer">
@@ -677,7 +710,7 @@
           });
         </script>
 
-        <?php if ($activity['organizer'] == 'Bachelor of Science in Information Systems') : ?>
+        <?php if ($activity['organizer'] == ($this->session->userdata('dept_name') ?: $this->session->userdata('org_name'))) : ?>
           <?php if ($activity['status'] == 'Upcoming' || $activity['status'] == 'Ongoing') : ?>
             <?php if ($activity['is_shared'] == 'No') : ?>
               <button id="share" class="btn btn-falcon-default btn-sm me-2" type="button">

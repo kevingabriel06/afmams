@@ -535,7 +535,7 @@
 				breakdownTable.innerHTML = '';
 				student.fines.forEach((fine, i) => {
 					breakdownTable.innerHTML += `
-                        <tr>
+                        <tr> 
                             <td>${i + 1}</td>
                             <td>${fine.reason}</td>
                             <td>₱${fine.fine}</td>

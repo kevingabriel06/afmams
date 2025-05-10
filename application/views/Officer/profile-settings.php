@@ -9,7 +9,7 @@
                 <form id="profilePicForm" enctype="multipart/form-data">
                     <div class="avatar avatar-5xl avatar-profile shadow-sm img-thumbnail rounded-circle">
                         <div class="h-100 w-100 rounded-circle overflow-hidden" style="width: 200px; height: 200px;">
-                            <img id="profile-preview" src="<?php echo base_url('assets/profile/' . $student_details->profile_pic); ?>" alt="Profile Picture" />
+                            <img id="profile-preview" src="<?php echo base_url('assets/profile/' . (!empty($student_details->profile_pic) ? $student_details->profile_pic : 'default.jpg')); ?>" alt="Profile Picture" />
                             <input class="d-none" id="profile-image" type="file" name="profile_pic" accept="image/*" />
                             <label class="mb-0 overlay-icon d-flex flex-center" for="profile-image">
                                 <span class="bg-holder overlay overlay-0"></span>

@@ -86,7 +86,7 @@
                             </div>
 
                             <!-- Hidden Input to Store Start Date Value -->
-                            <input type="hidden" name="date_start" value="<?php echo $activity['start_date']; ?>" />
+                            <input type="hidden" name="date_start" value="<?php echo $activity['start_date']; ?>" <?php echo $activity['status'] == 'Upcoming' ? 'disabled' : ''; ?> />
                         </div>
 
                         <!-- End Date Section -->
@@ -103,7 +103,7 @@
                             </div>
 
                             <!-- Hidden Input to Store End Date Value -->
-                            <input type="hidden" name="date_end" value="<?php echo $activity['end_date']; ?>" />
+                            <input type="hidden" name="date_end" value="<?php echo $activity['end_date']; ?>" <?php echo $activity['status'] == 'Upcoming' ? 'disabled' : ''; ?> />
                         </div>
                     </div>
 

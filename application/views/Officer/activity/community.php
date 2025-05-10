@@ -1,9 +1,3 @@
-<!-- Include jQuery -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-
 <div class="row g-3">
 	<!-- FEED -->
 	<div class="col-lg-8">
@@ -68,7 +62,7 @@
 								<span class="ms-2 d-none d-md-inline-block">Activity</span>
 							</button>
 						</div>
-						<div class="col-auto">
+						<div class="col-auto privacy-dropdown"> <!-- 👈 added class -->
 							<!-- Privacy Dropdown -->
 							<div class="dropdown d-inline-block me-1">
 								<button class="btn btn-sm dropdown-toggle px-1" id="dropdownMenuButton" type="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -79,8 +73,10 @@
 									<a class="dropdown-item" href="#" data-privacy="Private">Private</a>
 								</div>
 							</div>
+
 							<!-- Hidden Input to Store Selected Privacy -->
 							<input type="hidden" id="privacyStatus" name="privacyStatus" value="Public" />
+
 							<!-- Submit Button -->
 							<button class="btn btn-primary btn-sm px-4 px-sm-5" type="submit">Share</button>
 						</div>
@@ -101,7 +97,7 @@
 										<div class="d-flex">
 											<div class="avatar avatar-2xl status-online">
 												<!-- Display the profile picture based on the post -->
-												<img class="rounded-circle" src="<?php echo base_url('assets/profile/') . (!empty($item->profile_pic) ? $item->profile_pic : 'default-pic.jpg'); ?>" />
+												<img class="rounded-circle" src="<?php echo base_url('assets/profile/') . (!empty($item->profile_pic) ? $item->profile_pic : 'default.jpg'); ?>" />
 											</div>
 											<div class="flex-1 align-self-center ms-2">
 												<p class="mb-1 lh-1">
@@ -224,6 +220,7 @@
 										<?= htmlspecialchars($item->comments_count); ?> Comments
 									</a>
 								</div>
+
 								<!-- Modal to Display Likes (Facebook Style) -->
 								<div class="modal fade" id="likesModal-<?= $item->post_id; ?>" tabindex="-1" role="dialog" aria-labelledby="likesModalLabel-<?= $item->post_id; ?>" aria-hidden="true">
 									<div class="modal-dialog modal-dialog-centered" role="document">
@@ -250,7 +247,6 @@
 										</div>
 									</div>
 								</div>
-
 
 								<div class="row g-0 fw-semi-bold text-center py-2 fs-10">
 									<div class="col-auto">
@@ -323,19 +319,31 @@
 						<!-- THIS IS THE EVENT TEMPLATE -->
 						<div class="card mb-3">
 							<div class="position-absolute top-0 end-0 p-2 z-1">
-								<div class="dropdown">
-									<button class="btn p-0 border-0 bg-transparent" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-										<i class="fas fa-ellipsis-h"></i> <!-- horizontal ellipsis -->
-									</button>
-									<ul class="dropdown-menu dropdown-menu-end">
-										<li>
-											<a href="#" class="dropdown-item text-danger unshare-activity" data-id="<?= $item->activity_id ?>">
-												<i class="fas fa-share-slash me-1"></i> Unshare Activity
-											</a>
-										</li>
-									</ul>
-								</div>
+								<?php
+								$dept_name = $this->session->userdata('dept_name');
+								$org_name = $this->session->userdata('org_name');
+								if (
+									$item->organizer == $dept_name ||
+									$item->organizer == $org_name
+								):
+								?>
+									<div class="dropdown">
+										<button class="btn p-0 border-0 bg-transparent" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+											<i class="fas fa-ellipsis-h"></i> <!-- horizontal ellipsis -->
+										</button>
+										<ul class="dropdown-menu dropdown-menu-end">
+
+											<li>
+												<a href="#" class="dropdown-item text-danger unshare-activity" data-id="<?= $item->activity_id ?>">
+													<i class="fas fa-share-slash me-1"></i> Unshare Activity
+												</a>
+											</li>
+
+										</ul>
+									</div>
+								<?php endif; ?>
 							</div>
+
 							<!-- SCRIPT FOR UNSHARING -->
 							<script>
 								$(document).on('click', '.unshare-activity', function(e) {
@@ -373,7 +381,9 @@
 							</script>
 
 
-							<img id="coverPhoto" class="card-img-top" src="<?php echo base_url('assets/coverEvent/') . $item->activity_image; ?>" alt="Event Cover" />
+							<img id="coverPhoto" class="card-img-top" src="<?php echo !empty($item->activity_image)
+																				? base_url('assets/coverEvent/' . $item->activity_image)
+																				: base_url('assets/image/OIP.jpg'); ?>" alt="Event Cover" />
 							<div class="card-body overflow-hidden">
 								<div class="row justify-content-between align-items-center">
 									<div class="col">
@@ -398,16 +408,7 @@
 														<?php echo $item->activity_title; ?>
 													</a>
 												</h6>
-												<p class="mb-1"> Organized by
-													<?php
-													if (empty($item->dept_id) && empty($item->org_id)) {
-														echo htmlspecialchars("Institution");
-													} elseif (empty($item->dept_id)) {
-														echo htmlspecialchars($item->org_name);
-													} elseif (empty($item->org_id)) {
-														echo htmlspecialchars($item->dept_name);
-													}
-													?> </p>
+												<p class="mb-1"> Organized by <?php echo $item->organizer; ?></p>
 												<span class="fs-9 text-warning fw-semi-bold">
 													<?php echo ($item->registration_fee > 0) ? 'Php ' . $item->registration_fee : 'Free Event'; ?>
 												</span>
@@ -509,7 +510,8 @@
 					$has_activity = false; // Flag to track if at least one valid activity exists
 
 					foreach ($activities_upcoming as $activity):
-						if ($activity->is_shared == 'No' && $activity->organizer == 'Student Parliament'):
+						if ($activity->is_shared == 'No' && $activity->organizer == ($this->session->userdata('dept_name') ?: $this->session->userdata('org_name'))):
+
 							$has_activity = true; // Set flag to true if a valid activity is found
 					?>
 							<div class="col-md-6 mb-4">
@@ -584,7 +586,7 @@
 			$('#loading').show();
 
 			$.ajax({
-				url: '<?= site_url('admin/community') ?>',
+				url: '<?= site_url('officer/community') ?>',
 				type: 'POST',
 				data: {
 					offset: offset,
@@ -626,7 +628,7 @@
 </script>
 
 
-<!-- <script>
+<script>
 	$(document).ready(function() {
 		// Event listener for the Like button
 		$('[id^=btn-like]').click(function() {
@@ -681,7 +683,7 @@
 		updateLikeList(postId); // Refresh likes before showing modal
 		$('#likesModal-' + postId).modal('show');
 	}
-</script> -->
+</script>
 
 
 <!-- ========= JAVASCRIPT  ======== -->
@@ -1046,24 +1048,6 @@
 		container.find('.post-preview').show();
 	});
 
-
-	$(document).ready(function() {
-		// Handle Privacy Selection
-		$(document).on('click', '.dropdown-menu .dropdown-item', function(e) {
-			e.preventDefault();
-			const selectedPrivacy = $(this).data('privacy');
-			const privacyIcon = $('#privacy-icon');
-			// Change icon based on selected privacy
-			if (selectedPrivacy === 'Public') {
-				privacyIcon.removeClass('fa-users').addClass('fa-globe-americas');
-			} else if (selectedPrivacy === 'Private') {
-				privacyIcon.removeClass('fa-globe-americas').addClass('fa-users');
-			}
-			// Store selection in hidden input
-			$('#privacyStatus').val(selectedPrivacy);
-		});
-	});
-
 	// IMAGE HANDLING - PREVIEW AND REMOVE
 	$(document).ready(function() {
 		// Trigger file input when button is clicked
@@ -1102,6 +1086,25 @@
 		e.preventDefault();
 		document.getElementById("imagePreviewContainer").classList.add("d-none");
 		document.getElementById("imageInput").value = ""; // Clear file input
+	});
+
+	$(document).ready(function() {
+		// Handle Privacy Selection inside .privacy-dropdown only
+		$(document).on('click', '.privacy-dropdown .dropdown-item', function(e) {
+			e.preventDefault();
+			const selectedPrivacy = $(this).data('privacy');
+			const privacyIcon = $('#privacy-icon');
+
+			// Change icon based on selected privacy
+			if (selectedPrivacy === 'Public') {
+				privacyIcon.removeClass('fa-users').addClass('fa-globe-americas');
+			} else if (selectedPrivacy === 'Private') {
+				privacyIcon.removeClass('fa-globe-americas').addClass('fa-users');
+			}
+
+			// Store selection in hidden input
+			$('#privacyStatus').val(selectedPrivacy);
+		});
 	});
 </script>
 

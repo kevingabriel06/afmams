@@ -1534,11 +1534,6 @@ class AdminController extends CI_Controller
 	}
 
 
-
-
-
-
-
 	// COMMUNITY SECTION (FINAL CHECK)
 
 	// COMMUNITY - PAGE
@@ -2427,6 +2422,7 @@ class AdminController extends CI_Controller
 		$data['users'] = $this->admin->get_student($student_id);
 
 		$data['departments'] = $this->admin->get_department();
+
 		$data['fines'] = $this->admin->flash_fines();
 
 		$this->load->view('layout/header', $data);
