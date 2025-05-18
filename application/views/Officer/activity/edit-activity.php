@@ -266,6 +266,90 @@
                         <h5 class="mb-2 mb-md-0">Nice Job! You're almost done</h5>
                     </div>
                     <div class="col-auto">
+                        <!-- View Logs Button -->
+                        <button class="btn btn-danger btn-sm me-2" type="button" data-bs-toggle="modal" data-bs-target="#editLogsModal">
+                            View Logs
+                        </button>
+
+                        <!-- Edit Logs Modal -->
+                        <div class="modal fade" id="editLogsModal" tabindex="-1" aria-labelledby="editLogsModalLabel" aria-hidden="true">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="editLogsModalLabel">Edit Logs</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <table class="table table-bordered table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>#</th>
+                                                    <th>Edited By</th>
+                                                    <th>Changes</th>
+                                                    <th>Date/Time</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="editLogsTable">
+                                                <!-- Logs will be dynamically inserted here -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                        <a href="<?= site_url('AdminController/download_edit_logs/' . $activity['activity_id']) ?>" class="btn btn-success" target="_blank">Download Logs</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Edit Logs Script -->
+                        <script>
+                            $('#editLogsModal').on('show.bs.modal', function() {
+                                const activityId = <?= json_encode($activity['activity_id']) ?>;
+
+                                $.ajax({
+                                    url: '<?= site_url("officer/view-edit-logs") ?>/' + activityId,
+                                    method: 'GET',
+                                    dataType: 'json',
+                                    success: function(logs) {
+                                        let tbody = '';
+                                        if (logs.length > 0) {
+                                            logs.forEach((log, i) => {
+                                                const fullName = `${log.first_name} ${log.last_name}`;
+                                                let changesHtml = '';
+
+                                                try {
+                                                    const changes = JSON.parse(log.changes);
+                                                    for (const field in changes) {
+                                                        const change = changes[field];
+                                                        const oldVal = change.old ?? 'N/A';
+                                                        const newVal = change.new ?? 'N/A';
+                                                        changesHtml += `<div><strong>${field}</strong>: Old: ${oldVal} → New: ${newVal}</div>`;
+                                                    }
+                                                } catch (e) {
+                                                    changesHtml = `<div>${log.changes}</div>`; // fallback if JSON parse fails
+                                                }
+
+                                                tbody += `<tr>
+                                                            <td>${i + 1}</td>
+                                                            <td class="text-nowrap">${fullName}</td>
+                                                            <td>${changesHtml}</td>
+                                                            <td class="text-nowrap">${log.formatted_time}</td>
+                                                        </tr>`;
+                                            });
+                                        } else {
+                                            tbody = `<tr><td colspan="4" class="text-center">No logs found.</td></tr>`;
+                                        }
+                                        $('#editLogsTable').html(tbody);
+                                    },
+                                    error: function() {
+                                        $('#editLogsTable').html('<tr><td colspan="4" class="text-center text-danger">Failed to fetch logs.</td></tr>');
+                                    }
+                                });
+
+                            });
+                        </script>
+
                         <button class="btn btn-danger btn-sm me-2" type="button" onclick="$('#activityCreate').get(0).reset()">Cancel</button>
                         <!-- Save Button -->
                         <button class="btn btn-primary btn-sm me-2" type="submit">Save</button>
@@ -606,9 +690,9 @@
                                     timer: 2000
                                 });
 
-                                setTimeout(function() {
-                                    window.location.href = response.redirect;
-                                }, 2000);
+                                // setTimeout(function() {
+                                //     window.location.href = response.redirect;
+                                // }, 2000);
                             }
                         },
                         error: function() {

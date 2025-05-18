@@ -250,6 +250,7 @@ $route['officer/activity-details/activity-share']['post'] = 'OfficerController/s
 $route['officer/unshare-activity'] = 'OfficerController/unshare_activity'; //UNSHARE ACTIVITY
 $route['officer/activity/registration'] = 'OfficerController/validate_registrations';
 $route['officer/cash-payment/submit'] = 'OfficerController/save_cash_payment';
+$route['officer/view-edit-logs/(:num)'] = 'OfficerController/get_edit_logs/$1';
 
 $route['officer/list-activity-evaluation'] = 'OfficerController/list_activity_evaluation';
 $route['officer/create-evaluation-form'] = 'OfficerController/create_evaluationform';

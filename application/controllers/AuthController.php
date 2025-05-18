@@ -47,21 +47,22 @@ class AuthController extends CI_Controller
                     ]);
                     redirect('student/home');
                 } else {
-                    // Check if student is officer and admin of either department or organization
+                    // Check if student is officer (even if not admin) of either department or organization
                     $officer = $this->auth->is_student_admin($student_id);
 
-                    if ($officer && $officer['is_admin']) {
+                    if ($officer && ($officer['dept_id'] !== null || $officer['org_id'] !== null)) {
                         // Set session data for officer role
                         $this->session->set_userdata([
-                            'student_id'       => $student_id, // Use the provided student_id
+                            'student_id'       => $student_id,
                             'role'             => 'Officer',
-                            'is_officer_dept'  => isset($officer['dept_id']) ? 'Yes' : 'No',
-                            'is_officer_org'   => isset($officer['org_id']) ? 'Yes' : 'No',
-                            'is_admin'         => 'Yes',
-                            'dept_id'          => $officer['dept_id'] ?? null,
-                            'dept_name'        => $officer['dept_name'] ?? null,
-                            'org_id'           => $officer['org_id'] ?? null,
-                            'org_name'         => $officer['org_name'] ?? null
+                            'is_officer_dept'  => $officer['dept_id'] !== null ? 'Yes' : 'No',
+                            'is_officer_org'   => $officer['org_id'] !== null ? 'Yes' : 'No',
+                            'is_admin_dept'    => !empty($officer['is_admin_dept']) ? 'Yes' : 'No',
+                            'is_admin_org'     => !empty($officer['is_admin_org']) ? 'Yes' : 'No',
+                            'dept_id'          => $officer['dept_id'],
+                            'dept_name'        => $officer['dept_name'],
+                            'org_id'           => $officer['org_id'],
+                            'org_name'         => $officer['org_name']
                         ]);
 
                         redirect('officer/dashboard');
