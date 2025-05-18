@@ -53,20 +53,22 @@ class Auth_model extends CI_Model
 
         if (!$result) return false;
 
-        // Check for department admin
-        $is_dept_admin = ($result->is_officer_dept === 'Yes' && $result->dept_admin === 'Yes');
+        // Normalize values to avoid case sensitivity issues
+        $is_officer_dept = strtoupper(trim($result->is_officer_dept)) === 'YES';
+        $is_dept_admin   = strtoupper(trim($result->dept_admin)) === 'YES';
+        $is_officer_org  = strtoupper(trim($result->is_officer_org)) === 'YES';
+        $is_org_admin    = strtoupper(trim($result->org_admin)) === 'YES';
 
-        // Check for organization admin
-        $is_org_admin = ($result->is_officer_org === 'Yes' && $result->org_admin === 'Yes');
-
-        // Return data if student is an admin in either context
-        if ($is_dept_admin || $is_org_admin) {
+        // Return officer information even if not admin
+        if ($is_officer_dept || $is_officer_org) {
             return [
-                'is_admin'   => true,
-                'dept_id'    => $is_dept_admin ? $result->dept_id : null,
-                'dept_name'  => $is_dept_admin ? $result->dept_name : null,
-                'org_id'     => $is_org_admin ? $result->org_id : null,
-                'org_name'   => $is_org_admin ? $result->org_name : null,
+                'is_admin'        => $is_dept_admin || $is_org_admin,
+                'is_admin_dept'   => $is_officer_dept && $is_dept_admin,
+                'is_admin_org'    => $is_officer_org && $is_org_admin,
+                'dept_id'         => $is_officer_dept ? $result->dept_id : null,
+                'dept_name'       => $is_officer_dept ? $result->dept_name : null,
+                'org_id'          => $is_officer_org ? $result->org_id : null,
+                'org_name'        => $is_officer_org ? $result->org_name : null,
             ];
         }
 

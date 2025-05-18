@@ -1,4 +1,7 @@
 <?php
+
+use PhpOffice\PhpSpreadsheet\Writer\Ods\Thumbnails;
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
 class Officer_model extends CI_Model
@@ -26,6 +29,15 @@ class Officer_model extends CI_Model
 		$today = date('Y-m-d');
 		$current_year = date('Y');
 		$month = date('n');
+		// hello it is the model of the hsjkdhkjhsjdhsj
+		// Get the current semester count
+	}
+	public function get_current_semester_count()
+	{
+		$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+		$today = date('Y-m-d');
+		$current_year = date('Y');
+		$month = date('n');
 
 		// Determine current semester based on the month
 		if ($month >= 7 && $month <= 12) {
@@ -44,6 +56,13 @@ class Officer_model extends CI_Model
 		$this->db->where('start_date <=', $end_date);
 		$this->db->where('status', 'completed');
 		$count = $this->db->count_all_results();
+		// Get count of completed activities in the current semester
+		$this->db->from('activity');
+		$this->db->where('start_date >=', $start_date);
+		$this->db->where('start_date <=', $end_date);
+		$this->db->where('status', 'completed');
+		$this->db->where('organizer', $organizer);
+		$count = $this->db->count_all_results();
 
 		return [
 			'semester' => $semester,
@@ -56,6 +75,14 @@ class Officer_model extends CI_Model
 	// Get the previous semester count
 	public function get_previous_semester_count()
 	{
+		$today = date('Y-m-d');
+		$current_year = date('Y');
+		$month = date('n');
+		// Get the previous semester count
+	}
+	public function get_previous_semester_count()
+	{
+		$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
 		$today = date('Y-m-d');
 		$current_year = date('Y');
 		$month = date('n');
@@ -77,6 +104,13 @@ class Officer_model extends CI_Model
 		$this->db->where('start_date <=', $end_date);
 		$this->db->where('status', 'completed');
 		$count = $this->db->count_all_results();
+		// Get count of completed activities in the previous semester
+		$this->db->from('activity');
+		$this->db->where('start_date >=', $start_date);
+		$this->db->where('start_date <=', $end_date);
+		$this->db->where('status', 'completed');
+		$this->db->where('organizer', $organizer);
+		$count = $this->db->count_all_results();
 
 		return [
 			'semester' => $semester,
@@ -95,26 +129,27 @@ class Officer_model extends CI_Model
 		$this->db->where('status', 'completed');
 		$this->db->group_by('MONTH(start_date)');
 		$query = $this->db->get();
+	}
+
+	public function get_monthly_activity_count($start_date, $end_date)
+	{
+		$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+
+		$this->db->select('MONTH(start_date) as month, COUNT(*) as count');
+		$this->db->from('activity');
+		$this->db->where('start_date >=', $start_date);
+		$this->db->where('start_date <=', $end_date);
+		$this->db->where('status', 'completed');
+		$this->db->where('organizer', $organizer);
+		$this->db->group_by('MONTH(start_date)');
+		$query = $this->db->get();
 
 		return $query->result();
 	}
 
-	public function get_student_count_per_department()
-	{
-		// SQL Query to join 'users' (or 'students') table with 'departments' table on 'dept_id'
-		$this->db->select('d.dept_name, COUNT(u.dept_id) as student_count');
-		$this->db->from('users u'); // Assuming the table storing user data is 'users'
-		$this->db->join('department d', 'u.dept_id = d.dept_id', 'inner'); // Join departments table to users table
-		$this->db->group_by('u.dept_id'); // Group by dept_id to count students per department
-		$query = $this->db->get();  // Execute the query
-
-		// Return the result as an associative array
-		return $query->result_array();
-	}
-
 	public function get_current_semester_count_organized()
 	{
-		$organizer = $this->session->userdata('dept_name');
+		$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
 
 		$today = date('Y-m-d');
 		$current_year = date('Y');
@@ -147,22 +182,108 @@ class Officer_model extends CI_Model
 		];
 	}
 
-	// public function get_attendance_student(){
 
-	//     thi
-	// }
-
-	public function get_total_fines()
+	public function fetch_attendance_data()
 	{
-		$organizer = $this->session->userdata('dept_name');
 
-		$this->db->select('SUM(fines.fines_amount) as total_fines');
+		$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+
+		$current_year = date('Y');
+
+		// Query to fetch data including total expected and actual attendees
+		$query = $this->db->query("
+			SELECT 
+				a.activity_id,
+				a.activity_title,
+				a.registration_fee,
+				a.start_date,
+
+				-- Determine semester based on start_date
+				CASE 
+					WHEN MONTH(a.start_date) BETWEEN 7 AND 12 THEN 'First Semester'
+					ELSE 'Second Semester'
+				END AS semester,
+
+				-- Expected attendees based on registration or attendees table
+				CASE 
+					WHEN a.registration_fee IS NOT NULL AND a.registration_fee > 0 THEN 
+						(SELECT COUNT(DISTINCT r.student_id) 
+						FROM registrations r 
+						WHERE r.activity_id = a.activity_id)
+					ELSE 
+						(SELECT COUNT(DISTINCT atd.student_id) 
+						FROM attendees atd 
+						WHERE atd.activity_id = a.activity_id)
+				END AS expected_attendees,
+
+				-- Actual attendees marked Present
+				(SELECT COUNT(DISTINCT att.student_id) 
+				FROM attendance att 
+				WHERE att.activity_id = a.activity_id AND att.attendance_status = 'Present') AS actual_attendees
+
+			FROM activity a
+			WHERE YEAR(a.start_date) = '$current_year'
+			AND a.organizer = '$organizer'
+			AND a.status = 'Completed'
+			ORDER BY a.start_date ASC
+		");
+
+		// Fetch all results
+		$attendance_data = $query->result();
+
+		// Calculate total expected and actual attendees
+		$total_expected = 0;
+		$total_actual = 0;
+
+		foreach ($attendance_data as $data) {
+			$total_expected += $data->expected_attendees;
+			$total_actual += $data->actual_attendees;
+		}
+
+		// Calculate attendance rate
+		$attendance_rate = 0;
+		if ($total_expected > 0) {
+			$attendance_rate = ($total_actual / $total_expected) * 1;
+		}
+
+		// Return data with the calculated overall attendance rate
+		return [
+			'attendance_data' => $attendance_data,
+			'attendance_rate' => round($attendance_rate, 2) // round to 2 decimal places
+		];
+	}
+
+	public function get_total_fines_per_activity()
+	{
+		$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+
+		$today = date('Y-m-d');
+		$current_year = date('Y');
+		$month = date('n');
+
+		// Determine current semester based on the month
+		if ($month >= 7 && $month <= 12) {
+			$semester = 'First Semester';
+			$start_date = "$current_year-07-01";
+			$end_date = "$current_year-12-31";
+		} else {
+			$semester = 'Second Semester';
+			$start_date = "$current_year-01-01";
+			$end_date = "$current_year-06-30";
+		}
+
+		// Select the sum of fines per activity for the current semester
+		$this->db->select('activity.activity_id, activity.activity_title, SUM(fines.fines_amount) as total_fines');
 		$this->db->from('fines');
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
 		$this->db->where('activity.organizer', $organizer);
+		$this->db->where('activity.status', 'Completed');
+		$this->db->where('activity.start_date >=', $start_date); // Filter fines by the semester start date
+		$this->db->where('activity.end_date <=', $end_date);   // Filter fines by the semester end date
+		$this->db->group_by('activity.activity_id, activity.activity_title'); // Group by activity to get total per activity
 
 		$query = $this->db->get();
-		return $query->row(); // Returns the result as a single row object
+		return $query->result(); // Returns an array of objects, one for each activity
 	}
 
 	// CREATING ACTIVITY
@@ -336,6 +457,25 @@ class Officer_model extends CI_Model
 	{
 		$this->db->where('activity_id', $activity_id);
 		return $this->db->update('activity', $data);
+	}
+
+
+	// Log changes to activity_edit_logs table
+	public function log_activity_changes($log_data)
+	{
+		return $this->db->insert('activity_edit_logs', $log_data);
+	}
+
+	public function get_activity_logs($activity_id)
+	{
+		return $this->db
+			->select("activity_edit_logs.*, users.first_name, users.last_name, DATE_FORMAT(activity_edit_logs.edit_time, '%M %e, %Y %l:%i %p') AS formatted_time")
+			->from('activity_edit_logs')
+			->join('users', 'users.student_id = activity_edit_logs.student_id')
+			->where('activity_edit_logs.activity_id', $activity_id)
+			->order_by('activity_edit_logs.edit_time', 'DESC')
+			->get()
+			->result_array();
 	}
 
 	// UPDATING SCHEDULE TO DATABASE
@@ -1602,6 +1742,19 @@ class Officer_model extends CI_Model
 		return $this->db->trans_status();
 	}
 
+	public function get_student_privilege()
+	{
+		$student_id = $this->session->userdata('student_id'); // Get logged-in student ID
+
+		if (!$student_id) {
+			return null; // Or handle unauthorized access
+		}
+
+		return $this->db
+			->get_where('privilege', ['student_id' => $student_id])
+			->row(); // Return one row of privileges
+	}
+
 
 	public function get_qr_code_by_student_id($student_id)
 	{
@@ -1627,6 +1780,7 @@ class Officer_model extends CI_Model
 	{
 		return $this->db->insert_batch($this->table, $data_batch);
 	}
+
 
 
 

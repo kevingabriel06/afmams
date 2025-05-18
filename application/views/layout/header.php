@@ -159,26 +159,34 @@
 									<a class="nav-link" href="<?php echo site_url('officer/list-activities-attendance'); ?>" role="button">
 										<div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-calendar-alt"></span></span><span class="nav-link-text ps-1">Attendance</span></div>
 									</a><!-- Fines pages-->
-									<a class="nav-link" href="<?php echo site_url('officer/list-fines') ?>" role="button">
-										<div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-coins"></span></span><span class="nav-link-text ps-1">Fines</span></div>
-									</a>
+									<?php if ($privilege->manage_fines == 'Yes'): ?>
+										<a class="nav-link" href="<?php echo site_url('officer/list-fines') ?>" role="button">
+											<div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-coins"></span></span><span class="nav-link-text ps-1">Fines</span></div>
+										</a>
+									<?php endif; ?>
 									<!-- Activity management pages-->
 									<a class="nav-link dropdown-indicator" href="#email" role="button" data-bs-toggle="collapse" aria-expanded="false" aria-controls="">
 										<div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fab fa-buromobelexperte"></span></span><span class="nav-link-text ps-1">Activity</span></div>
 									</a>
 									<ul class="nav collapse" id="email">
-										<li class="nav-item"><a class="nav-link" href="<?php echo site_url('officer/create-activity'); ?>">
-												<div class="d-flex align-items-center"><span class="nav-link-text ps-1">Create an Activity</span></div>
-											</a><!-- more inner pages--></li>
+										<?php if ($privilege->able_create_activity == 'Yes'): ?>
+											<li class="nav-item"><a class="nav-link" href="<?php echo site_url('officer/create-activity'); ?>">
+													<div class="d-flex align-items-center"><span class="nav-link-text ps-1">Create an Activity</span></div>
+												</a><!-- more inner pages--></li>
+										<?php endif; ?>
 										<li class="nav-item"><a class="nav-link" href="<?php echo site_url('officer/list-of-activity'); ?>">
 												<div class="d-flex align-items-center"><span class="nav-link-text ps-1">List of Activity</span></div>
 											</a><!-- more inner pages--></li>
-										<li class="nav-item"><a class="nav-link" href="<?php echo site_url('officer/list-activity-evaluation'); ?>">
-												<div class="d-flex align-items-center"><span class="nav-link-text ps-1">List of Evaluation Form</span></div>
-											</a><!-- more inner pages--></li>
-										<li class="nav-item"><a class="nav-link" href="<?php echo site_url('officer/activity-list'); ?>">
-												<div class="d-flex align-items-center"><span class="nav-link-text ps-1">List of Excuse Letter</span></div>
-											</a><!-- more inner pages--></li>
+										<?php if ($privilege->manage_evaluation == 'Yes'): ?>
+											<li class="nav-item"><a class="nav-link" href="<?php echo site_url('officer/list-activity-evaluation'); ?>">
+													<div class="d-flex align-items-center"><span class="nav-link-text ps-1">List of Evaluation Form</span></div>
+												</a><!-- more inner pages--></li>
+										<?php endif; ?>
+										<?php if ($privilege->manage_applications == 'Yes'): ?>
+											<li class="nav-item"><a class="nav-link" href="<?php echo site_url('officer/activity-list'); ?>">
+													<div class="d-flex align-items-center"><span class="nav-link-text ps-1">List of Excuse Letter</span></div>
+												</a><!-- more inner pages--></li>
+										<?php endif; ?>
 									</ul><!-- parent pages-->
 								</li>
 
@@ -487,8 +495,10 @@
 										<a class="dropdown-item fw-bold text-warning"><span>Officer Account</span></a>
 										<div class="dropdown-divider"></div>
 										<a class="dropdown-item" href="<?php echo site_url('officer/profile-settings') ?>">Profile Settings</a>
-										<a class="dropdown-item" href="<?php echo site_url('officer/manage-officers'); ?> ">Manage Officers</a>
-										<a class="dropdown-item" href="<?php echo site_url('officer/general-settings'); ?>">General Settings</a>
+										<?php if ($this->session->userdata('is_admin_dept') == 'Yes' || $this->session->userdata('is_admin_org') == 'Yes') : ?>
+											<a class="dropdown-item" href="<?php echo site_url('officer/manage-officers'); ?>">Manage Officers</a>
+											<a class="dropdown-item" href="<?php echo site_url('officer/general-settings'); ?>">General Settings</a>
+										<?php endif; ?>
 										<div class="dropdown-divider"></div>
 										<a class="dropdown-item" href="#" onclick="confirmLogout()">Logout</a>
 									</div>

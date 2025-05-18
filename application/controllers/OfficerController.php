@@ -125,15 +125,22 @@ class OfficerController extends CI_Controller
 	}
 
 
+	// public function officer_dashboard()
+	// {
+
+	// 	$data['title'] = 'Dashboard';
+	// hello it is the model of the hsjkdhkjhsjdhsj
 	public function officer_dashboard()
 	{
-
 		$data['title'] = 'Dashboard';
 
 		$student_id = $this->session->userdata('student_id');
 
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
 		$data['users'] = $this->officer->get_student($student_id);
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->officer->get_student($student_id);
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 
 		// DATA
@@ -151,6 +158,8 @@ class OfficerController extends CI_Controller
 		// Calculate the total number of students
 		$total_students = array_sum(array_column($data['student_counts'], 'student_count'));
 		$data['total_students'] = $total_students;
+		// Get breakdown of activities per month for the current semester
+		$data['monthly_breakdown'] = $this->officer->get_monthly_activity_count($data['current_semester']['start_date'], $data['current_semester']['end_date']);
 
 		// ACTIVITY ORGANIZED
 		$data['activity_count'] = $this->officer->get_current_semester_count_organized();
@@ -158,6 +167,15 @@ class OfficerController extends CI_Controller
 		// TOTAL FINES
 		$data['fines'] = $this->officer->get_total_fines();
 
+		// TOTAL FINES
+		$data['fines_per_activity'] = $this->officer->get_total_fines_per_activity();
+
+		// EXPECTED ATTENDEES TO ACTUAL
+		$attendance_data_result = $this->officer->fetch_attendance_data();
+
+		// Assigning the fetched data and the attendance rate to $data
+		$data['attendance_data'] = $attendance_data_result['attendance_data'];
+		$data['attendance_rate'] = $attendance_data_result['attendance_rate'];
 
 		$this->load->view('layout/header', $data);
 		$this->load->view('officer/dashboard', $data);
@@ -175,6 +193,8 @@ class OfficerController extends CI_Controller
 		$student_id = $this->session->userdata('student_id');
 
 		$data['users'] = $this->officer->get_student($student_id);
+		$data['users'] = $this->officer->get_student($student_id);
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		$data['dept'] = $this->officer->get_department(); // this is the audience
 
@@ -357,6 +377,9 @@ class OfficerController extends CI_Controller
 
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
 		$data['users'] = $this->officer->get_student($student_id);
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->officer->get_student($student_id);
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		// GETTING OF THE ACTIVITY FROM THE DATABASE
 		$data['activities'] = $this->officer->get_activities(); // FOR STUDENT PARLIAMENT
@@ -374,6 +397,8 @@ class OfficerController extends CI_Controller
 		$student_id = $this->session->userdata('student_id');
 
 		$data['users'] = $this->officer->get_student($student_id);
+		$data['users'] = $this->officer->get_student($student_id);
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		$data['activity'] = $this->officer->get_activity($activity_id); // SPECIFIC ACTIVITY
 		$data['schedules'] = $this->officer->get_schedule($activity_id); // GETTING OF SCHEDULE
@@ -775,6 +800,9 @@ class OfficerController extends CI_Controller
 
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
 		$data['users'] = $this->officer->get_student($student_id);
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->officer->get_student($student_id);
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		$data['activity'] = $this->officer->get_activity($activity_id);
 		$data['schedules'] = $this->officer->get_schedule($activity_id);
@@ -806,8 +834,27 @@ class OfficerController extends CI_Controller
 			$this->form_validation->set_rules('start_datetime[]', 'Start Date & Time', 'required');
 			$this->form_validation->set_rules('end_datetime[]', 'End Date & Time', 'required');
 			$this->form_validation->set_rules('session_type[]', 'Session Type', 'required');
+		}
+	}
+	public function update_activity($activity_id)
+	{
+		if ($this->input->post()) {
+			// Set Validation Rules
+			$this->form_validation->set_rules('title', 'Activity Title', 'required');
+			$this->form_validation->set_rules('date_start', 'Start Date', 'required');
+			$this->form_validation->set_rules('date_end', 'End Date', 'required');
+			$this->form_validation->set_rules('description', 'Description', 'required');
+			$this->form_validation->set_rules('registration_fee', 'Registration Fee', 'numeric');
+			$this->form_validation->set_rules('fines', 'Fines', 'numeric');
+			$this->form_validation->set_rules('session_type[]', 'Session Type', 'required');
+			$this->form_validation->set_rules('start_datetime[]', 'Start Date & Time', 'required');
+			$this->form_validation->set_rules('end_datetime[]', 'End Date & Time', 'required');
 
 			// Run Validation
+			if ($this->form_validation->run() == FALSE) {
+				echo json_encode(['status' => 'error', 'errors' => validation_errors()]);
+				return;
+			}
 			if ($this->form_validation->run() == FALSE) {
 				echo json_encode(['status' => 'error', 'errors' => validation_errors()]);
 				return;
@@ -826,6 +873,18 @@ class OfficerController extends CI_Controller
 				'start_date'            => $this->input->post('date_start'),
 				'end_date'              => $this->input->post('date_end'),
 				'description'           => $this->input->post('description'),
+				'registration_deadline' => $this->input->post('registration_deadline'),
+				'registration_fee'      => str_replace(",", "", $this->input->post('registration_fee')),
+				'organizer'             => $this->session->userdata('dept_name') ?: $this->session->userdata('org_name'),
+				'fines'                 => str_replace(",", "", $this->input->post('fines')),
+				'audience'              => $this->input->post('audience')
+			];
+			// Prepare New Activity Data
+			$data = [
+				'activity_title'        => trim($this->input->post('title')),
+				'start_date'            => $this->input->post('date_start'),
+				'end_date'              => $this->input->post('date_end'),
+				'description'           => trim($this->input->post('description')),
 				'registration_deadline' => $this->input->post('registration_deadline'),
 				'registration_fee'      => str_replace(",", "", $this->input->post('registration_fee')),
 				'organizer'             => $this->session->userdata('dept_name') ?: $this->session->userdata('org_name'),
@@ -852,9 +911,28 @@ class OfficerController extends CI_Controller
 				}
 				$data['qr_code'] = $qrCode['file_name'];
 			}
+			// Handle QR Code Upload
+			if (!empty($_FILES['qrcode']['name'])) {
+				$qrCode = $this->upload_file('qrcode', './assets/qrcodeRegistration');
+				if (!$qrCode['status']) {
+					echo json_encode(['status' => 'error', 'errors' => $qrCode['error']]);
+					return;
+				}
+				$data['qr_code'] = $qrCode['file_name'];
+			}
+
+			// Compare Changes
+			$changes = $this->get_activity_changes($activity, $data);
+
+			// if (empty($changes)) {
+			//     echo json_encode(['status' => 'error', 'errors' => 'No changes detected.']);
+			//     return;
+			// }
 
 			// Update Activity
 			$this->officer->update_activity($activity_id, $data);
+			// Update Activity
+			$updated = $this->officer->update_activity($activity_id, $data);
 
 			// Fetch Input Data
 			$start_datetimes = $this->input->post('start_datetime') ?? [];
@@ -863,45 +941,118 @@ class OfficerController extends CI_Controller
 			$end_cutoff = $this->input->post('end_cutoff') ?? [];
 			$session_types = $this->input->post('session_type') ?? [];
 			$schedule_ids = $this->input->post('timeslot_id') ?? [];
+			if ($updated) {
+				// Log the changes (optional: create this method in your model)
+				$this->officer->log_activity_changes([
+					'activity_id' => $activity_id,
+					'student_id'     => $this->session->userdata('student_id'),
+					'changes'     => json_encode($changes),
+					'edit_time'  => date('Y-m-d H:i:s')
+				]);
 
-			// Update or Insert Schedules
-			foreach ($start_datetimes as $i => $start_datetime) {
-				// Ensure array indexes exist before accessing them
-				$start_cutoff = $start_cutoff[$i] ?? null;
-				$end_datetime = $end_datetimes[$i] ?? null;
-				$end_cutoff = $end_cutoff[$i] ?? null;
-				$session_type = $session_types[$i] ?? null;
-				$schedule_id = $schedule_ids[$i] ?? null;
+				// Handle Schedule Inputs
+				$start_datetimes = $this->input->post('start_datetime') ?? [];
+				$start_cutoffs   = $this->input->post('start_cutoff') ?? [];
+				$end_datetimes   = $this->input->post('end_datetime') ?? [];
+				$end_cutoffs     = $this->input->post('end_cutoff') ?? [];
+				$session_types   = $this->input->post('session_type') ?? [];
+				$schedule_ids    = $this->input->post('timeslot_id') ?? [];
 
-				// Prepare schedule data
-				$schedule_data = [
-					'activity_id'  => $activity_id,
-					'date_time_in' => date('Y-m-d H:i:s', strtotime($start_datetime)),
-					'date_cut_in' => date('Y-m-d H:i:s', strtotime($start_cutoff)),
-					'date_time_out' => date('Y-m-d H:i:s', strtotime($end_datetime)),
-					'date_cut_out' => date('Y-m-d H:i:s', strtotime($end_cutoff)),
-					'slot_name'    => $session_type
-				];
+				// Update or Insert Schedules
+				foreach ($start_datetimes as $i => $start_datetime) {
+					// Ensure array indexes exist before accessing them
+					$start_cutoff = $start_cutoff[$i] ?? null;
+					$end_datetime = $end_datetimes[$i] ?? null;
+					$end_cutoff = $end_cutoff[$i] ?? null;
+					$session_type = $session_types[$i] ?? null;
+					$schedule_id = $schedule_ids[$i] ?? null;
 
-				if (!empty($schedule_id)) {
-					// Update existing schedule
-					$this->officer->update_schedule($schedule_id, $schedule_data);
-				} else {
-					// Insert new schedule with created_at timestamp
-					$schedule_data['created_at'] = date('Y-m-d H:i:s');
+					// Prepare schedule data
+					$schedule_data = [
+						'activity_id'  => $activity_id,
+						'date_time_in' => date('Y-m-d H:i:s', strtotime($start_datetime)),
+						'date_cut_in' => date('Y-m-d H:i:s', strtotime($start_cutoff)),
+						'date_time_out' => date('Y-m-d H:i:s', strtotime($end_datetime)),
+						'date_cut_out' => date('Y-m-d H:i:s', strtotime($end_cutoff)),
+						'slot_name'    => $session_type
+					];
+					foreach ($start_datetimes as $i => $start_datetime) {
+						$schedule_data = [
+							'activity_id'   => $activity_id,
+							'date_time_in'  => date('Y-m-d H:i:s', strtotime($start_datetime)),
+							'date_cut_in'   => date('Y-m-d H:i:s', strtotime($start_cutoffs[$i] ?? null)),
+							'date_time_out' => date('Y-m-d H:i:s', strtotime($end_datetimes[$i] ?? null)),
+							'date_cut_out'  => date('Y-m-d H:i:s', strtotime($end_cutoffs[$i] ?? null)),
+							'slot_name'     => $session_types[$i] ?? ''
+						];
 
-					$this->officer->save_schedule($schedule_data);
+						if (!empty($schedule_id)) {
+							// Update existing schedule
+							$this->officer->update_schedule($schedule_id, $schedule_data);
+						} else {
+							// Insert new schedule with created_at timestamp
+							$schedule_data['created_at'] = date('Y-m-d H:i:s');
+
+							$this->officer->save_schedule($schedule_data);
+						}
+					}
+					if (!empty($schedule_ids[$i])) {
+						// Update existing schedule
+						$this->officer->update_schedule($schedule_ids[$i], $schedule_data);
+					} else {
+						// Insert new schedule
+						$schedule_data['created_at'] = date('Y-m-d H:i:s');
+						$this->officer->save_schedule($schedule_data);
+					}
 				}
-			}
 
-			// Return Success Response
-			echo json_encode([
-				'status'   => 'success',
-				'message'  => 'Activity Updated Successfully',
-				'redirect' => site_url('officer/list-of-activity')
-			]);
+				echo json_encode([
+					'status' => 'success',
+					'message' => 'Activity Updated Successfully',
+					'redirect' => site_url('officer/list-of-activity')
+				]);
+			} else {
+				echo json_encode(['status' => 'error', 'errors' => 'Update failed.']);
+			}
 		}
 	}
+
+	private function get_activity_changes($original, $new_data)
+	{
+		$changes = [];
+		foreach ($new_data as $key => $new_value) {
+			$original_value = isset($original[$key]) ? $original[$key] : null;
+
+			// Normalize both values if needed
+			if (is_string($new_value)) $new_value = trim($new_value);
+			if (is_string($original_value)) $original_value = trim($original_value);
+
+			if ($original_value != $new_value) {
+				// Debug output to inspect values
+				var_dump("Field: $key", "Original:", $original_value, "New:", $new_value);
+
+				$changes[$key] = [
+					'old' => $original_value,
+					'new' => $new_value
+				];
+			}
+		}
+		return $changes;
+	}
+
+	public function get_edit_logs($activity_id)
+	{
+		$logs = $this->officer->get_activity_logs($activity_id);
+		echo json_encode($logs);
+	}
+
+	public function get_edit_logs($activity_id)
+	{
+		$logs = $this->officer->get_activity_logs($activity_id);
+		echo json_encode($logs);
+	}
+
+
 
 	// EVALUATION LIST - PAGE - FINAL CHECK
 	public function list_activity_evaluation()
@@ -912,6 +1063,9 @@ class OfficerController extends CI_Controller
 
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
 		$data['users'] = $this->officer->get_student($student_id);
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->officer->get_student($student_id);
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		// GET THE EVALUATION FOR STUDENT PARLIAMENT
 		$data['evaluation'] = $this->officer->evaluation_form();
@@ -931,6 +1085,9 @@ class OfficerController extends CI_Controller
 
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
 		$data['users'] = $this->officer->get_student($student_id);
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->officer->get_student($student_id);
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		// Fetch activities based on user role
 		$data['activities'] = $this->officer->activity_organized();
@@ -1030,6 +1187,9 @@ class OfficerController extends CI_Controller
 
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
 		$data['users'] = $this->officer->get_student($student_id);
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->officer->get_student($student_id);
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		// Fetch activities based on user role
 		$data['activities'] = $this->officer->activity_organized();
@@ -1152,6 +1312,9 @@ class OfficerController extends CI_Controller
 
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
 		$data['users'] = $this->officer->get_student($student_id);
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->officer->get_student($student_id);
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		// Fetch activities based on user role
 		$data['activities'] = $this->officer->activity_organized();
@@ -1174,6 +1337,9 @@ class OfficerController extends CI_Controller
 
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARY
 		$data['users'] = $this->officer->get_student($student_id);
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARY
+		$data['users'] = $this->officer->get_student($student_id);
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		$data['departments'] = $this->officer->get_department();
 		$data['forms'] = $this->officer->forms($form_id);
@@ -1419,6 +1585,8 @@ class OfficerController extends CI_Controller
 		$data['title'] = 'Evaluation Statistic';
 
 		$student_id = $this->session->userdata('student_id');
+		$student_id = $this->session->userdata('student_id');
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		// Fetch required data
 		$total_attendees = $this->officer->count_attendees($form_id);
@@ -1459,6 +1627,9 @@ class OfficerController extends CI_Controller
 
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
 		$data['users'] = $this->officer->get_student($student_id);
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->officer->get_student($student_id);
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		$data['activities'] = $this->officer->get_activities();
 
@@ -1476,6 +1647,9 @@ class OfficerController extends CI_Controller
 
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
 		$data['users'] = $this->officer->get_student($student_id);
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->officer->get_student($student_id);
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		$data['activities'] = $this->officer->fetch_application($activity_id);
 		$data['letters'] = $this->officer->fetch_letters();
@@ -1494,6 +1668,9 @@ class OfficerController extends CI_Controller
 
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
 		$data['users'] = $this->officer->get_student($student_id);
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->officer->get_student($student_id);
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		$data['excuse'] = $this->officer->review_letter($excuse_id);
 
@@ -1670,6 +1847,10 @@ class OfficerController extends CI_Controller
 		// FETCH USER DATA
 		$data['users'] = $this->officer->get_student($student_id);
 		$data['authors'] = $this->officer->get_user();
+		// FETCH USER DATA
+		$data['users'] = $this->officer->get_student($student_id);
+		$data['authors'] = $this->officer->get_user();
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		// Get offset and limit from AJAX request
 		$limit = $this->input->post('limit') ?: 5;
@@ -2007,6 +2188,9 @@ class OfficerController extends CI_Controller
 
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
 		$data['users'] = $this->officer->get_student($student_id);
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->officer->get_student($student_id);
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		$data['activity'] = $this->officer->get_activity($activity_id);
 		$data['schedule'] = $this->officer->get_schedule($activity_id);
@@ -2028,6 +2212,9 @@ class OfficerController extends CI_Controller
 
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
 		$data['users'] = $this->officer->get_student($student_id);
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->officer->get_student($student_id);
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		$data['activity'] = $this->officer->get_activity($activity_id);
 		$data['schedule'] = $this->officer->get_schedule($activity_id);
@@ -2360,6 +2547,9 @@ class OfficerController extends CI_Controller
 
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
 		$data['users'] = $this->officer->get_student($student_id);
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->officer->get_student($student_id);
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		$data['activities'] = $this->officer->get_activities_by_sp();
 
@@ -2377,6 +2567,9 @@ class OfficerController extends CI_Controller
 
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
 		$data['users'] = $this->officer->get_student($student_id);
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->officer->get_student($student_id);
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		$data['activities'] = $this->officer->get_activity_specific($activity_id);
 		$data['students'] = $this->officer->get_all_students_attendance_by_activity($activity_id);
@@ -2573,6 +2766,8 @@ class OfficerController extends CI_Controller
 		$student_id = $this->session->userdata('student_id');
 
 		$data['users'] = $this->officer->get_student($student_id);
+		$data['users'] = $this->officer->get_student($student_id);
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		$data['departments'] = $this->officer->get_department();
 
@@ -2970,6 +3165,9 @@ class OfficerController extends CI_Controller
 
 		// Get user and their organizations
 		$student_details = $this->officer->get_user_profile();
+		// Get user and their organizations
+		$student_details = $this->officer->get_user_profile();
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		if ($student_details) {
 			$data['student_details'] = $student_details;
@@ -3127,6 +3325,9 @@ class OfficerController extends CI_Controller
 
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
 		$data['users'] = $this->officer->get_student($student_id);
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->officer->get_student($student_id);
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		$data['officers'] = $this->officer->get_officer();
 
@@ -3179,31 +3380,6 @@ class OfficerController extends CI_Controller
 
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
 		$data['users'] = $this->officer->get_student($student_id);
-
-		// DYNAMIC DROPDOWN OPTIONS
-		$logo_targets = [];
-
-		if ($role === 'Admin') {
-			$logo_targets[] = ['value' => 'student_parliament', 'label' => 'Student Parliament'];
-		} elseif ($role === 'Officer') {
-			$is_officer = $this->session->userdata('is_officer');
-			$is_officer_dept = $this->session->userdata('is_officer_dept');
-
-			if ($is_officer === 'Yes') {
-				$org = $this->admin->get_organization_by_student($student_id);
-				if ($org) {
-					$logo_targets[] = ['value' => 'organization', 'label' => $org->org_name];
-				}
-			}
-			if ($is_officer_dept === 'Yes') {
-				$dept = $this->admin->get_department_by_id($data['users']['dept_id']);
-				if ($dept) {
-					$logo_targets[] = ['value' => 'department', 'label' => $dept->dept_name];
-				}
-			}
-		}
-
-		$data['logo_targets'] = $logo_targets;
 
 		$this->load->view('layout/header', $data);
 		$this->load->view('officer/general_settings', $data);
@@ -3345,6 +3521,8 @@ class OfficerController extends CI_Controller
 		$data['title'] = 'About';
 
 		$student_id = $this->session->userdata('student_id');
+		$student_id = $this->session->userdata('student_id');
+		$data['privilege'] = $this->officer->get_student_privilege();
 
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
 		$data['users'] = $this->officer->get_student($student_id);
