@@ -1,5 +1,3 @@
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
 <div class="container">
 	<div class="card mb-3">
 		<div class="card-header">
@@ -39,10 +37,10 @@
 
 					<!-- File Upload Section -->
 					<div class="mb-3">
-						<label class="form-label">Upload Image or Document <i>(PDF and Image only)</i></label>
+						<label class="form-label">Upload Image only</i></label>
 						<div class="d-flex align-items-center">
 							<!-- Hidden file input -->
-							<input type="file" class="d-none" id="fileUpload" name="fileUpload" accept="image/*,application/pdf" multiple onchange="updateFilePreview()">
+							<input type="file" class="d-none" id="fileUpload" name="fileUpload" accept="image/*" multiple onchange="updateFilePreview()">
 
 							<!-- File upload button -->
 							<label for="fileUpload" class="btn btn-secondary d-flex align-items-center">
@@ -52,7 +50,6 @@
 							<!-- Display selected file names -->
 							<span id="fileName" class="ms-2 text-muted">No files selected</span>
 						</div>
-
 						<!-- File Preview Section -->
 						<div id="filePreview" class="d-inline-flex flex-column mt-2">
 							<!-- This will be dynamically filled with file previews -->
@@ -100,92 +97,33 @@
 									var fileLinkElement = document.createElement('a');
 									var downloadButton = document.createElement('a');
 
-									// Check if the file is an image
-									if (file.type.startsWith('image/')) {
-										iconElement.classList.add('fs-8', 'far', 'fa-image');
-										fileLinkElement.textContent = file.name;
-										fileLinkElement.style.cursor = 'pointer';
+									iconElement.classList.add('fs-8', 'far', 'fa-image');
+									fileLinkElement.textContent = file.name;
+									fileLinkElement.style.cursor = 'pointer';
 
-										// On click, show the image in the modal
-										fileLinkElement.onclick = function() {
-											var modalContent = document.getElementById('modalContent');
-											modalContent.innerHTML = '<img src="' + e.target.result + '" class="img-fluid" alt="Preview">';
-											var modal = new bootstrap.Modal(document.getElementById('filePreviewModal'));
-											modal.show();
-										};
+									// On click, show the image in the modal
+									fileLinkElement.onclick = function() {
+										var modalContent = document.getElementById('modalContent');
+										modalContent.innerHTML = '<img src="' + e.target.result + '" class="img-fluid" alt="Preview">';
+										var modal = new bootstrap.Modal(document.getElementById('filePreviewModal'));
+										modal.show();
+									};
 
-										// Create a download button for images
-										downloadButton.classList.add('text-300', 'ms-auto');
-										downloadButton.href = e.target.result;
-										downloadButton.download = file.name;
-										downloadButton.setAttribute('data-bs-toggle', 'tooltip');
-										downloadButton.setAttribute('data-bs-placement', 'right');
-										downloadButton.setAttribute('title', 'Download');
-										downloadButton.innerHTML = '<span class="fas fa-arrow-down"></span>';
+									// Create a download button for images
+									downloadButton.classList.add('text-300', 'ms-auto');
+									downloadButton.href = e.target.result;
+									downloadButton.download = file.name;
+									downloadButton.setAttribute('data-bs-toggle', 'tooltip');
+									downloadButton.setAttribute('data-bs-placement', 'right');
+									downloadButton.setAttribute('title', 'Download');
+									downloadButton.innerHTML = '<span class="fas fa-arrow-down"></span>';
 
-										// Add spacing between elements
-										filePreviewElement.appendChild(iconElement);
-										filePreviewElement.appendChild(document.createTextNode(' ')); // Space between icon and filename
-										filePreviewElement.appendChild(fileLinkElement);
-										filePreviewElement.appendChild(document.createTextNode('  ')); // Space between filename and download button
-										filePreviewElement.appendChild(downloadButton);
-									}
-									// Check if the file is a PDF
-									else if (file.type === 'application/pdf') {
-										iconElement.classList.add('fs-8', 'fas', 'fa-file-pdf');
-										fileLinkElement.textContent = file.name;
-										fileLinkElement.style.cursor = 'pointer';
-
-										// On click, show the PDF in the modal
-										fileLinkElement.onclick = function() {
-											var modalContent = document.getElementById('modalContent');
-											modalContent.innerHTML = '<iframe src="' + e.target.result + '" class="img-fluid" style="width: 100%; height: 600px;" frameborder="0"></iframe>';
-											var modal = new bootstrap.Modal(document.getElementById('filePreviewModal'));
-											modal.show();
-										};
-
-										// Create a download button for PDFs
-										downloadButton.classList.add('text-300', 'ms-auto');
-										downloadButton.href = e.target.result;
-										downloadButton.download = file.name;
-										downloadButton.setAttribute('data-bs-toggle', 'tooltip');
-										downloadButton.setAttribute('data-bs-placement', 'right');
-										downloadButton.setAttribute('title', 'Download');
-										downloadButton.innerHTML = '<span class="fas fa-arrow-down"></span>';
-
-										// Add spacing between elements
-										filePreviewElement.appendChild(iconElement);
-										filePreviewElement.appendChild(document.createTextNode(' ')); // Space between icon and filename
-										filePreviewElement.appendChild(fileLinkElement);
-										filePreviewElement.appendChild(document.createTextNode('  ')); // Space between filename and download button
-										filePreviewElement.appendChild(downloadButton);
-									}
-									// For other file types
-									else {
-										iconElement.classList.add('fs-8', 'fas', 'fa-file');
-										fileLinkElement.textContent = file.name;
-
-										// On click, show the file in the modal (you can handle other file types here)
-										fileLinkElement.onclick = function() {
-											alert('Preview not available for this file type.');
-										};
-
-										// Create a download button for other file types
-										downloadButton.classList.add('text-300', 'ms-auto');
-										downloadButton.href = e.target.result;
-										downloadButton.download = file.name;
-										downloadButton.setAttribute('data-bs-toggle', 'tooltip');
-										downloadButton.setAttribute('data-bs-placement', 'right');
-										downloadButton.setAttribute('title', 'Download');
-										downloadButton.innerHTML = '<span class="fas fa-arrow-down"></span>';
-
-										// Add spacing between elements
-										filePreviewElement.appendChild(iconElement);
-										filePreviewElement.appendChild(document.createTextNode(' ')); // Space between icon and filename
-										filePreviewElement.appendChild(fileLinkElement);
-										filePreviewElement.appendChild(document.createTextNode('  ')); // Space between filename and download button
-										filePreviewElement.appendChild(downloadButton);
-									}
+									// Add spacing between elements
+									filePreviewElement.appendChild(iconElement);
+									filePreviewElement.appendChild(document.createTextNode(' ')); // Space between icon and filename
+									filePreviewElement.appendChild(fileLinkElement);
+									filePreviewElement.appendChild(document.createTextNode('  ')); // Space between filename and download button
+									filePreviewElement.appendChild(downloadButton);
 
 									// Append the preview element to the container
 									previewContainer.appendChild(filePreviewElement);
@@ -209,8 +147,6 @@
 		</div>
 	</div>
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
 	$(document).ready(function() {
@@ -267,54 +203,51 @@
 				return;
 			}
 
-			// If all validations pass, proceed with AJAX submission
-			var form = $('#excuseForm')[0];
-			var formData = new FormData(form);
-
-
-
-			$.ajax({
-				url: '<?php echo site_url("student/excuse-application/submit"); ?>', // your controller method
-				type: 'POST',
-				data: formData,
-				contentType: false, // required for file upload
-				processData: false, // required for file upload
-				beforeSend: function() {
-					// Optional: show loading spinner
-					console.log("Submitting...");
-				},
-				success: function(response) {
-					// Success handling
-					console.log(response);
-
-					// SweetAlert success popup
-					Swal.fire({
-						title: 'Success!',
-						text: 'Excuse application submitted successfully!',
-						icon: 'success',
-						confirmButtonText: 'OK'
-					}).then((result) => {
-						if (result.isConfirmed) {
-							// Redirect after clicking OK
-							window.location.href = '<?php echo site_url("student/excuse-application/list"); ?>';
+			// Confirmation before AJAX
+			Swal.fire({
+				title: 'Confirm Submission',
+				text: 'Are you sure you want to submit this excuse application?',
+				icon: 'question',
+				showCancelButton: true,
+				confirmButtonText: 'Yes, submit it!',
+				cancelButtonText: 'Cancel'
+			}).then((result) => {
+				if (result.isConfirmed) {
+					// Proceed with AJAX
+					$.ajax({
+						url: '<?php echo site_url("student/excuse-application/submit"); ?>', // your controller method
+						type: 'POST',
+						data: formData,
+						contentType: false,
+						processData: false,
+						beforeSend: function() {
+							console.log("Submitting...");
+						},
+						success: function(response) {
+							console.log(response);
+							Swal.fire({
+								title: 'Success!',
+								text: 'Excuse application submitted successfully!',
+								icon: 'success',
+								confirmButtonText: 'OK'
+							}).then((result) => {
+								if (result.isConfirmed) {
+									window.location.href = '<?php echo site_url("student/excuse-application/list"); ?>';
+								}
+							});
+							$('#excuseForm')[0].reset();
+							$('#fileName').text('No files selected');
+							$('#filePreview').html('');
+						},
+						error: function(xhr, status, error) {
+							console.error(xhr.responseText);
+							Swal.fire({
+								title: 'Error!',
+								text: 'There was an error submitting your application.',
+								icon: 'error',
+								confirmButtonText: 'OK'
+							});
 						}
-					});
-
-
-					// Optional: reset form
-					$('#excuseForm')[0].reset();
-					$('#fileName').text('No files selected');
-					$('#filePreview').html('');
-				},
-				error: function(xhr, status, error) {
-					console.error(xhr.responseText);
-
-					// SweetAlert error popup
-					Swal.fire({
-						title: 'Error!',
-						text: 'There was an error submitting your application.',
-						icon: 'error',
-						confirmButtonText: 'OK'
 					});
 				}
 			});

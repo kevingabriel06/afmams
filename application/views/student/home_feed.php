@@ -9,7 +9,7 @@
 							<div class="d-flex">
 								<div class="avatar avatar-2xl status-online">
 									<!-- Display the profile picture based on the post -->
-									<img class="rounded-circle" src="<?php echo base_url('assets/profile/') . (!empty($item->profile_pic) ? $item->profile_pic : 'default-pic.jpg'); ?>" />
+									<img class="rounded-circle" src="<?php echo base_url('assets/profile/') . (!empty($item->profile_pic) ? $item->profile_pic : 'default.jpg'); ?>" />
 								</div>
 								<div class="flex-1 align-self-center ms-2">
 									<p class="mb-1 lh-1"> <!-- Display the post creator's name -->
@@ -208,7 +208,9 @@
 		<?php elseif (isset($item->activity_id)): ?>
 			<!-- THIS IS THE EVENT TEMPLATE -->
 			<div class="card mb-3">
-				<img id="coverPhoto" class="card-img-top" src="<?php echo base_url('assets/coverEvent/') . $item->activity_image; ?>" alt="Event Cover" />
+				<img id="coverPhoto" class="card-img-top" src="<?php echo !empty($item->activity_image)
+																	? base_url('assets/coverEvent/' . $item->activity_image)
+																	: base_url('assets/image/OIP.jpg'); ?>" alt="Event Cover" />
 				<div class="card-body overflow-hidden">
 					<div class="row justify-content-between align-items-center">
 						<div class="col">
@@ -248,33 +250,282 @@
 									<button class="btn btn-falcon-default btn-sm px-4 cancel-button"
 										data-activity-id="<?= $item->activity_id ?>"
 										data-student-id="<?= $this->session->userdata('student_id') ?>"
-										data-status="<?php echo $item->attendees_status; ?>">
+										data-status="<?= $item->attendees_status; ?>">
 										Cancel
 									</button>
 								<?php else: ?>
 									<button class="btn btn-falcon-default btn-sm px-4 attend-button"
 										data-activity-id="<?= $item->activity_id ?>"
 										data-student-id="<?= $this->session->userdata('student_id') ?>"
-										data-status="<?php echo $item->attendees_status; ?>">
+										data-status="<?= $item->attendees_status; ?>">
 										Attend
 									</button>
 								<?php endif; ?>
 							<?php else: ?>
 								<button
-									class=" btn btn-falcon-default btn-sm px-4 open-registration-modal"
+									class="btn btn-falcon-default btn-sm px-4 open-registration-modal"
 									type="button"
 									data-bs-toggle="modal"
 									data-bs-target="#registrationModal"
-									data-activity-id="<?php echo $item->activity_id; ?>"
-									data-registration-fee="<?php echo $item->registration_fee; ?>"
-									data-status="<?php echo $item->registration_status; ?>">
+									data-activity-id="<?= $item->activity_id; ?>"
+									data-registration-fee="<?= $item->registration_fee; ?>"
+									data-status="<?= $item->registration_status; ?>"
+									data-student-id="<?= $this->session->userdata('student_id') ?>">
 									Register
 								</button>
 							<?php endif; ?>
 						</div>
+
 					</div>
 				</div>
 			</div>
 		<?php endif; ?>
 	</div>
 <?php endforeach; ?>
+
+<script>
+	$('.attend-button').on('click', function() {
+		const button = $(this);
+		const activityId = button.data('activity-id');
+		const studentId = button.data('student-id');
+		const currentStatus = button.data('status'); // Either "Attending" or null/empty
+
+		let confirmText = currentStatus === "Attending" ?
+			"Do you want to cancel your attendance?" :
+			"Do you want to mark yourself as attending this event?";
+
+		Swal.fire({
+			title: 'Are you sure?',
+			text: confirmText,
+			icon: 'question',
+			showCancelButton: true,
+			confirmButtonColor: '#3085d6',
+			cancelButtonColor: '#d33',
+			confirmButtonText: 'Yes'
+		}).then((result) => {
+			if (result.isConfirmed) {
+				$.ajax({
+					url: "<?= site_url('student/attend'); ?>", // Ensure your URL is correct here
+					type: "POST",
+					data: {
+						activity_id: activityId,
+						student_id: studentId,
+						status: currentStatus === "Attending" ? "Cancelled" : "Attending"
+					},
+					dataType: "json",
+					success: function(response) {
+						if (response.status === "success") {
+							Swal.fire({
+								icon: 'success',
+								title: 'Success',
+								text: response.message
+							}).then(() => {
+								// Optionally, update button text or hide the button
+								location.reload(); // Reload the page to reflect changes
+							});
+						} else {
+							Swal.fire({
+								icon: 'info',
+								title: 'Notice',
+								text: response.message
+							});
+						}
+					},
+					error: function() {
+						Swal.fire({
+							icon: 'error',
+							title: 'Error',
+							text: 'Something went wrong while updating your attendance.'
+						});
+					}
+				});
+			}
+		});
+	});
+
+	$('.cancel-button').on('click', function() {
+		const activityId = $(this).data('activity-id');
+		const studentId = $(this).data('student-id');
+
+		// Confirm before canceling
+		Swal.fire({
+			title: 'Are you sure?',
+			text: "Do you want to cancel your attendance for this event?",
+			icon: 'warning',
+			showCancelButton: true,
+			confirmButtonText: 'Yes, Cancel Attendance',
+			cancelButtonText: 'No, Keep Attendance',
+		}).then((result) => {
+			if (result.isConfirmed) {
+				$.ajax({
+					url: "<?= site_url('student/cancel'); ?>",
+					type: "POST",
+					data: {
+						activity_id: activityId,
+						student_id: studentId
+					},
+					dataType: "json",
+					success: function(response) {
+						if (response.status === "success") {
+							Swal.fire({
+								icon: 'success',
+								title: 'Attendance Cancelled',
+								text: response.message
+							}).then(() => {
+								// Optionally, update button text or hide the button
+								location.reload(); // Reload the page to reflect changes
+							});
+						} else {
+							Swal.fire({
+								icon: 'error',
+								title: 'Error',
+								text: response.message
+							});
+						}
+					},
+					error: function() {
+						Swal.fire({
+							icon: 'error',
+							title: 'Error',
+							text: 'Failed to cancel attendance.'
+						});
+					}
+				});
+			}
+		});
+	});
+
+	// SCRIPT FOR THE RECEIPT REGISTRATION
+	document.addEventListener("DOMContentLoaded", function() {
+		const uploadContainer = document.getElementById("receipt-upload-container");
+		const uploadInput = document.getElementById("receipt-upload");
+
+		// Trigger file upload when clicking on the preview area
+		uploadContainer.addEventListener("click", function() {
+			uploadInput.click();
+		});
+
+		// Preview the uploaded receipt image
+		uploadInput.addEventListener("change", function(event) {
+			const file = event.target.files[0];
+			if (file) {
+				const reader = new FileReader();
+				reader.onload = function(e) {
+					document.getElementById("receipt-preview").src = e.target.result;
+					document.getElementById("receipt-preview").classList.remove("d-none");
+					document.getElementById("receipt-placeholder").classList.add("d-none");
+				};
+				reader.readAsDataURL(file);
+			}
+		});
+
+		const registrationModal = document.getElementById('registrationModal');
+		const modalActivityIdInput = document.getElementById('modal_activity_id');
+		const modalRegistrationInput = document.getElementById('modal_amount');
+		const modalStatusInput = document.getElementById('modal_status');
+		const registrationForm = document.getElementById('registrationForm');
+		const statusMessage = document.getElementById('status-message');
+
+		// === Register Button Click Handler ===
+		$(document).on('click', '.open-registration-modal', function() {
+			const activityId = $(this).data('activity-id');
+			const registration = $(this).data('registration-fee');
+			const status = $(this).data('status');
+
+			$('#modal_activity_id').val(activityId);
+			$('#modal_amount').val(registration);
+			$('#modal_status').val(status);
+
+			if (status === "Pending") {
+				$('#registrationForm').addClass("d-none");
+				$('#status-message').removeClass("d-none alert-success").addClass("alert-warning").text("Your registration is pending. Please wait for the admin to verify.");
+			} else if (status === "Verified") {
+				$('#registrationForm').addClass("d-none");
+				$('#status-message').removeClass("d-none alert-info").addClass("alert-success").text("You are registered to this activity.");
+			} else {
+				$('#registrationForm').removeClass("d-none");
+				$('#status-message').addClass("d-none").text("");
+			}
+		});
+
+		// === Reset modal on close ===
+		registrationModal.addEventListener('hidden.bs.modal', function() {
+			registrationForm.reset();
+			receiptPreview.src = "";
+			receiptPreview.classList.add("d-none");
+			receiptPlaceholder.classList.remove("d-none");
+			registrationForm.classList.remove('d-none');
+			statusMessage.classList.add('d-none');
+			statusMessage.innerText = "";
+		});
+	});
+
+	// REGISTRATION INSERT
+	$(document).ready(function() {
+
+		// Handle form submission via AJAX with SweetAlert
+		$('#registrationForm').on('submit', function(e) {
+			e.preventDefault();
+
+			const form = $(this);
+			const formData = new FormData(this);
+			const submitButton = form.find('button[type="submit"]');
+			submitButton.prop('disabled', true);
+
+			$.ajax({
+				url: "<?= site_url('student/register'); ?>",
+				type: "POST",
+				data: formData,
+				contentType: false,
+				processData: false,
+				dataType: "json",
+				success: function(response) {
+					if (response.status === "success") {
+						Swal.fire({
+							icon: 'success',
+							title: 'Registration Successful!',
+							text: response.message,
+							confirmButtonColor: '#3085d6',
+							confirmButtonText: 'OK'
+						}).then(() => {
+							location.reload(); // Reload after the user clicks OK
+						});
+					} else {
+						Swal.fire({
+							icon: 'error',
+							title: 'Oops!',
+							text: response.message
+						});
+					}
+				},
+				error: function() {
+					Swal.fire({
+						icon: 'error',
+						title: 'Submission Failed',
+						text: 'An error occurred while submitting the registration.'
+					});
+				},
+				complete: function() {
+					submitButton.prop('disabled', false);
+				}
+			});
+		});
+
+		// Handle modal open with data passed
+		$('.attend-button').on('click', function() {
+			const activityId = $(this).data('activity-id');
+			const studentId = $(this).data('student-id');
+
+			$('#modal_activity_id').val(activityId);
+			$('#modal_student_id').val(studentId);
+		});
+
+		// Reset modal when closed
+		$('#registrationModal').on('hidden.bs.modal', function() {
+			$('#registrationForm')[0].reset();
+			$('#receipt-preview').addClass('d-none').attr('src', '');
+			$('#receipt-placeholder').removeClass('d-none');
+		});
+
+	});
+</script>

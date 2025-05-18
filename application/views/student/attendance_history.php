@@ -49,11 +49,11 @@
 					<table class="table table-hover table-striped overflow-hidden">
 						<thead>
 							<tr>
-								<th scope="col">Activity</th>
-								<th scope="col">Organizer</th>
-								<th scope="col"></th>
-								<th scope="col">Time-in</th>
-								<th scope="col">Time-out</th>
+								<th scope="col" class="text-nowrap">Activity</th>
+								<th scope="col" class="text-nowrap">Organizer</th>
+								<th scope="col" class="text-nowrap"></th>
+								<th scope="col" class="text-nowrap">Time-in</th>
+								<th scope="col" class="text-nowrap">Time-out</th>
 								<th scope="col">Status</th>
 								<!-- <th scope="col">Action</th> -->
 							</tr>
@@ -65,12 +65,41 @@
 									<td class="text-nowrap"><?php echo $attendance->organizer; ?></td>
 									<td class="text-nowrap"><?php echo $attendance->slot_name; ?></td>
 									<td class="text-nowrap">
-										<?php echo !empty($attendance->time_in) ? $attendance->time_in : 'No Data'; ?>
+										<?php echo !empty($attendance->time_in) ? date("M d, Y g:i A", strtotime($attendance->time_in)) : 'No Data'; ?>
 									</td>
 									<td class="text-nowrap">
-										<?php echo !empty($attendance->time_out) ? $attendance->time_out : 'No Data'; ?>
+										<?php echo !empty($attendance->time_out) ? date("M d, Y g:i A", strtotime($attendance->time_out)) : 'No Data'; ?>
 									</td>
-									<td><span class="badge badge rounded-pill d-block p-2 badge-subtle-success"><?php echo $attendance->attendance_status; ?><span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span></td>
+									<td>
+										<?php
+										$status = $attendance->attendance_status;
+										switch ($status) {
+											case 'Present':
+												$badgeClass = 'badge-subtle-success';
+												$icon = 'fa-check';
+												break;
+											case 'Excused':
+												$badgeClass = 'badge-subtle-primary';
+												$icon = 'fa-user-check';
+												break;
+											case 'Absent':
+												$badgeClass = 'badge-subtle-danger';
+												$icon = 'fa-times';
+												break;
+											case 'Incompleted':
+												$badgeClass = 'badge-subtle-warning';
+												$icon = 'fa-exclamation';
+												break;
+											default:
+												$badgeClass = 'badge-subtle-secondary';
+												$icon = 'fa-question';
+										}
+										?>
+										<span class="badge rounded-pill d-block p-2 <?php echo $badgeClass; ?>">
+											<?php echo $status; ?>
+											<span class="ms-1 fas <?php echo $icon; ?>" data-fa-transform="shrink-2"></span>
+										</span>
+									</td>
 									<!-- <td class="text-nowrap">
                                         <div class="dropdown font-sans-serif position-static">
                                             <button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button"

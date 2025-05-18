@@ -79,11 +79,11 @@ class Student_model extends CI_Model
 
 		// 5. Filter: show public OR private posts that match dept/org
 		$this->db->group_start();
-		$this->db->where('post.privacy', 'public');
+		$this->db->where('post.privacy', 'Public');
 
 		if (!empty($org_ids) || $user_dept_id) {
 			$this->db->or_group_start();
-			$this->db->where('post.privacy', 'private');
+			$this->db->where('post.privacy', 'Private');
 
 			$this->db->group_start();
 			if (!empty($org_ids)) {
@@ -247,7 +247,7 @@ class Student_model extends CI_Model
 		$this->db->group_start();
 		$this->db->or_where('audience', 'All'); // Student Parliament activities
 		$this->db->or_where('audience', $user_dept_name); // Department-specific activities
-		//$this->db->or_where_in('audience', $org_names); // Activities related to the student's organizations
+		$this->db->or_where_in('audience', $org_names); // Activities related to the student's organizations
 		$this->db->group_end();
 
 		// Execute the query
@@ -811,9 +811,9 @@ class Student_model extends CI_Model
 		// Fetch activities with forms and filter by audience
 		$this->db->select('activity.*, forms.*, evaluation_responses.*');
 		$this->db->from('activity');
-		$this->db->join('forms', 'forms.activity_id = activity.activity_id', 'inner');
+		$this->db->join('forms', 'forms.activity_id = activity.activity_id', 'left');
 		$this->db->join('evaluation_responses', 'evaluation_responses.form_id = forms.form_id', 'left');
-
+		$this->db->where('evaluation_responses.student_id', $student_id);
 
 		// Audience filters
 		$this->db->group_start();
@@ -825,6 +825,8 @@ class Student_model extends CI_Model
 			$this->db->or_where_in('activity.audience', $org_names);
 		}
 		$this->db->group_end();
+
+
 
 		$query = $this->db->get();
 		return $query->result();
@@ -859,11 +861,11 @@ class Student_model extends CI_Model
 
 		// Fetch open forms where the student has not answered yet or where the response is Pending
 		$this->db->select(' forms.*, activity.*, 
-    IF(
-        forms.status_evaluation = "Completed" AND evaluation_responses.remarks IS NULL, 
-        "Missing", 
-        IFNULL(evaluation_responses.remarks, "Pending")
-    ) AS remarks');
+							IF(
+								forms.status_evaluation = "Completed" AND evaluation_responses.remarks IS NULL, 
+								"Missing", 
+								IFNULL(evaluation_responses.remarks, "Pending")
+							) AS remarks');
 		$this->db->from('forms');
 		$this->db->join('activity', 'activity.activity_id = forms.activity_id', 'inner');
 		$this->db->join('evaluation_responses', 'evaluation_responses.form_id = forms.form_id AND evaluation_responses.student_id = ' . $this->db->escape($student_id), 'left');
@@ -905,6 +907,48 @@ class Student_model extends CI_Model
 
 		return $form_data;
 	}
+
+	public function get_evaluation_answer($form_id)
+	{
+		// Get logged-in student ID
+		$student_id = $this->session->userdata('student_id');
+
+		// Fetch form and activity details
+		$form_data = $this->db
+			->select('*')
+			->from('forms')
+			->join('activity', 'activity.activity_id = forms.activity_id')
+			->where('forms.form_id', $form_id)
+			->get()
+			->row_array();
+
+		// Fetch form fields along with the logged-in student's answers from both 'formfields' and 'response_answer'
+		$this->db->select('ff.*, ra.answer');
+		$this->db->from('formfields ff');
+		$this->db->join(
+			'response_answer ra',
+			'ra.form_fields_id = ff.form_fields_id',
+			'left'
+		);
+		$this->db->where('ff.form_id', $form_id);
+		$query = $this->db->get();
+
+		$form_data['form_fields'] = $query->result_array(); // Fields + their responses
+
+		// Fetch evaluation responses by linking to response_answer
+		$this->db->select('*');
+		$this->db->from('evaluation_responses er');
+		$this->db->join('response_answer ra', 'ra.evaluation_response_id = er.evaluation_response_id');
+		$this->db->where('er.student_id', $student_id);
+		$this->db->where('er.form_id', $form_id);
+		$eval_query = $this->db->get();
+
+		$form_data['evaluation_responses'] = $eval_query->row_array(); // Evaluation responses
+
+		return $form_data;
+	}
+
+
 
 	public function save_response($data)
 	{

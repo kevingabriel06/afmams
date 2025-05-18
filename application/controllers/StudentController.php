@@ -107,8 +107,6 @@ class StudentController extends CI_Controller
 			$activity->attendees_status = $this->student->get_attendees_free_event($activity->activity_id);
 		}
 
-
-
 		// MERGE POSTS & ACTIVITIES BEFORE PAGINATION
 		$merged_feed = array_merge($data['posts'], $data['activities']);
 
@@ -825,81 +823,21 @@ class StudentController extends CI_Controller
 		}
 	}
 
-
-	//SUBMIT FORM ANSWERS
-
-	// public function submit($form_id)
-	// {
-	//     // Get the student ID from the session
-	//     $student_id = $this->session->userdata('student_id');
-
-
-
-	//     // Load the Student_model to interact with the database
-	//     $this->load->model('Student_model');
-
-	//     // Fetch User Role
-	//     $users = $this->Student_model->get_roles($student_id);
-	//     $data['role'] = $users['role'];
-
-	//     // Prepare the response data for evaluation submission
-	//     $response_data = [
-	//         'form_id' => $form_id,
-	//         'student_id' => $student_id,
-	//         'submitted_at' => date('Y-m-d H:i:s')
-	//     ];
-
-	//     // Save evaluation response and get the evaluation response ID
-	//     $evaluation_response_id = $this->Student_model->save_evaluation_response($response_data);
-
-	//     // Save the answers for each question
-	//     $responses = $this->input->post('responses');  // Ensure responses are available in POST
-	//     if (!empty($responses)) {
-	//         $this->Student_model->save_response_answers($evaluation_response_id, $responses);
-	//     }
-
-	//     // If it's an AJAX request, return a JSON response
-	//     if ($this->input->is_ajax_request()) {
-	//         echo json_encode([
-	//             'status' => 'success',
-	//             'message' => 'Evaluation submitted successfully!',
-	//             'student_id' => $student_id, // Send student_id for redirection
-	//             'redirect_url' => base_url('student/evaluation-form/' . $student_id) // Send redirect URL
-	//         ]);
-	//     }
-	// }
-
 	// SHOW EVALUATION FORM ANSWERS
 	public function view_evaluation_answers($form_id)
 	{
-		$data['title'] = 'Evaluation Responses';
-		// Load the Student_model to interact with the database
-		$this->load->model('Student_model');
+		$data['title'] = 'Evaluation Form';
 
-		// Get the student ID from the session
 		$student_id = $this->session->userdata('student_id');
-
-		// Fetch student profile picture
-		$current_profile_pic = $this->Student_model->get_profile_pic($student_id);
-		// Ensure a default profile picture if none exists
-		$data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
-
-
-		// // Fetch User Role
-		// $users = $this->Student_model->get_roles($student_id);
-		// $data['role'] = $users['role'];
 
 		// FETCH USER DATA
 		$data['users'] = $this->student->get_student($student_id);
 
-		// Get form answers from the model
-		$data['form_answers'] = $this->Student_model->get_form_answers($form_id, $student_id);
-
-		// Fetch form details
-		$data['form'] = $this->Student_model->get_form_details($form_id);
+		// Fetch form data along with answers
+		$data['form_data'] = $this->student->get_evaluation_answer($form_id);
 
 
-		// Load views
+		// Load Views
 		$this->load->view('layout/header', $data);
 		$this->load->view('student/evaluation_form_answers', $data);
 		$this->load->view('layout/footer', $data);

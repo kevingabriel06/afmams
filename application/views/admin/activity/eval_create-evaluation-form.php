@@ -401,7 +401,7 @@
 						formData.append("coverUpload", coverFile);
 					}
 
-					// Determine evaluation status
+					//Determine evaluation status
 					const startDate = new Date($("#time_start").val().replace(" ", "T"));
 					const endDate = new Date($("#time_end").val().replace(" ", "T"));
 					const now = new Date();

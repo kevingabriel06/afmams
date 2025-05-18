@@ -43,8 +43,8 @@
             <form id="approvalForm">
               <!-- Hidden field for excuse_id, dynamically populated -->
               <input type="hidden" id="excuse_id" name="excuse_id" value="<?php echo $excuse['excuse_id']; ?>">
-              <input type="text" id="student_id" name="student_id" value="<?php echo $excuse['student_id']; ?>">
-              <input type="text" id="activity_id" name="activity_id" value="<?php echo $excuse['activity_id']; ?>">
+              <input type="hidden" id="student_id" name="student_id" value="<?php echo $excuse['student_id']; ?>">
+              <input type="hidden" id="activity_id" name="activity_id" value="<?php echo $excuse['activity_id']; ?>">
 
               <!-- Remarks textarea -->
               <div class="mb-3">

@@ -1,6 +1,3 @@
-<!-- Include jQuery -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
 <!-- Custom CSS to Set Standard Size -->
 <style>
 	/* Set fixed size for the image */
@@ -22,8 +19,9 @@
 
 <div class="card mb-3">
 	<img id="coverPhoto" class="card-img-top"
-		src="<?php echo base_url('assets/coverEvent/') . htmlspecialchars($activity['activity_image']); ?>"
-		alt="Event Cover" />
+		src="<?php echo !empty($item->activity_image)
+					? base_url('assets/coverEvent/' . $item->activity_image)
+					: base_url('assets/image/OIP.jpg'); ?>" alt="Event Cover" />
 	<div class="card-body">
 		<div class="row justify-content-between align-items-center">
 			<div class="col">

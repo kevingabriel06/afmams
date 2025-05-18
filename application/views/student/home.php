@@ -1,9 +1,3 @@
-<!-- Include jQuery -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-
 <div class="row g-3">
 	<!-- FEED -->
 	<div class="col-lg-8">
@@ -19,7 +13,7 @@
 										<div class="d-flex">
 											<div class="avatar avatar-2xl status-online">
 												<!-- Display the profile picture based on the post -->
-												<img class="rounded-circle" src="<?php echo base_url('assets/profile/') . (!empty($item->profile_pic) ? $item->profile_pic : 'default-pic.jpg'); ?>" />
+												<img class="rounded-circle" src="<?php echo base_url('assets/profile/') . (!empty($item->profile_pic) ? $item->profile_pic : 'default.jpg'); ?>" />
 											</div>
 											<div class="flex-1 align-self-center ms-2">
 												<p class="mb-1 lh-1"> <!-- Display the post creator's name -->
@@ -218,7 +212,9 @@
 					<?php elseif (isset($item->activity_id)): ?>
 						<!-- THIS IS THE EVENT TEMPLATE -->
 						<div class="card mb-3">
-							<img id="coverPhoto" class="card-img-top" src="<?php echo base_url('assets/coverEvent/') . $item->activity_image; ?>" alt="Event Cover" />
+							<img id="coverPhoto" class="card-img-top" src="<?php echo !empty($item->activity_image)
+																				? base_url('assets/coverEvent/' . $item->activity_image)
+																				: base_url('assets/image/OIP.jpg'); ?>" alt="Event Cover" />
 							<div class="card-body overflow-hidden">
 								<div class="row justify-content-between align-items-center">
 									<div class="col">
@@ -293,7 +289,6 @@
 		</div>
 	</div>
 
-
 	<!-- Registration Modal -->
 	<div class="modal fade" id="registrationModal" tabindex="-1" aria-labelledby="registrationModalLabel" aria-hidden="true">
 		<div class="modal-dialog">
@@ -351,7 +346,6 @@
 			</div>
 		</div>
 	</div>
-
 
 	<!-- FETCHING UPCOMING ACTIVITY RANDOMLY -->
 	<div class="col-lg-4">
@@ -871,24 +865,6 @@
 		// Hide full content and show preview
 		container.find('.full-content').addClass('d-none');
 		container.find('.post-preview').show();
-	});
-
-
-	$(document).ready(function() {
-		// Handle Privacy Selection
-		$(document).on('click', '.dropdown-menu .dropdown-item', function(e) {
-			e.preventDefault();
-			const selectedPrivacy = $(this).data('privacy');
-			const privacyIcon = $('#privacy-icon');
-			// Change icon based on selected privacy
-			if (selectedPrivacy === 'Public') {
-				privacyIcon.removeClass('fa-users').addClass('fa-globe-americas');
-			} else if (selectedPrivacy === 'Private') {
-				privacyIcon.removeClass('fa-globe-americas').addClass('fa-users');
-			}
-			// Store selection in hidden input
-			$('#privacyStatus').val(selectedPrivacy);
-		});
 	});
 </script>
 

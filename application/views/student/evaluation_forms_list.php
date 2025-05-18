@@ -1,6 +1,3 @@
-<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 <div class="d-flex justify-content-end mb-3">
 	<?php if (empty($evaluation_forms)) : ?>
 		<button type="button" onclick="showNoFormAlert()" class="btn btn-primary">
@@ -117,7 +114,7 @@
 											<div class="dropdown-menu dropdown-menu-end border py-0">
 												<div class="py-2">
 													<?php if ($form->remarks == 'Answered'): ?>
-														<a class="dropdown-item" href="#">View Response</a>
+														<a class="dropdown-item" href="<?php echo site_url('student/evaluation-answers/' . $form->form_id); ?>">View Response</a>
 													<?php elseif ($form->remarks == 'Pending'): ?>
 														<a class="dropdown-item" href="<?php echo site_url('student/evaluation-form-questions/' . $form->form_id); ?>">Answer Evaluation Form</a>
 													<?php elseif ($form->remarks == 'Missing'): ?>

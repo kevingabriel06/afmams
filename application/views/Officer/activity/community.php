@@ -1033,7 +1033,6 @@
 		});
 	});
 
-
 	// DISPLAYING EXCERPT AND VIEWING OF POST
 	$(document).on('click', '.view-more', function() {
 		var container = $(this).closest('.card-body');

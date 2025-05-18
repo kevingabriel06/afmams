@@ -190,7 +190,7 @@ $route['admin/profile/get_qr_code_by_student'] = 'AdminController/get_qr_code_by
 
 // MANAGE OFFICER AND PRIVILEGE
 $route['admin/manage-officers'] = 'AdminController/manage_officers';
-$route['admin/manage-officers-department/(:num)'] = 'AdminController/list_officers/$1';
+$route['admin/manage-officers-department/(:num)'] = 'AdminController/list_officers_dept/$1';
 $route['admin/manage-officers-department/update_privileges'] = 'AdminController/update_privileges_dept';
 $route['admin/manage-officers-department/delete-officer'] = 'AdminController/delete_officer_dept';
 $route['admin/manage-officers-organization/(:num)'] = 'AdminController/list_officers_org/$1';

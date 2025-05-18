@@ -1100,8 +1100,13 @@ class AdminController extends CI_Controller
 			'title'              => $this->input->post('formtitle'),
 			'form_description'   => $this->input->post('formdescription'),
 			'activity_id'        => $this->input->post('activity'),
-			'start_date_evaluation' => $this->input->post('startdate') ?: date('Y-m-d H:i:s'),
-			'end_date_evaluation'   => $this->input->post('enddate') ?: date('Y-m-d H:i:s', strtotime('+1 week')),
+			'start_date_evaluation' => $this->input->post('startdate')
+				? date('Y-m-d H:i:s', strtotime($this->input->post('startdate')))
+				: date('Y-m-d H:i:s'),
+
+			'end_date_evaluation' => $this->input->post('enddate')
+				? date('Y-m-d H:i:s', strtotime($this->input->post('enddate')))
+				: date('Y-m-d H:i:s', strtotime('+1 week')),
 			'status_evaluation'     => $this->input->post('status_evaluation'),
 		);
 
@@ -1165,13 +1170,13 @@ class AdminController extends CI_Controller
 
 			if ($activity->audience === 'All') {
 				// Notify all students except admins
-				$this->db->select('student_id, first_name, last_name');
+				$this->db->select('student_id, first_name, last_name, role');
 				$this->db->from('users');
 				$this->db->where('role !=', 'Admin');
 				$students_to_notify = $this->db->get()->result();
 			} else {
 				// Notify students in the specified department
-				$this->db->select('u.student_id, u.first_name, u.last_name');
+				$this->db->select('u.student_id, u.first_name, u.last_name, role');
 				$this->db->from('users u');
 				$this->db->join('department d', 'd.dept_id = u.dept_id');
 				$this->db->where('d.dept_name', $activity->audience);
@@ -1192,6 +1197,14 @@ class AdminController extends CI_Controller
 
 				];
 				$this->db->insert('notifications', $notification_data);
+
+				if ($student->role === 'Student') {
+					// Insert into evaluation_responses table
+					$this->db->insert('evaluation_responses', [
+						'form_id'     => $formId,
+						'student_id'  => $student->student_id,
+					]);
+				}
 			}
 
 			echo json_encode([
@@ -1247,8 +1260,8 @@ class AdminController extends CI_Controller
 			'activity_id' => $this->input->post('activity'),
 			'title' => $this->input->post('formtitle'),
 			'form_description' => $this->input->post('formdescription'),
-			'start_date_evaluation' => $this->input->post('startdate'),
-			'end_date_evaluation' => $this->input->post('enddate'),
+			'start_date_evaluation' => date('Y-m-d H:i:s', strtotime($this->input->post('startdate'))),
+			'end_date_evaluation' => date('Y-m-d H:i:s', strtotime($this->input->post('enddate'))),
 		];
 
 		// Handle Cover Image Upload (if new file is uploaded)

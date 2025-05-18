@@ -1,11 +1,3 @@
-<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-
-
-
-
 <div class="d-flex justify-content-end mb-3">
 	<a href="<?php echo site_url('student/excuse-application'); ?>" class="btn btn-primary">
 		<i class="fas fa-plus"></i> Excuse Application Form
@@ -105,15 +97,48 @@
 															const subject = $(this).data('subject');
 															const status = $(this).data('status');
 															const content = $(this).data('content');
-															const document = $(this).data('document');
+															const documentFile = $(this).data('document');
 
 															$('#detail-activity').text(activity);
 															$('#detail-subject').text(subject);
-															$('#detail-status').text(status);
 															$('#detail-content').text(content);
-															$('#detail-document').attr('href', '/assets/excuseFiles/' + document);
 
-															$('#viewDetailsModal').modal('show'); // Bootstrap 4 way
+															// Set status badge class
+															const $statusBadge = $('#detail-status');
+															$statusBadge.text(status);
+															$statusBadge.removeClass('bg-success bg-warning bg-danger');
+															switch (status.toLowerCase()) {
+																case 'approved':
+																	$statusBadge.addClass('bg-success');
+																	break;
+																case 'pending':
+																	$statusBadge.addClass('bg-warning');
+																	break;
+																case 'disapproved':
+																	$statusBadge.addClass('bg-danger');
+																	break;
+																default:
+																	$statusBadge.addClass('bg-secondary');
+															}
+
+															// Set document preview (image only)
+															const fileExtension = documentFile.split('.').pop().toLowerCase();
+															const baseUrl = '<?php echo base_url(); ?>';
+															const filePath = baseUrl + 'assets/excuseFiles/' + documentFile;
+															const $imagePreview = $('#imagePreview'); // Match the ID in your HTML
+
+															if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExtension)) {
+																$imagePreview.attr('src', filePath).show();
+																$imagePreview.parent().attr('href', filePath).attr('target', '_blank');
+															} else {
+																// Hide or ignore non-image files
+																$imagePreview.hide();
+																$imagePreview.parent().removeAttr('href target');
+															}
+
+															// Show the modal
+															const modal = new bootstrap.Modal(document.getElementById('viewDetailsModal'));
+															modal.show();
 														});
 													</script>
 
@@ -123,6 +148,7 @@
 													<?php endif; ?>
 												</div>
 											</div>
+
 											<script>
 												$(document).on('click', '.btn-cancel-application', function(e) {
 													e.preventDefault();
@@ -165,7 +191,6 @@
 													});
 												});
 											</script>
-
 										</div>
 									</td>
 								</tr>
@@ -176,12 +201,10 @@
 							<div class="modal fade" id="viewDetailsModal" tabindex="-1" aria-labelledby="viewDetailsLabel" aria-hidden="true">
 								<div class="modal-dialog modal-dialog-centered modal-lg">
 									<div class="modal-content border-0 shadow rounded-4">
-
 										<!-- Modal Header -->
 										<div class="modal-header text-white rounded-top" style="background: linear-gradient(135deg, #3b82f6, #60a5fa);">
 											<div>
-												<h5 class="mb-0 fw-semibold" id="viewDetailsLabel"><i class="bi bi-clipboard-check me-2"></i>Excuse Application</h5>
-												<small class="text-light">Details preview</small>
+												<h5 class="mb-0 fw-semibold" id="viewDetailsLabel"><i class="bi bi-clipboard-check me-2"></i>Excuse Application Preview</h5>
 											</div>
 											<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
 										</div>
@@ -201,7 +224,7 @@
 											<div class="mb-3 d-flex justify-content-between align-items-center border-bottom pb-2">
 												<div class="text-muted"><i class="bi bi-check-circle me-2 text-primary"></i>Status:</div>
 												<div>
-													<span id="detail-status" class="badge px-2 py-1 fs-7 rounded-pill">Pending</span>
+													<span id="detail-status" class="badge px-2 py-1 fs-12 rounded-pill">Pending</span>
 												</div>
 											</div>
 
@@ -211,8 +234,12 @@
 											</div>
 
 											<div>
-												<div class="text-muted mb-2"><i class="bi bi-file-earmark-image me-2 text-primary"></i>Document Preview:</div>
-												<img id="detail-document" src="" alt="Document Preview" class="img-thumbnail rounded shadow-sm border border-primary-subtle" style="max-width: 250px; cursor: pointer;" />
+												<div class="text-muted mb-2">
+													<i class="bi bi-file-earmark-image me-2 text-primary"></i>Image Preview:
+												</div>
+
+												<!-- Image preview -->
+												<img id="imagePreview" src="" alt="Image Preview" class="img-thumbnail rounded shadow-sm border border-primary-subtle" style="max-width: 100%; display: none;" />
 											</div>
 										</div>
 
@@ -226,48 +253,8 @@
 								</div>
 							</div>
 
-							<!-- Full Image Modal -->
-							<div class="modal fade" id="filePreviewModal" tabindex="-1" aria-hidden="true">
-								<div class="modal-dialog modal-dialog-centered">
-									<div class="modal-content border-0 shadow p-3 rounded">
-										<div id="modalContent" class="text-center"></div>
-									</div>
-								</div>
-							</div>
-
-							<!-- Script for Modal Logic -->
-							<script>
-								document.addEventListener('DOMContentLoaded', function() {
-									const img = document.getElementById('detail-document');
-									img.addEventListener('click', function() {
-										const src = this.getAttribute('src');
-										if (src) {
-											document.getElementById('modalContent').innerHTML = `<img src="${src}" class="img-fluid rounded" alt="Full Preview">`;
-											const modal = new bootstrap.Modal(document.getElementById('filePreviewModal'));
-											modal.show();
-										}
-									});
-
-									const statusEl = document.getElementById('detail-status');
-									const statusText = statusEl.textContent.trim().toLowerCase();
-									const statusColors = {
-										approved: 'bg-success text-white',
-										pending: 'bg-warning text-dark',
-										rejected: 'bg-danger text-white'
-									};
-									if (statusColors[statusText]) {
-										statusEl.className = `badge ${statusColors[statusText]} px-2 py-1 fs-7 rounded-pill`;
-									}
-								});
-							</script>
-
 							<!-- Include Bootstrap Icons -->
 							<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-
-
-
-
-
 
 							<!-- "No activities listed" Row -->
 							<tr id="no-activity-row" class="d-none">
