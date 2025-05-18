@@ -96,7 +96,9 @@
 														data-subject="<?= $excuse->subject; ?>"
 														data-status="<?= $excuse->exStatus; ?>"
 														data-content="<?= $excuse->content; ?>"
+														data-remarks="<?= $excuse->remarks; ?>"
 														data-document="<?= $excuse->document; ?>">View Details</button>
+
 
 
 													<script>
@@ -106,14 +108,29 @@
 															const status = $(this).data('status');
 															const content = $(this).data('content');
 															const document = $(this).data('document');
+															const remarks = $(this).data('remarks');
 
 															$('#detail-activity').text(activity);
 															$('#detail-subject').text(subject);
 															$('#detail-status').text(status);
 															$('#detail-content').text(content);
-															$('#detail-document').attr('href', '/assets/excuseFiles/' + document);
+															$('#detail-remarks').text(remarks);
 
-															$('#viewDetailsModal').modal('show'); // Bootstrap 4 way
+															const filePath = `/assets/excuseFiles/${document}`;
+															const extension = document.split('.').pop().toLowerCase();
+
+															if (['jpg', 'jpeg', 'png'].includes(extension)) {
+																$('#detail-document-img').attr('src', filePath).show();
+																$('#detail-document-pdf').hide();
+															} else if (extension === 'pdf') {
+																$('#detail-document-pdf').attr('src', filePath).show();
+																$('#detail-document-img').hide();
+															} else {
+																$('#detail-document-img').hide();
+																$('#detail-document-pdf').hide();
+															}
+
+															$('#viewDetailsModal').modal('show');
 														});
 													</script>
 
@@ -180,7 +197,9 @@
 										<!-- Modal Header -->
 										<div class="modal-header text-white rounded-top" style="background: linear-gradient(135deg, #3b82f6, #60a5fa);">
 											<div>
-												<h5 class="mb-0 fw-semibold" id="viewDetailsLabel"><i class="bi bi-clipboard-check me-2"></i>Excuse Application</h5>
+												<h5 class="mb-0 fw-semibold" id="viewDetailsLabel">
+													<i class="bi bi-clipboard-check me-2"></i>Excuse Application
+												</h5>
 												<small class="text-light">Details preview</small>
 											</div>
 											<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -188,43 +207,77 @@
 
 										<!-- Modal Body -->
 										<div class="modal-body px-4 py-3" style="background-color: #f0f4ff;">
-											<div class="mb-3 d-flex justify-content-between align-items-center border-bottom pb-2">
-												<div class="text-muted"><i class="bi bi-calendar-event me-2 text-primary"></i>Activity:</div>
+
+											<!-- Activity -->
+											<div class="mb-3 d-flex align-items-center border-bottom pb-2 gap-2">
+												<div class="text-muted d-flex align-items-center">
+													<i class="bi bi-calendar-event me-2 text-primary"></i>Activity:
+												</div>
 												<div class="fw-medium text-dark" id="detail-activity"></div>
 											</div>
 
-											<div class="mb-3 d-flex justify-content-between align-items-center border-bottom pb-2">
-												<div class="text-muted"><i class="bi bi-book me-2 text-primary"></i>Subject:</div>
+
+											<!-- Subject -->
+											<div class="mb-3 d-flex align-items-center border-bottom pb-2 gap-2">
+												<div class="text-muted d-flex align-items-center">
+													<i class="bi bi-book me-2 text-primary"></i>Subject:
+												</div>
 												<div class="fw-medium text-dark" id="detail-subject"></div>
 											</div>
 
-											<div class="mb-3 d-flex justify-content-between align-items-center border-bottom pb-2">
-												<div class="text-muted"><i class="bi bi-check-circle me-2 text-primary"></i>Status:</div>
-												<div>
-													<span id="detail-status" class="badge px-2 py-1 fs-7 rounded-pill">Pending</span>
-												</div>
-											</div>
-
+											<!-- Content -->
 											<div class="mb-3">
-												<div class="text-muted mb-1"><i class="bi bi-chat-left-text me-2 text-primary"></i>Content:</div>
+												<div class="text-muted mb-1 d-flex align-items-center">
+													<i class="bi bi-chat-left-text me-2 text-primary"></i>Content:
+												</div>
 												<div class="border rounded bg-white p-3 shadow-sm" id="detail-content"></div>
 											</div>
 
-											<div>
-												<div class="text-muted mb-2"><i class="bi bi-file-earmark-image me-2 text-primary"></i>Document Preview:</div>
-												<img id="detail-document" src="" alt="Document Preview" class="img-thumbnail rounded shadow-sm border border-primary-subtle" style="max-width: 250px; cursor: pointer;" />
+											<!-- Status with badge beside label -->
+											<div class="mb-3 d-flex align-items-center">
+												<div class="text-muted d-flex align-items-center me-2">
+													<i class="bi bi-check-circle me-2 text-primary"></i>Status:
+												</div>
+												<span id="detail-status" class="badge px-2 py-1 fs-7 rounded-pill"></span>
+
+
 											</div>
+
+											<!-- Remarks -->
+											<div class="mb-3">
+												<div class="text-muted mb-1 d-flex align-items-center">
+													<i class="bi bi-info-circle me-2 text-primary"></i>Remarks:
+												</div>
+												<div class="border rounded bg-white p-3 shadow-sm" id="detail-remarks"></div>
+											</div>
+
+											<!-- Document Preview -->
+											<div>
+												<div class="text-muted mb-2 d-flex align-items-center">
+													<i class="bi bi-file-earmark-image me-2 text-primary"></i>Document Preview:
+												</div>
+
+												<!-- Image preview -->
+												<img id="detail-document-img" src="" alt="Document Preview" class="img-thumbnail rounded shadow-sm border border-primary-subtle" style="max-width: 250px; cursor: pointer; display: none;" />
+
+												<!-- PDF preview -->
+												<iframe id="detail-document-pdf" src="" width="100%" height="400px" style="border: none; display: none;"></iframe>
+											</div>
+
+
 										</div>
 
 										<!-- Modal Footer -->
 										<div class="modal-footer bg-white rounded-bottom">
-											<button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">
-												Close
-											</button>
+											<button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Close</button>
 										</div>
+
 									</div>
 								</div>
 							</div>
+
+
+
 
 							<!-- Full Image Modal -->
 							<div class="modal fade" id="filePreviewModal" tabindex="-1" aria-hidden="true">
@@ -238,7 +291,7 @@
 							<!-- Script for Modal Logic -->
 							<script>
 								document.addEventListener('DOMContentLoaded', function() {
-									const img = document.getElementById('detail-document');
+									const img = document.getElementById('detail-document-img');
 									img.addEventListener('click', function() {
 										const src = this.getAttribute('src');
 										if (src) {
@@ -250,16 +303,24 @@
 
 									const statusEl = document.getElementById('detail-status');
 									const statusText = statusEl.textContent.trim().toLowerCase();
-									const statusColors = {
-										approved: 'bg-success text-white',
-										pending: 'bg-warning text-dark',
-										rejected: 'bg-danger text-white'
+
+									const statusStyles = {
+										approved: 'bg-success bg-gradient text-white px-3 py-1 fs-7 rounded-pill shadow-sm border-0',
+										pending: 'bg-warning bg-gradient text-dark px-3 py-1 fs-7 rounded-pill shadow-sm border-0',
+										disapproved: 'bg-danger bg-gradient text-white px-3 py-1 fs-7 rounded-pill shadow-sm border-0'
 									};
-									if (statusColors[statusText]) {
-										statusEl.className = `badge ${statusColors[statusText]} px-2 py-1 fs-7 rounded-pill`;
+
+
+									if (statusStyles[statusText]) {
+										statusEl.className = `badge ${statusStyles[statusText]}`;
+									} else {
+										// fallback styling
+										statusEl.className = 'badge bg-secondary text-white';
 									}
 								});
 							</script>
+
+
 
 							<!-- Include Bootstrap Icons -->
 							<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">

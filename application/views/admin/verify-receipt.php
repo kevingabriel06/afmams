@@ -137,7 +137,7 @@
 <body>
 
 	<div class="container2">
-		<h2><i class="fas fa-file-invoice"></i> Verify Registration Receipt</h2>
+		<h2><i class="fas fa-file-invoice"></i> Verify Receipts</h2>
 
 		<input type="text" id="verification_code" placeholder="Enter Verification Code">
 		<button onclick="checkReceipt()"><i class="fas fa-search"></i> Check</button>
@@ -194,6 +194,11 @@
                         <th><i class="fas fa-clock"></i> Date Issued</th>
                         <td>${receipt.date_issued}</td>
                     </tr>
+					<tr>
+						<th><i class="fas fa-receipt"></i> Receipt Type</th>
+						<td>${receipt.receipt_type}</td>
+					</tr>
+
                 </table>
             </div>
         `;

@@ -58,17 +58,58 @@ class PDF extends FPDF
 		$this->_out(sprintf('/GS%d << /ca %.3F /CA %.3F /BM /%s >>', 1, $alpha, $alpha, $bm));
 		$this->_out($gs);
 	}
-}
 
 
-function Footer()
-{
-	if (!empty($this->footerImage)) {
-		$pageWidth = $this->GetPageWidth();
-		$pageHeight = $this->GetPageHeight();
-		$this->Image('./uploads/headerandfooter/' . $this->footerImage, 0, $pageHeight - 20, $pageWidth, 20);
+
+
+	function NbLines($w, $txt)
+	{
+		$cw = &$this->CurrentFont['cw'];
+		if ($w == 0) $w = $this->w - $this->rMargin - $this->x;
+		$wmax = ($w - 2 * $this->cMargin) * 1000 / $this->FontSize;
+		$s = str_replace("\r", '', $txt);
+		$nb = strlen($s);
+		if ($nb > 0 && $s[$nb - 1] == "\n") $nb--;
+		$sep = -1;
+		$i = 0;
+		$j = 0;
+		$l = 0;
+		$nl = 1;
+		while ($i < $nb) {
+			$c = $s[$i];
+			if ($c == "\n") {
+				$i++;
+				$sep = -1;
+				$j = $i;
+				$l = 0;
+				$nl++;
+				continue;
+			}
+			if ($c == ' ') $sep = $i;
+			$l += $cw[$c];
+			if ($l > $wmax) {
+				if ($sep == -1) {
+					if ($i == $j) $i++;
+				} else $i = $sep + 1;
+				$sep = -1;
+				$j = $i;
+				$l = 0;
+				$nl++;
+			} else $i++;
+		}
+		return $nl;
 	}
 }
+
+
+// function Footer()
+// {
+// 	if (!empty($this->footerImage)) {
+// 		$pageWidth = $this->GetPageWidth();
+// 		$pageHeight = $this->GetPageHeight();
+// 		$this->Image('./uploads/headerandfooter/' . $this->footerImage, 0, $pageHeight - 20, $pageWidth, 20);
+// 	}
+// }
 
 
 class AdminController extends CI_Controller
@@ -865,14 +906,25 @@ class AdminController extends CI_Controller
 		$activity_id = $this->input->post('activity_id');
 
 		if ($activity_id) {
+			// First, mark the activity as unshared
 			$this->db->where('activity_id', $activity_id);
 			$this->db->update('activity', ['is_shared' => 'No']);
 
-			echo json_encode(['status' => 'success']);
+			// If the activity is successfully updated, proceed to delete notifications
+			if ($this->db->affected_rows() > 0) {
+				// Delete notifications related to this activity
+				$this->load->model('Notification_model');
+				$this->Notification_model->delete_notifications_by_reference($activity_id, 'activity_shared');
+
+				echo json_encode(['status' => 'success', 'message' => 'Activity unshared and notifications deleted.']);
+			} else {
+				echo json_encode(['status' => 'error', 'message' => 'Failed to unshare activity or activity not found.']);
+			}
 		} else {
 			echo json_encode(['status' => 'error', 'message' => 'Invalid activity ID']);
 		}
 	}
+
 
 	// EDITING OF ACTIVITY - PAGE
 	public function edit_activity($activity_id)
@@ -1043,6 +1095,183 @@ class AdminController extends CI_Controller
 
 		return $changes;
 	}
+
+
+
+	public function download_edit_logs($activity_id)
+	{
+		$this->load->library('fpdf'); // Adjust based on your setup
+		$this->load->model('Admin_model');
+
+		// Retrieve the activity title using the activity ID
+		$activity = $this->Admin_model->get_activity_by_id($activity_id);
+		$activity_title = $activity->activity_title; // Assuming 'title' is the column for the activity title
+
+		// Sanitize the title to avoid any invalid characters in the filename (e.g., /, \, ?, etc.)
+		$sanitized_title = preg_replace('/[^A-Za-z0-9 _.-]/', '', $activity_title);
+
+
+		$user = [
+			'role'             => $this->session->userdata('role'),
+			'student_id'       => $this->session->userdata('student_id'),
+			'is_officer'       => $this->session->userdata('is_officer'),
+			'is_officer_dept'  => $this->session->userdata('is_officer_dept'),
+			'dept_id'          => $this->session->userdata('dept_id'),
+		];
+
+		$headerImage = '';
+		$footerImage = '';
+
+		if ($user['role'] === 'Admin') {
+			$settings = $this->db->get('student_parliament_settings')->row();
+			if ($settings) {
+				$headerImage = $settings->header;
+				$footerImage = $settings->footer;
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+			$org = $this->db
+				->select('organization.header, organization.footer')
+				->join('organization', 'student_org.org_id = organization.org_id')
+				->where('student_org.student_id', $user['student_id'])
+				->get('student_org')->row();
+			if ($org) {
+				$headerImage = $org->header;
+				$footerImage = $org->footer;
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer_dept'] === 'Yes') {
+			$dept = $this->db
+				->select('header, footer')
+				->where('dept_id', $user['dept_id'])
+				->get('department')->row();
+			if ($dept) {
+				$headerImage = $dept->header;
+				$footerImage = $dept->footer;
+			}
+		}
+
+		// Retrieve logs
+		$logs = $this->Admin_model->get_activity_logs($activity_id);
+		$pdf = new PDF('P', 'mm', 'Letter');
+		$pdf->headerImage = $headerImage;
+		$pdf->footerImage = $footerImage;
+		$pdf->AddPage();
+		$pdf->SetFont('Arial', 'B', 14);
+		$pdf->Cell(0, 10, 'Edit Logs for Activity: ' . $activity_title, 0, 1, 'C');
+		$pdf->Ln(5);
+
+		if (empty($logs)) {
+			$pdf->SetFont('Arial', '', 12);
+			$pdf->Cell(0, 10, 'No edit logs found.', 0, 1, 'C');
+			// Use the sanitized activity title in the filename
+			$pdf->Output('D', $sanitized_title . '_editlogs.pdf');
+			return;
+		}
+
+		// Define column widths
+		$colWidths = [
+			'num' => 10,
+			'edited_by' => 40,
+			'changes' => 100,
+			'datetime' => 46
+		];
+
+
+		// Header
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell($colWidths['num'], 10, '#', 1);
+		$pdf->Cell($colWidths['edited_by'], 10, 'Edited By', 1);
+		$pdf->Cell($colWidths['changes'], 10, 'Changes', 1);
+		$pdf->Cell($colWidths['datetime'], 10, 'Date/Time', 1);
+		$pdf->Ln();
+
+		$pdf->SetFont('Arial', '', 11);
+
+		foreach ($logs as $i => $log) {
+			$editedBy = $log['first_name'] . ' ' . $log['last_name'];
+			$formattedTime = $log['formatted_time'];
+
+			// Decode and format changes
+			$changes = '';
+			$decoded = json_decode($log['changes'], true);  // Assuming changes are in JSON format
+			if ($decoded) {
+				foreach ($decoded as $field => $change) {
+					$old = isset($change['old']) ? $change['old'] : 'N/A';
+					$new = isset($change['new']) ? $change['new'] : 'N/A';
+
+					$old = $this->sanitize_text($old);
+					$new = $this->sanitize_text($new);
+
+					$changes .= "$field: Old: $old -- New: $new\n";
+				}
+			} else {
+				// If not decoded, directly sanitize and clean up the changes
+				$changes = $this->sanitize_text($log['changes']);
+			}
+
+			// Column widths
+			$lineHeight = 5;
+
+
+			// 1. Calculate number of lines in the "Changes" cell
+			$changesLines = $pdf->NbLines($colWidths['changes'], $changes);
+			$rowHeight = $changesLines * $lineHeight;
+
+
+			// 2. Check if the row fits in the remaining space (assuming default 10mm bottom margin)
+			$bottomMargin = 10;
+			if ($pdf->GetY() + $rowHeight > ($pdf->GetPageHeight() - $bottomMargin)) {
+				$pdf->AddPage();
+				// Re-draw table headers after the page break
+				$pdf->SetFont('Arial', 'B', 10);
+				$pdf->Cell($colWidths['num'], 10, '#', 1);
+				$pdf->Cell($colWidths['edited_by'], 10, 'Edited By', 1);
+				$pdf->Cell($colWidths['changes'], 10, 'Changes', 1);
+				$pdf->Cell($colWidths['datetime'], 10, 'Date/Time', 1);
+				$pdf->Ln();
+				$pdf->SetFont('Arial', '', 11); // Reset font
+			}
+
+			// 2. Save current X and Y
+			$x = $pdf->GetX();
+			$y = $pdf->GetY();
+
+			// 3. Draw static-height cells
+			$pdf->Cell($colWidths['num'], $rowHeight, $i + 1, 1);
+			$pdf->Cell($colWidths['edited_by'], $rowHeight, $editedBy, 1);
+
+			// 4. Draw MultiCell for "Changes"
+			$pdf->SetXY($x + $colWidths['num'] + $colWidths['edited_by'], $y);
+			$pdf->MultiCell($colWidths['changes'], $lineHeight, $changes, 1);
+
+			// 5. Manually position and draw Date/Time cell
+			$pdf->SetXY($x + $colWidths['num'] + $colWidths['edited_by'] + $colWidths['changes'], $y);
+			$pdf->Cell($colWidths['datetime'], $rowHeight, $formattedTime, 1);
+
+			// 6. Move cursor to the next row
+			$pdf->SetY($y + $rowHeight);
+		}
+
+		// Use the sanitized activity title in the filename
+		$pdf->Output('D', $sanitized_title . '_editlogs.pdf');
+	}
+
+	// Sanitize function to remove or replace problematic characters
+	private function sanitize_text($text)
+	{
+		// Ensure text is UTF-8 encoded and sanitize it
+		$text = utf8_encode($text); // Ensure the text is in UTF-8
+		$text = preg_replace('/[^\x20-\x7E]/', '', $text); // Remove non-ASCII characters
+		return $text;
+	}
+
+
+
+
+
+
+
+
+
 
 
 	// EVALUATION LIST - PAGE (FINAL CHECK)
@@ -1398,11 +1627,165 @@ class AdminController extends CI_Controller
 		$data['questions'] = $questions;
 		$data['question_types'] = $question_types; // Optional if needed in view
 
+		$data['form_id'] = $form_id; // Pass form_id to the view
+
 		// Load views
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/activity/eval_list-evaluation-responses', $data);
 		$this->load->view('layout/footer', $data);
 	}
+
+
+
+	public function export_evaluation_responses_pdf($form_id)
+	{
+		ob_start();
+
+		$this->load->library('pdf');
+		$this->load->model('admin');
+
+		$form = $this->admin->forms($form_id);
+		$responses = $this->admin->get_student_evaluation_responses($form_id);
+
+		// Group responses by student
+		$grouped_by_student = [];
+		foreach ($responses as $r) {
+			$student_id = $r->student_id;
+			if (!isset($grouped_by_student[$student_id])) {
+				$grouped_by_student[$student_id] = [
+					'department' => $r->dept_name,
+					'evaluated_at' => date('F j, Y | g:i a', strtotime($r->submitted_at)),
+					'answers' => []
+				];
+			}
+			$grouped_by_student[$student_id]['answers'][$r->question] = $r->answer;
+		}
+
+		$user = [
+			'role'             => $this->session->userdata('role'),
+			'student_id'       => $this->session->userdata('student_id'),
+			'is_officer'       => $this->session->userdata('is_officer'),
+			'is_officer_dept'  => $this->session->userdata('is_officer_dept'),
+			'dept_id'          => $this->session->userdata('dept_id'),
+		];
+
+		$headerImage = '';
+		$footerImage = '';
+
+		if ($user['role'] === 'Admin') {
+			$settings = $this->db->get('student_parliament_settings')->row();
+			if ($settings) {
+				$headerImage = $settings->header;
+				$footerImage = $settings->footer;
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+			$org = $this->db
+				->select('organization.header, organization.footer')
+				->join('organization', 'student_org.org_id = organization.org_id')
+				->where('student_org.student_id', $user['student_id'])
+				->get('student_org')->row();
+			if ($org) {
+				$headerImage = $org->header;
+				$footerImage = $org->footer;
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer_dept'] === 'Yes') {
+			$dept = $this->db
+				->select('header, footer')
+				->where('dept_id', $user['dept_id'])
+				->get('department')->row();
+			if ($dept) {
+				$headerImage = $dept->header;
+				$footerImage = $dept->footer;
+			}
+		}
+
+
+		$pdf = new PDF('P', 'mm', 'Letter');
+		$pdf->headerImage = $headerImage;
+		$pdf->footerImage = $footerImage;
+		$pdf->AddPage();
+
+		$pdf->AddFont('DejaVuSans', '', 'DejaVuSans.php');
+		$pdf->AddFont('DejaVuSans', 'B', 'DejaVuSans-Bold.php');
+
+		$pdf->SetFont('DejaVuSans', '', 12);
+		$pdf->Cell(0, 10, 'Evaluation Responses: ' . $form->title, 0, 1, 'C');
+		$pdf->Ln(5);
+
+		foreach ($grouped_by_student as $student_id => $student_data) {
+			// Student ID row
+			$pdf->SetFont('DejaVuSans', 'B', 12);
+			$pdf->Cell(40, 7, 'Student ID:', 0, 0);
+			$pdf->SetFont('DejaVuSans', '', 12);
+			$pdf->Cell(150, 7, $student_id, 0, 1);
+
+			// Department row
+			$pdf->SetFont('DejaVuSans', 'B', 12);
+			$pdf->Cell(40, 7, 'Department:', 0, 0);
+			$pdf->SetFont('DejaVuSans', '', 12);
+			$pdf->Cell(150, 7, $student_data['department'], 0, 1);
+
+			// Date Evaluated row
+			$pdf->SetFont('DejaVuSans', 'B', 12);
+			$pdf->Cell(40, 7, 'Date Evaluated:', 0, 0);
+			$pdf->SetFont('DejaVuSans', '', 12);
+			$pdf->Cell(150, 7, $student_data['evaluated_at'], 0, 1);
+
+			$pdf->Ln(3);
+
+			// Question and Response table
+			$pdf->SetFont('DejaVuSans', 'B', 12);
+			$pdf->Cell(90, 7, 'Question', 1, 0, 'C');
+			$pdf->Cell(90, 7, 'Response', 1, 1, 'C');
+
+			$pdf->SetFont('DejaVuSans', '', 12);
+			foreach ($student_data['answers'] as $question => $answer) {
+				// Save current X and Y
+				$x = $pdf->GetX();
+				$y = $pdf->GetY();
+
+				// Set width for question and response columns
+				$question_width = 90;
+				$response_width = 90;
+				$line_height = 7;
+
+				// Calculate height for both cells (based on longest)
+				$question_lines = $pdf->NbLines($question_width, $question);
+				$answer_lines = $pdf->NbLines($response_width, $answer);
+				$cell_height = max($question_lines, $answer_lines) * $line_height;
+
+				// Draw question cell
+				$pdf->MultiCell($question_width, $line_height, $question, 1, 'L');
+
+				// Move cursor to the right for the response cell
+				$pdf->SetXY($x + $question_width, $y);
+
+				// Draw response cell
+				$pdf->MultiCell($response_width, $line_height, $answer, 1, 'L');
+
+				// Move to the next line (bottom of the tallest cell)
+				$pdf->SetY($y + $cell_height);
+			}
+
+
+			$pdf->Ln(10); // Space between students
+		}
+
+		ob_end_clean();
+		$filename = 'Evaluation_Responses_' . date('Ymd_His') . '.pdf';
+		$pdf->Output('D', $filename);
+	}
+
+
+
+
+
+
+
+
+
+
+
 
 	// EVALUATION STATISTIC - PAGE (FINAL CHECK)
 	public function evaluation_statistic($form_id)
@@ -2651,11 +3034,13 @@ class AdminController extends CI_Controller
 		$this->load->model('Notification_model');
 
 		$student_id = $this->input->post('student_id');
+		$activity_id = $this->input->post('activity_id');
 		$total_fines = $this->input->post('total_fines');
 		$mode_of_payment = $this->input->post('mode_of_payment');
 		$reference_number = trim($this->input->post('reference_number'));
 
-		$record = $this->admin->get_fine_summary($student_id);
+		$organizer = 'Student Parliament';
+		$record = $this->admin->get_fine_summary($student_id, $organizer); // ✅ correct
 		$admin_student_id = $this->session->userdata('student_id'); // Get logged-in admin's student_id
 
 
@@ -2816,6 +3201,7 @@ class AdminController extends CI_Controller
 		$this->db->where('summary_id', $summary_id);
 		$this->db->update('fines_summary', [
 			'generated_receipt' => $filename,
+			'verification_code' => $verification_code, // ✅ Save the code
 			'last_updated' => date('Y-m-d H:i:s')
 		]);
 	}
@@ -4081,9 +4467,7 @@ class AdminController extends CI_Controller
 	// This is for actually verifying the receipt
 	public function verify_receipt()
 	{
-
 		$this->load->model('Student_model');
-
 		$verification_code = $this->input->post('verification_code');
 
 		if (!$verification_code) {
@@ -4091,24 +4475,36 @@ class AdminController extends CI_Controller
 			return;
 		}
 
-		// Get receipt details by verification code
+		// Check registration receipts first
 		$receipt = $this->Student_model->get_registration_by_code($verification_code);
+
+		if ($receipt) {
+			$receipt['receipt_type'] = 'Registration Payment';
+		} else {
+			// If not found, check fines
+			$receipt = $this->Student_model->get_fines_by_code($verification_code);
+			if ($receipt) {
+				$receipt['receipt_type'] = 'Fines Payment';
+			}
+		}
 
 		if ($receipt) {
 			echo json_encode([
 				'status' => 'success',
 				'data' => [
-					'student_id'  => $receipt['student_id'],
-					'activity'    => $receipt['activity_title'] ?? 'Activity not found',  // Handle missing activity
-					'amount_paid' => '₱' . number_format($receipt['amount_paid'], 2),
-					'status'      => '✅ Approved',
-					'date_issued' => date('F j, Y', strtotime($receipt['registered_at']))
+					'student_id'   => $receipt['student_id'],
+					'activity'     => $receipt['activity_title'] ?? 'Activity not found',
+					'amount_paid'  => '₱' . number_format($receipt['amount_paid'], 2),
+					'status'       => '✅ Approved',
+					'date_issued'  => date('F j, Y', strtotime($receipt['registered_at'] ?? $receipt['last_updated'])),
+					'receipt_type' => $receipt['receipt_type']
 				]
 			]);
 		} else {
 			echo json_encode(['status' => 'error', 'message' => 'Invalid verification code. No receipt found.']);
 		}
 	}
+
 
 
 

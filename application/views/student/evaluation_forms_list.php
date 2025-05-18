@@ -117,7 +117,7 @@
 											<div class="dropdown-menu dropdown-menu-end border py-0">
 												<div class="py-2">
 													<?php if ($form->remarks == 'Answered'): ?>
-														<a class="dropdown-item" href="#">View Response</a>
+														<a class="dropdown-item" href="<?= site_url('StudentController/view_evaluation_answers/' . $form->form_id); ?>">View Response</a>
 													<?php elseif ($form->remarks == 'Pending'): ?>
 														<a class="dropdown-item" href="<?php echo site_url('student/evaluation-form-questions/' . $form->form_id); ?>">Answer Evaluation Form</a>
 													<?php elseif ($form->remarks == 'Missing'): ?>

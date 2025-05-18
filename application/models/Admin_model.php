@@ -1499,10 +1499,22 @@ class Admin_model extends CI_Model
 		return false;
 	}
 
-	public function get_fine_summary($student_id)
+	public function get_fine_summary($student_id, $organizer)
 	{
-		return $this->db->get_where('fines_summary', ['student_id' => $student_id])->row();
+		$this->db->select('fines_summary.*');
+		$this->db->from('fines_summary');
+		$this->db->join('fines', 'fines.student_id = fines_summary.student_id');
+		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+		$this->db->where('fines_summary.student_id', $student_id);
+		$this->db->where('activity.organizer', $organizer);
+		$this->db->limit(1);
+		return $this->db->get()->row();
 	}
+
+
+
+
+
 
 	public function update_fines_summary_receipt($student_id, $data)
 	{
