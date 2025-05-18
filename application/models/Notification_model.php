@@ -45,21 +45,30 @@ class Notification_model extends CI_Model
 
 	//Create a function that fetches notifications based on whether the user is a student or an admin:
 
-	public function get_notifications($student_id, $role)
+	public function get_notifications($user_id, $role, $is_officer_dept = false, $is_org_officer = false)
 	{
-		if ($role === 'Student') {
-			$this->db->where('n.recipient_student_id', $student_id);
-		} elseif ($role === 'Admin') {
-			$this->db->where('n.recipient_admin_id', $student_id);
-		}
-
 		$this->db->select('n.*, u.first_name, u.last_name, u.profile_pic');
 		$this->db->from('notifications n');
 		$this->db->join('users u', 'u.student_id = n.sender_student_id', 'left');
+
+		if ($role === 'Student') {
+			$this->db->where('n.recipient_student_id', $user_id);
+		} elseif ($role === 'Admin') {
+			$this->db->where('n.recipient_admin_id', $user_id);
+		} elseif ($role === 'Officer' || $is_officer_dept || $is_org_officer) {
+			// Assuming you have a recipient_officer_id column or you want to check either admin or student notifications that are officer related
+			$this->db->where('n.recipient_officer_id', $user_id);
+		} else {
+			// no notifications for unknown roles
+			$this->db->where('1=0');
+		}
+
 		$this->db->order_by('n.created_at', 'DESC');
 
 		return $this->db->get()->result();
 	}
+
+
 
 
 	public function get_activity_name($activity_id)
@@ -87,5 +96,14 @@ class Notification_model extends CI_Model
 		$this->db->where('reference_id', $reference_id);
 		$this->db->where('type', $type);
 		return $this->db->delete('notifications');
+	}
+
+
+	public function is_org_officer($student_id)
+	{
+		$this->db->where('student_id', $student_id);
+		$this->db->where('is_officer', 'Yes');
+		$query = $this->db->get('student_org');
+		return ($query->num_rows() > 0);
 	}
 }

@@ -1,4 +1,16 @@
+<!-- Hidden Header and Footer -->
+<div id="pdf-header" style="display: none;">
+	<img src="<?= base_url('uploads/headerandfooter/' . $headerImage) ?>" style="width: 100%; max-height: 100px;">
+</div>
+
+<div id="pdf-footer" style="display: none;">
+	<img src="<?= base_url('uploads/headerandfooter/' . $footerImage) ?>" style="width: 100%; max-height: 80px;">
+</div>
+
+
 <div id="pdf-content">
+
+
 
 	<div class="card mb-3 mb-lg-0">
 		<div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center">
@@ -172,6 +184,9 @@
 		</div>
 	</div>
 
+
+
+
 </div>
 
 
@@ -183,6 +198,26 @@
 	function downloadPageAsPDF() {
 		const element = document.getElementById('pdf-content');
 
+		// Clone PDF content
+		const cloned = element.cloneNode(true);
+
+		// Create a wrapper and insert header/footer
+		const wrapper = document.createElement('div');
+
+		// Clone and append header
+		const header = document.getElementById('pdf-header').cloneNode(true);
+		header.style.display = 'block';
+		wrapper.appendChild(header);
+
+		// Append cloned content
+		wrapper.appendChild(cloned);
+
+		// Clone and append footer
+		const footer = document.getElementById('pdf-footer').cloneNode(true);
+		footer.style.display = 'block';
+		wrapper.appendChild(footer);
+
+		// Generate PDF
 		const opt = {
 			margin: 0.5,
 			filename: 'evaluation_statistics.pdf',
@@ -200,9 +235,7 @@
 			}
 		};
 
-		// Call html2pdf and get the PDF as a Blob
-		html2pdf().set(opt).from(element).output('blob').then(function(pdfBlob) {
-			// Create a link to open the PDF in a new tab
+		html2pdf().set(opt).from(wrapper).output('blob').then(function(pdfBlob) {
 			const pdfUrl = URL.createObjectURL(pdfBlob);
 			window.open(pdfUrl, '_blank');
 		});

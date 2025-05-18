@@ -79,11 +79,11 @@ class Student_model extends CI_Model
 
 		// 5. Filter: show public OR private posts that match dept/org
 		$this->db->group_start();
-		$this->db->where('post.privacy', 'Public');
+		$this->db->where('post.privacy', 'public');
 
 		if (!empty($org_ids) || $user_dept_id) {
 			$this->db->or_group_start();
-			$this->db->where('post.privacy', 'Private');
+			$this->db->where('post.privacy', 'private');
 
 			$this->db->group_start();
 			if (!empty($org_ids)) {
@@ -247,7 +247,7 @@ class Student_model extends CI_Model
 		$this->db->group_start();
 		$this->db->or_where('audience', 'All'); // Student Parliament activities
 		$this->db->or_where('audience', $user_dept_name); // Department-specific activities
-		$this->db->or_where_in('audience', $org_names); // Activities related to the student's organizations
+		//$this->db->or_where_in('audience', $org_names); // Activities related to the student's organizations
 		$this->db->group_end();
 
 		// Execute the query
@@ -833,9 +833,9 @@ class Student_model extends CI_Model
 
 
 		$this->db->from('activity');
-		$this->db->join('forms', 'forms.activity_id = activity.activity_id', 'left');
-		$this->db->join('evaluation_responses', 'evaluation_responses.form_id = forms.form_id', 'left');
-		$this->db->where('evaluation_responses.student_id', $student_id);
+		$this->db->join('forms', 'forms.activity_id = activity.activity_id', 'inner');
+		$this->db->join('evaluation_responses', 'evaluation_responses.form_id = forms.form_id AND evaluation_responses.student_id = ' . $this->db->escape($student_id), 'left');
+
 
 		// Audience filters
 		$this->db->group_start();
@@ -847,8 +847,6 @@ class Student_model extends CI_Model
 			$this->db->or_where_in('activity.audience', $org_names);
 		}
 		$this->db->group_end();
-
-
 
 		$query = $this->db->get();
 		return $query->result();
@@ -883,11 +881,11 @@ class Student_model extends CI_Model
 
 		// Fetch open forms where the student has not answered yet or where the response is Pending
 		$this->db->select(' forms.*, activity.*, 
-							IF(
-								forms.status_evaluation = "Completed" AND evaluation_responses.remarks IS NULL, 
-								"Missing", 
-								IFNULL(evaluation_responses.remarks, "Pending")
-							) AS remarks');
+    IF(
+        forms.status_evaluation = "Completed" AND evaluation_responses.remarks IS NULL, 
+        "Missing", 
+        IFNULL(evaluation_responses.remarks, "Pending")
+    ) AS remarks');
 		$this->db->from('forms');
 		$this->db->join('activity', 'activity.activity_id = forms.activity_id', 'inner');
 		$this->db->join('evaluation_responses', 'evaluation_responses.form_id = forms.form_id AND evaluation_responses.student_id = ' . $this->db->escape($student_id), 'left');
@@ -929,48 +927,6 @@ class Student_model extends CI_Model
 
 		return $form_data;
 	}
-
-	public function get_evaluation_answer($form_id)
-	{
-		// Get logged-in student ID
-		$student_id = $this->session->userdata('student_id');
-
-		// Fetch form and activity details
-		$form_data = $this->db
-			->select('*')
-			->from('forms')
-			->join('activity', 'activity.activity_id = forms.activity_id')
-			->where('forms.form_id', $form_id)
-			->get()
-			->row_array();
-
-		// Fetch form fields along with the logged-in student's answers from both 'formfields' and 'response_answer'
-		$this->db->select('ff.*, ra.answer');
-		$this->db->from('formfields ff');
-		$this->db->join(
-			'response_answer ra',
-			'ra.form_fields_id = ff.form_fields_id',
-			'left'
-		);
-		$this->db->where('ff.form_id', $form_id);
-		$query = $this->db->get();
-
-		$form_data['form_fields'] = $query->result_array(); // Fields + their responses
-
-		// Fetch evaluation responses by linking to response_answer
-		$this->db->select('*');
-		$this->db->from('evaluation_responses er');
-		$this->db->join('response_answer ra', 'ra.evaluation_response_id = er.evaluation_response_id');
-		$this->db->where('er.student_id', $student_id);
-		$this->db->where('er.form_id', $form_id);
-		$eval_query = $this->db->get();
-
-		$form_data['evaluation_responses'] = $eval_query->row_array(); // Evaluation responses
-
-		return $form_data;
-	}
-
-
 
 	public function save_response($data)
 	{
@@ -1327,7 +1283,7 @@ class Student_model extends CI_Model
     ');
 		$this->db->from('fines_summary');
 		$this->db->join('users', 'fines_summary.student_id = users.student_id');
-		$this->db->join('fines', 'fines.student_id = fines_summary.student_id'); // ✅ FIXED HERE
+		$this->db->join('fines', 'fines.student_id = fines_summary.student_id');
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id', 'left');
 		$this->db->where('fines_summary.summary_id', $summary_id);
 		$this->db->order_by('fines.fines_id', 'DESC');
@@ -1342,39 +1298,32 @@ class Student_model extends CI_Model
 	public function get_fines_with_summary_and_activity($student_id = null)
 	{
 		$this->db->select('
-        fines.*, 
-        activity.activity_title, 
-        activity.organizer, 
-        activity.start_date, 
-        fines_summary.summary_id,
-        fines_summary.total_fines,
-        fines_summary.fines_status,
-        fines_summary.mode_payment,
-        fines_summary.reference_number_admin,
-        fines_summary.reference_number_students,
-        fines_summary.last_updated,
-        fines_summary.receipt,
-        fines_summary.generated_receipt,
-        attendance.time_in,
-        attendance.time_out,
-        activity_time_slots.slot_name
-    ');
+			fines.*, 
+			activity.activity_title, 
+			activity.organizer, 
+			activity.start_date, 
+			fines_summary.summary_id,
+			fines_summary.total_fines,
+			fines_summary.fines_status,
+			fines_summary.mode_payment,
+			fines_summary.reference_number_admin,
+			fines_summary.reference_number_students,
+			fines_summary.last_updated,
+			fines_summary.receipt,
+			fines_summary.generated_receipt,
+			attendance.time_in as actual_time_in,
+			attendance.time_out as actual_time_out,
+			activity_time_slots.date_time_in as scheduled_time_in,
+			activity_time_slots.date_time_out as scheduled_time_out,
+			activity_time_slots.slot_name
+		');
 
 		$this->db->from('fines');
-
-		// Join activity details
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
-
-		// Join fines summary
-		$this->db->join('fines_summary', 'fines_summary.student_id = fines.student_id', 'left');
-
-		// Join attendance using attendance_id from fines table
+		$this->db->join('fines_summary', 'fines_summary.student_id = fines.student_id AND fines_summary.organizer = activity.organizer', 'left');
 		$this->db->join('attendance', 'attendance.attendance_id = fines.attendance_id', 'left');
-
-		// Join activity time slot using timeslot_id from fines table
 		$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = fines.timeslot_id', 'left');
 
-		// Optional filter by student ID
 		if ($student_id !== null) {
 			$this->db->where('fines.student_id', $student_id);
 		}
@@ -1431,13 +1380,30 @@ class Student_model extends CI_Model
 
 
 	//get fines details for receipt verification
-	public function get_fines_by_code($verification_code)
+	public function get_fines_by_code($verification_code, $student_id, $role, $is_officer_dept)
 	{
 		$this->db->select('fines_summary.student_id, activity.activity_title, fines_summary.total_fines as amount_paid, fines_summary.last_updated, fines_summary.verification_code');
 		$this->db->from('fines_summary');
 		$this->db->join('fines', 'fines.student_id = fines_summary.student_id', 'left');
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id', 'left');
 		$this->db->where('fines_summary.verification_code', $verification_code);
+
+		// Admin can view everything
+		if ($role === 'Officer') {
+			if ($is_officer_dept) {
+				// Department officer: only if they are the organizer
+				$this->db->where('activity.organizer', $student_id);
+			} else {
+				// Org officer: only for activities they organize via student_org
+				$this->db->where_in('activity.organizer', function () use ($student_id) {
+					$this->db->select('student_id')
+						->from('student_org')
+						->where('is_officer', 1)
+						->where('student_id', $student_id);
+				}, false);
+			}
+		}
+
 		$query = $this->db->get();
 
 		if ($query->num_rows() > 0) {
@@ -1446,6 +1412,7 @@ class Student_model extends CI_Model
 
 		return null;
 	}
+
 
 
 
@@ -1467,23 +1434,39 @@ class Student_model extends CI_Model
 
 
 	// This method retrieves a registration based on the verification code
-	public function get_registration_by_code($verification_code)
+	public function get_registration_by_code($verification_code, $student_id, $role, $is_officer_dept)
 	{
-		// Selecting the necessary fields
 		$this->db->select('registrations.student_id, activity.activity_title, registrations.amount_paid, registrations.registration_status, registrations.registered_at');
 		$this->db->from('registrations');
-		$this->db->join('activity', 'activity.activity_id = registrations.activity_id', 'left'); // Ensure left join for activity_title
-		$this->db->where('registrations.verification_code', $verification_code); // Match the verification code
+		$this->db->join('activity', 'activity.activity_id = registrations.activity_id', 'left');
+		$this->db->where('registrations.verification_code', $verification_code);
+
+		// Admin sees all
+		if ($role === 'Officer') {
+			if ($is_officer_dept) {
+				// Department officer: limit by organizer
+				$this->db->where('activity.organizer', $student_id);
+			} else {
+				// Org officer: join student_org and filter
+				$this->db->where_in('activity.organizer', function () use ($student_id) {
+					$this->db->select('student_id')
+						->from('student_org')
+						->where('is_officer', 1)
+						->where('student_id', $student_id);
+				}, false);
+			}
+		}
+
 		$query = $this->db->get();
 
-		// If there is a matching record, return it
 		if ($query->num_rows() > 0) {
 			return $query->row_array();
 		}
 
-		// If no record is found, return null
 		return null;
 	}
+
+
 
 
 

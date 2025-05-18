@@ -293,6 +293,11 @@ $route['officer/general-settings'] = 'OfficerController/general_settings';
 $route['officer/import-students'] = 'OfficerController/import_list';
 $route['officer/generate_bulk_qr'] = 'OfficerController/generate_bulk_qr';
 
+
+
+$route['officer/verify-receipt-page'] = 'OfficerController/verify_receipt_page';
+$route['officer/verify-receipt'] = 'OfficerController/verify_receipt';
+
 $route['officer/about'] = 'OfficerController/about';
 
 

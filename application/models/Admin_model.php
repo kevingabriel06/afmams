@@ -1507,9 +1507,11 @@ class Admin_model extends CI_Model
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
 		$this->db->where('fines_summary.student_id', $student_id);
 		$this->db->where('activity.organizer', $organizer);
+		$this->db->group_by('fines_summary.summary_id'); // Avoid duplicate rows
 		$this->db->limit(1);
 		return $this->db->get()->row();
 	}
+
 
 
 
@@ -1812,6 +1814,11 @@ class Admin_model extends CI_Model
 
 
 
+	public function get_department_by_id($dept_id)
+	{
+		return $this->db->get_where('department', ['dept_id' => $dept_id])->row();
+	}
+
 
 
 
@@ -2067,6 +2074,18 @@ class Admin_model extends CI_Model
 		$upload_path = './uploads/logos/';
 		$old_logo = null;
 
+
+		// ✅ FIX: Get student_id from session
+		$student_id = $user['student_id'] ?? null;
+
+		if (!$student_id) {
+			return; // or handle error
+		}
+
+		// ✅ FIX: Retrieve is_officer from student_org
+		$student_org = $this->db->get_where('student_org', ['student_id' => $student_id])->row_array();
+		$is_officer = $student_org['is_officer'] ?? null;
+
 		if ($user['role'] === 'Admin') {
 			// Student Parliament
 			$existing = $this->db->get('student_parliament_settings')->row();
@@ -2085,7 +2104,7 @@ class Admin_model extends CI_Model
 				$data['created_at'] = date('Y-m-d H:i:s');
 				$this->db->insert('student_parliament_settings', $data);
 			}
-		} elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+		} elseif ($user['role'] === 'Officer' && $is_officer === 'Yes') {
 			// Organization Officer
 			$org = $this->db
 				->select('org_id, logo')
@@ -2150,6 +2169,18 @@ class Admin_model extends CI_Model
 	{
 		$user = $this->session->userdata(); // assumes session holds user data
 
+		// ✅ FIX: Get student_id from session
+		$student_id = $user['student_id'] ?? null;
+
+		if (!$student_id) {
+			return; // or handle error
+		}
+
+		// ✅ FIX: Retrieve is_officer from student_org
+		$student_org = $this->db->get_where('student_org', ['student_id' => $student_id])->row_array();
+		$is_officer = $student_org['is_officer'] ?? null;
+
+
 		$data = [
 			'header' => $files['header'],
 			'footer' => $files['footer'],
@@ -2172,7 +2203,7 @@ class Admin_model extends CI_Model
 				$data['created_at'] = date('Y-m-d H:i:s');
 				$this->db->insert('student_parliament_settings', $data);
 			}
-		} elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+		} elseif ($user['role'] === 'Officer' && $is_officer === 'Yes') {
 			// Organization Officer
 			$org = $this->db
 				->select('org_id, header, footer')

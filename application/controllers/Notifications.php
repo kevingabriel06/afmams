@@ -20,6 +20,7 @@ class Notifications extends CI_Controller
 		$this->load->model('Notification_model');
 		$this->load->model('Student_model');
 
+
 		$student_id = $this->session->userdata('student_id');
 		$user = $this->Student_model->get_student($student_id); // Gets full user row
 
@@ -28,12 +29,18 @@ class Notifications extends CI_Controller
 			return;
 		}
 
-		// Access 'role' from the array
-		$role = $user['role']; // 'Student' or 'Admin'
+		$role = $user['role']; // 'Student', 'Admin', or possibly 'Officer'
+		$is_officer_dept = ($user['is_officer_dept'] === 'Yes') ? true : false;
 
-		$notifications = $this->Notification_model->get_notifications($student_id, $role);
+		// Check if Org Officer: query student_org table where student_id = $student_id and is_officer = 'Yes'
+		$is_org_officer = $this->Notification_model->is_org_officer($student_id);
+
+		// Pass all flags to the model function
+		$notifications = $this->Notification_model->get_notifications($student_id, $role, $is_officer_dept, $is_org_officer);
+
 		echo json_encode($notifications);
 	}
+
 
 
 	public function mark_all_as_read()

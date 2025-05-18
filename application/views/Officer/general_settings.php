@@ -36,6 +36,27 @@
 					</div>
 				</div>
 
+				<!-- Verify Receipt -->
+				<div class="col-md-6">
+					<div class="border rounded p-3 h-100 d-flex flex-column justify-content-between position-relative">
+						<div class="d-flex">
+							<div class="me-3">
+								<span class="fs-4 text-info"><i class="fas fa-receipt"></i></span>
+							</div>
+							<div>
+								<h6 class="mb-1 fw-bold">Verify Receipt</h6>
+								<p class="mb-0 text-muted small">
+									Search for and validate a receipt by reference number.
+								</p>
+							</div>
+						</div>
+						<div class="d-flex justify-content-end gap-2 mt-3">
+							<!-- Example trigger to open a modal or redirect to a verify receipt page -->
+							<a href="<?= base_url('officer/verify-receipt-page') ?>" class="btn btn-sm btn-outline-success">Go</a>
+						</div>
+					</div>
+				</div>
+
 				<!-- Import Modal for Department Officers -->
 				<div class="modal fade" id="importModalDept" tabindex="-1" aria-labelledby="importModalDeptLabel" aria-hidden="true">
 					<div class="modal-dialog">
@@ -248,6 +269,8 @@
 </div>
 
 
+
+
 <!-- Other Section -->
 <div class="card mb-3">
 	<div class="card-header bg-light">
@@ -313,6 +336,16 @@
 					</select>
 				</div>
 
+				<!-- Show Current Header -->
+				<?php if (!empty($current_header) && file_exists($current_header)): ?>
+					<div class="mb-3">
+						<label class="form-label">Current Header:</label>
+						<div>
+							<img src="<?= base_url($current_header) ?>" alt="Current Header" style="max-width: 100%; height: auto;">
+						</div>
+					</div>
+				<?php endif; ?>
+
 				<!-- Header Upload -->
 				<div class="mb-3">
 					<label for="headerFile" class="form-label">Upload Header Image:</label>
@@ -326,6 +359,17 @@
 						<img id="headerPreview" src="" alt="Header Preview" style="max-width: 100%; height: auto;">
 					</div>
 				</div>
+
+
+				<!-- Show Current Footer -->
+				<?php if (!empty($current_footer) && file_exists($current_footer)): ?>
+					<div class="mb-3">
+						<label class="form-label">Current Footer:</label>
+						<div>
+							<img src="<?= base_url($current_footer) ?>" alt="Current Footer" style="max-width: 100%; height: auto;">
+						</div>
+					</div>
+				<?php endif; ?>
 
 				<!-- Footer Upload -->
 				<div class="mb-3">
@@ -362,7 +406,7 @@
 
 
 <script>
-	// Header preview logic
+	// Header input preview
 	document.getElementById('headerFile').addEventListener('change', function(e) {
 		const file = e.target.files[0];
 		if (file) {
@@ -370,12 +414,14 @@
 			reader.onload = function(event) {
 				document.getElementById('headerPreview').src = event.target.result;
 				document.getElementById('headerPreviewContainer').style.display = 'block';
+				document.getElementById('paperHeader').innerHTML = `<img src="${event.target.result}" style="width: 100%; height: auto;">`;
+				document.getElementById('paperPreviewContainer').style.display = 'block';
 			};
 			reader.readAsDataURL(file);
 		}
 	});
 
-	// Footer preview logic
+	// Footer input preview
 	document.getElementById('footerFile').addEventListener('change', function(e) {
 		const file = e.target.files[0];
 		if (file) {
@@ -383,6 +429,8 @@
 			reader.onload = function(event) {
 				document.getElementById('footerPreview').src = event.target.result;
 				document.getElementById('footerPreviewContainer').style.display = 'block';
+				document.getElementById('paperFooter').innerHTML = `<img src="${event.target.result}" style="width: 100%; height: auto;">`;
+				document.getElementById('paperPreviewContainer').style.display = 'block';
 			};
 			reader.readAsDataURL(file);
 		}
@@ -429,6 +477,47 @@
 	});
 </script>
 
+<!-- CURRENT HEADER and FOOTER -->
+
+<script>
+	function fetchCurrentHeaderFooter() {
+		$.ajax({
+			url: '<?= base_url('OfficerController/get_current_header_footer') ?>',
+			method: 'GET',
+			dataType: 'json',
+			success: function(response) {
+				let hasContent = false;
+
+				if (response.header) {
+					$('#paperHeader').html(`<img src="${response.header}" style="width: 100%; height: auto;">`);
+					hasContent = true;
+				} else {
+					$('#paperHeader').html('<p class="text-muted">No current header uploaded yet.</p>');
+				}
+
+				if (response.footer) {
+					$('#paperFooter').html(`<img src="${response.footer}" style="width: 100%; height: auto;">`);
+					hasContent = true;
+				} else {
+					$('#paperFooter').html('<p class="text-muted">No current footer uploaded yet.</p>');
+				}
+
+				$('#paperPreviewContainer').toggle(true); // Always show the preview
+			},
+			error: function() {
+				$('#paperHeader').html('<p class="text-danger">Failed to load header.</p>');
+				$('#paperFooter').html('<p class="text-danger">Failed to load footer.</p>');
+				$('#paperPreviewContainer').show();
+			}
+		});
+	}
+
+	// Call fetch when modal opens
+	$('#headerFooterModal').on('show.bs.modal', function() {
+		fetchCurrentHeaderFooter();
+	});
+</script>
+
 
 <script>
 	$('#headerFooterForm').on('submit', function(e) {
@@ -444,7 +533,7 @@
 		});
 
 		$.ajax({
-			url: "<?= base_url('AdminController/save_header_footer') ?>",
+			url: "<?= base_url('OfficerController/save_header_footer') ?>",
 			type: "POST",
 			data: formData,
 			contentType: false,
@@ -481,6 +570,180 @@
 	});
 </script>
 
+
+
+
+
+<!-- Logo Upload Modal -->
+<div class="modal fade" id="logoModal" tabindex="-1">
+	<div class="modal-dialog">
+		<form class="modal-content" id="logoUploadForm" method="post" enctype="multipart/form-data" action="<?= base_url('AdminController/upload_logo') ?>">
+			<div class="modal-header">
+				<h5 class="modal-title">Upload Logo</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+			</div>
+			<div class="modal-body">
+
+				<!-- Dropdown for selecting logo type -->
+				<div class="mb-3">
+					<label for="logoFor" class="form-label">Upload Logo For:</label>
+					<select class="form-select" name="logo_for" id="logoFor" required>
+						<option value="" disabled selected>Select type</option>
+						<?php foreach ($logo_targets as $target): ?>
+							<option value="<?= $target['value'] ?>"><?= $target['label'] ?></option>
+						<?php endforeach; ?>
+					</select>
+				</div>
+
+				<!-- File input -->
+				<div class="mb-3">
+					<label for="logoFile" class="form-label">Choose Logo:</label>
+					<input type="file" name="logo_file" class="form-control" id="logoFile" accept="image/*" required>
+				</div>
+
+
+				<!-- Current Logo Preview -->
+				<div class="mb-3" id="currentLogoContainer">
+					<label class="form-label">Current Logo:</label>
+					<div id="currentLogoWrapper">
+						<p class="text-muted">No current logo yet.</p>
+					</div>
+				</div>
+
+
+				<script>
+					function loadCurrentLogo() {
+						$.ajax({
+							url: "<?= base_url('OfficerController/get_current_logo') ?>",
+							method: 'GET',
+							dataType: 'json',
+							success: function(res) {
+								if (res.success) {
+									$('#currentLogoWrapper').html(
+										'<img src="' + res.logo + '" alt="Current Logo" style="max-width: 100%; height: auto;">'
+									);
+								} else {
+									$('#currentLogoWrapper').html(
+										'<p class="text-muted">No current logo yet.</p>'
+									);
+								}
+							},
+							error: function() {
+								console.error("Could not fetch current logo.");
+							}
+						});
+					}
+
+					$(document).ready(function() {
+						$('#logoModal').on('shown.bs.modal', function() {
+							loadCurrentLogo();
+						});
+
+						$('#logoFor').on('change', function() {
+							loadCurrentLogo(); // Just call the function directly
+						});
+					});
+				</script>
+
+
+				<script>
+					$(document).ready(function() {
+						// Reload current logo preview when dropdown changes
+						$('#logoFor').on('change', function() {
+							$('#logoModal').trigger('shown.bs.modal'); // Simulate modal show to refresh the current logo
+						});
+					});
+				</script>
+
+
+				<!-- Image Preview -->
+				<div class="mb-3" id="logoPreviewContainer" style="display: none;">
+					<label class="form-label">Logo Preview:</label>
+					<div>
+						<img id="logoPreview" src="" alt="Logo Preview" style="max-width: 100%; height: auto;">
+					</div>
+				</div>
+
+			</div>
+			<div class="modal-footer">
+				<button class="btn btn-warning" type="submit">Upload</button>
+			</div>
+		</form>
+	</div>
+</div>
+
+
+<!-- FOR IMAGE PREVIEW -->
+<script>
+	// Show image preview when a file is selected
+	$('#logoFile').on('change', function(event) {
+		const file = event.target.files[0];
+
+		if (file) {
+			const reader = new FileReader();
+
+			reader.onload = function(e) {
+				$('#logoPreview').attr('src', e.target.result); // Set the preview image
+				$('#logoPreviewContainer').show(); // Show the preview container
+			};
+
+			reader.readAsDataURL(file); // Read the selected file as a Data URL
+		} else {
+			$('#logoPreviewContainer').hide(); // Hide the preview if no file is selected
+		}
+	});
+</script>
+
+<script>
+	$('#logoUploadForm').on('submit', function(e) {
+		e.preventDefault();
+
+		const formData = new FormData(this);
+
+		Swal.fire({
+			title: 'Uploading...',
+			text: 'Please wait while the logo is being uploaded.',
+			didOpen: () => Swal.showLoading(),
+			allowOutsideClick: false
+		});
+
+		$.ajax({
+			url: "<?= base_url('OfficerController/upload_logo') ?>",
+			type: "POST",
+			data: formData,
+			contentType: false,
+			processData: false,
+			dataType: 'json',
+			success: function(response) {
+				Swal.close();
+				if (response.success) {
+					Swal.fire({
+						icon: 'success',
+						title: 'Success!',
+						text: response.message
+					}).then(() => {
+						$('#logoModal').modal('hide');
+						location.reload(); // Optional: reload to show the new logo
+					});
+				} else {
+					Swal.fire({
+						icon: 'error',
+						title: 'Upload Failed',
+						text: response.message
+					});
+				}
+			},
+			error: function() {
+				Swal.close();
+				Swal.fire({
+					icon: 'error',
+					title: 'Error',
+					text: 'An unexpected error occurred. Please try again.'
+				});
+			}
+		});
+	});
+</script>
 
 
 
@@ -564,7 +827,7 @@
 		});
 
 		$.ajax({
-			url: "<?= base_url('AdminController/upload_logo') ?>",
+			url: "<?= base_url('OfficerController/upload_logo') ?>",
 			type: "POST",
 			data: formData,
 			contentType: false,
