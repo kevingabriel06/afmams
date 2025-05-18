@@ -23,6 +23,7 @@ class Officer_model extends CI_Model
 
     // DASHBOARD 
 
+    // hello it is the model of the hsjkdhkjhsjdhsj
     // Get the current semester count
     public function get_current_semester_count()
     {
@@ -143,6 +144,7 @@ class Officer_model extends CI_Model
             'completed_count' => $count
         ];
     }
+
 
     public function fetch_attendance_data()
     {
