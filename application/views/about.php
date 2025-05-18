@@ -446,7 +446,7 @@
 			<div class="col-md-4 mb-4">
 				<div class="card glass-card text-center h-100 shadow-sm">
 					<div class="card-body d-flex flex-column">
-						<img src="<?= base_url('assets/team/jenah.jpg'); ?>" class="rounded-circle mx-auto mb-3" width="100" height="100" alt="Jenah Marie Rivero" style="object-fit: cover;">
+						<img src="<?= base_url('assets/images/profile/491149224_1732092327375779_4061073706986534511_n.png'); ?>" class="rounded-circle mx-auto mb-3" width="100" height="100" alt="Jenah Marie Rivero" style="object-fit: cover;">
 						<h5 class="card-title">Jenah Marie Z. Rivero</h5>
 						<p class="text-muted">Programmer</p>
 						<blockquote class="blockquote small fst-italic text-secondary">“Turning coffee into clean code.”</blockquote>

@@ -88,7 +88,9 @@
 														data-subject="<?= $excuse->subject; ?>"
 														data-status="<?= $excuse->exStatus; ?>"
 														data-content="<?= $excuse->content; ?>"
+														data-remarks="<?= $excuse->remarks; ?>"
 														data-document="<?= $excuse->document; ?>">View Details</button>
+
 
 
 													<script>
@@ -211,13 +213,21 @@
 
 										<!-- Modal Body -->
 										<div class="modal-body px-4 py-3" style="background-color: #f0f4ff;">
-											<div class="mb-3 d-flex justify-content-between align-items-center border-bottom pb-2">
-												<div class="text-muted"><i class="bi bi-calendar-event me-2 text-primary"></i>Activity:</div>
+
+											<!-- Activity -->
+											<div class="mb-3 d-flex align-items-center border-bottom pb-2 gap-2">
+												<div class="text-muted d-flex align-items-center">
+													<i class="bi bi-calendar-event me-2 text-primary"></i>Activity:
+												</div>
 												<div class="fw-medium text-dark" id="detail-activity"></div>
 											</div>
 
-											<div class="mb-3 d-flex justify-content-between align-items-center border-bottom pb-2">
-												<div class="text-muted"><i class="bi bi-book me-2 text-primary"></i>Subject:</div>
+
+											<!-- Subject -->
+											<div class="mb-3 d-flex align-items-center border-bottom pb-2 gap-2">
+												<div class="text-muted d-flex align-items-center">
+													<i class="bi bi-book me-2 text-primary"></i>Subject:
+												</div>
 												<div class="fw-medium text-dark" id="detail-subject"></div>
 											</div>
 
@@ -226,13 +236,20 @@
 												<div>
 													<span id="detail-status" class="badge px-2 py-1 fs-12 rounded-pill">Pending</span>
 												</div>
+												<span id="detail-status" class="badge px-2 py-1 fs-7 rounded-pill"></span>
+
+
 											</div>
 
+											<!-- Remarks -->
 											<div class="mb-3">
-												<div class="text-muted mb-1"><i class="bi bi-chat-left-text me-2 text-primary"></i>Content:</div>
-												<div class="border rounded bg-white p-3 shadow-sm" id="detail-content"></div>
+												<div class="text-muted mb-1 d-flex align-items-center">
+													<i class="bi bi-info-circle me-2 text-primary"></i>Remarks:
+												</div>
+												<div class="border rounded bg-white p-3 shadow-sm" id="detail-remarks"></div>
 											</div>
 
+											<!-- Document Preview -->
 											<div>
 												<div class="text-muted mb-2">
 													<i class="bi bi-file-earmark-image me-2 text-primary"></i>Image Preview:
@@ -241,14 +258,15 @@
 												<!-- Image preview -->
 												<img id="imagePreview" src="" alt="Image Preview" class="img-thumbnail rounded shadow-sm border border-primary-subtle" style="max-width: 100%; display: none;" />
 											</div>
+
+
 										</div>
 
 										<!-- Modal Footer -->
 										<div class="modal-footer bg-white rounded-bottom">
-											<button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">
-												Close
-											</button>
+											<button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Close</button>
 										</div>
+
 									</div>
 								</div>
 							</div>

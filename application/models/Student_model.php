@@ -588,14 +588,15 @@ class Student_model extends CI_Model
 	{
 		$student_id = $this->session->userdata('student_id');
 
-		$this->db->select('activity.*, ea.*, ea.status AS exStatus');
+		$this->db->select('activity.*, ea.*, ea.status AS exStatus, ea.document, ea.remarks');
 		$this->db->from('excuse_application ea');
 		$this->db->join('activity', 'activity.activity_id = ea.activity_id', 'inner');
 		$this->db->where('ea.student_id', $student_id);
 
 		$query = $this->db->get();
-		return $query->result(); // Return all matching applications
+		return $query->result();
 	}
+
 
 	public function get_activities_for_users_excuse_application()
 	{
@@ -809,7 +810,28 @@ class Student_model extends CI_Model
 		}, $orgs);
 
 		// Fetch activities with forms and filter by audience
-		$this->db->select('activity.*, forms.*, evaluation_responses.*');
+		$this->db->select('
+		forms.form_id,
+		forms.title AS title,
+		forms.start_date_evaluation,
+		forms.end_date_evaluation,
+		forms.status_evaluation,
+		activity.activity_id,
+		activity.activity_title AS activity_title,
+		activity.audience,
+		evaluation_responses.remarks AS response_remarks,
+		IF(
+			evaluation_responses.remarks IS NOT NULL,
+			evaluation_responses.remarks,
+			IF(
+				NOW() >= forms.start_date_evaluation AND NOW() <= forms.end_date_evaluation,
+				"Pending",  
+				IF(NOW() > forms.end_date_evaluation, "Missing", "Upcoming")
+			)
+		) AS remarks
+	');
+
+
 		$this->db->from('activity');
 		$this->db->join('forms', 'forms.activity_id = activity.activity_id', 'left');
 		$this->db->join('evaluation_responses', 'evaluation_responses.form_id = forms.form_id', 'left');
@@ -970,8 +992,26 @@ class Student_model extends CI_Model
 	// Fetch Form Details
 	public function get_form_details($form_id)
 	{
-		return $this->db->get_where('forms', ['form_id' => $form_id])->row();
+		// Get form and activity details together using join
+		$this->db->select('forms.*, activity.*'); // Select both form and activity details
+		$this->db->from('forms');
+		$this->db->join('activity', 'activity.activity_id = forms.activity_id');
+		$this->db->where('forms.form_id', $form_id);
+		$query = $this->db->get();
+		$form_data = $query->row(); // Get form and activity details
+
+		if ($form_data) {
+			// Get form fields related to the form_id
+			$this->db->select('*');
+			$this->db->from('formfields');
+			$this->db->where('form_id', $form_id);
+			$query = $this->db->get();
+			$form_data->form_fields = $query->result(); // Store form fields as an array in form_data
+		}
+
+		return $form_data;
 	}
+
 
 	public function get_form_fields($form_id)
 	{
@@ -1299,39 +1339,51 @@ class Student_model extends CI_Model
 
 
 
-	// Function to get fines along with activity details (No changes here)
 	public function get_fines_with_summary_and_activity($student_id = null)
 	{
 		$this->db->select('
-			fines.*, 
-			activity.activity_title, 
-			activity.organizer, 
-			activity.start_date, 
-			fines_summary.summary_id,
-			fines_summary.total_fines,
-			fines_summary.fines_status,
-			fines_summary.mode_payment,
-			fines_summary.reference_number_admin,
-			fines_summary.reference_number_students,
-			fines_summary.last_updated,
-			fines_summary.receipt,
-			fines_summary.generated_receipt
-		');
+        fines.*, 
+        activity.activity_title, 
+        activity.organizer, 
+        activity.start_date, 
+        fines_summary.summary_id,
+        fines_summary.total_fines,
+        fines_summary.fines_status,
+        fines_summary.mode_payment,
+        fines_summary.reference_number_admin,
+        fines_summary.reference_number_students,
+        fines_summary.last_updated,
+        fines_summary.receipt,
+        fines_summary.generated_receipt,
+        attendance.time_in,
+        attendance.time_out,
+        activity_time_slots.slot_name
+    ');
 
-		// Define the tables and join conditions
 		$this->db->from('fines');
+
+		// Join activity details
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+
+		// Join fines summary
 		$this->db->join('fines_summary', 'fines_summary.student_id = fines.student_id', 'left');
 
-		// If a student_id is provided, filter by it
+		// Join attendance using attendance_id from fines table
+		$this->db->join('attendance', 'attendance.attendance_id = fines.attendance_id', 'left');
+
+		// Join activity time slot using timeslot_id from fines table
+		$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = fines.timeslot_id', 'left');
+
+		// Optional filter by student ID
 		if ($student_id !== null) {
 			$this->db->where('fines.student_id', $student_id);
 		}
 
-		// Execute the query and return results
 		$query = $this->db->get();
 		return $query->result_array();
 	}
+
+
 
 
 
@@ -1376,6 +1428,29 @@ class Student_model extends CI_Model
 		$query = $this->db->get();
 		return ($query->num_rows() > 0) ? $query->row_array() : false; // ✅ Return false if no data
 	}
+
+
+	//get fines details for receipt verification
+	public function get_fines_by_code($verification_code)
+	{
+		$this->db->select('fines_summary.student_id, activity.activity_title, fines_summary.total_fines as amount_paid, fines_summary.last_updated, fines_summary.verification_code');
+		$this->db->from('fines_summary');
+		$this->db->join('fines', 'fines.student_id = fines_summary.student_id', 'left');
+		$this->db->join('activity', 'activity.activity_id = fines.activity_id', 'left');
+		$this->db->where('fines_summary.verification_code', $verification_code);
+		$query = $this->db->get();
+
+		if ($query->num_rows() > 0) {
+			return $query->row_array();
+		}
+
+		return null;
+	}
+
+
+
+
+
 
 
 	// Update database when a receipt is generated

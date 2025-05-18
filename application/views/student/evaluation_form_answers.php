@@ -1,59 +1,59 @@
 <div class="card mb-3">
-    <div class="card-body">
-        <div class="row flex-between-center">
-            <div class="col-md">
-                <h5 class="mb-2 mb-md-0">Evaluation Form Response - <?php echo $form_data['activity_title']; ?></h5>
-            </div>
-        </div>
-    </div>
+	<div class="card-body">
+		<div class="row flex-between-center">
+			<div class="col-md">
+				<h5 class="mb-2 mb-md-0">Evaluation Form Response - <?php echo $form_data['activity_title']; ?></h5>
+			</div>
+		</div>
+	</div>
 </div>
 
 <!-- COVER PHOTO SECTION -->
 <div class="position-relative text-center" style="max-width: 100%; overflow: hidden;">
-    <?php if (!empty($form_data['cover_theme'])) : ?>
-        <!-- Cover Photo -->
-        <img id="coverPhoto" class="img-fluid w-100 rounded"
-            src="<?php echo site_url('assets/theme_evaluation/' . $form_data['cover_theme']); ?>"
-            alt="Cover Photo" style="height: 250px; object-fit: cover;">
-    <?php else : ?>
-        <img id="coverPhoto" class="img-fluid w-100 rounded"
-            src="<?php echo base_url(); ?>assets/image/OIP.jpg" alt="Cover Photo" style="height: 250px; object-fit: cover;">
-    <?php endif; ?>
+	<?php if (!empty($form_data['cover_theme'])) : ?>
+		<!-- Cover Photo -->
+		<img id="coverPhoto" class="img-fluid w-100 rounded"
+			src="<?php echo site_url('assets/theme_evaluation/' . $form_data['cover_theme']); ?>"
+			alt="Cover Photo" style="height: 250px; object-fit: cover;">
+	<?php else : ?>
+		<img id="coverPhoto" class="img-fluid w-100 rounded"
+			src="<?php echo base_url(); ?>assets/image/OIP.jpg" alt="Cover Photo" style="height: 250px; object-fit: cover;">
+	<?php endif; ?>
 </div>
 
 <div class="row g-0">
-    <div class="card mx-auto mt-3 shadow-sm border-0 rounded">
-        <div class="card-body p-4">
-            <!-- Form Title -->
-            <h3 class="fw-bold mb-2">
-                <?php echo !empty($form_data['title']) ? $form_data['title'] : 'Untitled Form'; ?>
-            </h3>
+	<div class="card mx-auto mt-3 shadow-sm border-0 rounded">
+		<div class="card-body p-4">
+			<!-- Form Title -->
+			<h3 class="fw-bold mb-2">
+				<?php echo !empty($form_data['title']) ? $form_data['title'] : 'Untitled Form'; ?>
+			</h3>
 
-            <!-- Dashed Border Line -->
-            <hr class="border border-2 border-dashed mt-3">
+			<!-- Dashed Border Line -->
+			<hr class="border border-2 border-dashed mt-3">
 
-            <!-- Form Description -->
-            <p class="text-muted mb-3">
-                <?php echo !empty($form_data['form_description']) ? nl2br($form_data['form_description']) : 'No description provided.'; ?>
-            </p>
+			<!-- Form Description -->
+			<p class="text-muted mb-3">
+				<?php echo !empty($form_data['form_description']) ? nl2br($form_data['form_description']) : 'No description provided.'; ?>
+			</p>
 
-            <!-- Form Fields Container -->
-            <div id="form-fields" class="mt-4"></div>
+			<!-- Form Fields Container -->
+			<div id="form-fields" class="mt-4"></div>
 
-        </div>
-    </div>
+		</div>
+	</div>
 </div>
 <script>
-    let fieldCount = 0;
-    let formFields = <?php echo json_encode($form_data['form_fields']); ?>; // Existing fields from DB
+	let fieldCount = 0;
+	let formFields = <?php echo json_encode($form_data['form_fields']); ?>; // Existing fields from DB
 
-    function addField(form_fields_id, type, label = "", answer = "", required = false) {
-        const formFieldsContainer = document.getElementById("form-fields");
-        const fieldId = `field-${fieldCount}`;
-        let newField = "";
+	function addField(form_fields_id, type, label = "", answer = "", required = false) {
+		const formFieldsContainer = document.getElementById("form-fields");
+		const fieldId = `field-${fieldCount}`;
+		let newField = "";
 
-        if (type === "short") {
-            newField = `
+		if (type === "short") {
+			newField = `
                 <div class="card shadow-sm mb-3" id="${fieldId}">
                     <div class="card-body">
                         <label class="form-label fw-semi-bold fs-9">${label} ${required ? "<span class='text-danger'>*</span>" : ""}</label>
@@ -61,8 +61,8 @@
                     </div>
                 </div>
             `;
-        } else if (type === "textarea") {
-            newField = `
+		} else if (type === "textarea") {
+			newField = `
                 <div class="card shadow-sm mb-3" id="${fieldId}">
                     <div class="card-body">
                         <label class="form-label fw-semi-bold fs-9">${label} ${required ? "<span class='text-danger'>*</span>" : ""}</label>
@@ -70,16 +70,16 @@
                     </div>
                 </div>
             `;
-        } else if (type === "rating") {
-            let stars = [1, 2, 3, 4] // Rating scale from 1 to 4
-                .map(i => {
-                    // Check if the current star is selected based on the answer value
-                    const isActive = (answer && parseInt(answer) >= i) ? 'fas text-warning' : 'far';
-                    return `<i class="fa-star star fs-5 ${isActive}" data-value="${i}" data-field="${fieldId}"></i>`;
-                })
-                .join("");
+		} else if (type === "rating") {
+			let stars = [1, 2, 3, 4] // Rating scale from 1 to 4
+				.map(i => {
+					// Check if the current star is selected based on the answer value
+					const isActive = (answer && parseInt(answer) >= i) ? 'fas text-warning' : 'far';
+					return `<i class="fa-star star fs-5 ${isActive}" data-value="${i}" data-field="${fieldId}"></i>`;
+				})
+				.join("");
 
-            newField = `
+			newField = `
                 <div class="card shadow-sm mb-3" id="${fieldId}">
                     <div class="card-body">
                         <label class="form-label fw-semi-bold fs-9">${label} ${required ? "<span class='text-danger'>*</span>" : ""}</label>
@@ -89,17 +89,17 @@
                     </div>
                 </div>
             `;
-        }
+		}
 
-        formFieldsContainer.insertAdjacentHTML("beforeend", newField);
-        fieldCount++;
-    }
+		formFieldsContainer.insertAdjacentHTML("beforeend", newField);
+		fieldCount++;
+	}
 
-    function loadExistingFields() {
-        formFields.forEach(field => {
-            addField(field.form_fields_id, field.type, field.label, field.answer, field.required == 1);
-        });
-    }
+	function loadExistingFields() {
+		formFields.forEach(field => {
+			addField(field.form_fields_id, field.type, field.label, field.answer, field.required == 1);
+		});
+	}
 
-    window.onload = loadExistingFields;
+	window.onload = loadExistingFields;
 </script>

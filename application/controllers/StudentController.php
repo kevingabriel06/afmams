@@ -550,6 +550,23 @@ class StudentController extends CI_Controller
 		// ✅ Fetch only this student's fines
 		$data['fines'] = $this->Student_model->get_fines_with_summary_and_activity($student_id);
 
+		// Fetch all time slots
+		$this->db->select('timeslot_id, activity_id, slot_name, date_time_in, date_time_out');
+		$time_slots = $this->db->get('activity_time_slots')->result_array();
+
+		// Build a lookup: [activity_id][timeslot_id] => ['slot_name' => ..., 'in' => ..., 'out' => ...]
+		$slot_lookup = [];
+		foreach ($time_slots as $slot) {
+			$slot_lookup[$slot['activity_id']][$slot['timeslot_id']] = [
+				'slot_name' => $slot['slot_name'],
+				'in' => $slot['date_time_in'],
+				'out' => $slot['date_time_out'],
+			];
+		}
+
+		$data['slot_lookup'] = $slot_lookup; // Pass to the view
+
+
 		// Load the views
 		$this->load->view('layout/header', $data);
 		$this->load->view('student/summary_fines', $data);

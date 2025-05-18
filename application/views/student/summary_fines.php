@@ -52,24 +52,26 @@
 					<?php
 					$previous_organizer = '';
 					$organizer_fines = [];
+					$previous_activity = '';
 
-					foreach ($fines as $fine):
+					foreach ($fines as $index => $fine):
 						if ($fine['organizer'] !== $previous_organizer):
+							// Close previous organizer section
 							if ($previous_organizer !== ''):
 								$total_fines = array_sum(array_column($organizer_fines, 'fines_amount'));
 								$last_fine = end($organizer_fines);
 								echo '</tbody></table>';
 								echo '<div class="bg-light mt-3 p-3 rounded d-flex justify-content-between align-items-center border">';
-								echo '<div><span class="fw-bold">Total Fines Imposed:</span><span class="fw-bold text-danger">₱' . number_format($total_fines, 2) . '</span></div>';
+								echo '<div><span class="fw-bold">Total Fines Imposed:</span><span class="fw-bold text-danger"> ₱' . number_format($total_fines, 2) . '</span></div>';
 								echo '<div>';
 								if ($last_fine['fines_status'] !== 'Paid') {
 									echo '<button class="btn btn-primary"
-								data-bs-toggle="modal"
-								data-bs-target="#payNowModal"
-								data-total_fines="' . number_format($total_fines, 2) . '"
-								data-summary_id="' . $last_fine['summary_id'] . '"
-								data-student_id="' . $last_fine['student_id'] . '"
-								data-organizer="' . htmlspecialchars($last_fine['organizer'], ENT_QUOTES) . '">Pay Now</button>';
+                            data-bs-toggle="modal"
+                            data-bs-target="#payNowModal"
+                            data-total_fines="' . number_format($total_fines, 2) . '"
+                            data-summary_id="' . $last_fine['summary_id'] . '"
+                            data-student_id="' . $last_fine['student_id'] . '"
+                            data-organizer="' . htmlspecialchars($last_fine['organizer'], ENT_QUOTES) . '">Pay Now</button>';
 								} else {
 									echo '<a href="' . base_url('uploads/fine_receipts/' . $last_fine['generated_receipt']) . '" class="btn btn-success" target="_blank">Download Receipt</a>';
 								}
@@ -80,23 +82,95 @@
 							echo '<table class="table table-hover table-striped table-bordered" style="margin-top: 20px; margin-bottom: 20px;">';
 							echo '<thead class="table-light">';
 							echo '<tr><th colspan="4" style="text-align: left;">Source of Fine: ' . $fine['organizer'] . '</th></tr>';
-							echo '<tr><th>Activity</th><th>Date</th><th>Amount</th></tr>';
+							echo '<tr><th>Activity</th><th>Date</th><th>Amount</th><th class="text-center">Action</th></tr>';
 							echo '</thead><tbody>';
 
 							$organizer_fines = [];
 							$previous_organizer = $fine['organizer'];
 						endif;
 
-						$organizer_fines[] = $fine;
-					?>
-						<tr>
-							<td><?php echo $fine['activity_title']; ?></td>
-							<td><?php echo date('Y-m-d', strtotime($fine['start_date'])); ?></td>
-							<td>₱<?php echo number_format($fine['fines_amount'], 2); ?></td>
-						</tr>
-					<?php endforeach; ?>
+						// Avoid duplicate activities
+						if ($fine['activity_title'] !== $previous_activity) {
+							echo '<tr>';
+							echo '<td>' . htmlspecialchars($fine['activity_title']) . '</td>';
+							echo '<td>' . date('Y-m-d', strtotime($fine['start_date'])) . '</td>';
+							$activity_total = 0;
+							foreach ($fines as $f) {
+								if ($f['activity_id'] == $fine['activity_id'] && $f['student_id'] == $fine['student_id']) {
+									$activity_total += $f['fines_amount'];
+								}
+							}
+							echo '<td>₱' . number_format($activity_total, 2) . '</td>';
 
-					<!-- Last group -->
+							echo '<td>
+                    <div class="text-center">
+                        <button class="btn btn-sm border border-primary text-primary bg-transparent rounded-pill px-3"
+                                style="font-weight: 500;"
+                                data-bs-toggle="modal"
+                                data-bs-target="#breakdownModal-' . $index . '">
+                            View Breakdown
+                        </button>
+                    </div>
+                  </td>';
+							echo '</tr>';
+
+							// Modal for Breakdown
+							echo '<div class="modal fade" id="breakdownModal-' . $index . '" tabindex="-1" aria-labelledby="breakdownModal-' . $index . 'Label" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Fine Breakdown - ' . htmlspecialchars($fine['activity_title']) . '</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <ul class="list-group">';
+
+							// Use full fines array to get all matching reasons
+							$activity_id = $fine['activity_id'];
+							$student_id = $fine['student_id'];
+							$activity_total = 0;
+
+							foreach ($fines as $f) {
+								if ($f['activity_id'] == $activity_id && $f['student_id'] == $student_id) {
+									// Determine if it's time-in or time-out
+									$label = '';
+									if ($f['time_in'] === null) {
+										$label = $f['slot_name'] . '_in';
+									} elseif ($f['time_out'] === null) {
+										$label = $f['slot_name'] . '_out';
+									} else {
+										$label = $f['slot_name']; // fallback if both are not null
+									}
+
+									echo '<li class="list-group-item d-flex justify-content-between align-items-center">';
+									echo '<span>' . htmlspecialchars($label) . '</span>';
+									echo '<span>₱' . number_format($f['fines_amount'], 2) . '</span>';
+									echo '</li>';
+									$activity_total += $f['fines_amount'];
+								}
+							}
+
+
+
+							echo '<li class="list-group-item d-flex justify-content-between align-items-center fw-bold">
+                        <span>Total</span>
+                        <span>₱' . number_format($activity_total, 2) . '</span>
+                      </li>';
+
+							echo '</ul>
+                        </div>
+                    </div>
+                </div>
+            </div>';
+
+							$previous_activity = $fine['activity_title'];
+						}
+
+						$organizer_fines[] = $fine;
+
+					endforeach;
+					?>
+
 					<?php if (!empty($organizer_fines)): ?>
 						<?php
 						$total_fines = array_sum(array_column($organizer_fines, 'fines_amount'));
@@ -118,16 +192,11 @@
 								?>
 
 								<?php if ($status === 'Paid' && !empty($receipt) && file_exists($receipt_path)): ?>
-									<a href="<?php echo base_url('uploads/fine_receipts/' . $receipt); ?>"
-										class="btn btn-success"
-										target="_blank"
-										download>
+									<a href="<?php echo base_url('uploads/fine_receipts/' . $receipt); ?>" class="btn btn-success" target="_blank" download>
 										Download Receipt
 									</a>
-
 								<?php elseif ($status === 'Pending'): ?>
 									<span class="text-warning fw-bold">Waiting for admin approval...</span>
-
 								<?php else: ?>
 									<button class="btn btn-primary"
 										data-bs-toggle="modal"
@@ -140,11 +209,12 @@
 									</button>
 								<?php endif; ?>
 							</div>
-
 						</div>
 					<?php endif; ?>
 				</div>
 			</div>
+
+
 
 			<!-- Modal -->
 			<div class="modal fade" id="payNowModal" tabindex="-1" aria-labelledby="payNowModalLabel" aria-hidden="true">
