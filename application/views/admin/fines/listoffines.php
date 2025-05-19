@@ -313,7 +313,7 @@
 	</div>
 </div>
 
-<script>
+<!-- <script>
 	// Convert PHP fines data to JSON
 	const finesData = <?= json_encode($fines, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 
@@ -549,7 +549,7 @@
 	});
 </script>
 
-<!-- 
+
 <script>
 	// Convert PHP fines data to JSON
 	const finesData = <?= json_encode($fines, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
@@ -745,7 +745,7 @@
 </script> -->
 
 
-<!-- <script>
+<script>
 	// Convert PHP fines data to JSON
 	const finesData = <?= json_encode($fines, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 
@@ -1033,7 +1033,7 @@
 			});
 		}
 	});
-</script> -->
+</script>
 
 <script>
 	$(document).ready(function() {
