@@ -281,7 +281,7 @@
 								<i class="fas fa-bell" style="font-size: 24px;"></i>
 								<span id="notificationCount"
 									class="position-absolute badge rounded-circle bg-danger"
-									style="top: 2px; right: -6px; font-size: 0.7rem; padding: 4px 6px;">
+									style="top: 2px; right: -6px; font-size: 0.7rem; padding: 4px 6px; display:none;">
 									0
 									<span class="visually-hidden">unread messages</span>
 								</span>
@@ -294,10 +294,11 @@
 										method: 'POST',
 										data: {
 											student_id: '<?= $this->session->userdata('student_id') ?>',
-											role: '<?= $this->session->userdata('role') ?>'
+											role: '<?= $this->session->userdata('role') ?>',
+											is_officer_dept: '<?= $this->session->userdata('is_officer_dept') ?? 'No' ?>',
+											is_org_officer: '<?= $this->session->userdata('is_org_officer') ?? 'No' ?>'
 										},
 										success: function(response) {
-											// Optionally refresh the notifications after marking them as read
 											fetchNotifications();
 										},
 										error: function(jqXHR, textStatus, errorThrown) {
@@ -308,9 +309,7 @@
 							</script>
 
 							<div class="dropdown-menu dropdown-menu-end p-0" style="width: 300px; height: 400px; overflow: hidden;">
-
 								<div class="card card-notification shadow-none" style="border: none; margin-bottom: 0; display: flex; flex-direction: column; height: 100%;">
-
 									<div class="card-header" style="padding-bottom: 0; border-bottom: none;">
 										<h6 class="card-header-title mb-0">Notifications</h6>
 									</div>
@@ -318,17 +317,12 @@
 										<div id="notificationList"
 											class="list-group list-group-flush fw-normal fs-10"
 											style="max-height: 360px; overflow-y: auto; padding: 0; margin: 0;">
-											<div id="notificationList" class="list-group list-group-flush fw-normal fs-10" style="padding: 0; margin: 0;">
-
-												<!-- Notifications go here -->
-											</div>
+											<!-- Notifications will be dynamically injected here -->
 										</div>
 									</div>
 								</div>
+							</div>
 						</li>
-
-
-
 						<!-- NOTIFICATIONS END -->
 
 						<!-- Dynamic Notifications Script -->
@@ -339,7 +333,9 @@
 									method: 'GET',
 									data: {
 										student_id: '<?= $this->session->userdata('student_id') ?>',
-										role: '<?= $this->session->userdata('role') ?>'
+										role: '<?= $this->session->userdata('role') ?>',
+										is_officer_dept: '<?= $this->session->userdata('is_officer_dept') ?? 'No' ?>',
+										is_org_officer: '<?= $this->session->userdata('is_org_officer') ?? 'No' ?>'
 									},
 									dataType: 'json',
 									success: function(data) {
@@ -349,7 +345,6 @@
 										if (data.length === 0) {
 											listHtml = '<div class="text-center text-muted py-3">No notifications</div>';
 										} else {
-											$('#notificationList').empty();
 											data.forEach(notification => {
 												if (notification.is_read == 0) unreadCount++;
 
@@ -367,17 +362,17 @@
 												const highlightStyle = notification.is_read == 0 ? 'background-color: #e3f2fd;' : '';
 
 												listHtml += `
-                        <a href="${notification.link}" 
-                            class="list-group-item list-group-item-action d-flex align-items-center" 
-                            style="${highlightStyle}" 
-                            data-id="${notification.id}">
-                            <img src="${profileImg}" alt="Profile" class="rounded-circle me-2" width="40" height="40">
-                            <div>
-                                <strong>${fullName}</strong><br>
-                                ${message}<br>
-                                <small class="text-muted">${date}</small>
-                            </div>
-                        </a>`;
+                            <a href="${notification.link}" 
+                               class="list-group-item list-group-item-action d-flex align-items-center" 
+                               style="${highlightStyle}" 
+                               data-id="${notification.id}">
+                                <img src="${profileImg}" alt="Profile" class="rounded-circle me-2" width="40" height="40">
+                                <div>
+                                    <strong>${fullName}</strong><br>
+                                    ${message}<br>
+                                    <small class="text-muted">${date}</small>
+                                </div>
+                            </a>`;
 											});
 										}
 
@@ -389,9 +384,9 @@
 
 										$('#notificationList').html(listHtml);
 
-										// Highlight removal after 10 seconds
+										// Highlight removal after 10 seconds & mark as read
 										$('#notificationList .list-group-item').each(function() {
-											if ($(this).css('background-color') === 'rgb(227, 242, 253)') { // #e3f2fd color
+											if ($(this).css('background-color') === 'rgb(227, 242, 253)') {
 												const $notif = $(this);
 												const id = $notif.data('id');
 
@@ -400,7 +395,6 @@
 														backgroundColor: "#ffffff"
 													}, 500);
 
-													// After 10 seconds, mark as read
 													$.ajax({
 														url: '<?= base_url("Notifications/mark_as_read") ?>',
 														method: 'POST',
@@ -408,7 +402,7 @@
 															id: id
 														}
 													});
-												}, 10000); // 10 seconds
+												}, 10000);
 											}
 										});
 									},
@@ -419,13 +413,13 @@
 								});
 							}
 
-							// Call on page load
+							// Initial fetch on page load
 							fetchNotifications();
 
-							// Optional: Auto-refresh
+							// Auto refresh every 60 seconds
 							setInterval(fetchNotifications, 60000);
 
-							// Mark as read when clicking a notification
+							// Mark notification as read when clicked
 							$(document).on('click', '#notificationList a', function(e) {
 								e.preventDefault();
 
@@ -434,15 +428,11 @@
 								const link = $notif.attr('href');
 
 								$notif.animate({
-										backgroundColor: "#ffffff"
-									},
-									500,
-									function() {
-										window.location.href = link;
-									}
-								);
+									backgroundColor: "#ffffff"
+								}, 500, function() {
+									window.location.href = link;
+								});
 
-								// Mark as read immediately when clicked (optional behavior)
 								$.ajax({
 									url: '<?= base_url("Notifications/mark_as_read") ?>',
 									method: 'POST',
@@ -454,6 +444,7 @@
 						</script>
 
 						<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+
 
 
 						<!-- //NOTIFICATIONS END -->

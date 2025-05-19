@@ -408,24 +408,58 @@ class StudentController extends CI_Controller
 
 		if ($this->student->insert_registration($data)) {
 
-			// === Send Notification to Admins ===
+			// === Send Notifications ===
 			$this->load->model('Notification_model');
 
+			// Assuming $activity_id and $student_id are already set from your registration data
 			$activity_name = $this->Notification_model->get_activity_name($activity_id) ?? 'Unknown Activity';
-			$admin_student_ids = $this->Notification_model->get_admin_student_ids(); // Get admin student_ids
 			$notification_message = 'submitted a registration request for "' . $activity_name . '"';
+			$link = base_url('admin/activity-details/' . $activity_id);
 
+			// Notify Admins
+			$admin_student_ids = $this->Notification_model->get_admin_student_ids();
 			foreach ($admin_student_ids as $admin_student_id) {
 				$this->Notification_model->add_notification(
 					null,                  // recipient_student_id = NULL
 					$student_id,           // sender_student_id
-					'registration_submitted', // type (you can define it in your system)
+					'registration_submitted', // type
 					$activity_id,          // reference_id
 					$notification_message, // message
 					$admin_student_id,     // recipient_admin_id
-					base_url('admin/activity-details/' . $activity_id)
+					$link
 				);
 			}
+
+			// Notify Organization Officers
+			$org_officer_ids = $this->Notification_model->get_org_officer_ids();
+			foreach ($org_officer_ids as $officer_id) {
+				$this->Notification_model->add_notification(
+					null,                  // recipient_student_id = NULL
+					$student_id,
+					'registration_submitted',
+					$activity_id,
+					$notification_message,
+					null,                  // recipient_admin_id = NULL
+					$link,
+					$officer_id            // recipient_officer_id
+				);
+			}
+
+			// Notify Department Officers
+			$dept_officer_ids = $this->Notification_model->get_dept_officer_ids();
+			foreach ($dept_officer_ids as $officer_id) {
+				$this->Notification_model->add_notification(
+					null,
+					$student_id,
+					'registration_submitted',
+					$activity_id,
+					$notification_message,
+					null,
+					$link,
+					$officer_id
+				);
+			}
+
 			echo json_encode([
 				'status' => 'success',
 				'message' => 'Registration submitted successfully!'
@@ -629,20 +663,43 @@ class StudentController extends CI_Controller
 		$student = $this->db->get()->row();
 		$student_name = $student ? $student->first_name . ' ' . $student->last_name : 'A student';
 
-		$notification_message = ' submitted a fine payment to ' . $organizer . '.';
+		$notification_message = $student_name . ' submitted a fine payment to ' . $organizer . '.';
 
-		// Notify all admins
-		$admin_student_ids = $this->Notification_model->get_admin_student_ids();
-		foreach ($admin_student_ids as $admin_student_id) {
-			$this->Notification_model->add_notification(
-				null,                      // recipient_student_id
-				$student_id,               // sender_student_id
-				'fine_payment_uploaded',   // type
-				$fine_summary_id,          // reference_id
-				$notification_message,     // message
-				$admin_student_id,       // recipient_admin_id
-				base_url('admin/list-fines/')
-			);
+		// Load Notification model if not already loaded
+		$this->load->model('Notification_model');
+
+		// Notify based on organizer role
+		$organizer_info = $this->Notification_model->get_organizer_role_info($organizer);
+
+		if (!$organizer_info) {
+			log_message('error', 'Organizer not recognized for notification: ' . $organizer);
+		} else {
+			if ($organizer_info['type'] === 'admin') {
+				foreach ($organizer_info['admin_student_ids'] as $admin_id) {
+					$this->Notification_model->add_notification(
+						null,
+						$student_id,
+						'fine_payment_uploaded',
+						$fine_summary_id,
+						$notification_message,
+						$admin_id,
+						base_url('admin/list-fines/')
+					);
+				}
+			} else {
+				foreach ($organizer_info['officer_student_ids'] as $officer_id) {
+					$this->Notification_model->add_notification(
+						null,
+						$student_id,
+						'fine_payment_uploaded',
+						$fine_summary_id,
+						$notification_message,
+						null,
+						base_url('admin/list-fines/'),
+						$officer_id
+					);
+				}
+			}
 		}
 
 		echo json_encode(['status' => 'success', 'message' => 'Payment recorded successfully.']);
@@ -982,30 +1039,74 @@ class StudentController extends CI_Controller
 
 
 		// Notify Admins (send notifications)
+		// Load the Notification model
 		$this->load->model('Notification_model');
-		$activity_name = $this->Notification_model->get_activity_name($data['activity_id']) ?? 'Unknown Activity';
 
+		// Get activity details
+		$activity_id = $data['activity_id'];
+		$activity_name = $this->Notification_model->get_activity_name($activity_id) ?? 'Unknown Activity';
 
-		$admin_student_ids = $this->Notification_model->get_admin_student_ids(); // Get admin student_ids
+		// Sender is the student submitting the excuse
+		$sender_student_id = $this->input->post('student_id');
 
+		// Build the notification message and link
 		$notification_message = 'submitted an excuse application for "' . $activity_name . '"';
+		$link = base_url('admin/list-of-excuse-letter/' . $activity_id);
 
-		$sender_student_id = $this->input->post('student_id'); // Already a student_id
+		// ------------------------
+		// Notify Admins
+		// ------------------------
+		$admin_student_ids = $this->Notification_model->get_admin_student_ids();
 
 		foreach ($admin_student_ids as $admin_student_id) {
 			$this->Notification_model->add_notification(
 				null,                      // recipient_student_id = NULL
 				$sender_student_id,        // sender_student_id
 				'excuse_submitted',        // type
-				$data['activity_id'],      // reference_id
+				$activity_id,              // reference_id
 				$notification_message,     // message
-				$admin_student_id,         // recipient_admin_id is used instead
-				base_url('admin/list-of-excuse-letter/' . $data['activity_id'])
+				$admin_student_id,         // recipient_admin_id
+				$link                      // link
 			);
 		}
 
+		// ------------------------
+		// Notify Organization Officers
+		// ------------------------
+		$org_officer_ids = $this->Notification_model->get_org_officer_ids(); // You will create this method
 
-		// Success response
+		foreach ($org_officer_ids as $officer_id) {
+			$this->Notification_model->add_notification(
+				null,                      // recipient_student_id = NULL
+				$sender_student_id,
+				'excuse_submitted',
+				$activity_id,
+				$notification_message,
+				null,                      // recipient_admin_id = NULL
+				$link,
+				$officer_id                // recipient_officer_id
+			);
+		}
+
+		// ------------------------
+		// Notify Department Officers
+		// ------------------------
+		$dept_officer_ids = $this->Notification_model->get_dept_officer_ids(); // You will create this method
+
+		foreach ($dept_officer_ids as $officer_id) {
+			$this->Notification_model->add_notification(
+				null,
+				$sender_student_id,
+				'excuse_submitted',
+				$activity_id,
+				$notification_message,
+				null,
+				$link,
+				$officer_id
+			);
+		}
+
+		// Final success response
 		echo json_encode(['status' => 'success', 'message' => 'Your application has been submitted successfully.']);
 	}
 
