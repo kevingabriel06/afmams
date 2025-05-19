@@ -1643,6 +1643,24 @@ class Admin_model extends CI_Model
 		return $this->db->trans_status();
 	}
 
+
+	//FOR NOTICATIONS START
+	public function get_officer_by_privilege_id($privilege_id)
+	{
+		$this->db->select('student_id');
+		$this->db->from('privilege'); // correct table name
+		$this->db->where('privilege_id', $privilege_id);
+		return $this->db->get()->row(); // returns object with ->student_id
+	}
+
+	public function get_privilege_by_id($privilege_id)
+	{
+		return $this->db->get_where('privilege', ['privilege_id' => $privilege_id])->row();
+	}
+
+	//FOR NOTICATIONS END
+
+
 	public function delete_officer_dept($id)
 	{
 		// Start transaction
@@ -1820,10 +1838,16 @@ class Admin_model extends CI_Model
 	}
 
 
-
-
-
-
+	public function get_org_officer_by_student($student_id)
+	{
+		$this->db->select('o.org_name');
+		$this->db->from('student_org so');
+		$this->db->join('organization o', 'so.org_id = o.org_id');
+		$this->db->where('so.student_id', $student_id);
+		$this->db->where('so.is_officer', 'Yes');
+		$query = $this->db->get();
+		return $query->row();
+	}
 
 
 
@@ -1915,6 +1939,18 @@ class Admin_model extends CI_Model
 	}
 
 
+
+
+	//for header and footer dropdown
+	public function get_organization_by_student($student_id)
+	{
+		$this->db->select('o.*');
+		$this->db->from('student_org so');
+		$this->db->join('organization o', 'so.org_id = o.org_id');
+		$this->db->where('so.student_id', $student_id);
+		$this->db->where('so.is_officer', 'Yes');
+		return $this->db->get()->row();
+	}
 
 
 

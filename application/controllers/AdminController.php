@@ -3734,9 +3734,13 @@ class AdminController extends CI_Controller
 		}
 
 		$sanitized_data = [];
+		$change_logs = []; // Store old values before update
 
 		foreach ($privileges_input as $privilege_id => $values) {
-			$sanitized_data[] = [
+			// ✅ Fetch old values before the update
+			$old = $this->admin->get_privilege_by_id($privilege_id);
+
+			$sanitized = [
 				'privilege_id' => $privilege_id,
 				'manage_fines' => isset($values['manage_fines']) ? 'Yes' : 'No',
 				'manage_evaluation' => isset($values['manage_evaluation']) ? 'Yes' : 'No',
@@ -3744,9 +3748,53 @@ class AdminController extends CI_Controller
 				'able_scan' => isset($values['able_scan']) ? 'Yes' : 'No',
 				'able_create_activity' => isset($values['able_create_activity']) ? 'Yes' : 'No'
 			];
+
+			$sanitized_data[] = $sanitized;
+
+			if ($old) {
+				$change_logs[$privilege_id] = $old;
+			}
 		}
 
+		// ✅ Now update in bulk
 		$update = $this->admin->update_privileges_dept($sanitized_data);
+
+		if ($update) {
+			foreach ($sanitized_data as $row) {
+				$privilege_id = $row['privilege_id'];
+				$old = $change_logs[$privilege_id] ?? null;
+
+				$changes = [];
+
+				if ($old) {
+					foreach (['manage_fines', 'manage_evaluation', 'manage_applications', 'able_scan', 'able_create_activity'] as $field) {
+						if ($old->$field !== $row[$field]) {
+							$pretty = ucwords(str_replace('_', ' ', $field));
+							$changes[] = "$pretty changed from {$old->$field} to {$row[$field]}";
+						}
+					}
+				}
+
+				$message = !empty($changes)
+					? 'Your privileges have been updated: ' . implode(', ', $changes)
+					: 'Your privileges have been updated: No specific changes detected.';
+
+				$officer = $this->admin->get_officer_by_privilege_id($privilege_id);
+
+				if ($officer) {
+					$this->db->insert('notifications', [
+						'recipient_officer_id' => $officer->student_id,
+						'sender_student_id'    => $this->session->userdata('student_id'),
+						'type'                 => 'privilege_updated',
+						'reference_id'         => $privilege_id,
+						'message'              => $message,
+						'is_read'              => 0,
+						'created_at'           => date('Y-m-d H:i:s'),
+						'link'                 => base_url('officer/privileges')
+					]);
+				}
+			}
+		}
 
 		echo json_encode(['success' => $update]);
 	}

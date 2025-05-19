@@ -24,14 +24,14 @@ class Officer_model extends CI_Model
 	// DASHBOARD 
 
 	// Get the current semester count
-	public function get_current_semester_count()
-	{
-		$today = date('Y-m-d');
-		$current_year = date('Y');
-		$month = date('n');
-		// hello it is the model of the hsjkdhkjhsjdhsj
-		// Get the current semester count
-	}
+	// public function get_current_semester_count()
+	// {
+	// 	$today = date('Y-m-d');
+	// 	$current_year = date('Y');
+	// 	$month = date('n');
+	// 	// hello it is the model of the hsjkdhkjhsjdhsj
+	// 	// Get the current semester count
+	// }
 	public function get_current_semester_count()
 	{
 		$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
@@ -73,13 +73,13 @@ class Officer_model extends CI_Model
 	}
 
 	// Get the previous semester count
-	public function get_previous_semester_count()
-	{
-		$today = date('Y-m-d');
-		$current_year = date('Y');
-		$month = date('n');
-		// Get the previous semester count
-	}
+	// public function get_previous_semester_count()
+	// {
+	// 	$today = date('Y-m-d');
+	// 	$current_year = date('Y');
+	// 	$month = date('n');
+	// 	// Get the previous semester count
+	// }
 	public function get_previous_semester_count()
 	{
 		$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
@@ -120,16 +120,16 @@ class Officer_model extends CI_Model
 		];
 	}
 
-	public function get_monthly_activity_count($start_date, $end_date)
-	{
-		$this->db->select('MONTH(start_date) as month, COUNT(*) as count');
-		$this->db->from('activity');
-		$this->db->where('start_date >=', $start_date);
-		$this->db->where('start_date <=', $end_date);
-		$this->db->where('status', 'completed');
-		$this->db->group_by('MONTH(start_date)');
-		$query = $this->db->get();
-	}
+	// public function get_monthly_activity_count($start_date, $end_date)
+	// {
+	// 	$this->db->select('MONTH(start_date) as month, COUNT(*) as count');
+	// 	$this->db->from('activity');
+	// 	$this->db->where('start_date >=', $start_date);
+	// 	$this->db->where('start_date <=', $end_date);
+	// 	$this->db->where('status', 'completed');
+	// 	$this->db->group_by('MONTH(start_date)');
+	// 	$query = $this->db->get();
+	// }
 
 	public function get_monthly_activity_count($start_date, $end_date)
 	{
@@ -181,6 +181,21 @@ class Officer_model extends CI_Model
 			'completed_count' => $count
 		];
 	}
+
+
+	public function get_student_count_per_department()
+	{
+		$this->db->select('d.dept_name, COUNT(u.dept_id) as student_count');
+		$this->db->from('users u');
+		$this->db->join('department d', 'u.dept_id = d.dept_id');
+		$this->db->group_by('u.dept_id');
+
+		$query = $this->db->get();
+		return $query->result_array();
+	}
+
+
+
 
 
 	public function fetch_attendance_data()
@@ -252,6 +267,17 @@ class Officer_model extends CI_Model
 			'attendance_rate' => round($attendance_rate, 2) // round to 2 decimal places
 		];
 	}
+
+
+	// public function get_total_fines()
+	// {
+	// 	$this->db->select_sum('fines_amount');
+	// 	$this->db->from('fines');
+	// 	$query = $this->db->get();
+
+	// 	$result = $query->row_array();
+	// 	return $result ? $result['fines_amount'] : 0;
+	// }
 
 	public function get_total_fines_per_activity()
 	{
@@ -1592,9 +1618,17 @@ class Officer_model extends CI_Model
 
 
 
-	public function get_fine_summary($student_id)
+	public function get_fine_summary($student_id, $organizer)
 	{
-		return $this->db->get_where('fines_summary', ['student_id' => $student_id])->row();
+		$this->db->select('fines_summary.*');
+		$this->db->from('fines_summary');
+		$this->db->join('fines', 'fines.student_id = fines_summary.student_id');
+		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+		$this->db->where('fines_summary.student_id', $student_id);
+		$this->db->where('activity.organizer', $organizer);
+		$this->db->group_by('fines_summary.summary_id'); // Avoid duplicate rows
+		$this->db->limit(1);
+		return $this->db->get()->row();
 	}
 
 	public function update_fines_summary_receipt($student_id, $data)

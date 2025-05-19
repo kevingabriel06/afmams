@@ -165,7 +165,7 @@ class OfficerController extends CI_Controller
 		$data['activity_count'] = $this->officer->get_current_semester_count_organized();
 
 		// TOTAL FINES
-		$data['fines'] = $this->officer->get_total_fines();
+		// $data['fines_per_activity'] = $this->officer->get_total_fines_per_activity();
 
 		// TOTAL FINES
 		$data['fines_per_activity'] = $this->officer->get_total_fines_per_activity();
@@ -825,17 +825,17 @@ class OfficerController extends CI_Controller
 	}
 
 	// UPDATE THE ACTIVITY
-	public function update_activity($activity_id)
-	{
-		if ($this->input->post()) {
-			// Set Validation Rules
-			$this->form_validation->set_rules('date_start', 'Start Date', 'required');
-			$this->form_validation->set_rules('date_end', 'End Date', 'required');
-			$this->form_validation->set_rules('start_datetime[]', 'Start Date & Time', 'required');
-			$this->form_validation->set_rules('end_datetime[]', 'End Date & Time', 'required');
-			$this->form_validation->set_rules('session_type[]', 'Session Type', 'required');
-		}
-	}
+	// public function update_activity($activity_id)
+	// {
+	// 	if ($this->input->post()) {
+	// 		// Set Validation Rules
+	// 		$this->form_validation->set_rules('date_start', 'Start Date', 'required');
+	// 		$this->form_validation->set_rules('date_end', 'End Date', 'required');
+	// 		$this->form_validation->set_rules('start_datetime[]', 'Start Date & Time', 'required');
+	// 		$this->form_validation->set_rules('end_datetime[]', 'End Date & Time', 'required');
+	// 		$this->form_validation->set_rules('session_type[]', 'Session Type', 'required');
+	// 	}
+	// }
 	public function update_activity($activity_id)
 	{
 		if ($this->input->post()) {
@@ -1046,11 +1046,11 @@ class OfficerController extends CI_Controller
 		echo json_encode($logs);
 	}
 
-	public function get_edit_logs($activity_id)
-	{
-		$logs = $this->officer->get_activity_logs($activity_id);
-		echo json_encode($logs);
-	}
+	// public function get_edit_logs($activity_id)
+	// {
+	// 	$logs = $this->officer->get_activity_logs($activity_id);
+	// 	echo json_encode($logs);
+	// }
 
 
 
@@ -2787,7 +2787,44 @@ class OfficerController extends CI_Controller
 		$mode_of_payment = $this->input->post('mode_of_payment');
 		$reference_number = trim($this->input->post('reference_number'));
 
-		$record = $this->officer->get_fine_summary($student_id);
+		// Get organizer info based on logged-in officer
+		$officer_student_id = $this->session->userdata('student_id');
+
+		// Fetch user info from `users` table
+		$this->db->select('users.role, users.is_officer_dept, users.dept_id, department.dept_name');
+		$this->db->from('users');
+		$this->db->join('department', 'department.dept_id = users.dept_id', 'left');
+		$this->db->where('users.student_id', $officer_student_id);
+		$user_info = $this->db->get()->row_array();
+
+		// Default organizer
+		$organizer = null;
+
+		if ($user_info) {
+			if ($user_info['role'] === 'Officer' && $user_info['is_officer_dept'] === 'Yes') {
+				$organizer = $user_info['dept_name']; // department organizer
+			} else {
+				// Check if organization officer
+				$this->db->select('organization.name');
+				$this->db->from('student_org');
+				$this->db->join('organization', 'organization.org_id = student_org.org_id');
+				$this->db->where('student_org.student_id', $officer_student_id);
+				$this->db->where('student_org.is_officer', 'Yes');
+				$org_info = $this->db->get()->row_array();
+
+				if ($org_info) {
+					$organizer = $org_info['name']; // organization organizer
+				}
+			}
+		}
+
+		if (!$organizer) {
+			echo json_encode(['status' => 'error', 'message' => 'Organizer info not found for this officer.']);
+			return;
+		}
+
+		// Now fetch fine summary with correct organizer
+		$record = $this->officer->get_fine_summary($student_id, $organizer);
 
 		if (!$record) {
 			echo json_encode(['status' => 'error', 'message' => 'No fines summary found.']);
@@ -2921,13 +2958,34 @@ class OfficerController extends CI_Controller
 		$this->db->where('summary_id', $summary_id);
 		$this->db->update('fines_summary', [
 			'generated_receipt' => $filename,
+			'verification_code' => $verification_code, // ✅ Save the code
 			'last_updated' => date('Y-m-d H:i:s')
 		]);
 	}
 
 
 
-	//UPDATE STATUS IS MISSING
+	public function update_status()
+	{
+		$input = json_decode(file_get_contents("php://input"), true);
+
+		// Ensure required parameters exist
+		if (!isset($input['student_id']) || !isset($input['activity_id']) || !isset($input['is_paid'])) {
+			echo json_encode(["success" => false, "message" => "Invalid request"]);
+			return;
+		}
+
+		$student_id = $input['student_id'];
+		$activity_id = $input['activity_id'];
+		$new_status = ($input['is_paid'] === "Yes") ? "Yes" : "No";
+
+		// Update only the specific record with both student_id & activity_id
+		if ($this->admin->updateFineStatus($student_id, $activity_id, $new_status)) {
+			echo json_encode(["success" => true, "message" => "Fine status updated"]);
+		} else {
+			echo json_encode(["success" => false, "message" => "Update failed"]);
+		}
+	}
 
 
 
@@ -3378,13 +3436,42 @@ class OfficerController extends CI_Controller
 		$student_id = $this->session->userdata('student_id');
 		$role       = $this->session->userdata('role');
 
-		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
-		$data['users'] = $this->officer->get_student($student_id);
+		// Get full user record from users table (includes is_officer, is_officer_dept, dept_id)
+		$user = $this->officer->get_student($student_id);
+		$data['users'] = $user;
 
+		$logo_targets = [];
+
+		if ($role === 'Admin') {
+			$logo_targets[] = ['value' => 'student_parliament', 'label' => 'Student Parliament'];
+		} elseif (isset($user['is_officer']) && $user['is_officer'] === 'Yes') {
+			$org = $this->admin->get_organization_by_student($student_id);
+			if ($org && !empty($org->org_name)) {
+				$logo_targets[] = ['value' => 'organization', 'label' => $org->org_name];
+			}
+		}
+
+		if (isset($user['is_officer_dept']) && $user['is_officer_dept'] === 'Yes') {
+			if (!empty($user['dept_id'])) {
+				$dept = $this->admin->get_department_by_id($user['dept_id']);
+				if ($dept && !empty($dept->dept_name)) {
+					$logo_targets[] = ['value' => 'department', 'label' => $dept->dept_name];
+				}
+			}
+		}
+
+		$data['logo_targets'] = $logo_targets;
+
+		// Get privilege (use student_id if needed)
+		$data['privilege'] = $this->officer->get_student_privilege($student_id);
+
+		// Load views
 		$this->load->view('layout/header', $data);
 		$this->load->view('officer/general_settings', $data);
 		$this->load->view('layout/footer', $data);
 	}
+
+
 
 	// IMPORTING LIST
 	public function import_list()
@@ -3729,6 +3816,9 @@ class OfficerController extends CI_Controller
 
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
 		$data['users'] = $this->admin->get_student($student_id);
+
+		// Get privilege (use student_id if needed)
+		$data['privilege'] = $this->officer->get_student_privilege($student_id);
 
 
 		$this->load->view('layout/header', $data);

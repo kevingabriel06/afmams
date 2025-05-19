@@ -1256,7 +1256,7 @@ class Student_model extends CI_Model
 		return $this->db->insert('fines_summary', $data);
 	}
 
-	// Method to fetch fines data by summary_id
+	// Method to fetch fines data by summary_id, used for receipt data
 	public function get_fine_summary_data($summary_id)
 	{
 		$this->db->select('
@@ -1267,6 +1267,7 @@ class Student_model extends CI_Model
         fines_summary.reference_number_admin,
         fines_summary.reference_number_students,
         fines_summary.last_updated,
+        fines_summary.organizer, 
         users.first_name,
         users.last_name,
         fines.fines_id,
@@ -1284,8 +1285,9 @@ class Student_model extends CI_Model
 		$this->db->from('fines_summary');
 		$this->db->join('users', 'fines_summary.student_id = users.student_id');
 		$this->db->join('fines', 'fines.student_id = fines_summary.student_id');
-		$this->db->join('activity', 'activity.activity_id = fines.activity_id', 'left');
+		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
 		$this->db->where('fines_summary.summary_id', $summary_id);
+		$this->db->where('activity.organizer = fines_summary.organizer'); // 🛠 Only include fines for this organizer
 		$this->db->order_by('fines.fines_id', 'DESC');
 
 		$query = $this->db->get();
@@ -1328,9 +1330,13 @@ class Student_model extends CI_Model
 			$this->db->where('fines.student_id', $student_id);
 		}
 
+		// ✅ Sort the data to ensure grouping logic works
+		$this->db->order_by('LOWER(TRIM(activity.organizer)), activity.activity_title, activity.start_date');
+
 		$query = $this->db->get();
 		return $query->result_array();
 	}
+
 
 
 

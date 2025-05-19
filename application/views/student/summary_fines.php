@@ -56,7 +56,8 @@
 
 					foreach ($fines as $index => $fine):
 
-						if ($fine['organizer'] !== $previous_organizer):
+						if (trim(strtolower($fine['organizer'])) !== trim(strtolower($previous_organizer))):
+
 							if ($previous_organizer !== ''):
 								$total_fines = array_sum(array_column($organizer_fines, 'fines_amount'));
 								$last_fine = end($organizer_fines);
