@@ -733,14 +733,6 @@ class OfficerController extends CI_Controller
         echo json_encode($logs);
     }
 
-    public function get_edit_logs($activity_id)
-    {
-        $logs = $this->officer->get_activity_logs($activity_id);
-        echo json_encode($logs);
-    }
-
-
-
     // EVALUATION LIST - PAGE - FINAL CHECK
     public function list_activity_evaluation()
     {
