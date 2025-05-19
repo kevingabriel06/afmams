@@ -20,33 +20,94 @@ defined('BASEPATH') or exit('No direct script access allowed');
 require_once(APPPATH . 'third_party/fpdf.php');
 class PDF extends FPDF
 {
+    public $headerImage = '';
+    public $footerImage = '';
+    public $watermarkPath = '';
+
     function Header()
     {
-        // Get the full path of the logo image
-        $logoPath = APPPATH . 'third_party/header.jpg'; // Ensure the correct path
+        if (!empty($this->headerImage)) {
+            $pageWidth = $this->GetPageWidth();
+            $this->Image('./uploads/headerandfooter/' . $this->headerImage, 0, 0, $pageWidth, 40);
+            $this->SetY(45);
+        }
+        // Watermark
 
-        // Get page width dynamically
-        $pageWidth = $this->GetPageWidth();
-
-        // Set the image to cover the full width (assuming A4 width is 210mm)
-        $this->Image($logoPath, 0, 0, $pageWidth, 40); // Adjust height as needed
-
-        // Move the cursor below the image to avoid overlapping
-        $this->SetY(45); // Adjust if necessary
+        if (!empty($this->watermarkPath) && file_exists($this->watermarkPath)) {
+            $this->Image($this->watermarkPath, 35, 70, 140, 100, '', '', '', true); // Watermark centered
+        }
     }
 
     function Footer()
     {
-        // Get the full path of the footer image
-        $footerImage = APPPATH . 'third_party/footer.jpg';
+        if (!empty($this->footerImage)) {
+            $pageWidth = $this->GetPageWidth();
+            $pageHeight = $this->GetPageHeight();
+            $this->Image('./uploads/headerandfooter/' . $this->footerImage, 0, $pageHeight - 20, $pageWidth, 20);
+        }
+    }
 
-        // Get page width and height dynamically
-        $pageWidth = $this->GetPageWidth();
-        $pageHeight = $this->GetPageHeight();
-        $footerHeight = 20; // Adjust footer height as needed
+    // Add transparency support
+    function SetAlpha($alpha, $bm = 'Normal')
+    {
+        // only available with PDF alpha support (FPDI or modified FPDF)
+        if ($this->PDFVersion < '1.4') {
+            $this->PDFVersion = '1.4';
+        }
+        $gs = sprintf('/GS%d gs', 1);
+        $this->_out(sprintf('/GS%d << /ca %.3F /CA %.3F /BM /%s >>', 1, $alpha, $alpha, $bm));
+        $this->_out($gs);
+    }
 
-        // Position the footer at the exact bottom with no margin
-        $this->Image($footerImage, 0, $pageHeight - $footerHeight, $pageWidth, $footerHeight);
+
+    public function getRightMargin()
+    {
+        return $this->rMargin;
+    }
+
+    public function getLeftMargin()
+    {
+        return $this->lMargin;
+    }
+
+
+
+    function NbLines($w, $txt)
+    {
+        $cw = &$this->CurrentFont['cw'];
+        if ($w == 0) $w = $this->w - $this->rMargin - $this->x;
+        $wmax = ($w - 2 * $this->cMargin) * 1000 / $this->FontSize;
+        $s = str_replace("\r", '', $txt);
+        $nb = strlen($s);
+        if ($nb > 0 && $s[$nb - 1] == "\n") $nb--;
+        $sep = -1;
+        $i = 0;
+        $j = 0;
+        $l = 0;
+        $nl = 1;
+        while ($i < $nb) {
+            $c = $s[$i];
+            if ($c == "\n") {
+                $i++;
+                $sep = -1;
+                $j = $i;
+                $l = 0;
+                $nl++;
+                continue;
+            }
+            if ($c == ' ') $sep = $i;
+            $l += $cw[$c];
+            if ($l > $wmax) {
+                if ($sep == -1) {
+                    if ($i == $j) $i++;
+                } else $i = $sep + 1;
+                $sep = -1;
+                $j = $i;
+                $l = 0;
+                $nl++;
+            } else $i++;
+        }
+        return $nl;
     }
 }
 class OfficerController extends CI_Controller
@@ -56,6 +117,8 @@ class OfficerController extends CI_Controller
     {
         parent::__construct();
         $this->load->model('Officer_model', 'officer');
+        $this->load->model('Admin_model', 'admin');
+        $this->load->model('Notification_model'); // add this
 
         if (!$this->session->userdata('student_id')) {
             redirect(site_url('login'));
@@ -63,6 +126,10 @@ class OfficerController extends CI_Controller
     }
 
 
+    // public function officer_dashboard()
+    // {
+
+    // 	$data['title'] = 'Dashboard';
     // hello it is the model of the hsjkdhkjhsjdhsj
     public function officer_dashboard()
     {
@@ -70,6 +137,8 @@ class OfficerController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->officer->get_student($student_id);
         // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
         $data['users'] = $this->officer->get_student($student_id);
         $data['privilege'] = $this->officer->get_student_privilege();
@@ -83,8 +152,21 @@ class OfficerController extends CI_Controller
         // Get breakdown of activities per month for the current semester
         $data['monthly_breakdown'] = $this->officer->get_monthly_activity_count($data['current_semester']['start_date'], $data['current_semester']['end_date']);
 
+        // COUNT OF STUDENT PER DEPARTMENT
+        // Get the count of students per department
+        $data['student_counts'] = $this->officer->get_student_count_per_department();
+
+        // Calculate the total number of students
+        $total_students = array_sum(array_column($data['student_counts'], 'student_count'));
+        $data['total_students'] = $total_students;
+        // Get breakdown of activities per month for the current semester
+        $data['monthly_breakdown'] = $this->officer->get_monthly_activity_count($data['current_semester']['start_date'], $data['current_semester']['end_date']);
+
         // ACTIVITY ORGANIZED
         $data['activity_count'] = $this->officer->get_current_semester_count_organized();
+
+        // TOTAL FINES
+        // $data['fines_per_activity'] = $this->officer->get_total_fines_per_activity();
 
         // TOTAL FINES
         $data['fines_per_activity'] = $this->officer->get_total_fines_per_activity();
@@ -111,6 +193,7 @@ class OfficerController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
+        $data['users'] = $this->officer->get_student($student_id);
         $data['users'] = $this->officer->get_student($student_id);
         $data['privilege'] = $this->officer->get_student_privilege();
 
@@ -295,6 +378,8 @@ class OfficerController extends CI_Controller
 
         // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
         $data['users'] = $this->officer->get_student($student_id);
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->officer->get_student($student_id);
         $data['privilege'] = $this->officer->get_student_privilege();
 
         // GETTING OF THE ACTIVITY FROM THE DATABASE
@@ -312,6 +397,7 @@ class OfficerController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
+        $data['users'] = $this->officer->get_student($student_id);
         $data['users'] = $this->officer->get_student($student_id);
         $data['privilege'] = $this->officer->get_student_privilege();
 
@@ -346,6 +432,16 @@ class OfficerController extends CI_Controller
             return;
         }
 
+        // Get activity title
+        $activity = $this->db->select('activity_title')->from('activity')->where('activity_id', $activity_id)->get()->row();
+        if (!$activity) {
+            echo json_encode(['success' => false, 'message' => 'Activity not found.']);
+            return;
+        }
+        $activity_title = $activity->activity_title;
+
+        $admin_id = $this->session->userdata('student_id'); // The admin validating
+
         if ($reference_number !== $record->reference_number) {
             $this->officer->validate_registration($student_id, $activity_id, [
                 'reference_number_admin' => $reference_number,
@@ -370,6 +466,27 @@ class OfficerController extends CI_Controller
                 if ($registration_id) {
                     $this->generate_and_store_receipt($registration_id);
                 }
+                // Notify student of approval
+                $this->Notification_model->add_notification(
+                    $student_id,
+                    $admin_id,
+                    'registration_approved',
+                    $activity_id,
+                    "has approved your registration for '{$activity_title}'.",
+                    null,
+                    base_url('student/activity-details/' . $activity_id)
+                );
+            } elseif ($action === 'Rejected') {
+                // Notify student of rejection
+                $this->Notification_model->add_notification(
+                    $student_id,
+                    $admin_id,
+                    'registration_rejected',
+                    $activity_id,
+                    "has rejected your registration for '{$activity_title}'.",
+                    null,
+                    base_url('student/activity-details/' . $activity_id)
+                );
             }
 
             echo json_encode(['status' => 'success']);
@@ -377,6 +494,7 @@ class OfficerController extends CI_Controller
             echo json_encode(['status' => 'error', 'message' => 'Update failed.']);
         }
     }
+
 
 
     public function generate_and_store_receipt($registration_id)
@@ -516,10 +634,160 @@ class OfficerController extends CI_Controller
         }
     }
 
+
+    public function export_registered_students_pdf()
+    {
+        $activity_id = $this->input->get('activity_id');
+        if (!$activity_id) {
+            show_error('Activity ID is required.');
+        }
+
+        $this->load->model('Admin_model');
+
+        $activity = $this->Admin_model->get_activity_specific($activity_id);
+        if (!$activity) {
+            show_error('Activity not found.');
+        }
+
+        $activity_title = $activity['activity_title'];
+        $registrations = $this->Admin_model->registrations($activity_id);
+
+        // Manually build the user array from session data
+        $user = [
+            'role'             => $this->session->userdata('role'),
+            'student_id'       => $this->session->userdata('student_id'),
+            'is_officer'       => $this->session->userdata('is_officer'),
+            'is_officer_dept'  => $this->session->userdata('is_officer_dept'),
+            'dept_id'          => $this->session->userdata('dept_id'),
+        ];
+
+        if (!$user['role'] || !$user['student_id']) {
+            echo json_encode(['success' => false, 'message' => 'Missing session data.']);
+            return;
+        }
+
+        $headerImage = '';
+        $footerImage = '';
+
+        // Determine correct header/footer based on role
+        if ($user['role'] === 'Admin') {
+            $settings = $this->db->get('student_parliament_settings')->row();
+            if ($settings) {
+                $headerImage = $settings->header;
+                $footerImage = $settings->footer;
+            }
+        } elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+            $org = $this->db
+                ->select('organization.header, organization.footer')
+                ->join('organization', 'student_org.org_id = organization.org_id')
+                ->where('student_org.student_id', $user['student_id'])
+                ->get('student_org')->row();
+            if ($org) {
+                $headerImage = $org->header;
+                $footerImage = $org->footer;
+            }
+        } elseif ($user['role'] === 'Officer' && $user['is_officer_dept'] === 'Yes') {
+            $dept = $this->db
+                ->select('header, footer')
+                ->where('dept_id', $user['dept_id'])
+                ->get('department')->row();
+            if ($dept) {
+                $headerImage = $dept->header;
+                $footerImage = $dept->footer;
+            }
+        }
+
+
+        // Setup PDF using custom class
+        $pdf = new PDF('P', 'mm', 'Letter');
+        $pdf->headerImage = $headerImage; // Set header image
+        $pdf->footerImage = $footerImage; // Set footer image
+        $pdf->SetMargins(10, 10, 10); // standard margins
+        $pdf->AddPage();
+
+        $pdf->SetFont('Arial', 'B', 14);
+        $pdf->Cell(0, 10, 'Registered Participants - Activity: ' . $activity_title, 0, 1, 'C');
+        $pdf->Ln(5);
+
+        $header = ['Student ID', 'Name', 'Department', 'Amount', 'Reference Number', 'Status'];
+
+        // Calculate column widths
+        $pdf->SetFont('Arial', '', 8);
+        $colWidths = [];
+        foreach ($header as $col) {
+            $colWidths[] = $pdf->GetStringWidth($col);
+        }
+
+        foreach ($registrations as $reg) {
+            $row = [
+                $reg->student_id,
+                $reg->first_name . ' ' . $reg->last_name,
+                $reg->dept_name,
+                $reg->amount_paid,
+                $reg->reference_number,
+                $reg->registration_status
+            ];
+            foreach ($row as $i => $val) {
+                $w = $pdf->GetStringWidth($val);
+                if ($w > $colWidths[$i]) {
+                    $colWidths[$i] = $w;
+                }
+            }
+        }
+
+        // Add padding
+        $padding = 6;
+        foreach ($colWidths as &$width) {
+            $width += $padding;
+        }
+
+        // Scale total width to fit printable area (Letter width = 215.9mm, margins = 10mm on each side)
+        $total_content_width = array_sum($colWidths);
+        $usable_page_width = 215.9 - 20; // 10mm margins on each side
+        $scaling_factor = $usable_page_width / $total_content_width;
+
+        foreach ($colWidths as &$width) {
+            $width = round($width * $scaling_factor, 2); // scale to fit
+        }
+
+        // Center table
+        $startX = 10 + ($usable_page_width - array_sum($colWidths)) / 2;
+
+        // Header row
+        $pdf->SetFont('Arial', 'B', 9);
+        $pdf->SetX($startX);
+        foreach ($header as $i => $colName) {
+            $pdf->Cell($colWidths[$i], 10, $colName, 1, 0, 'C');
+        }
+        $pdf->Ln();
+
+        // Data rows
+        $pdf->SetFont('Arial', '', 9);
+        foreach ($registrations as $reg) {
+            $row = [
+                $reg->student_id,
+                $reg->first_name . ' ' . $reg->last_name,
+                $reg->dept_name,
+                $reg->amount_paid,
+                $reg->reference_number,
+                $reg->registration_status
+            ];
+
+            $pdf->SetX($startX);
+            foreach ($row as $i => $val) {
+                $pdf->Cell($colWidths[$i], 8, $val, 1, 0, 'C');
+            }
+            $pdf->Ln();
+        }
+
+        // Output PDF
+        $filename = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $activity_title) . '_registered_participants.pdf';
+        $pdf->Output('I', $filename);
+    }
+
     // SHARING ACTIVITY FROM THE ACTIVITY DETAILS
     public function share_activity()
     {
-        // Get JSON input
         $data = json_decode(file_get_contents("php://input"), true);
 
         if (!isset($data['activity_id'])) {
@@ -529,14 +797,49 @@ class OfficerController extends CI_Controller
 
         $activity_id = $data['activity_id'];
 
-        // Example: Mark activity as shared in the database
+        // Mark the activity as shared
         $this->db->set('is_shared', 'Yes')->where('activity_id', $activity_id)->update('activity');
 
-        if ($this->db->affected_rows() > 0) {
-            echo json_encode(['success' => true]);
-        } else {
+        if ($this->db->affected_rows() <= 0) {
             echo json_encode(['success' => false, 'message' => 'Failed to update database.']);
+            return;
         }
+
+        // Get activity title
+        $activity = $this->db->select('activity_title')->from('activity')->where('activity_id', $activity_id)->get()->row();
+        if (!$activity) {
+            echo json_encode(['success' => false, 'message' => 'Activity not found.']);
+            return;
+        }
+
+        // Get sender ID (admin), fallback to 0
+        $sender_id = $this->session->userdata('student_id') ?? 0;
+
+        // Get all students (exclude admins)
+        $students = $this->db->select('student_id')->where('role', 'student')->get('users')->result_array();
+
+        // Prepare notifications
+        $notification_data = [];
+        foreach ($students as $student) {
+            $notification_data[] = [
+                'recipient_student_id' => $student['student_id'],
+                'recipient_admin_id'   => null,
+                'sender_student_id'    => $sender_id,
+                'type'                 => 'activity_shared',
+                'reference_id'         => $activity_id,
+                'message'              => 'Shared a new activity with you: ' . $activity->activity_title,
+                'is_read'              => 0,
+                'created_at'           => date('Y-m-d H:i:s'),
+                'link' => base_url('student/home/')
+            ];
+        }
+
+        // Insert all notifications
+        if (!empty($notification_data)) {
+            $this->db->insert_batch('notifications', $notification_data);
+        }
+
+        echo json_encode(['success' => true]);
     }
 
     //UNSHARE ACTIVITY
@@ -545,10 +848,20 @@ class OfficerController extends CI_Controller
         $activity_id = $this->input->post('activity_id');
 
         if ($activity_id) {
+            // First, mark the activity as unshared
             $this->db->where('activity_id', $activity_id);
             $this->db->update('activity', ['is_shared' => 'No']);
 
-            echo json_encode(['status' => 'success']);
+            // If the activity is successfully updated, proceed to delete notifications
+            if ($this->db->affected_rows() > 0) {
+                // Delete notifications related to this activity
+                $this->load->model('Notification_model');
+                $this->Notification_model->delete_notifications_by_reference($activity_id, 'activity_shared');
+
+                echo json_encode(['status' => 'success', 'message' => 'Activity unshared and notifications deleted.']);
+            } else {
+                echo json_encode(['status' => 'error', 'message' => 'Failed to unshare activity or activity not found.']);
+            }
         } else {
             echo json_encode(['status' => 'error', 'message' => 'Invalid activity ID']);
         }
@@ -562,6 +875,8 @@ class OfficerController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->officer->get_student($student_id);
         // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
         $data['users'] = $this->officer->get_student($student_id);
         $data['privilege'] = $this->officer->get_student_privilege();
@@ -586,6 +901,18 @@ class OfficerController extends CI_Controller
         }
     }
 
+    // UPDATE THE ACTIVITY
+    // public function update_activity($activity_id)
+    // {
+    // 	if ($this->input->post()) {
+    // 		// Set Validation Rules
+    // 		$this->form_validation->set_rules('date_start', 'Start Date', 'required');
+    // 		$this->form_validation->set_rules('date_end', 'End Date', 'required');
+    // 		$this->form_validation->set_rules('start_datetime[]', 'Start Date & Time', 'required');
+    // 		$this->form_validation->set_rules('end_datetime[]', 'End Date & Time', 'required');
+    // 		$this->form_validation->set_rules('session_type[]', 'Session Type', 'required');
+    // 	}
+    // }
     public function update_activity($activity_id)
     {
         if ($this->input->post()) {
@@ -600,6 +927,11 @@ class OfficerController extends CI_Controller
             $this->form_validation->set_rules('start_datetime[]', 'Start Date & Time', 'required');
             $this->form_validation->set_rules('end_datetime[]', 'End Date & Time', 'required');
 
+            // Run Validation
+            if ($this->form_validation->run() == FALSE) {
+                echo json_encode(['status' => 'error', 'errors' => validation_errors()]);
+                return;
+            }
             if ($this->form_validation->run() == FALSE) {
                 echo json_encode(['status' => 'error', 'errors' => validation_errors()]);
                 return;
@@ -612,6 +944,18 @@ class OfficerController extends CI_Controller
                 return;
             }
 
+            // Prepare Activity Data
+            $data = [
+                'activity_title'        => $this->input->post('title'),
+                'start_date'            => $this->input->post('date_start'),
+                'end_date'              => $this->input->post('date_end'),
+                'description'           => $this->input->post('description'),
+                'registration_deadline' => $this->input->post('registration_deadline'),
+                'registration_fee'      => str_replace(",", "", $this->input->post('registration_fee')),
+                'organizer'             => $this->session->userdata('dept_name') ?: $this->session->userdata('org_name'),
+                'fines'                 => str_replace(",", "", $this->input->post('fines')),
+                'audience'              => $this->input->post('audience')
+            ];
             // Prepare New Activity Data
             $data = [
                 'activity_title'        => trim($this->input->post('title')),
@@ -644,6 +988,15 @@ class OfficerController extends CI_Controller
                 }
                 $data['qr_code'] = $qrCode['file_name'];
             }
+            // Handle QR Code Upload
+            if (!empty($_FILES['qrcode']['name'])) {
+                $qrCode = $this->upload_file('qrcode', './assets/qrcodeRegistration');
+                if (!$qrCode['status']) {
+                    echo json_encode(['status' => 'error', 'errors' => $qrCode['error']]);
+                    return;
+                }
+                $data['qr_code'] = $qrCode['file_name'];
+            }
 
             // Compare Changes
             $changes = $this->get_activity_changes($activity, $data);
@@ -654,8 +1007,17 @@ class OfficerController extends CI_Controller
             // }
 
             // Update Activity
+            $this->officer->update_activity($activity_id, $data);
+            // Update Activity
             $updated = $this->officer->update_activity($activity_id, $data);
 
+            // Fetch Input Data
+            $start_datetimes = $this->input->post('start_datetime') ?? [];
+            $start_cutoff = $this->input->post('start_cutoff') ?? [];
+            $end_datetimes = $this->input->post('end_datetime') ?? [];
+            $end_cutoff = $this->input->post('end_cutoff') ?? [];
+            $session_types = $this->input->post('session_type') ?? [];
+            $schedule_ids = $this->input->post('timeslot_id') ?? [];
             if ($updated) {
                 // Log the changes (optional: create this method in your model)
                 $this->officer->log_activity_changes([
@@ -673,16 +1035,44 @@ class OfficerController extends CI_Controller
                 $session_types   = $this->input->post('session_type') ?? [];
                 $schedule_ids    = $this->input->post('timeslot_id') ?? [];
 
+                // Update or Insert Schedules
                 foreach ($start_datetimes as $i => $start_datetime) {
-                    $schedule_data = [
-                        'activity_id'   => $activity_id,
-                        'date_time_in'  => date('Y-m-d H:i:s', strtotime($start_datetime)),
-                        'date_cut_in'   => date('Y-m-d H:i:s', strtotime($start_cutoffs[$i] ?? null)),
-                        'date_time_out' => date('Y-m-d H:i:s', strtotime($end_datetimes[$i] ?? null)),
-                        'date_cut_out'  => date('Y-m-d H:i:s', strtotime($end_cutoffs[$i] ?? null)),
-                        'slot_name'     => $session_types[$i] ?? ''
-                    ];
+                    // Ensure array indexes exist before accessing them
+                    $start_cutoff = $start_cutoff[$i] ?? null;
+                    $end_datetime = $end_datetimes[$i] ?? null;
+                    $end_cutoff = $end_cutoff[$i] ?? null;
+                    $session_type = $session_types[$i] ?? null;
+                    $schedule_id = $schedule_ids[$i] ?? null;
 
+                    // Prepare schedule data
+                    $schedule_data = [
+                        'activity_id'  => $activity_id,
+                        'date_time_in' => date('Y-m-d H:i:s', strtotime($start_datetime)),
+                        'date_cut_in' => date('Y-m-d H:i:s', strtotime($start_cutoff)),
+                        'date_time_out' => date('Y-m-d H:i:s', strtotime($end_datetime)),
+                        'date_cut_out' => date('Y-m-d H:i:s', strtotime($end_cutoff)),
+                        'slot_name'    => $session_type
+                    ];
+                    foreach ($start_datetimes as $i => $start_datetime) {
+                        $schedule_data = [
+                            'activity_id'   => $activity_id,
+                            'date_time_in'  => date('Y-m-d H:i:s', strtotime($start_datetime)),
+                            'date_cut_in'   => date('Y-m-d H:i:s', strtotime($start_cutoffs[$i] ?? null)),
+                            'date_time_out' => date('Y-m-d H:i:s', strtotime($end_datetimes[$i] ?? null)),
+                            'date_cut_out'  => date('Y-m-d H:i:s', strtotime($end_cutoffs[$i] ?? null)),
+                            'slot_name'     => $session_types[$i] ?? ''
+                        ];
+
+                        if (!empty($schedule_id)) {
+                            // Update existing schedule
+                            $this->officer->update_schedule($schedule_id, $schedule_data);
+                        } else {
+                            // Insert new schedule with created_at timestamp
+                            $schedule_data['created_at'] = date('Y-m-d H:i:s');
+
+                            $this->officer->save_schedule($schedule_data);
+                        }
+                    }
                     if (!empty($schedule_ids[$i])) {
                         // Update existing schedule
                         $this->officer->update_schedule($schedule_ids[$i], $schedule_data);
@@ -694,9 +1084,9 @@ class OfficerController extends CI_Controller
                 }
 
                 echo json_encode([
-                    'status'   => 'success',
-                    'message'  => 'Activity Updated Successfully',
-                    //'redirect' => site_url('officer/list-of-activity')
+                    'status' => 'success',
+                    'message' => 'Activity Updated Successfully',
+                    'redirect' => site_url('officer/list-of-activity')
                 ]);
             } else {
                 echo json_encode(['status' => 'error', 'errors' => 'Update failed.']);
@@ -733,6 +1123,14 @@ class OfficerController extends CI_Controller
         echo json_encode($logs);
     }
 
+    // public function get_edit_logs($activity_id)
+    // {
+    // 	$logs = $this->officer->get_activity_logs($activity_id);
+    // 	echo json_encode($logs);
+    // }
+
+
+
     // EVALUATION LIST - PAGE - FINAL CHECK
     public function list_activity_evaluation()
     {
@@ -740,6 +1138,8 @@ class OfficerController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->officer->get_student($student_id);
         // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
         $data['users'] = $this->officer->get_student($student_id);
         $data['privilege'] = $this->officer->get_student_privilege();
@@ -760,6 +1160,8 @@ class OfficerController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->officer->get_student($student_id);
         // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
         $data['users'] = $this->officer->get_student($student_id);
         $data['privilege'] = $this->officer->get_student_privilege();
@@ -840,11 +1242,56 @@ class OfficerController extends CI_Controller
             $this->officer->saveFormFields($fieldData); // Save form fields
         }
 
-        $this->db->trans_complete(); // Complete transaction
+        $this->db->trans_complete();
 
         if ($this->db->trans_status() === FALSE) {
             echo json_encode(['success' => false, 'message' => 'Failed to create the form.']);
         } else {
+            // === SEND NOTIFICATIONS BASED ON ACTIVITY AUDIENCE ===
+            $activity_id = $formData['activity_id'];
+            $activity = $this->admin->get_activity_by_id($activity_id); // Make sure you have this method to get activity details
+
+            $students_to_notify = [];
+
+            if ($activity->audience === 'All') {
+                // Notify all students except admins
+                $this->db->select('student_id, first_name, last_name, role');
+                $this->db->from('users');
+                $this->db->where('role !=', 'Admin');
+                $students_to_notify = $this->db->get()->result();
+            } else {
+                // Notify students in the specified department
+                $this->db->select('u.student_id, u.first_name, u.last_name, role');
+                $this->db->from('users u');
+                $this->db->join('department d', 'd.dept_id = u.dept_id');
+                $this->db->where('d.dept_name', $activity->audience);
+                $this->db->where('u.role !=', 'Admin');
+                $students_to_notify = $this->db->get()->result();
+            }
+
+            foreach ($students_to_notify as $student) {
+                $notification_data = [
+                    'recipient_student_id' => $student->student_id,
+                    'sender_student_id'    => $this->session->userdata('student_id'), // System/Admin
+                    'type'                 => 'evaluation_uploaded',
+                    'reference_id'         => $formId, // Link to the form
+                    'message'              => 'uploaded a new evaluation form for the activity "' . $activity->activity_title . '"',
+                    'is_read'              => 0,
+                    'created_at'           => date('Y-m-d H:i:s'),
+                    'link' => base_url('student/evaluation-form/list')
+
+                ];
+                $this->db->insert('notifications', $notification_data);
+
+                if ($student->role === 'Student') {
+                    // Insert into evaluation_responses table
+                    $this->db->insert('evaluation_responses', [
+                        'form_id'     => $formId,
+                        'student_id'  => $student->student_id,
+                    ]);
+                }
+            }
+
             echo json_encode([
                 'success' => true,
                 'message' => 'Form created successfully.',
@@ -860,6 +1307,8 @@ class OfficerController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->officer->get_student($student_id);
         // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
         $data['users'] = $this->officer->get_student($student_id);
         $data['privilege'] = $this->officer->get_student_privilege();
@@ -985,6 +1434,8 @@ class OfficerController extends CI_Controller
 
         // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
         $data['users'] = $this->officer->get_student($student_id);
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->officer->get_student($student_id);
         $data['privilege'] = $this->officer->get_student_privilege();
 
         // Fetch activities based on user role
@@ -1006,6 +1457,8 @@ class OfficerController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARY
+        $data['users'] = $this->officer->get_student($student_id);
         // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARY
         $data['users'] = $this->officer->get_student($student_id);
         $data['privilege'] = $this->officer->get_student_privilege();
@@ -1052,17 +1505,208 @@ class OfficerController extends CI_Controller
         $data['questions'] = $questions;
         $data['question_types'] = $question_types; // Optional if needed in view
 
+        $data['form_id'] = $form_id; // Add this
+
         // Load views
         $this->load->view('layout/header', $data);
         $this->load->view('officer/activity/eval_list-evaluation-responses', $data);
         $this->load->view('layout/footer', $data);
     }
 
+
+    public function export_evaluation_responses_pdf($form_id)
+    {
+        ob_start();
+
+        $this->load->library('pdf');
+        $this->load->model('admin');
+
+        $form = $this->admin->forms($form_id);
+        $responses = $this->admin->get_student_evaluation_responses($form_id);
+
+        // Reorganize responses by question
+        $grouped_by_question = [];
+        foreach ($responses as $r) {
+            $question = $r->question;
+            if (!isset($grouped_by_question[$question])) {
+                $grouped_by_question[$question] = [];
+            }
+            $grouped_by_question[$question][] = [
+                'student_id' => $r->student_id,
+                'department' => $r->dept_name,
+                'response'   => $r->answer
+            ];
+        }
+
+        $user = [
+            'role'             => $this->session->userdata('role'),
+            'student_id'       => $this->session->userdata('student_id'),
+            'is_officer'       => $this->session->userdata('is_officer'),
+            'is_officer_dept'  => $this->session->userdata('is_officer_dept'),
+            'dept_id'          => $this->session->userdata('dept_id'),
+        ];
+
+        $headerImage = '';
+        $footerImage = '';
+
+        if ($user['role'] === 'Admin') {
+            $settings = $this->db->get('student_parliament_settings')->row();
+            if ($settings) {
+                $headerImage = $settings->header;
+                $footerImage = $settings->footer;
+            }
+        } elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+            $org = $this->db
+                ->select('organization.header, organization.footer')
+                ->join('organization', 'student_org.org_id = organization.org_id')
+                ->where('student_org.student_id', $user['student_id'])
+                ->get('student_org')->row();
+            if ($org) {
+                $headerImage = $org->header;
+                $footerImage = $org->footer;
+            }
+        } elseif ($user['role'] === 'Officer' && $user['is_officer_dept'] === 'Yes') {
+            $dept = $this->db
+                ->select('header, footer')
+                ->where('dept_id', $user['dept_id'])
+                ->get('department')->row();
+            if ($dept) {
+                $headerImage = $dept->header;
+                $footerImage = $dept->footer;
+            }
+        }
+
+        $pdf = new PDF('P', 'mm', 'Letter');
+        $pdf->headerImage = $headerImage;
+        $pdf->footerImage = $footerImage;
+        $pdf->AddPage();
+
+        $pdf->AddFont('DejaVuSans', '', 'DejaVuSans.php');
+        $pdf->AddFont('DejaVuSans', 'B', 'DejaVuSans-Bold.php');
+
+        $pdf->SetFont('DejaVuSans', '', 12);
+        $pdf->Cell(0, 10, 'Evaluation Responses: ' . $form->title, 0, 1, 'C');
+        $pdf->Ln(5);
+
+        foreach ($grouped_by_question as $question => $entries) {
+            // Remove duplicates
+            $uniqueEntries = [];
+            $seen = [];
+
+            foreach ($entries as $entry) {
+                $uniqueKey = $entry['student_id'] . '|' . $entry['department'] . '|' . $entry['response'];
+                if (!isset($seen[$uniqueKey])) {
+                    $seen[$uniqueKey] = true;
+                    $uniqueEntries[] = $entry;
+                }
+            }
+
+            // Print question header
+            $pdf->SetFont('DejaVuSans', 'B', 12);
+            $pdf->MultiCell(0, 10, "Question: " . $question, 0, 'L');
+            $pdf->Ln(2);
+
+            // Define headers and calculate widths
+            $headers = ['Student ID', 'Department', 'Response'];
+            $maxWidths = [];
+            foreach ($headers as $header) {
+                $maxWidths[$header] = $pdf->GetStringWidth($header) + 4;
+            }
+            $pdf->SetFont('DejaVuSans', '', 12);
+
+            foreach ($uniqueEntries as $entry) {
+                $maxWidths['Student ID'] = max($maxWidths['Student ID'], $pdf->GetStringWidth($entry['student_id']) + 4);
+                $maxWidths['Department'] = max($maxWidths['Department'], $pdf->GetStringWidth($entry['department']) + 4);
+
+                $responseLines = explode("\n", $entry['response']);
+                foreach ($responseLines as $line) {
+                    $maxWidths['Response'] = isset($maxWidths['Response'])
+                        ? max($maxWidths['Response'], $pdf->GetStringWidth($line) + 4)
+                        : $pdf->GetStringWidth($line) + 4;
+                }
+            }
+
+            // Adjust widths to fit page width nicely
+            $pageWidth = $pdf->GetPageWidth();
+            $leftMargin = $pdf->getLeftMargin();
+            $rightMargin = $pdf->getRightMargin();
+            $usableWidth = $pageWidth - $leftMargin - $rightMargin;
+            $totalWidth = array_sum($maxWidths);
+
+            if ($totalWidth > $usableWidth) {
+                $scale = $usableWidth / $totalWidth;
+                foreach ($maxWidths as $key => $width) {
+                    $maxWidths[$key] = $width * $scale;
+                }
+            } else if ($totalWidth < $usableWidth) {
+                $extra = $usableWidth - $totalWidth;
+                $colsCount = count($maxWidths);
+                $extraPerCol = $extra / $colsCount;
+                foreach ($maxWidths as $key => $width) {
+                    $maxWidths[$key] += $extraPerCol;
+                }
+            }
+
+            // Print headers
+            $pdf->SetFont('DejaVuSans', 'B', 12);
+            $pdf->Cell($maxWidths['Student ID'], 7, 'Student ID', 1, 0, 'C');
+            $pdf->Cell($maxWidths['Department'], 7, 'Department', 1, 0, 'C');
+            $pdf->Cell($maxWidths['Response'], 7, 'Response', 1, 1, 'C');
+
+            // Print data rows
+            $pdf->SetFont('DejaVuSans', '', 12);
+            foreach ($uniqueEntries as $entry) {
+                $responseLinesCount = $pdf->NbLines($maxWidths['Response'], $entry['response']);
+                $rowHeight = $responseLinesCount * 7;
+
+                $x = $pdf->GetX();
+                $y = $pdf->GetY();
+
+                $pdf->Cell($maxWidths['Student ID'], $rowHeight, $entry['student_id'], 1, 0);
+                $pdf->Cell($maxWidths['Department'], $rowHeight, $entry['department'], 1, 0);
+                $pdf->MultiCell($maxWidths['Response'], 7, $entry['response'], 1);
+
+                $pdf->SetXY($x, $y + $rowHeight);
+            }
+
+            // Calculate average rating
+            $sum = 0;
+            $count = 0;
+            foreach ($uniqueEntries as $entry) {
+                if (is_numeric($entry['response'])) {
+                    $sum += floatval($entry['response']);
+                    $count++;
+                }
+            }
+
+            // Add average row if numeric responses exist
+            if ($count > 0) {
+                $average = $sum / $count;
+                $pdf->SetFont('DejaVuSans', 'B', 12);
+
+                $totalWidth = $maxWidths['Student ID'] + $maxWidths['Department'] + $maxWidths['Response'];
+                $pdf->SetFont('DejaVuSans', 'B', 12);
+                $pdf->Cell($totalWidth, 7, 'Average Rating: ' . number_format($average, 2), 1, 1, 'C');
+            }
+
+
+
+            $pdf->Ln(10);
+        }
+
+        ob_end_clean();
+        $filename = 'Evaluation_Responses_' . date('Ymd_His') . '.pdf';
+        $pdf->Output('D', $filename);
+    }
+
+
+
     // EVALUATION STATISTIC - PAGE - FINAL CHECK
     public function evaluation_statistic($form_id)
     {
         $data['title'] = 'Evaluation Statistic';
 
+        $student_id = $this->session->userdata('student_id');
         $student_id = $this->session->userdata('student_id');
         $data['privilege'] = $this->officer->get_student_privilege();
 
@@ -1105,6 +1749,8 @@ class OfficerController extends CI_Controller
 
         // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
         $data['users'] = $this->officer->get_student($student_id);
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->officer->get_student($student_id);
         $data['privilege'] = $this->officer->get_student_privilege();
 
         $data['activities'] = $this->officer->get_activities();
@@ -1121,6 +1767,8 @@ class OfficerController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->officer->get_student($student_id);
         // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
         $data['users'] = $this->officer->get_student($student_id);
         $data['privilege'] = $this->officer->get_student_privilege();
@@ -1140,6 +1788,8 @@ class OfficerController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->officer->get_student($student_id);
         // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
         $data['users'] = $this->officer->get_student($student_id);
         $data['privilege'] = $this->officer->get_student_privilege();
@@ -1184,6 +1834,130 @@ class OfficerController extends CI_Controller
         }
     }
 
+
+    public function export_excuse_applications_pdf($activity_id)
+    {
+        $this->load->library('fpdf');
+        $this->load->model('Admin_model');
+
+        $activity = $this->Admin_model->fetch_application($activity_id);
+        $letters = $this->Admin_model->fetch_letters();
+
+        $activity_letters = array_filter($letters, function ($letter) use ($activity_id) {
+            return $letter->activity_id == $activity_id;
+        });
+
+
+        $user = [
+            'role'             => $this->session->userdata('role'),
+            'student_id'       => $this->session->userdata('student_id'),
+            'is_officer'       => $this->session->userdata('is_officer'),
+            'is_officer_dept'  => $this->session->userdata('is_officer_dept'),
+            'dept_id'          => $this->session->userdata('dept_id'),
+        ];
+
+        $headerImage = '';
+        $footerImage = '';
+
+        if ($user['role'] === 'Admin') {
+            $settings = $this->db->get('student_parliament_settings')->row();
+            if ($settings) {
+                $headerImage = $settings->header;
+                $footerImage = $settings->footer;
+            }
+        } elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+            $org = $this->db
+                ->select('organization.header, organization.footer')
+                ->join('organization', 'student_org.org_id = organization.org_id')
+                ->where('student_org.student_id', $user['student_id'])
+                ->get('student_org')->row();
+            if ($org) {
+                $headerImage = $org->header;
+                $footerImage = $org->footer;
+            }
+        } elseif ($user['role'] === 'Officer' && $user['is_officer_dept'] === 'Yes') {
+            $dept = $this->db
+                ->select('header, footer')
+                ->where('dept_id', $user['dept_id'])
+                ->get('department')->row();
+            if ($dept) {
+                $headerImage = $dept->header;
+                $footerImage = $dept->footer;
+            }
+        }
+
+
+        $pdf = new PDF('P', 'mm', 'Letter');
+        $pdf->headerImage = $headerImage;
+        $pdf->footerImage = $footerImage;
+
+        $pdf->SetMargins(10, 10, 10); // standard margins
+        $pdf->AddPage();
+
+        $pdf->SetFont('Arial', 'B', 14);
+        $pdf->Cell(0, 10, $activity['activity_title'] . ' | List of Excuse Applications', 0, 1, 'C');
+        $pdf->Ln(5);
+
+        // Base font for measurements
+        $pdf->SetFont('Arial', '', 8);
+
+        $headers = [
+            'student' => 'Student',
+            'department' => 'Department',
+            'subject' => 'Subject',
+            'status' => 'Status'
+        ];
+
+        // Measure max content width
+        $max_widths = [
+            'student'    => $pdf->GetStringWidth($headers['student']),
+            'department' => $pdf->GetStringWidth($headers['department']),
+            'subject'    => $pdf->GetStringWidth($headers['subject']),
+            'status'     => $pdf->GetStringWidth($headers['status'])
+        ];
+
+        foreach ($activity_letters as $letter) {
+            $max_widths['student']    = max($max_widths['student'], $pdf->GetStringWidth($letter->first_name . ' ' . $letter->last_name));
+            $max_widths['department'] = max($max_widths['department'], $pdf->GetStringWidth($letter->dept_name));
+            $max_widths['subject']    = max($max_widths['subject'], $pdf->GetStringWidth($letter->subject));
+            $max_widths['status']     = max($max_widths['status'], $pdf->GetStringWidth($letter->status));
+        }
+
+        // Add padding
+        $padding = 6;
+        foreach ($max_widths as &$width) {
+            $width += $padding;
+        }
+
+        // Scale total width to fit full printable width (Letter: 216mm, margins: 10mm each → usable: 196mm)
+        $total_content_width = array_sum($max_widths);
+        $usable_page_width = 196;
+        $scaling_factor = $usable_page_width / $total_content_width;
+
+        foreach ($max_widths as &$width) {
+            $width = round($width * $scaling_factor, 2); // scale to fit
+        }
+
+        // Table Header
+        $pdf->SetFont('Arial', 'B', 9);
+        foreach (['student', 'department', 'subject', 'status'] as $col) {
+            $pdf->Cell($max_widths[$col], 8, $headers[$col], 1, 0, 'C');
+        }
+        $pdf->Ln();
+
+        // Table Body
+        $pdf->SetFont('Arial', '', 8);
+        foreach ($activity_letters as $letter) {
+            $pdf->Cell($max_widths['student'], 8, $letter->first_name . ' ' . $letter->last_name, 1, 0, 'L');
+            $pdf->Cell($max_widths['department'], 8, $letter->dept_name, 1, 0, 'L');
+            $pdf->Cell($max_widths['subject'], 8, $letter->subject, 1, 0, 'L');
+            $pdf->Cell($max_widths['status'], 8, $letter->status, 1, 1, 'L');
+        }
+
+        $filename = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $activity['activity_title'] . '_excuse_applications') . '.pdf';
+        $pdf->Output('I', $filename);
+    }
+
     // COMMUNITY SECTION
 
     // COMMUNITY - PAGE
@@ -1192,6 +1966,9 @@ class OfficerController extends CI_Controller
         $data['title'] = 'Community';
         $student_id = $this->session->userdata('student_id');
 
+        // FETCH USER DATA
+        $data['users'] = $this->officer->get_student($student_id);
+        $data['authors'] = $this->officer->get_user();
         // FETCH USER DATA
         $data['users'] = $this->officer->get_student($student_id);
         $data['authors'] = $this->officer->get_user();
@@ -1482,29 +2259,53 @@ class OfficerController extends CI_Controller
             $result = $this->officer->insert_data($data);
 
             if ($result) {
+                // notifications start
+                $students = $this->db->select('student_id')->where('role', 'student')->get('users')->result_array();
+
+                $notification_data = [];
+                foreach ($students as $student) {
+                    $notification_data[] = [
+                        'recipient_student_id' => $student['student_id'],
+                        'sender_student_id' => $student_id, // Admin who posted
+                        'type' => 'new_post',
+                        'reference_id' => $result, // Post ID
+                        'message' => 'created a new post.',
+                        'is_read' => 0,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'link' => base_url('student/home/')
+                    ];
+                }
+
+                if (!empty($notification_data)) {
+                    $this->db->insert_batch('notifications', $notification_data);
+                } //notifications end
+
+                // Post saved successfully
                 $response = [
                     'status' => 'success',
                     'message' => 'You shared a post.',
-                    'redirect' => site_url('officer/community')
+                    'redirect' => site_url('admin/community')
                 ];
             } else {
+                // Database insertion failed
                 $response = [
                     'status' => 'error',
                     'errors' => 'Failed to post. Please try again.'
                 ];
             }
 
+            // Return the response
             echo json_encode($response);
             return;
         }
 
+        // If no POST data, return an error response
         $response = [
             'status' => 'error',
             'errors' => 'Invalid request. No data received.'
         ];
         echo json_encode($response);
     }
-
 
 
     // ATTENDANCE RECORDING
@@ -1533,6 +2334,8 @@ class OfficerController extends CI_Controller
 
         // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
         $data['users'] = $this->officer->get_student($student_id);
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->officer->get_student($student_id);
         $data['privilege'] = $this->officer->get_student_privilege();
 
         $data['activity'] = $this->officer->get_activity($activity_id);
@@ -1553,6 +2356,8 @@ class OfficerController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->officer->get_student($student_id);
         // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
         $data['users'] = $this->officer->get_student($student_id);
         $data['privilege'] = $this->officer->get_student_privilege();
@@ -1888,6 +2693,8 @@ class OfficerController extends CI_Controller
 
         // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
         $data['users'] = $this->officer->get_student($student_id);
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->officer->get_student($student_id);
         $data['privilege'] = $this->officer->get_student_privilege();
 
         $data['activities'] = $this->officer->get_activities_by_sp();
@@ -1906,12 +2713,17 @@ class OfficerController extends CI_Controller
 
         // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
         $data['users'] = $this->officer->get_student($student_id);
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->officer->get_student($student_id);
         $data['privilege'] = $this->officer->get_student_privilege();
 
         $data['activities'] = $this->officer->get_activity_specific($activity_id);
         $data['students'] = $this->officer->get_all_students_attendance_by_activity($activity_id);
         $data['timeslots'] = $this->officer->get_timeslots_by_activity($activity_id);
         $data['departments'] = $this->officer->department_selection();
+
+
+        $data['activity_id'] = $activity_id; // Add this line
 
         $this->load->view('layout/header', $data);
         $this->load->view('officer/attendance/listofattendees', $data);
@@ -1923,20 +2735,82 @@ class OfficerController extends CI_Controller
         // Clean output buffer
         ob_clean();
 
+        // Load model
+        $this->load->model('Admin_model');
+
+        $status = $this->input->get('status');
+        $department = $this->input->get('department');
+
+        // Fetch filtered data
+        $students = $this->Admin_model->get_filtered_attendance_by_activity($activity_id, $status, $department);
 
         // Fetch data
-        $students = $this->officer->get_all_students_attendance_by_activity($activity_id);
-        $timeslots = $this->officer->get_timeslots_by_activity($activity_id);
-        $activity = $this->officer->get_activity_specific($activity_id);
+        // $students = $this->Admin_model->get_all_students_attendance_by_activity($activity_id);
+        $timeslots = $this->Admin_model->get_timeslots_by_activity($activity_id);
+        $activity = $this->Admin_model->get_activity_specific($activity_id);
+
+
+
+        // Manually build the user array from session data
+        $user = [
+            'role'             => $this->session->userdata('role'),
+            'student_id'       => $this->session->userdata('student_id'),
+            'is_officer'       => $this->session->userdata('is_officer'),
+            'is_officer_dept'  => $this->session->userdata('is_officer_dept'),
+            'dept_id'          => $this->session->userdata('dept_id'),
+        ];
+
+        if (!$user['role'] || !$user['student_id']) {
+            echo json_encode(['success' => false, 'message' => 'Missing session data.']);
+            return;
+        }
+
+        $headerImage = '';
+        $footerImage = '';
+
+        // Determine correct header/footer based on role
+        if ($user['role'] === 'Admin') {
+            $settings = $this->db->get('student_parliament_settings')->row();
+            if ($settings) {
+                $headerImage = $settings->header;
+                $footerImage = $settings->footer;
+            }
+        } elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+            $org = $this->db
+                ->select('organization.header, organization.footer')
+                ->join('organization', 'student_org.org_id = organization.org_id')
+                ->where('student_org.student_id', $user['student_id'])
+                ->get('student_org')->row();
+            if ($org) {
+                $headerImage = $org->header;
+                $footerImage = $org->footer;
+            }
+        } elseif ($user['role'] === 'Officer' && $user['is_officer_dept'] === 'Yes') {
+            $dept = $this->db
+                ->select('header, footer')
+                ->where('dept_id', $user['dept_id'])
+                ->get('department')->row();
+            if ($dept) {
+                $headerImage = $dept->header;
+                $footerImage = $dept->footer;
+            }
+        }
+
 
         // Setup PDF
-        $pdf = new PDF('L', 'mm', 'A4'); // Use your custom PDF class!
+        $pdf = new PDF('P', 'mm', 'Legal');
+        $pdf->headerImage = $headerImage;
+        $pdf->footerImage = $footerImage;
+        $pdf->SetMargins(10, 10, 10); // standard margins
         $pdf->AddPage();
         $pdf->SetFont('Arial', 'B', 14);
         $pdf->Cell(0, 10, 'Attendance Report - Activity: ' . ($activity ? $activity['activity_title'] : 'N/A'), 0, 1, 'C');
         $pdf->Ln(5);
 
-        // Prepare columns
+        // Base font for measurements
+        $pdf->SetFont('Arial', '', 8);
+
+        // Headers for the table
         $header = ['Student ID', 'Name', 'Department'];
         foreach ($timeslots as $slot) {
             $period = strtolower($slot->slot_name);
@@ -1946,15 +2820,13 @@ class OfficerController extends CI_Controller
         }
         $header[] = 'Status';
 
-        // Font for table
-        $pdf->SetFont('Arial', '', 10);
-
-        // Calculate maximum width for each column
-        $colWidths = [];
+        // Measure max content width
+        $max_widths = [];
         foreach ($header as $col) {
-            $colWidths[] = $pdf->GetStringWidth($col) + 6;
+            $max_widths[] = $pdf->GetStringWidth($col);
         }
 
+        // Measure content for each row dynamically
         foreach ($students as $student) {
             $dataRow = [
                 $student['student_id'],
@@ -1970,39 +2842,37 @@ class OfficerController extends CI_Controller
 
             $dataRow[] = $student['status'];
 
-            foreach ($dataRow as $index => $cell) {
-                $cellWidth = $pdf->GetStringWidth($cell) + 6;
-                if ($cellWidth > $colWidths[$index]) {
-                    $colWidths[$index] = $cellWidth;
-                }
+            // Update column widths dynamically based on content
+            foreach ($dataRow as $i => $cell) {
+                $max_widths[$i] = max($max_widths[$i], $pdf->GetStringWidth($cell));
             }
         }
 
-        // Normalize total width if too wide
-        $pageWidth = 297 - 20; // A4 landscape - margins
-        $totalWidth = array_sum($colWidths);
-
-        if ($totalWidth > $pageWidth) {
-            $scale = $pageWidth / $totalWidth;
-            foreach ($colWidths as $i => $w) {
-                $colWidths[$i] = $w * $scale;
-            }
-            $totalWidth = array_sum($colWidths);
+        // Add padding to widths
+        $padding = 6;
+        foreach ($max_widths as &$width) {
+            $width += $padding;
         }
 
-        // Center the table by setting X position
-        $startX = ($pageWidth - $totalWidth) / 2 + 10; // +10 for left margin
-        $pdf->SetX($startX);
+        // Scale total width to fit the Letter page width (usable width = 196mm)
+        $total_content_width = array_sum($max_widths);
+        $usable_page_width = 196;
+        $scaling_factor = $usable_page_width / $total_content_width;
+
+        // Scale column widths
+        foreach ($max_widths as &$width) {
+            $width = round($width * $scaling_factor, 2);
+        }
 
         // Output table header
-        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->SetFont('Arial', 'B', 9);
         foreach ($header as $i => $colName) {
-            $pdf->Cell($colWidths[$i], 10, $colName, 1, 0, 'C');
+            $pdf->Cell($max_widths[$i], 8, $colName, 1, 0, 'C');
         }
         $pdf->Ln();
 
-        // Table rows
-        $pdf->SetFont('Arial', '', 9);
+        // Output table rows
+        $pdf->SetFont('Arial', '', 8);
         foreach ($students as $student) {
             $dataRow = [
                 $student['student_id'],
@@ -2018,17 +2888,16 @@ class OfficerController extends CI_Controller
 
             $dataRow[] = $student['status'];
 
-            // Reset X before each row to keep table centered
-            $pdf->SetX($startX);
-
+            // Output each row
             foreach ($dataRow as $i => $cell) {
-                $pdf->Cell($colWidths[$i], 10, $cell, 1, 0, 'C');
+                $pdf->Cell($max_widths[$i], 8, $cell, 1, 0, 'L');
             }
             $pdf->Ln();
         }
 
         // Output PDF
-        $pdf->Output('I', 'attendance_report.pdf');
+        $filename = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $activity['activity_title']) . '_attendance_report.pdf';
+        $pdf->Output('I', $filename);
     }
 
 
@@ -2042,6 +2911,7 @@ class OfficerController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
+        $data['users'] = $this->officer->get_student($student_id);
         $data['users'] = $this->officer->get_student($student_id);
         $data['privilege'] = $this->officer->get_student_privilege();
 
@@ -2063,12 +2933,53 @@ class OfficerController extends CI_Controller
         $mode_of_payment = $this->input->post('mode_of_payment');
         $reference_number = trim($this->input->post('reference_number'));
 
-        $record = $this->officer->get_fine_summary($student_id);
+        $officer_student_id = $this->session->userdata('student_id');
+
+        // Load organizer info first
+        $this->db->select('users.role, users.is_officer_dept, users.dept_id, department.dept_name');
+        $this->db->from('users');
+        $this->db->join('department', 'department.dept_id = users.dept_id', 'left');
+        $this->db->where('users.student_id', $officer_student_id);
+        $user_info = $this->db->get()->row_array();
+
+        $organizer = null;
+
+        if ($user_info) {
+            if ($user_info['role'] === 'Officer' && $user_info['is_officer_dept'] === 'Yes') {
+                $organizer = $user_info['dept_name'];
+            } else {
+                $this->db->select('organization.name');
+                $this->db->from('student_org');
+                $this->db->join('organization', 'organization.org_id = student_org.org_id');
+                $this->db->where('student_org.student_id', $officer_student_id);
+                $this->db->where('student_org.is_officer', 'Yes');
+                $org_info = $this->db->get()->row_array();
+
+                if ($org_info) {
+                    $organizer = $org_info['name'];
+                }
+            }
+        }
+
+        if (!$organizer) {
+            echo json_encode(['status' => 'error', 'message' => 'Organizer info not found for this officer.']);
+            return;
+        }
+
+        // Now get fine summary with organizer
+        $record = $this->officer->get_fine_summary($student_id, $organizer);
 
         if (!$record) {
             echo json_encode(['status' => 'error', 'message' => 'No fines summary found.']);
             return;
         }
+
+        // Load Notification model if not loaded yet (do this in constructor ideally)
+        if (!isset($this->Notification_model)) {
+            $this->load->model('Notification_model');
+        }
+
+        $admin_student_id = $this->session->userdata('student_id'); // sender
 
         if ($reference_number !== $record->reference_number_students) {
             $this->officer->update_fines_summary($student_id, [
@@ -2078,10 +2989,19 @@ class OfficerController extends CI_Controller
                 'last_updated' => date('Y-m-d H:i:s')
             ]);
 
+            $this->Notification_model->add_notification(
+                $student_id,
+                $admin_student_id,
+                'fine_payment_rejected',
+                $record->summary_id,
+                'Your fine payment could not be confirmed. Please double-check your reference number.'
+            );
+
             echo json_encode(['status' => 'warning', 'message' => 'Reference mismatch. Payment on hold.']);
             return;
         }
 
+        // Update to Paid
         $updated = $this->officer->update_fines_summary_receipt($student_id, [
             'reference_number_admin' => $reference_number,
             'fines_status' => 'Paid',
@@ -2093,11 +3013,22 @@ class OfficerController extends CI_Controller
             $summary_id = $record->summary_id;
             $this->generate_and_store_fine_receipt($summary_id);
 
+            $this->Notification_model->add_notification(
+                $student_id,
+                $admin_student_id,
+                'fine_payment_approved',
+                $summary_id,
+                'has approved your fine payment and marked as paid.',
+                null,
+                base_url('student/summary-fines/')
+            );
+
             echo json_encode(['status' => 'success', 'message' => 'Payment verified and receipt generated.']);
         } else {
             echo json_encode(['status' => 'error', 'message' => 'Update failed.']);
         }
     }
+
 
     public function generate_and_store_fine_receipt($summary_id)
     {
@@ -2197,8 +3128,258 @@ class OfficerController extends CI_Controller
         $this->db->where('summary_id', $summary_id);
         $this->db->update('fines_summary', [
             'generated_receipt' => $filename,
+            'verification_code' => $verification_code, // ✅ Save the code
             'last_updated' => date('Y-m-d H:i:s')
         ]);
+    }
+
+
+
+    public function update_status()
+    {
+        $input = json_decode(file_get_contents("php://input"), true);
+
+        // Ensure required parameters exist
+        if (!isset($input['student_id']) || !isset($input['activity_id']) || !isset($input['is_paid'])) {
+            echo json_encode(["success" => false, "message" => "Invalid request"]);
+            return;
+        }
+
+        $student_id = $input['student_id'];
+        $activity_id = $input['activity_id'];
+        $new_status = ($input['is_paid'] === "Yes") ? "Yes" : "No";
+
+        // Update only the specific record with both student_id & activity_id
+        if ($this->admin->updateFineStatus($student_id, $activity_id, $new_status)) {
+            echo json_encode(["success" => true, "message" => "Fine status updated"]);
+        } else {
+            echo json_encode(["success" => false, "message" => "Update failed"]);
+        }
+    }
+
+
+
+    public function export_fines_pdf()
+    {
+        // Load FPDF
+        $this->load->library('fpdf');
+
+        // Query fines data
+        $this->db->select('users.student_id, users.first_name, users.last_name, department.dept_name, 
+                  activity.activity_title, fines.fines_amount');
+        $this->db->from('fines');
+        $this->db->join('users', 'users.student_id = fines.student_id', 'left');
+        $this->db->join('department', 'department.dept_id = users.dept_id', 'left');
+        $this->db->join('activity', 'activity.activity_id = fines.activity_id', 'left');
+        $this->db->join('student_org', 'student_org.student_id = users.student_id', 'left');
+        $this->db->join('organization', 'organization.org_id = student_org.org_id', 'left');
+
+        // Determine organizer name
+        $organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+        $dept_id = $this->session->userdata('dept_id');
+        $org_id = $this->session->userdata('org_id');
+
+        // Apply filters like in flash_fines()
+        $this->db->where('activity.organizer', $organizer);
+        $this->db->group_start();
+        if (!empty($dept_id)) {
+            $this->db->where('users.dept_id', $dept_id);
+        }
+        if (!empty($org_id)) {
+            $this->db->or_where('student_org.org_id', $org_id);
+        }
+        $this->db->group_end();
+
+        $this->db->order_by('users.student_id, activity.activity_id');
+
+        $fines_data = $this->db->get()->result();
+
+
+
+        // Manually build the user array from session data
+        $user = [
+            'role'             => $this->session->userdata('role'),
+            'student_id'       => $this->session->userdata('student_id'),
+            'is_officer'       => $this->session->userdata('is_officer'),
+            'is_officer_dept'  => $this->session->userdata('is_officer_dept'),
+            'dept_id'          => $this->session->userdata('dept_id'),
+        ];
+
+        if (!$user['role'] || !$user['student_id']) {
+            echo json_encode(['success' => false, 'message' => 'Missing session data.']);
+            return;
+        }
+
+        $headerImage = '';
+        $footerImage = '';
+
+        // Determine correct header/footer based on role
+        if ($user['role'] === 'Admin') {
+            $settings = $this->db->get('student_parliament_settings')->row();
+            if ($settings) {
+                $headerImage = $settings->header;
+                $footerImage = $settings->footer;
+            }
+        } elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+            $org = $this->db
+                ->select('organization.header, organization.footer')
+                ->join('organization', 'student_org.org_id = organization.org_id')
+                ->where('student_org.student_id', $user['student_id'])
+                ->get('student_org')->row();
+            if ($org) {
+                $headerImage = $org->header;
+                $footerImage = $org->footer;
+            }
+        } elseif ($user['role'] === 'Officer' && $user['is_officer_dept'] === 'Yes') {
+            $dept = $this->db
+                ->select('header, footer')
+                ->where('dept_id', $user['dept_id'])
+                ->get('department')->row();
+            if ($dept) {
+                $headerImage = $dept->header;
+                $footerImage = $dept->footer;
+            }
+        }
+
+        // Initialize PDF
+        $pdf = new PDF();
+        $pdf->headerImage = $headerImage;
+        $pdf->footerImage = $footerImage;
+        $pdf->AddPage('L'); // Landscape orientation
+        $pdf->SetFont('Arial', 'B', 6); // Use smaller font size
+
+        // Title
+        $pdf->Cell(0, 8, 'Student Parliament Fines Report', 0, 1, 'C');
+        $pdf->Ln(5);
+
+        // Create an array to store unique activities
+        $activities = [];
+        $activity_widths = [];
+
+        // Loop through fines data to gather unique activity names
+        foreach ($fines_data as $fine) {
+            if (!in_array($fine->activity_title, $activities)) {
+                $activities[] = $fine->activity_title;
+            }
+        }
+
+        // Calculate dynamic column widths for Student ID, Name, Department
+        $max_student_id_width = $pdf->GetStringWidth('Student ID');
+        $max_name_width = $pdf->GetStringWidth('Name');
+        $max_dept_name_width = $pdf->GetStringWidth('Department');
+
+        // Loop through fines data to calculate the maximum string width for each column
+        foreach ($fines_data as $fine) {
+            $max_student_id_width = max($max_student_id_width, $pdf->GetStringWidth($fine->student_id));
+            $max_name_width = max($max_name_width, $pdf->GetStringWidth($fine->first_name . ' ' . $fine->last_name));
+            $max_dept_name_width = max($max_dept_name_width, $pdf->GetStringWidth($fine->dept_name));
+
+            foreach ($activities as $activity) {
+                if (!isset($activity_widths[$activity])) {
+                    $activity_widths[$activity] = 0;
+                }
+                $activity_widths[$activity] = max($activity_widths[$activity], $pdf->GetStringWidth(isset($fine->activity_title) ? $fine->activity_title : ''));
+            }
+        }
+
+        // Add padding to columns
+        $padding = 1;
+        $student_id_width = $max_student_id_width + $padding;
+        $name_width = $max_name_width + $padding;
+        $dept_name_width = $max_dept_name_width + $padding;
+
+        // Adjust activity column widths
+        foreach ($activities as $activity) {
+            $activity_widths[$activity] = max($activity_widths[$activity], $pdf->GetStringWidth($activity)) + $padding;
+        }
+
+        // Calculate the total width of the table
+        $total_width = $student_id_width + $name_width + $dept_name_width + array_sum($activity_widths) + 30; // 30 for the last two columns (Total Fines & Status)
+
+        // Define paper width in landscape mode (297mm)
+        $page_width = 297;
+
+        // If total table width exceeds the page width, scale down the columns proportionally
+        if ($total_width > $page_width) {
+            $scale_factor = $page_width / $total_width;
+            $student_id_width *= $scale_factor;
+            $name_width *= $scale_factor;
+            $dept_name_width *= $scale_factor;
+
+            foreach ($activities as $activity) {
+                $activity_widths[$activity] *= $scale_factor;
+            }
+        }
+
+        // Table header
+        $pdf->Cell($student_id_width, 8, 'Student ID', 1, 0, 'C');
+        $pdf->Cell($name_width, 8, 'Name', 1, 0, 'C');
+        $pdf->Cell($dept_name_width, 8, 'Department', 1, 0, 'C');
+
+        // Dynamic activity columns
+        foreach ($activities as $activity) {
+            $pdf->Cell($activity_widths[$activity], 8, $activity, 1, 0, 'C');
+        }
+
+        $pdf->Cell(15, 8, 'Total Fines', 1, 0, 'C');
+        $pdf->Cell(15, 8, 'Status', 1, 1, 'C');
+        $pdf->Ln();
+
+        // Table body
+        $pdf->SetFont('Arial', '', 6); // Smaller font for data rows
+        $current_student_id = null;
+        $student_fines = [];
+
+        // Loop through fines data
+        foreach ($fines_data as $fine) {
+            $full_name = $fine->first_name . ' ' . $fine->last_name;
+
+            if ($fine->student_id != $current_student_id) {
+                if ($current_student_id != null) {
+                    foreach ($activities as $activity) {
+                        $pdf->Cell($activity_widths[$activity], 8, isset($student_fines[$activity]) ? 'PHP ' . number_format($student_fines[$activity], 2) : 'PHP 0.00', 1);
+                    }
+
+                    $total_fines = array_sum($student_fines);
+                    $status = $total_fines > 0 ? 'Paid' : 'Unpaid';
+
+                    $pdf->Cell(15, 8, 'PHP ' . number_format($total_fines, 2), 1);  // Using 'PHP' as a prefix
+                    $pdf->Cell(15, 8, $status, 1);
+                    $pdf->Ln();
+                }
+
+                // Reset for new student
+                $current_student_id = $fine->student_id;
+                $student_fines = [];
+
+                // Output the student details
+                $pdf->Cell($student_id_width, 8, $fine->student_id, 1);
+                $pdf->Cell($name_width, 8, $full_name, 1);
+                $pdf->Cell($dept_name_width, 8, $fine->dept_name, 1);
+            }
+
+            // Store the fine amount for the corresponding activity
+            $student_fines[$fine->activity_title] = isset($student_fines[$fine->activity_title])
+                ? $student_fines[$fine->activity_title] + $fine->fines_amount
+                : $fine->fines_amount;
+        }
+
+        // Output the last student's data
+        if ($current_student_id != null) {
+            foreach ($activities as $activity) {
+                $pdf->Cell($activity_widths[$activity], 8, isset($student_fines[$activity]) ? 'PHP ' . number_format($student_fines[$activity], 2) : 'PHP 0.00', 1);
+            }
+
+            $total_fines = array_sum($student_fines);
+            $status = $total_fines > 0 ? 'Paid' : 'Unpaid';
+
+            $pdf->Cell(15, 8, 'PHP ' . number_format($total_fines, 2), 1);  // Using 'PHP' as a prefix
+            $pdf->Cell(15, 8, $status, 1);
+            $pdf->Ln();
+        }
+
+        // Output the PDF
+        $pdf->Output('I', 'StudentParliament_fines_report.pdf');
     }
 
     // OTHER PAGES
@@ -2210,6 +3391,8 @@ class OfficerController extends CI_Controller
 
         $student_id = $this->session->userdata('student_id');
 
+        // Get user and their organizations
+        $student_details = $this->officer->get_user_profile();
         // Get user and their organizations
         $student_details = $this->officer->get_user_profile();
         $data['privilege'] = $this->officer->get_student_privilege();
@@ -2370,6 +3553,8 @@ class OfficerController extends CI_Controller
 
         // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
         $data['users'] = $this->officer->get_student($student_id);
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->officer->get_student($student_id);
         $data['privilege'] = $this->officer->get_student_privilege();
 
         $data['officers'] = $this->officer->get_officer();
@@ -2419,15 +3604,44 @@ class OfficerController extends CI_Controller
         $data['title'] = 'General Settings';
 
         $student_id = $this->session->userdata('student_id');
+        $role       = $this->session->userdata('role');
 
-        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
-        $data['users'] = $this->officer->get_student($student_id);
-        $data['privilege'] = $this->officer->get_student_privilege();
+        // Get full user record from users table (includes is_officer, is_officer_dept, dept_id)
+        $user = $this->officer->get_student($student_id);
+        $data['users'] = $user;
 
+        $logo_targets = [];
+
+        if ($role === 'Admin') {
+            $logo_targets[] = ['value' => 'student_parliament', 'label' => 'Student Parliament'];
+        } elseif (isset($user['is_officer']) && $user['is_officer'] === 'Yes') {
+            $org = $this->admin->get_organization_by_student($student_id);
+            if ($org && !empty($org->org_name)) {
+                $logo_targets[] = ['value' => 'organization', 'label' => $org->org_name];
+            }
+        }
+
+        if (isset($user['is_officer_dept']) && $user['is_officer_dept'] === 'Yes') {
+            if (!empty($user['dept_id'])) {
+                $dept = $this->admin->get_department_by_id($user['dept_id']);
+                if ($dept && !empty($dept->dept_name)) {
+                    $logo_targets[] = ['value' => 'department', 'label' => $dept->dept_name];
+                }
+            }
+        }
+
+        $data['logo_targets'] = $logo_targets;
+
+        // Get privilege (use student_id if needed)
+        $data['privilege'] = $this->officer->get_student_privilege($student_id);
+
+        // Load views
         $this->load->view('layout/header', $data);
         $this->load->view('officer/general_settings', $data);
         $this->load->view('layout/footer', $data);
     }
+
+
 
     // IMPORTING LIST
     public function import_list()
@@ -2564,6 +3778,7 @@ class OfficerController extends CI_Controller
         $data['title'] = 'About';
 
         $student_id = $this->session->userdata('student_id');
+        $student_id = $this->session->userdata('student_id');
         $data['privilege'] = $this->officer->get_student_privilege();
 
         // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
@@ -2575,6 +3790,258 @@ class OfficerController extends CI_Controller
         $this->load->view('layout/footer', $data);
     }
 
+
+
+    //UPLOAD LOGO
+
+    public function upload_logo()
+    {
+        $this->load->model('Admin_model');
+        $user = $this->session->userdata();
+
+        if (!isset($_FILES['logo_file']['name']) || empty($_FILES['logo_file']['name'])) {
+            echo json_encode(['success' => false, 'message' => 'No file selected.']);
+            return;
+        }
+
+        $upload_path = './uploads/logos/';
+        if (!is_dir($upload_path)) {
+            mkdir($upload_path, 0755, true);
+        }
+
+        $config['upload_path'] = $upload_path;
+        $config['allowed_types'] = 'jpg|jpeg|png|gif';
+        $config['file_name'] = time() . '_' . $_FILES['logo_file']['name'];
+
+        $this->load->library('upload', $config);
+
+        if ($this->upload->do_upload('logo_file')) {
+            $upload_data = $this->upload->data();
+            $file_name = $upload_data['file_name'];
+
+            $this->Admin_model->upload_logo($file_name, $user);
+
+            echo json_encode(['success' => true, 'message' => 'Logo uploaded successfully.']);
+        } else {
+            echo json_encode(['success' => false, 'message' => $this->upload->display_errors('', '')]);
+        }
+    }
+
+
+    public function get_current_logo()
+    {
+        // Manually build the user array from session data
+        $user = [
+            'role'             => $this->session->userdata('role'),
+            'student_id'       => $this->session->userdata('student_id'),
+            'is_officer'       => $this->session->userdata('is_officer'),
+            'is_officer_dept'  => $this->session->userdata('is_officer_dept'),
+            'dept_id'          => $this->session->userdata('dept_id'), // if it's stored
+        ];
+
+        if (!$user['role'] || !$user['student_id']) {
+            echo json_encode(['success' => false, 'message' => 'Missing session data.']);
+            return;
+        }
+
+        $this->load->model('Admin_model');
+        $logo = $this->Admin_model->get_current_logo($user);
+
+        if ($logo && file_exists(FCPATH . 'uploads/logos/' . $logo)) {
+            echo json_encode([
+                'success' => true,
+                'logo' => base_url('uploads/logos/' . $logo)
+            ]);
+        } else {
+            echo json_encode(['success' => false]);
+        }
+    }
+
+
+
+
+
+
+
+
+    public function save_header_footer()
+    {
+        $this->load->model('Admin_model');
+        header('Content-Type: application/json'); // Set JSON response header
+
+        // Require both files
+        if (empty($_FILES['header_file']['name']) || empty($_FILES['footer_file']['name'])) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Both header and footer images are required.'
+            ]);
+            return;
+        }
+
+        $uploaded = [];
+        $upload_path = './uploads/headerandfooter/';
+        if (!is_dir($upload_path)) {
+            mkdir($upload_path, 0777, true);
+        }
+
+        $config = [
+            'upload_path' => $upload_path,
+            'allowed_types' => 'jpg|jpeg|png|gif',
+            'max_size' => 2048
+        ];
+        $this->load->library('upload');
+
+        // Upload header
+        $config['file_name'] = time() . '_header_' . $_FILES['header_file']['name'];
+        $this->upload->initialize($config);
+        if ($this->upload->do_upload('header_file')) {
+            $uploaded['header'] = $this->upload->data('file_name');
+        } else {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Header upload failed: ' . strip_tags($this->upload->display_errors())
+            ]);
+            return;
+        }
+
+        // Upload footer
+        $config['file_name'] = time() . '_footer_' . $_FILES['footer_file']['name'];
+        $this->upload->initialize($config);
+        if ($this->upload->do_upload('footer_file')) {
+            $uploaded['footer'] = $this->upload->data('file_name');
+        } else {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Footer upload failed: ' . strip_tags($this->upload->display_errors())
+            ]);
+            return;
+        }
+
+        // Save to DB
+        $this->Admin_model->save_header_footer($uploaded);
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Header and footer uploaded successfully.'
+        ]);
+    }
+
+
+    public function get_current_header_footer()
+    {
+        // Manually build the user array from session data
+        $user = [
+            'role'             => $this->session->userdata('role'),
+            'student_id'       => $this->session->userdata('student_id'),
+            'is_officer'       => $this->session->userdata('is_officer'),
+            'is_officer_dept'  => $this->session->userdata('is_officer_dept'),
+            'dept_id'          => $this->session->userdata('dept_id'),
+        ];
+
+        if (!$user['role'] || !$user['student_id']) {
+            echo json_encode(['success' => false, 'message' => 'Missing session data.']);
+            return;
+        }
+
+        $this->load->model('Admin_model');
+        $result = $this->Admin_model->get_current_header_footer($user);
+
+        if (!is_array($result)) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'No header or footer found.',
+            ]);
+            return;
+        }
+
+        $base = base_url('uploads/headerandfooter/');
+
+        echo json_encode([
+            'success' => true,
+            'header'  => !empty($result['header']) ? $base . $result['header'] : null,
+            'footer'  => !empty($result['footer']) ? $base . $result['footer'] : null,
+        ]);
+    }
+
+
+
+    //VERIFY RECEIPT START
+
+
+    public function verify_receipt_page()
+    {
+        $data['title'] = 'Verify Receipt';
+
+        $this->load->model('Student_model');
+
+        $student_id = $this->session->userdata('student_id');
+
+        // Fetch student profile picture
+        $current_profile_pic = $this->Student_model->get_profile_pic($student_id);
+        $data['profile_pic'] = !empty($current_profile_pic) ? $current_profile_pic : 'default.jpg';
+
+        // Fetch user role
+        // $users = $this->admin->get_roles($student_id);
+        // $data['role'] = $users['role'];
+
+        // FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+        $data['users'] = $this->admin->get_student($student_id);
+
+        // Get privilege (use student_id if needed)
+        $data['privilege'] = $this->officer->get_student_privilege($student_id);
+
+
+        $this->load->view('layout/header', $data);
+        $this->load->view('admin/verify-receipt');
+        $this->load->view('layout/footer', $data);
+    }
+
+    // This is for actually verifying the receipt
+    public function verify_receipt()
+    {
+        $this->load->model('Student_model');
+        $verification_code = $this->input->post('verification_code');
+
+        if (!$verification_code) {
+            echo json_encode(['status' => 'error', 'message' => 'Verification code is required.']);
+            return;
+        }
+
+        // Check registration receipts first
+        $receipt = $this->Student_model->get_registration_by_code($verification_code);
+
+        if ($receipt) {
+            $receipt['receipt_type'] = 'Registration Payment';
+        } else {
+            // If not found, check fines
+            $receipt = $this->Student_model->get_fines_by_code($verification_code);
+            if ($receipt) {
+                $receipt['receipt_type'] = 'Fines Payment';
+            }
+        }
+
+        if ($receipt) {
+            echo json_encode([
+                'status' => 'success',
+                'data' => [
+                    'student_id'   => $receipt['student_id'],
+                    'activity'     => $receipt['activity_title'] ?? 'Activity not found',
+                    'amount_paid'  => '₱' . number_format($receipt['amount_paid'], 2),
+                    'status'       => '✅ Approved',
+                    'date_issued'  => date('F j, Y', strtotime($receipt['registered_at'] ?? $receipt['last_updated'])),
+                    'receipt_type' => $receipt['receipt_type']
+                ]
+            ]);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Invalid verification code. No receipt found.']);
+        }
+    }
+
+
+
+
+
+    //VERIFY RECEIPT END
 
 
 

@@ -1507,9 +1507,11 @@ class Admin_model extends CI_Model
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
 		$this->db->where('fines_summary.student_id', $student_id);
 		$this->db->where('activity.organizer', $organizer);
+		$this->db->group_by('fines_summary.summary_id'); // Avoid duplicate rows
 		$this->db->limit(1);
 		return $this->db->get()->row();
 	}
+
 
 
 
@@ -1640,6 +1642,24 @@ class Admin_model extends CI_Model
 		// Return whether any rows were updated
 		return $this->db->trans_status();
 	}
+
+
+	//FOR NOTICATIONS START
+	public function get_officer_by_privilege_id($privilege_id)
+	{
+		$this->db->select('student_id');
+		$this->db->from('privilege'); // correct table name
+		$this->db->where('privilege_id', $privilege_id);
+		return $this->db->get()->row(); // returns object with ->student_id
+	}
+
+	public function get_privilege_by_id($privilege_id)
+	{
+		return $this->db->get_where('privilege', ['privilege_id' => $privilege_id])->row();
+	}
+
+	//FOR NOTICATIONS END
+
 
 	public function delete_officer_dept($id)
 	{
@@ -1812,11 +1832,22 @@ class Admin_model extends CI_Model
 
 
 
+	public function get_department_by_id($dept_id)
+	{
+		return $this->db->get_where('department', ['dept_id' => $dept_id])->row();
+	}
 
 
-
-
-
+	public function get_org_officer_by_student($student_id)
+	{
+		$this->db->select('o.org_name');
+		$this->db->from('student_org so');
+		$this->db->join('organization o', 'so.org_id = o.org_id');
+		$this->db->where('so.student_id', $student_id);
+		$this->db->where('so.is_officer', 'Yes');
+		$query = $this->db->get();
+		return $query->row();
+	}
 
 
 
@@ -1908,6 +1939,18 @@ class Admin_model extends CI_Model
 	}
 
 
+
+
+	//for header and footer dropdown
+	public function get_organization_by_student($student_id)
+	{
+		$this->db->select('o.*');
+		$this->db->from('student_org so');
+		$this->db->join('organization o', 'so.org_id = o.org_id');
+		$this->db->where('so.student_id', $student_id);
+		$this->db->where('so.is_officer', 'Yes');
+		return $this->db->get()->row();
+	}
 
 
 
@@ -2067,6 +2110,18 @@ class Admin_model extends CI_Model
 		$upload_path = './uploads/logos/';
 		$old_logo = null;
 
+
+		// ✅ FIX: Get student_id from session
+		$student_id = $user['student_id'] ?? null;
+
+		if (!$student_id) {
+			return; // or handle error
+		}
+
+		// ✅ FIX: Retrieve is_officer from student_org
+		$student_org = $this->db->get_where('student_org', ['student_id' => $student_id])->row_array();
+		$is_officer = $student_org['is_officer'] ?? null;
+
 		if ($user['role'] === 'Admin') {
 			// Student Parliament
 			$existing = $this->db->get('student_parliament_settings')->row();
@@ -2085,7 +2140,7 @@ class Admin_model extends CI_Model
 				$data['created_at'] = date('Y-m-d H:i:s');
 				$this->db->insert('student_parliament_settings', $data);
 			}
-		} elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+		} elseif ($user['role'] === 'Officer' && $is_officer === 'Yes') {
 			// Organization Officer
 			$org = $this->db
 				->select('org_id, logo')
@@ -2150,6 +2205,18 @@ class Admin_model extends CI_Model
 	{
 		$user = $this->session->userdata(); // assumes session holds user data
 
+		// ✅ FIX: Get student_id from session
+		$student_id = $user['student_id'] ?? null;
+
+		if (!$student_id) {
+			return; // or handle error
+		}
+
+		// ✅ FIX: Retrieve is_officer from student_org
+		$student_org = $this->db->get_where('student_org', ['student_id' => $student_id])->row_array();
+		$is_officer = $student_org['is_officer'] ?? null;
+
+
 		$data = [
 			'header' => $files['header'],
 			'footer' => $files['footer'],
@@ -2172,7 +2239,7 @@ class Admin_model extends CI_Model
 				$data['created_at'] = date('Y-m-d H:i:s');
 				$this->db->insert('student_parliament_settings', $data);
 			}
-		} elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+		} elseif ($user['role'] === 'Officer' && $is_officer === 'Yes') {
 			// Organization Officer
 			$org = $this->db
 				->select('org_id, header, footer')

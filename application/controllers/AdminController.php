@@ -60,6 +60,16 @@ class PDF extends FPDF
 	}
 
 
+	public function getRightMargin()
+	{
+		return $this->rMargin;
+	}
+
+	public function getLeftMargin()
+	{
+		return $this->lMargin;
+	}
+
 
 
 	function NbLines($w, $txt)
@@ -325,26 +335,30 @@ class AdminController extends CI_Controller
 		// Insert each student into attendance for each timeslot
 		foreach ($students as $student) {
 			foreach ($timeslot_ids as $timeslot_id) {
+				// Step 1: Insert into attendance table
 				$this->db->insert('attendance', [
-					'activity_id'  => $activity_id,
-					'timeslot_id'  => $timeslot_id,
-					'student_id'   => $student->student_id
+					'activity_id' => $activity_id,
+					'timeslot_id' => $timeslot_id,
+					'student_id'  => $student->student_id
 				]);
-			}
 
-			// Insert into fines once per student per activity
-			foreach ($timeslot_ids as $timeslot_id) {
+				// Step 2: Get the auto-incremented attendance_id
+				$attendance_id = $this->db->insert_id();
+
+				// Step 3: Insert into fines table using the retrieved attendance_id
 				$this->db->insert('fines', [
-					'activity_id'  => $activity_id,
-					'timeslot_id'  => $timeslot_id,
-					'student_id'   => $student->student_id
+					'activity_id'    => $activity_id,
+					'timeslot_id'    => $timeslot_id,
+					'student_id'     => $student->student_id,
+					'attendance_id'  => $attendance_id,
+					'status'         => 'Pending', // optional defaults
+					'fines_amount'   => 0           // or whatever default you want
 				]);
 			}
-		}
 
-		foreach ($students as $student) {
+			// Step 4: Insert one fines_summary per student
 			$this->db->insert('fines_summary', [
-				'student_id'   => $student->student_id
+				'student_id' => $student->student_id
 			]);
 		}
 	}
@@ -1660,18 +1674,18 @@ class AdminController extends CI_Controller
 		$form = $this->admin->forms($form_id);
 		$responses = $this->admin->get_student_evaluation_responses($form_id);
 
-		// Group responses by student
-		$grouped_by_student = [];
+		// Reorganize responses by question
+		$grouped_by_question = [];
 		foreach ($responses as $r) {
-			$student_id = $r->student_id;
-			if (!isset($grouped_by_student[$student_id])) {
-				$grouped_by_student[$student_id] = [
-					'department' => $r->dept_name,
-					'evaluated_at' => date('F j, Y | g:i a', strtotime($r->submitted_at)),
-					'answers' => []
-				];
+			$question = $r->question;
+			if (!isset($grouped_by_question[$question])) {
+				$grouped_by_question[$question] = [];
 			}
-			$grouped_by_student[$student_id]['answers'][$r->question] = $r->answer;
+			$grouped_by_question[$question][] = [
+				'student_id' => $r->student_id,
+				'department' => $r->dept_name,
+				'response'   => $r->answer
+			];
 		}
 
 		$user = [
@@ -1712,7 +1726,6 @@ class AdminController extends CI_Controller
 			}
 		}
 
-
 		$pdf = new PDF('P', 'mm', 'Letter');
 		$pdf->headerImage = $headerImage;
 		$pdf->footerImage = $footerImage;
@@ -1725,69 +1738,117 @@ class AdminController extends CI_Controller
 		$pdf->Cell(0, 10, 'Evaluation Responses: ' . $form->title, 0, 1, 'C');
 		$pdf->Ln(5);
 
-		foreach ($grouped_by_student as $student_id => $student_data) {
-			// Student ID row
+		foreach ($grouped_by_question as $question => $entries) {
+			// Remove duplicates
+			$uniqueEntries = [];
+			$seen = [];
+
+			foreach ($entries as $entry) {
+				$uniqueKey = $entry['student_id'] . '|' . $entry['department'] . '|' . $entry['response'];
+				if (!isset($seen[$uniqueKey])) {
+					$seen[$uniqueKey] = true;
+					$uniqueEntries[] = $entry;
+				}
+			}
+
+			// Print question header
 			$pdf->SetFont('DejaVuSans', 'B', 12);
-			$pdf->Cell(40, 7, 'Student ID:', 0, 0);
-			$pdf->SetFont('DejaVuSans', '', 12);
-			$pdf->Cell(150, 7, $student_id, 0, 1);
+			$pdf->MultiCell(0, 10, "Question: " . $question, 0, 'L');
+			$pdf->Ln(2);
 
-			// Department row
+			// Define headers and calculate widths
+			$headers = ['Student ID', 'Department', 'Response'];
+			$maxWidths = [];
+			foreach ($headers as $header) {
+				$maxWidths[$header] = $pdf->GetStringWidth($header) + 4;
+			}
+			$pdf->SetFont('DejaVuSans', '', 12);
+
+			foreach ($uniqueEntries as $entry) {
+				$maxWidths['Student ID'] = max($maxWidths['Student ID'], $pdf->GetStringWidth($entry['student_id']) + 4);
+				$maxWidths['Department'] = max($maxWidths['Department'], $pdf->GetStringWidth($entry['department']) + 4);
+
+				$responseLines = explode("\n", $entry['response']);
+				foreach ($responseLines as $line) {
+					$maxWidths['Response'] = isset($maxWidths['Response'])
+						? max($maxWidths['Response'], $pdf->GetStringWidth($line) + 4)
+						: $pdf->GetStringWidth($line) + 4;
+				}
+			}
+
+			// Adjust widths to fit page width nicely
+			$pageWidth = $pdf->GetPageWidth();
+			$leftMargin = $pdf->getLeftMargin();
+			$rightMargin = $pdf->getRightMargin();
+			$usableWidth = $pageWidth - $leftMargin - $rightMargin;
+			$totalWidth = array_sum($maxWidths);
+
+			if ($totalWidth > $usableWidth) {
+				$scale = $usableWidth / $totalWidth;
+				foreach ($maxWidths as $key => $width) {
+					$maxWidths[$key] = $width * $scale;
+				}
+			} else if ($totalWidth < $usableWidth) {
+				$extra = $usableWidth - $totalWidth;
+				$colsCount = count($maxWidths);
+				$extraPerCol = $extra / $colsCount;
+				foreach ($maxWidths as $key => $width) {
+					$maxWidths[$key] += $extraPerCol;
+				}
+			}
+
+			// Print headers
 			$pdf->SetFont('DejaVuSans', 'B', 12);
-			$pdf->Cell(40, 7, 'Department:', 0, 0);
+			$pdf->Cell($maxWidths['Student ID'], 7, 'Student ID', 1, 0, 'C');
+			$pdf->Cell($maxWidths['Department'], 7, 'Department', 1, 0, 'C');
+			$pdf->Cell($maxWidths['Response'], 7, 'Response', 1, 1, 'C');
+
+			// Print data rows
 			$pdf->SetFont('DejaVuSans', '', 12);
-			$pdf->Cell(150, 7, $student_data['department'], 0, 1);
+			foreach ($uniqueEntries as $entry) {
+				$responseLinesCount = $pdf->NbLines($maxWidths['Response'], $entry['response']);
+				$rowHeight = $responseLinesCount * 7;
 
-			// Date Evaluated row
-			$pdf->SetFont('DejaVuSans', 'B', 12);
-			$pdf->Cell(40, 7, 'Date Evaluated:', 0, 0);
-			$pdf->SetFont('DejaVuSans', '', 12);
-			$pdf->Cell(150, 7, $student_data['evaluated_at'], 0, 1);
-
-			$pdf->Ln(3);
-
-			// Question and Response table
-			$pdf->SetFont('DejaVuSans', 'B', 12);
-			$pdf->Cell(90, 7, 'Question', 1, 0, 'C');
-			$pdf->Cell(90, 7, 'Response', 1, 1, 'C');
-
-			$pdf->SetFont('DejaVuSans', '', 12);
-			foreach ($student_data['answers'] as $question => $answer) {
-				// Save current X and Y
 				$x = $pdf->GetX();
 				$y = $pdf->GetY();
 
-				// Set width for question and response columns
-				$question_width = 90;
-				$response_width = 90;
-				$line_height = 7;
+				$pdf->Cell($maxWidths['Student ID'], $rowHeight, $entry['student_id'], 1, 0);
+				$pdf->Cell($maxWidths['Department'], $rowHeight, $entry['department'], 1, 0);
+				$pdf->MultiCell($maxWidths['Response'], 7, $entry['response'], 1);
 
-				// Calculate height for both cells (based on longest)
-				$question_lines = $pdf->NbLines($question_width, $question);
-				$answer_lines = $pdf->NbLines($response_width, $answer);
-				$cell_height = max($question_lines, $answer_lines) * $line_height;
+				$pdf->SetXY($x, $y + $rowHeight);
+			}
 
-				// Draw question cell
-				$pdf->MultiCell($question_width, $line_height, $question, 1, 'L');
+			// Calculate average rating
+			$sum = 0;
+			$count = 0;
+			foreach ($uniqueEntries as $entry) {
+				if (is_numeric($entry['response'])) {
+					$sum += floatval($entry['response']);
+					$count++;
+				}
+			}
 
-				// Move cursor to the right for the response cell
-				$pdf->SetXY($x + $question_width, $y);
+			// Add average row if numeric responses exist
+			if ($count > 0) {
+				$average = $sum / $count;
+				$pdf->SetFont('DejaVuSans', 'B', 12);
 
-				// Draw response cell
-				$pdf->MultiCell($response_width, $line_height, $answer, 1, 'L');
-
-				// Move to the next line (bottom of the tallest cell)
-				$pdf->SetY($y + $cell_height);
+				$totalWidth = $maxWidths['Student ID'] + $maxWidths['Department'] + $maxWidths['Response'];
+				$pdf->SetFont('DejaVuSans', 'B', 12);
+				$pdf->Cell($totalWidth, 7, 'Average Rating: ' . number_format($average, 2), 1, 1, 'C');
 			}
 
 
-			$pdf->Ln(10); // Space between students
+
+			$pdf->Ln(10);
 		}
 
 		ob_end_clean();
 		$filename = 'Evaluation_Responses_' . date('Ymd_His') . '.pdf';
 		$pdf->Output('D', $filename);
 	}
+
 
 
 
@@ -1814,28 +1875,34 @@ class AdminController extends CI_Controller
 		$overall_rating = $this->admin->overall_rating($form_id);
 		$answer_summary = $this->admin->answer_summary($form_id);
 
-		// Calculate percentage of respondents
 		$percentage = ($total_attendees > 0) ? round(($total_respondents / $total_attendees) * 100, 2) : 0;
 
-		// Prepare data to pass to the view
-		$data = [
-			'users' => $this->admin->get_student($student_id), // Fetching user data based on student ID
+		// Set header/footer image filenames
+		$data['headerImage'] = 'header.png'; // Or whatever your actual filename is
+		$data['footerImage'] = 'footer.png';
+
+		$data += [
+			'users' => $this->admin->get_student($student_id),
 			'form_id' => $form_id,
 			'total_attendees' => $total_attendees,
 			'total_respondents' => $total_respondents,
 			'rating_summary' => $rating_summary,
 			'overall_rating' => $overall_rating,
 			'answer_summary' => $answer_summary,
-			'respondent_percentage' => $percentage
+			'respondent_percentage' => $percentage,
+			'forms' => $this->admin->forms($form_id)
 		];
 
-		$data['forms'] = $this->admin->forms($form_id);
-
-		// Load the views
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/activity/eval_statistic', $data);
 		$this->load->view('layout/footer', $data);
 	}
+
+
+
+
+
+
 
 	//  EXCUSE APPLICATION
 
@@ -3667,9 +3734,13 @@ class AdminController extends CI_Controller
 		}
 
 		$sanitized_data = [];
+		$change_logs = []; // Store old values before update
 
 		foreach ($privileges_input as $privilege_id => $values) {
-			$sanitized_data[] = [
+			// ✅ Fetch old values before the update
+			$old = $this->admin->get_privilege_by_id($privilege_id);
+
+			$sanitized = [
 				'privilege_id' => $privilege_id,
 				'manage_fines' => isset($values['manage_fines']) ? 'Yes' : 'No',
 				'manage_evaluation' => isset($values['manage_evaluation']) ? 'Yes' : 'No',
@@ -3677,9 +3748,53 @@ class AdminController extends CI_Controller
 				'able_scan' => isset($values['able_scan']) ? 'Yes' : 'No',
 				'able_create_activity' => isset($values['able_create_activity']) ? 'Yes' : 'No'
 			];
+
+			$sanitized_data[] = $sanitized;
+
+			if ($old) {
+				$change_logs[$privilege_id] = $old;
+			}
 		}
 
+		// ✅ Now update in bulk
 		$update = $this->admin->update_privileges_dept($sanitized_data);
+
+		if ($update) {
+			foreach ($sanitized_data as $row) {
+				$privilege_id = $row['privilege_id'];
+				$old = $change_logs[$privilege_id] ?? null;
+
+				$changes = [];
+
+				if ($old) {
+					foreach (['manage_fines', 'manage_evaluation', 'manage_applications', 'able_scan', 'able_create_activity'] as $field) {
+						if ($old->$field !== $row[$field]) {
+							$pretty = ucwords(str_replace('_', ' ', $field));
+							$changes[] = "$pretty changed from {$old->$field} to {$row[$field]}";
+						}
+					}
+				}
+
+				$message = !empty($changes)
+					? 'Your privileges have been updated: ' . implode(', ', $changes)
+					: 'Your privileges have been updated: No specific changes detected.';
+
+				$officer = $this->admin->get_officer_by_privilege_id($privilege_id);
+
+				if ($officer) {
+					$this->db->insert('notifications', [
+						'recipient_officer_id' => $officer->student_id,
+						'sender_student_id'    => $this->session->userdata('student_id'),
+						'type'                 => 'privilege_updated',
+						'reference_id'         => $privilege_id,
+						'message'              => $message,
+						'is_read'              => 0,
+						'created_at'           => date('Y-m-d H:i:s'),
+						'link'                 => base_url('officer/privileges')
+					]);
+				}
+			}
+		}
 
 		echo json_encode(['success' => $update]);
 	}
@@ -4481,21 +4596,26 @@ class AdminController extends CI_Controller
 	public function verify_receipt()
 	{
 		$this->load->model('Student_model');
-		$verification_code = $this->input->post('verification_code');
 
+		$verification_code = $this->input->post('verification_code');
 		if (!$verification_code) {
 			echo json_encode(['status' => 'error', 'message' => 'Verification code is required.']);
 			return;
 		}
 
-		// Check registration receipts first
-		$receipt = $this->Student_model->get_registration_by_code($verification_code);
+		// Get user info
+		$student_id = $this->session->userdata('student_id');
+		$role = $this->session->userdata('role');
+		$is_officer_dept = $this->session->userdata('is_officer_dept');
+
+		// Step 1: Try registration receipt
+		$receipt = $this->Student_model->get_registration_by_code($verification_code, $student_id, $role, $is_officer_dept);
 
 		if ($receipt) {
 			$receipt['receipt_type'] = 'Registration Payment';
 		} else {
-			// If not found, check fines
-			$receipt = $this->Student_model->get_fines_by_code($verification_code);
+			// Step 2: Try fines receipt
+			$receipt = $this->Student_model->get_fines_by_code($verification_code, $student_id, $role, $is_officer_dept);
 			if ($receipt) {
 				$receipt['receipt_type'] = 'Fines Payment';
 			}
@@ -4514,9 +4634,10 @@ class AdminController extends CI_Controller
 				]
 			]);
 		} else {
-			echo json_encode(['status' => 'error', 'message' => 'Invalid verification code. No receipt found.']);
+			echo json_encode(['status' => 'error', 'message' => 'Invalid verification code or not authorized to verify this receipt.']);
 		}
 	}
+
 
 
 

@@ -1,7 +1,7 @@
 <div class="card mb-3 mb-lg-0">
-    <div class="card-header bg-body-tertiary d-flex justify-content-between">
-        <h5 class="mb-0">Summary of Fines</h5>
-    </div>
+	<div class="card-header bg-body-tertiary d-flex justify-content-between">
+		<h5 class="mb-0">Summary of Fines</h5>
+	</div>
 </div>
 
 <!-- Space Between Sections -->
@@ -9,435 +9,435 @@
 
 
 <div class="row gx-3">
-    <div class="col-xxl-10 col-xl-12">
-        <div class="card" id="ticketsTable"
-            data-list='{
+	<div class="col-xxl-10 col-xl-12">
+		<div class="card" id="ticketsTable"
+			data-list='{
 				"valueNames":["name","status"],
 				"page":11,
 				"pagination":true,
 				"fallback":"tickets-table-fallback"
 			}'>
 
-            <div class="card-header border-bottom border-200 px-0">
-                <div class="d-lg-flex justify-content-between">
-                    <div class="row flex-between-center gy-2 px-x1">
-                    </div>
+			<div class="card-header border-bottom border-200 px-0">
+				<div class="d-lg-flex justify-content-between">
+					<div class="row flex-between-center gy-2 px-x1">
+					</div>
 
-                    <!-- Search Input -->
-                    <div class="d-flex align-items-center justify-content-between justify-content-lg-end px-x1">
-                        <div class="d-flex align-items-center" id="table-ticket-replace-element">
-                            <div class="col-auto">
-                                <form>
-                                    <div class="input-group input-search-width">
-                                        <input id="searchInput" class="form-control form-control-sm shadow-none search"
-                                            type="search" placeholder="Search by Name" aria-label="search" />
-                                        <button class="btn btn-sm btn-outline-secondary border-300 hover-border-secondary" type="button">
-                                            <span class="fa fa-search fs-10"></span>
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                            <button class="btn btn-sm btn-falcon-default ms-2" type="button" onclick="exportFinesPDF()">
-                                <span class="fas fa-download"></span>
-                            </button>
-
-
-                            <script>
-                                function exportFinesPDF() {
-                                    const status = document.getElementById('status-filter').value;
-                                    const department = document.getElementById('department-filter').value;
-
-                                    const form = document.createElement('form');
-                                    form.method = 'POST';
-                                    form.action = '<?= base_url("AdminController/export_fines_pdf") ?>'; // Replace with your actual controller name
-                                    form.target = '_blank'; // This makes the form submit to a new tab
+					<!-- Search Input -->
+					<div class="d-flex align-items-center justify-content-between justify-content-lg-end px-x1">
+						<div class="d-flex align-items-center" id="table-ticket-replace-element">
+							<div class="col-auto">
+								<form>
+									<div class="input-group input-search-width">
+										<input id="searchInput" class="form-control form-control-sm shadow-none search"
+											type="search" placeholder="Search by Name" aria-label="search" />
+										<button class="btn btn-sm btn-outline-secondary border-300 hover-border-secondary" type="button">
+											<span class="fa fa-search fs-10"></span>
+										</button>
+									</div>
+								</form>
+							</div>
+							<button class="btn btn-sm btn-falcon-default ms-2" type="button" onclick="exportFinesPDF()">
+								<span class="fas fa-download"></span>
+							</button>
 
 
-                                    const statusInput = document.createElement('input');
-                                    statusInput.type = 'hidden';
-                                    statusInput.name = 'status';
-                                    statusInput.value = status;
+							<script>
+								function exportFinesPDF() {
+									const status = document.getElementById('status-filter').value;
+									const department = document.getElementById('department-filter').value;
 
-                                    const deptInput = document.createElement('input');
-                                    deptInput.type = 'hidden';
-                                    deptInput.name = 'department';
-                                    deptInput.value = department;
-
-                                    form.appendChild(statusInput);
-                                    form.appendChild(deptInput);
-                                    document.body.appendChild(form);
-                                    form.submit();
-                                }
-                            </script>
+									const form = document.createElement('form');
+									form.method = 'POST';
+									form.action = '<?= base_url("OfficerController/export_fines_pdf") ?>'; // Replace with your actual controller name
+									form.target = '_blank'; // This makes the form submit to a new tab
 
 
+									const statusInput = document.createElement('input');
+									statusInput.type = 'hidden';
+									statusInput.name = 'status';
+									statusInput.value = status;
 
-                            <!-- FILTER BUTTON -->
-                            <button class="btn btn-sm btn-falcon-default ms-2" type="button" data-bs-toggle="modal" data-bs-target="#filterModal">
-                                <span class="fas fa-filter"></span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+									const deptInput = document.createElement('input');
+									deptInput.type = 'hidden';
+									deptInput.name = 'department';
+									deptInput.value = department;
 
-            <div class="card-body p-0">
-                <div class="table-responsive scrollbar">
-                    <table class="table table-hover table-striped overflow-hidden">
-                        <thead class="bg-200">
-                            <tr>
-                                <th scope="col" class="text-nowrap">Student ID</th>
-                                <th scope="col">Name</th>
-                                <th scope="col">Department</th>
-                                <!-- Dynamic Event Columns will be added here -->
-                                <th scope="col" class="text-nowrap">Total Fines</th>
-                                <th scope="col">Status</th>
-                                <th scope="col">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody class="list" id="table-ticket-body">
-                            <!-- Dynamic Rows will be generated here -->
-                        </tbody>
-                    </table>
-                    <div class="text-center d-none" id="tickets-table-fallback">
-                        <span class="fa fa-user-slash fa-2x text-muted"></span>
-                        <p class="fw-bold fs-8 mt-3">No Student Found</p>
-                    </div>
-                </div>
-            </div>
+									form.appendChild(statusInput);
+									form.appendChild(deptInput);
+									document.body.appendChild(form);
+									form.submit();
+								}
+							</script>
 
-            <div class="card-footer">
-                <div class="d-flex justify-content-center">
-                    <button class="btn btn-sm btn-falcon-default me-1" type="button" title="Previous" data-list-pagination="prev">
-                        <span class="fas fa-chevron-left"></span>
-                    </button>
-                    <ul class="pagination mb-0"></ul>
-                    <button class="btn btn-sm btn-falcon-default ms-1" type="button" title="Next" data-list-pagination="next">
-                        <span class="fas fa-chevron-right"></span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+
+
+							<!-- FILTER BUTTON -->
+							<button class="btn btn-sm btn-falcon-default ms-2" type="button" data-bs-toggle="modal" data-bs-target="#filterModal">
+								<span class="fas fa-filter"></span>
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="card-body p-0">
+				<div class="table-responsive scrollbar">
+					<table class="table table-hover table-striped overflow-hidden">
+						<thead class="bg-200">
+							<tr>
+								<th scope="col" class="text-nowrap">Student ID</th>
+								<th scope="col">Name</th>
+								<th scope="col">Department</th>
+								<!-- Dynamic Event Columns will be added here -->
+								<th scope="col" class="text-nowrap">Total Fines</th>
+								<th scope="col">Status</th>
+								<th scope="col">Action</th>
+							</tr>
+						</thead>
+						<tbody class="list" id="table-ticket-body">
+							<!-- Dynamic Rows will be generated here -->
+						</tbody>
+					</table>
+					<div class="text-center d-none" id="tickets-table-fallback">
+						<span class="fa fa-user-slash fa-2x text-muted"></span>
+						<p class="fw-bold fs-8 mt-3">No Student Found</p>
+					</div>
+				</div>
+			</div>
+
+			<div class="card-footer">
+				<div class="d-flex justify-content-center">
+					<button class="btn btn-sm btn-falcon-default me-1" type="button" title="Previous" data-list-pagination="prev">
+						<span class="fas fa-chevron-left"></span>
+					</button>
+					<ul class="pagination mb-0"></ul>
+					<button class="btn btn-sm btn-falcon-default ms-1" type="button" title="Next" data-list-pagination="next">
+						<span class="fas fa-chevron-right"></span>
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
 </div>
 
 
 <!-- MODAL FILTER -->
 <div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="filterModalLabel">Filter Students</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <!-- Status Filter -->
-                <div class="mb-3">
-                    <label for="status-filter" class="form-label">Status</label>
-                    <select id="status-filter" class="form-select">
-                        <option value="">All</option>
-                        <option value="present">Present</option>
-                        <option value="incomplete">Incomplete</option>
-                        <option value="absent">Absent</option>
-                    </select>
-                </div>
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="filterModalLabel">Filter Students</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<!-- Status Filter -->
+				<div class="mb-3">
+					<label for="status-filter" class="form-label">Status</label>
+					<select id="status-filter" class="form-select">
+						<option value="">All</option>
+						<option value="present">Present</option>
+						<option value="incomplete">Incomplete</option>
+						<option value="absent">Absent</option>
+					</select>
+				</div>
 
-                <!-- Department Filter -->
-                <div class="mb-3">
-                    <label for="department-filter" class="form-label">Department</label>
-                    <select id="department-filter" class="form-select">
-                        <option value="">All</option>
-                        <?php if (!empty($this->session->userdata('org_id'))) : ?>
-                            <?php foreach ($departments as $department): ?>
-                                <option value="<?= $department->dept_name ?>"><?= $department->dept_name ?></option>
-                            <?php endforeach; ?>
-                        <?php else : ?>
-                            <option value="<?= $this->session->userdata('dept_name'); ?>"><?= $this->session->userdata('dept_name'); ?></option>
-                        <?php endif; ?>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
-            </div>
-        </div>
-    </div>
+				<!-- Department Filter -->
+				<div class="mb-3">
+					<label for="department-filter" class="form-label">Department</label>
+					<select id="department-filter" class="form-select">
+						<option value="">All</option>
+						<?php if (!empty($this->session->userdata('org_id'))) : ?>
+							<?php foreach ($departments as $department): ?>
+								<option value="<?= $department->dept_name ?>"><?= $department->dept_name ?></option>
+							<?php endforeach; ?>
+						<?php else : ?>
+							<option value="<?= $this->session->userdata('dept_name'); ?>"><?= $this->session->userdata('dept_name'); ?></option>
+						<?php endif; ?>
+					</select>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+				<button type="button" class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+			</div>
+		</div>
+	</div>
 </div>
 
 <div class="modal fade" id="editFinesModal" tabindex="-1" aria-labelledby="editFinesModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editFinesModalLabel">Edit Fines</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form id="editFinesForm">
-                <div class="modal-body">
-                    <input type="hidden" id="editStudentId" name="student_id">
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-sm">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="text-nowrap">#</th>
-                                    <th class="text-nowrap">Event</th>
-                                    <th class="text-nowrap">Reason</th>
-                                    <th class="text-nowrap">Amount (₱)</th>
-                                    <th class="text-nowrap">Reason for Change</th>
-                                </tr>
-                            </thead>
-                            <tbody id="editFinesTableBody">
-                                <!-- JS fills this -->
-                            </tbody>
-                        </table>
+	<div class="modal-dialog modal-lg modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="editFinesModalLabel">Edit Fines</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<form id="editFinesForm">
+				<div class="modal-body">
+					<input type="hidden" id="editStudentId" name="student_id">
+					<div class="table-responsive">
+						<table class="table table-bordered table-sm">
+							<thead class="table-light">
+								<tr>
+									<th class="text-nowrap">#</th>
+									<th class="text-nowrap">Event</th>
+									<th class="text-nowrap">Reason</th>
+									<th class="text-nowrap">Amount (₱)</th>
+									<th class="text-nowrap">Reason for Change</th>
+								</tr>
+							</thead>
+							<tbody id="editFinesTableBody">
+								<!-- JS fills this -->
+							</tbody>
+						</table>
 
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                </div>
-            </form>
-        </div>
-    </div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-primary">Save Changes</button>
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+				</div>
+			</form>
+		</div>
+	</div>
 </div>
 
 <!-- View Details -->
 <div class="modal fade" id="viewDetailsModal" tabindex="-1" aria-labelledby="viewDetailsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
+	<div class="modal-dialog modal-lg">
+		<div class="modal-content">
 
-            <div class="modal-header">
-                <h5 class="modal-title" id="viewDetailsModalLabel">View Details</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
+			<div class="modal-header">
+				<h5 class="modal-title" id="viewDetailsModalLabel">View Details</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
 
-            <div class="modal-body">
-                <p><strong>Name:</strong> <span id="viewName"></span></p>
-                <p><strong>Department:</strong> <span id="viewDepartment"></span></p>
-                <p><strong>Total Fines:</strong> ₱<span id="viewTotalFines"></span></p>
-                <p><strong>Reference Number:</strong> <span id="viewReferenceNumber"></span></p>
-                <div id="viewReceiptImageContainer" class="mt-3 d-none">
-                    <p><strong>Receipt:</strong></p>
-                    <img id="viewReceiptImage" src="" alt="Receipt" class="img-fluid rounded border" style="max-height: 400px;">
-                </div>
+			<div class="modal-body">
+				<p><strong>Name:</strong> <span id="viewName"></span></p>
+				<p><strong>Department:</strong> <span id="viewDepartment"></span></p>
+				<p><strong>Total Fines:</strong> ₱<span id="viewTotalFines"></span></p>
+				<p><strong>Reference Number:</strong> <span id="viewReferenceNumber"></span></p>
+				<div id="viewReceiptImageContainer" class="mt-3 d-none">
+					<p><strong>Receipt:</strong></p>
+					<img id="viewReceiptImage" src="" alt="Receipt" class="img-fluid rounded border" style="max-height: 400px;">
+				</div>
 
-                <hr>
-                <h6>Fines Breakdown</h6>
-                <table class="table table-bordered table-sm">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Reason</th>
-                            <th>Amount</th>
-                            <th>Event</th>
-                            <th>Date</th>
-                        </tr>
-                    </thead>
-                    <tbody id="viewFinesTableBody"></tbody>
-                </table>
-            </div>
+				<hr>
+				<h6>Fines Breakdown</h6>
+				<table class="table table-bordered table-sm">
+					<thead>
+						<tr>
+							<th>#</th>
+							<th>Reason</th>
+							<th>Amount</th>
+							<th>Event</th>
+							<th>Date</th>
+						</tr>
+					</thead>
+					<tbody id="viewFinesTableBody"></tbody>
+				</table>
+			</div>
 
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+			</div>
 
-        </div>
-    </div>
+		</div>
+	</div>
 </div>
 
 <!-- Payment Modal -->
 <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <form action="your-payment-handler.php" method="POST" class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="paymentModalLabel">Confirm Payment</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
+	<div class="modal-dialog modal-lg">
+		<form action="your-payment-handler.php" method="POST" class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="paymentModalLabel">Confirm Payment</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
 
-            <div class="modal-body">
-                <input type="hidden" name="student_id" id="modalStudentId">
+			<div class="modal-body">
+				<input type="hidden" name="student_id" id="modalStudentId">
 
-                <!-- Total Fines -->
-                <div class="mb-3">
-                    <label for="modalTotalFines" class="form-label">Total Fines</label>
-                    <input type="text" class="form-control" id="modalTotalFines" name="total_fines" readonly>
-                </div>
+				<!-- Total Fines -->
+				<div class="mb-3">
+					<label for="modalTotalFines" class="form-label">Total Fines</label>
+					<input type="text" class="form-control" id="modalTotalFines" name="total_fines" readonly>
+				</div>
 
-                <!-- Fines Breakdown Table -->
-                <div class="mb-3">
-                    <label class="form-label">Fines Breakdown</label>
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-sm" id="finesBreakdownTable">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>#</th>
-                                    <th>Remarks</th>
-                                    <th>Amount</th>
-                                    <th>Activity</th>
-                                    <th>Date</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Rows will be inserted via JS -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+				<!-- Fines Breakdown Table -->
+				<div class="mb-3">
+					<label class="form-label">Fines Breakdown</label>
+					<div class="table-responsive">
+						<table class="table table-bordered table-sm" id="finesBreakdownTable">
+							<thead class="table-light">
+								<tr>
+									<th>#</th>
+									<th>Remarks</th>
+									<th>Amount</th>
+									<th>Activity</th>
+									<th>Date</th>
+								</tr>
+							</thead>
+							<tbody>
+								<!-- Rows will be inserted via JS -->
+							</tbody>
+						</table>
+					</div>
+				</div>
 
-                <!-- Payment Input Fields -->
-                <div class="mb-3">
-                    <label for="modeOfPayment" class="form-label">Mode of Payment</label>
-                    <select class="form-select" name="mode_of_payment" id="modeOfPayment" required>
-                        <option value="" id="modalModePayment" selected disabled>Select Mode of Payment</option>
-                        <option value="Online Payment">Online Payment</option>
-                        <option value="Cash">Cash</option>
-                    </select>
-                </div>
+				<!-- Payment Input Fields -->
+				<div class="mb-3">
+					<label for="modeOfPayment" class="form-label">Mode of Payment</label>
+					<select class="form-select" name="mode_of_payment" id="modeOfPayment" required>
+						<option value="" id="modalModePayment" selected disabled>Select Mode of Payment</option>
+						<option value="Online Payment">Online Payment</option>
+						<option value="Cash">Cash</option>
+					</select>
+				</div>
 
 
-                <div class="mb-3">
-                    <label for="referenceNumber" class="form-label">Reference Number</label>
-                    <input type="text" class="form-control" name="reference_number" id="referenceNumber" placeholder="Enter reference number" required>
-                </div>
-                <!-- Receipt Preview (Initially Hidden) -->
-                <div class="mt-4" id="receiptSection">
-                    <h6>Payment Receipt</h6>
-                    <div class="mb-3">
-                        <img id="receiptImage" src="" alt="Receipt" class="img-fluid mb-3" style="max-height: 150px; width: auto;">
-                    </div>
-                </div>
-            </div>
+				<div class="mb-3">
+					<label for="referenceNumber" class="form-label">Reference Number</label>
+					<input type="text" class="form-control" name="reference_number" id="referenceNumber" placeholder="Enter reference number" required>
+				</div>
+				<!-- Receipt Preview (Initially Hidden) -->
+				<div class="mt-4" id="receiptSection">
+					<h6>Payment Receipt</h6>
+					<div class="mb-3">
+						<img id="receiptImage" src="" alt="Receipt" class="img-fluid mb-3" style="max-height: 150px; width: auto;">
+					</div>
+				</div>
+			</div>
 
-            <div class="modal-footer">
-                <button type="submit" class="btn btn-success">Confirm Payment</button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            </div>
-        </form>
-    </div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-success">Confirm Payment</button>
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+			</div>
+		</form>
+	</div>
 </div>
 
 <script>
-    // Convert PHP fines data to JSON
-    const finesData = <?= json_encode($fines, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+	// Convert PHP fines data to JSON
+	const finesData = <?= json_encode($fines, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 
-    // Extract unique events
-    const events = [...new Map(finesData.map(fine => [fine.activity_id, {
-        id: fine.activity_id,
-        name: fine.activity_title
-    }])).values()];
+	// Extract unique events
+	const events = [...new Map(finesData.map(fine => [fine.activity_id, {
+		id: fine.activity_id,
+		name: fine.activity_title
+	}])).values()];
 
-    // Group fines by student
-    const studentsMap = new Map();
+	// Group fines by student
+	const studentsMap = new Map();
 
-    finesData.forEach(fine => {
-        if (!studentsMap.has(fine.student_id)) {
-            studentsMap.set(fine.student_id, {
-                id: fine.student_id,
-                name: `${fine.first_name} ${fine.last_name}`,
-                department: fine.dept_name,
-                fines: [],
-                status: fine.fines_status,
-                mode_payment: fine.mode_payment,
-                total_fines: fine.total_fines,
-                reference: fine.reference_number_admin,
-                receipt: fine.receipt,
-                changes: fine.remarks
-            });
-        }
+	finesData.forEach(fine => {
+		if (!studentsMap.has(fine.student_id)) {
+			studentsMap.set(fine.student_id, {
+				id: fine.student_id,
+				name: `${fine.first_name} ${fine.last_name}`,
+				department: fine.dept_name,
+				fines: [],
+				status: fine.fines_status,
+				mode_payment: fine.mode_payment,
+				total_fines: fine.total_fines,
+				reference: fine.reference_number_admin,
+				receipt: fine.receipt,
+				changes: fine.remarks
+			});
+		}
 
-        studentsMap.get(fine.student_id).fines.push({
-            eventId: fine.activity_id,
-            fine: fine.fines_amount,
-            reason: fine.fines_reason,
-            event_date: fine.start_date,
-            title: fine.activity_title
-        });
-    });
+		studentsMap.get(fine.student_id).fines.push({
+			eventId: fine.activity_id,
+			fine: fine.fines_amount,
+			reason: fine.fines_reason,
+			event_date: fine.start_date,
+			title: fine.activity_title
+		});
+	});
 
-    const studentsData = Array.from(studentsMap.values());
+	const studentsData = Array.from(studentsMap.values());
 
-    // Populate dynamic event headers
-    const eventsHeader = document.querySelector('thead tr');
-    events.forEach(event => {
-        const th = document.createElement('th');
-        th.className = 'text-nowrap';
-        th.scope = 'col';
-        th.innerHTML = event.name;
-        eventsHeader.insertBefore(th, eventsHeader.children[eventsHeader.children.length - 3]);
-    });
+	// Populate dynamic event headers
+	const eventsHeader = document.querySelector('thead tr');
+	events.forEach(event => {
+		const th = document.createElement('th');
+		th.className = 'text-nowrap';
+		th.scope = 'col';
+		th.innerHTML = event.name;
+		eventsHeader.insertBefore(th, eventsHeader.children[eventsHeader.children.length - 3]);
+	});
 
-    // Function to render rows based on pagination
-    const renderRows = (students, page = 1, itemsPerPage = 10) => {
-        const tableBody = document.getElementById('table-ticket-body');
-        tableBody.innerHTML = ''; // Clear current rows
+	// Function to render rows based on pagination
+	const renderRows = (students, page = 1, itemsPerPage = 10) => {
+		const tableBody = document.getElementById('table-ticket-body');
+		tableBody.innerHTML = ''; // Clear current rows
 
-        // Paginate the data
-        const start = (page - 1) * itemsPerPage;
-        const end = page * itemsPerPage;
-        const paginatedStudents = students.slice(start, end);
+		// Paginate the data
+		const start = (page - 1) * itemsPerPage;
+		const end = page * itemsPerPage;
+		const paginatedStudents = students.slice(start, end);
 
-        // Populate student rows
-        paginatedStudents.forEach(student => {
-            const row = document.createElement('tr');
+		// Populate student rows
+		paginatedStudents.forEach(student => {
+			const row = document.createElement('tr');
 
-            row.innerHTML = `
+			row.innerHTML = `
             <td class="text-nowrap">${student.id}</td>
             <td class="text-nowrap">${student.name}</td>
             <td class="text-nowrap">${student.department}</td>
         `;
 
-            // Fill in fines per event
-            events.forEach(event => {
-                const fine = student.fines.find(f => f.eventId === event.id);
-                const cell = document.createElement('td');
-                cell.className = 'text-nowrap';
-                cell.innerHTML = fine ? `₱${fine.fine}` : "₱0";
-                row.appendChild(cell);
-            });
+			// Fill in fines per event
+			events.forEach(event => {
+				const fine = student.fines.find(f => f.eventId === event.id);
+				const cell = document.createElement('td');
+				cell.className = 'text-nowrap';
+				cell.innerHTML = fine ? `₱${fine.fine}` : "₱0";
+				row.appendChild(cell);
+			});
 
-            // Total Fines
-            const totalCell = document.createElement('td');
-            totalCell.className = 'text-nowrap';
-            totalCell.innerHTML = `₱${student.total_fines}`;
-            row.appendChild(totalCell);
+			// Total Fines
+			const totalCell = document.createElement('td');
+			totalCell.className = 'text-nowrap';
+			totalCell.innerHTML = `₱${student.total_fines}`;
+			row.appendChild(totalCell);
 
-            // Status Badge
-            const statusCell = document.createElement('td');
-            statusCell.className = 'text-nowrap';
+			// Status Badge
+			const statusCell = document.createElement('td');
+			statusCell.className = 'text-nowrap';
 
-            let badgeClass = 'badge rounded-pill badge-subtle-secondary';
-            let iconClass = 'fas fa-question-circle';
+			let badgeClass = 'badge rounded-pill badge-subtle-secondary';
+			let iconClass = 'fas fa-question-circle';
 
-            switch ((student.status || '').toLowerCase()) {
-                case 'paid':
-                    badgeClass = 'badge rounded-pill badge-subtle-success';
-                    iconClass = 'fas fa-check-circle'; // ✅ Green check
-                    break;
-                case 'unpaid':
-                    badgeClass = 'badge rounded-pill badge-subtle-danger';
-                    iconClass = 'fas fa-times-circle'; // ❌ Red cross
-                    break;
-                case 'pending':
-                    badgeClass = 'badge rounded-pill badge-subtle-warning';
-                    iconClass = 'fas fa-clock'; // 🕒 Yellow clock
-                    break;
-                default:
-                    badgeClass = 'badge rounded-pill badge-subtle-secondary';
-                    iconClass = 'fas fa-exclamation-circle'; // ⚠️ Default fallback
-                    break;
-            }
+			switch ((student.status || '').toLowerCase()) {
+				case 'paid':
+					badgeClass = 'badge rounded-pill badge-subtle-success';
+					iconClass = 'fas fa-check-circle'; // ✅ Green check
+					break;
+				case 'unpaid':
+					badgeClass = 'badge rounded-pill badge-subtle-danger';
+					iconClass = 'fas fa-times-circle'; // ❌ Red cross
+					break;
+				case 'pending':
+					badgeClass = 'badge rounded-pill badge-subtle-warning';
+					iconClass = 'fas fa-clock'; // 🕒 Yellow clock
+					break;
+				default:
+					badgeClass = 'badge rounded-pill badge-subtle-secondary';
+					iconClass = 'fas fa-exclamation-circle'; // ⚠️ Default fallback
+					break;
+			}
 
-            statusCell.innerHTML = `
+			statusCell.innerHTML = `
             <span class="${badgeClass}">
                 ${student.status} <i class="${iconClass}"></i>
             </span>
         `;
-            row.appendChild(statusCell);
+			row.appendChild(statusCell);
 
-            // Action Dropdown
-            const actionCell = document.createElement('td');
-            actionCell.innerHTML = `
+			// Action Dropdown
+			const actionCell = document.createElement('td');
+			actionCell.innerHTML = `
             <div class="dropdown font-sans-serif position-static">
                 <button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button"
                     data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -452,93 +452,93 @@
                 </div>
             </div>
         `;
-            row.appendChild(actionCell);
-            tableBody.appendChild(row);
-        });
+			row.appendChild(actionCell);
+			tableBody.appendChild(row);
+		});
 
-        renderPaginationNumbers(students.length, page, itemsPerPage);
-    };
+		renderPaginationNumbers(students.length, page, itemsPerPage);
+	};
 
-    // Pagination function
-    const renderPaginationNumbers = (totalItems, currentPage, itemsPerPage) => {
-        const totalPages = Math.ceil(totalItems / itemsPerPage);
-        const paginationList = document.querySelector('.pagination');
-        paginationList.innerHTML = ''; // Clear existing pagination numbers
+	// Pagination function
+	const renderPaginationNumbers = (totalItems, currentPage, itemsPerPage) => {
+		const totalPages = Math.ceil(totalItems / itemsPerPage);
+		const paginationList = document.querySelector('.pagination');
+		paginationList.innerHTML = ''; // Clear existing pagination numbers
 
-        for (let i = 1; i <= totalPages; i++) {
-            const li = document.createElement('li');
-            li.className = `page-item ${i === currentPage ? 'active' : ''}`;
-            li.innerHTML = `
+		for (let i = 1; i <= totalPages; i++) {
+			const li = document.createElement('li');
+			li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+			li.innerHTML = `
 			<button class="page-link" type="button">${i}</button>
 		`;
 
-            li.querySelector('button').addEventListener('click', () => {
-                renderRows(studentsData, i, itemsPerPage);
-            });
+			li.querySelector('button').addEventListener('click', () => {
+				renderRows(studentsData, i, itemsPerPage);
+			});
 
-            paginationList.appendChild(li);
-        }
-    };
+			paginationList.appendChild(li);
+		}
+	};
 
-    // Initialize pagination and search
-    let currentPage = 1;
-    const itemsPerPage = 10;
+	// Initialize pagination and search
+	let currentPage = 1;
+	const itemsPerPage = 10;
 
-    // Render the initial rows
-    renderRows(studentsData, currentPage, itemsPerPage);
+	// Render the initial rows
+	renderRows(studentsData, currentPage, itemsPerPage);
 
-    // Pagination click handlers
-    document.querySelector('[data-list-pagination="prev"]').addEventListener('click', () => {
-        if (currentPage > 1) {
-            currentPage--;
-            renderRows(studentsData, currentPage, itemsPerPage);
-        }
-    });
+	// Pagination click handlers
+	document.querySelector('[data-list-pagination="prev"]').addEventListener('click', () => {
+		if (currentPage > 1) {
+			currentPage--;
+			renderRows(studentsData, currentPage, itemsPerPage);
+		}
+	});
 
-    document.querySelector('[data-list-pagination="next"]').addEventListener('click', () => {
-        const totalPages = Math.ceil(studentsData.length / itemsPerPage);
-        if (currentPage < totalPages) {
-            currentPage++;
-            renderRows(studentsData, currentPage, itemsPerPage);
-        }
-    });
+	document.querySelector('[data-list-pagination="next"]').addEventListener('click', () => {
+		const totalPages = Math.ceil(studentsData.length / itemsPerPage);
+		if (currentPage < totalPages) {
+			currentPage++;
+			renderRows(studentsData, currentPage, itemsPerPage);
+		}
+	});
 
-    // Search functionality
-    document.getElementById('searchInput').addEventListener('input', (e) => {
-        const searchTerm = e.target.value.toLowerCase();
-        const filteredStudents = studentsData.filter(student => student.name.toLowerCase().includes(searchTerm));
-        renderRows(filteredStudents, 1, itemsPerPage); // Reset to page 1 on search
-    });
+	// Search functionality
+	document.getElementById('searchInput').addEventListener('input', (e) => {
+		const searchTerm = e.target.value.toLowerCase();
+		const filteredStudents = studentsData.filter(student => student.name.toLowerCase().includes(searchTerm));
+		renderRows(filteredStudents, 1, itemsPerPage); // Reset to page 1 on search
+	});
 
-    // Payment Modal
-    document.addEventListener('DOMContentLoaded', () => {
-        const paymentModal = document.getElementById('paymentModal');
-        const breakdownTable = document.querySelector("#finesBreakdownTable tbody");
-        const receiptSection = paymentModal.querySelector('#receiptSection');
-        const receiptImage = paymentModal.querySelector('#receiptImage');
-        const baseImageUrl = "<?= base_url('assets/receipt/') ?>";
+	// Payment Modal
+	document.addEventListener('DOMContentLoaded', () => {
+		const paymentModal = document.getElementById('paymentModal');
+		const breakdownTable = document.querySelector("#finesBreakdownTable tbody");
+		const receiptSection = paymentModal.querySelector('#receiptSection');
+		const receiptImage = paymentModal.querySelector('#receiptImage');
+		const baseImageUrl = "<?= base_url('assets/receipt/') ?>";
 
-        paymentModal.addEventListener('show.bs.modal', event => {
-            const studentId = event.relatedTarget.getAttribute('data-student-id');
-            const student = studentsData.find(s => s.id == studentId);
+		paymentModal.addEventListener('show.bs.modal', event => {
+			const studentId = event.relatedTarget.getAttribute('data-student-id');
+			const student = studentsData.find(s => s.id == studentId);
 
-            if (student) {
-                paymentModal.querySelector('#modalStudentId').value = student.id;
-                paymentModal.querySelector('#modalTotalFines').value = `₱${student.total_fines}`;
-                paymentModal.querySelector('#modalModePayment').value = student.mode_payment || '';
-                paymentModal.querySelector('#modeOfPayment').value = student.mode_payment || '';
+			if (student) {
+				paymentModal.querySelector('#modalStudentId').value = student.id;
+				paymentModal.querySelector('#modalTotalFines').value = `₱${student.total_fines}`;
+				paymentModal.querySelector('#modalModePayment').value = student.mode_payment || '';
+				paymentModal.querySelector('#modeOfPayment').value = student.mode_payment || '';
 
-                if (student.receipt) {
-                    receiptImage.src = baseImageUrl + student.receipt;
-                    receiptSection.classList.remove('d-none');
-                } else {
-                    receiptImage.src = "";
-                    receiptSection.classList.add('d-none');
-                }
+				if (student.receipt) {
+					receiptImage.src = baseImageUrl + student.receipt;
+					receiptSection.classList.remove('d-none');
+				} else {
+					receiptImage.src = "";
+					receiptSection.classList.add('d-none');
+				}
 
-                breakdownTable.innerHTML = '';
-                student.fines.forEach((fine, i) => {
-                    breakdownTable.innerHTML += `
+				breakdownTable.innerHTML = '';
+				student.fines.forEach((fine, i) => {
+					breakdownTable.innerHTML += `
                         <tr> 
                             <td>${i + 1}</td>
                             <td>${fine.reason}</td>
@@ -547,10 +547,10 @@
                             <td>${fine.event_date}</td>
                         </tr>
                     `;
-                });
-            }
-        });
-    });
+				});
+			}
+		});
+	});
 </script>
 
 <!-- 
@@ -1040,88 +1040,88 @@
 </script> -->
 
 <script>
-    $(document).ready(function() {
-        $('#paymentModal form').submit(function(e) {
-            e.preventDefault();
-            let formData = $(this).serialize();
+	$(document).ready(function() {
+		$('#paymentModal form').submit(function(e) {
+			e.preventDefault();
+			let formData = $(this).serialize();
 
-            $.ajax({
-                url: "<?php echo site_url('officer/fines-payment/confirm'); ?>",
-                method: "POST",
-                data: formData,
-                dataType: "json",
-                success: function(response) {
-                    if (response.status === 'success') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Payment Confirmed',
-                            text: response.message,
-                            confirmButtonColor: '#3085d6',
-                            confirmButtonText: 'OK'
-                        }).then(() => {
-                            $('#paymentModal').modal('hide');
-                            location.reload();
-                        });
-                    } else if (response.status === 'processing') {
-                        Swal.fire({
-                            icon: 'info',
-                            title: 'Under Review',
-                            text: response.message,
-                            confirmButtonColor: '#3085d6',
-                            confirmButtonText: 'OK'
-                        }).then(() => {
-                            $('#paymentModal').modal('hide');
-                            location.reload();
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: response.message || 'Something went wrong!',
-                        });
-                    }
-                },
-                error: function() {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Server Error',
-                        text: 'An error occurred while processing the payment.',
-                    });
-                }
-            });
-        });
-    });
+			$.ajax({
+				url: "<?php echo site_url('officer/fines-payment/confirm'); ?>",
+				method: "POST",
+				data: formData,
+				dataType: "json",
+				success: function(response) {
+					if (response.status === 'success') {
+						Swal.fire({
+							icon: 'success',
+							title: 'Payment Confirmed',
+							text: response.message,
+							confirmButtonColor: '#3085d6',
+							confirmButtonText: 'OK'
+						}).then(() => {
+							$('#paymentModal').modal('hide');
+							location.reload();
+						});
+					} else if (response.status === 'processing') {
+						Swal.fire({
+							icon: 'info',
+							title: 'Under Review',
+							text: response.message,
+							confirmButtonColor: '#3085d6',
+							confirmButtonText: 'OK'
+						}).then(() => {
+							$('#paymentModal').modal('hide');
+							location.reload();
+						});
+					} else {
+						Swal.fire({
+							icon: 'error',
+							title: 'Error',
+							text: response.message || 'Something went wrong!',
+						});
+					}
+				},
+				error: function() {
+					Swal.fire({
+						icon: 'error',
+						title: 'Server Error',
+						text: 'An error occurred while processing the payment.',
+					});
+				}
+			});
+		});
+	});
 </script>
 
 <!-- FILTER SCRIPT -->
 <script>
-    function applyFilters() {
-        console.log('Filters Applied');
-        var status = document.getElementById("status-filter").value.trim().toLowerCase();
-        var department = document.getElementById("department-filter").value.trim().toLowerCase();
+	function applyFilters() {
+		console.log('Filters Applied');
+		var status = document.getElementById("status-filter").value.trim().toLowerCase();
+		var department = document.getElementById("department-filter").value.trim().toLowerCase();
 
-        // Get all the student rows in the table
-        const rows = document.querySelectorAll('#table-ticket-body tr');
+		// Get all the student rows in the table
+		const rows = document.querySelectorAll('#table-ticket-body tr');
 
-        rows.forEach(row => {
-            // Get the department (3rd column) and status (6th column)
-            const studentDepartment = row.querySelector('td:nth-child(3)') ? row.querySelector('td:nth-child(3)').textContent.trim().toLowerCase() : '';
-            const studentStatus = row.querySelector('td:nth-child(6) span') ? row.querySelector('td:nth-child(6) span').textContent.trim().toLowerCase() : '';
+		rows.forEach(row => {
+			// Get the department (3rd column) and status (6th column)
+			const studentDepartment = row.querySelector('td:nth-child(3)') ? row.querySelector('td:nth-child(3)').textContent.trim().toLowerCase() : '';
+			const studentStatus = row.querySelector('td:nth-child(6) span') ? row.querySelector('td:nth-child(6) span').textContent.trim().toLowerCase() : '';
 
-            // Determine if the row matches the selected filters
-            let departmentMatches = (department === "" || studentDepartment === department);
-            let statusMatches = (status === "" || studentStatus === status);
+			// Determine if the row matches the selected filters
+			let departmentMatches = (department === "" || studentDepartment === department);
+			let statusMatches = (status === "" || studentStatus === status);
 
-            // Show or hide the row based on the filter conditions
-            if (departmentMatches && statusMatches) {
-                row.style.display = ""; // Show the row
-            } else {
-                row.style.display = "none"; // Hide the row
-            }
-        });
+			// Show or hide the row based on the filter conditions
+			if (departmentMatches && statusMatches) {
+				row.style.display = ""; // Show the row
+			} else {
+				row.style.display = "none"; // Hide the row
+			}
+		});
 
 
-        // Manually hide the modal by toggling the class or with jQuery
-        $('#filterModal').modal('hide');
-    }
+		// Manually hide the modal by toggling the class or with jQuery
+		$('#filterModal').modal('hide');
+	}
 </script>
