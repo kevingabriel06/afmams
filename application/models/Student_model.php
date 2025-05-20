@@ -1337,7 +1337,62 @@ class Student_model extends CI_Model
 		return $query->result_array();
 	}
 
+	// public function get_fines_with_summary_and_activity($student_id = null)
+	// {
+	// 	// Get current year and month
+	// 	$currentYear = date('Y');
+	// 	$currentMonth = date('n'); // 1 to 12 (numeric month)
 
+	// 	if ($currentMonth >= 7 && $currentMonth <= 12) {
+	// 		// Current semester: July 1 to December 31 (current year)
+	// 		$semesterStart = "$currentYear-08-01";
+	// 		$semesterEnd = "$currentYear-12-31";
+	// 	} else {
+	// 		// Current semester: January 1 to June 30 (current year)
+	// 		$semesterStart = "$currentYear-01-01";
+	// 		$semesterEnd = "$currentYear-07-30";
+	// 	}
+
+	// 	$this->db->select('
+	// 		fines.*, 
+	// 		activity.activity_title, 
+	// 		activity.organizer, 
+	// 		activity.start_date, 
+	// 		fines_summary.summary_id,
+	// 		fines_summary.total_fines,
+	// 		fines_summary.fines_status,
+	// 		fines_summary.mode_payment,
+	// 		fines_summary.reference_number_admin,
+	// 		fines_summary.reference_number_students,
+	// 		fines_summary.last_updated,
+	// 		fines_summary.receipt,
+	// 		fines_summary.generated_receipt,
+	// 		attendance.time_in as actual_time_in,
+	// 		attendance.time_out as actual_time_out,
+	// 		activity_time_slots.date_time_in as scheduled_time_in,
+	// 		activity_time_slots.date_time_out as scheduled_time_out,
+	// 		activity_time_slots.slot_name
+	// 	');
+
+	// 	$this->db->from('fines');
+	// 	$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+	// 	$this->db->join('fines_summary', 'fines_summary.student_id = fines.student_id AND fines_summary.organizer = activity.organizer', 'left');
+	// 	$this->db->join('attendance', 'attendance.attendance_id = fines.attendance_id', 'left');
+	// 	$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = fines.timeslot_id', 'left');
+
+	// 	if ($student_id !== null) {
+	// 		$this->db->where('fines.student_id', $student_id);
+	// 	}
+
+	// 	// Filter activities by current semester dates only
+	// 	$this->db->where('activity.start_date >=', $semesterStart);
+	// 	$this->db->where('activity.start_date <=', $semesterEnd);
+
+	// 	$this->db->order_by('LOWER(TRIM(activity.organizer)), activity.activity_title, activity.start_date');
+
+	// 	$query = $this->db->get();
+	// 	return $query->result_array();
+	// }
 
 
 

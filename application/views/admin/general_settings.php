@@ -140,7 +140,7 @@
 						</div>
 					</div>
 					<div class="d-flex justify-content-end align-items-center gap-2 mt-3">
-						<a href="<?= base_url('assets/templates/Template-ImportingDeptOfficers.xlsx') ?>" class="btn btn-sm btn-outline-secondary" download>
+						<a href="<?= base_url('assets/templates/Template-ImportingDepartment.xlsx') ?>" class="btn btn-sm btn-outline-secondary" download>
 							Download Template
 						</a>
 						<button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModalDept">
@@ -254,7 +254,7 @@
 						</div>
 					</div>
 					<div class="d-flex justify-content-end align-items-center gap-2 mt-3">
-						<a href="<?= base_url('assets/templates/Template-ImportingOrgOfficers.xlsx') ?>" class="btn btn-sm btn-outline-secondary" download>
+						<a href="<?= base_url('assets/templates/Template-ImportingOrganzation.xlsx') ?>" class="btn btn-sm btn-outline-secondary" download>
 							Download Template
 						</a>
 						<button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModalOrg">
@@ -354,6 +354,121 @@
 					});
 				});
 			</script>
+
+			<!-- Importing of Exempted Students -->
+			<div class="col-md-6">
+				<div class="border rounded p-3 h-100 d-flex flex-column justify-content-between">
+					<div class="d-flex">
+						<div class="me-3">
+							<span class="fs-4 text-primary"><i class="fas fa-file-import"></i></span>
+						</div>
+						<div>
+							<h6 class="mb-1 fw-bold">Importing of Exempted Students</h6>
+							<p class="mb-0 text-muted small">Upload bulk data of exempted students (C.O.E) using CSV or Excel files.</p>
+						</div>
+					</div>
+					<div class="d-flex justify-content-end align-items-center gap-2 mt-3">
+						<a href="<?= base_url('assets/templates/Template-ImportingExemptedStudents.xlsx') ?>" class="btn btn-sm btn-outline-secondary" download>
+							Download Template
+						</a>
+						<button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModalExempted">
+							Open
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<!-- Import Modal for Exempted Students -->
+			<div class="modal fade" id="importModalExempted" tabindex="-1" aria-labelledby="importModalExemptedLabel" aria-hidden="true">
+				<div class="modal-dialog">
+					<form class="modal-content" id="importFormExempted">
+						<div class="modal-header">
+							<h5 class="modal-title" id="importModalExemptedLabel">Import Exempted Students</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						</div>
+						<div class="modal-body">
+							<div class="mb-3">
+								<label for="importFileExempted" class="form-label">Choose a file</label>
+								<input type="file" name="import_file" class="form-control" id="importFileExempted" accept=".csv, .xlsx" required>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+							<button type="submit" class="btn btn-primary">Upload</button>
+						</div>
+					</form>
+				</div>
+			</div>
+
+			<!-- Script for Importing Exempted Students -->
+			<script>
+				$(document).ready(function() {
+					$('#importFormExempted').submit(function(e) {
+						e.preventDefault();
+
+						Swal.fire({
+							title: 'Are you sure?',
+							text: "This action is not reversible. Make sure all details are correct before proceeding.",
+							icon: 'warning',
+							showCancelButton: true,
+							confirmButtonColor: '#3085d6',
+							cancelButtonColor: '#d33',
+							confirmButtonText: 'Yes, upload it!',
+							cancelButtonText: 'Cancel'
+						}).then((result) => {
+							if (result.isConfirmed) {
+								var formData = new FormData(this);
+
+								Swal.fire({
+									title: 'Uploading...',
+									text: 'Please wait while we import your file.',
+									allowOutsideClick: false,
+									didOpen: () => {
+										Swal.showLoading();
+									}
+								});
+
+								$.ajax({
+									url: "<?= site_url('admin/import-exempted-students'); ?>",
+									type: "POST",
+									data: formData,
+									contentType: false,
+									processData: false,
+									dataType: 'json',
+									success: function(response) {
+										Swal.close();
+
+										if (response.success) {
+											Swal.fire({
+												icon: 'success',
+												title: 'Success!',
+												text: response.message
+											}).then(() => {
+												$('#importModalExempted').modal('hide');
+											});
+										} else {
+											Swal.fire({
+												icon: 'error',
+												title: 'Import Failed',
+												text: response.message
+											});
+										}
+									},
+									error: function() {
+										Swal.close();
+										Swal.fire({
+											icon: 'error',
+											title: 'Error',
+											text: 'An unexpected error occurred. Please try again.'
+										});
+									}
+								});
+							}
+						});
+					});
+				});
+			</script>
+
 
 			<!-- QR Code Generator Section -->
 			<!-- QR Code Generator Section -->

@@ -202,6 +202,7 @@ $route['admin/general-settings'] = 'AdminController/general_settings';
 $route['admin/import-students'] = 'AdminController/import_list';
 $route['admin/import-department-officers'] = 'AdminController/import_list_dept';
 $route['admin/import-organization-officers'] = 'AdminController/import_list_org';
+$route['admin/import-exempted-students'] = 'AdminController/import_list_org';
 $route['admin/generate_bulk_qr'] = 'AdminController/generate_bulk_qr';
 $route['admin/save-organization'] = 'AdminController/save_organization';
 $route['admin/get_organizations'] = 'AdminController/get_organizations';

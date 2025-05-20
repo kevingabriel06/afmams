@@ -24,17 +24,6 @@
 					<!-- Search Input -->
 					<div class="d-flex align-items-center justify-content-between justify-content-lg-end px-x1">
 						<div class="d-flex align-items-center" id="table-ticket-replace-element">
-							<div class="col-auto">
-								<form>
-									<div class="input-group input-search-width">
-										<input id="searchInput" class="form-control form-control-sm shadow-none search"
-											type="search" placeholder="Search" aria-label="search" />
-										<button class="btn btn-sm btn-outline-secondary border-300 hover-border-secondary" type="button">
-											<span class="fa fa-search fs-10"></span>
-										</button>
-									</div>
-								</form>
-							</div>
 							<button class="btn btn-sm btn-falcon-default ms-2" type="button">
 								<span class="fas fa-download"></span>
 							</button>
@@ -47,8 +36,186 @@
 				</div>
 			</div>
 
+			<!-- Modal for Filter -->
+			<div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
+				<div class="modal-dialog">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h5 class="modal-title" id="filterModalLabel">Filter Activities</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						</div>
+						<div class="modal-body">
+							<!-- Semester Filter -->
+							<div class="mb-3">
+								<label for="semester-filter" class="form-label">Semester</label>
+								<select id="semester-filter" class="form-select">
+									<option value="" selected>Select Semester</option>
+									<option value="1st-semester">1st Semester</option>
+									<option value="2nd-semester">2nd Semester</option>
+								</select>
+							</div>
+
+							<!-- Year Picker for Academic Year -->
+							<div class="mb-3">
+								<label for="year-picker" class="form-label">Academic Year</label>
+								<div class="input-group">
+									<select id="start-year" class="form-select">
+										<option value="" selected>Select Start Year</option>
+									</select>
+									<span class="input-group-text">-</span>
+									<select id="end-year" class="form-select">
+										<option value="" selected>Select End Year</option>
+									</select>
+								</div>
+								<div class="invalid-feedback">
+									Please select a valid academic year range with a 1-year difference.
+								</div>
+							</div>
+						</div>
+
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+							<button type="button" class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<script>
+				document.addEventListener("DOMContentLoaded", function() {
+					const currentYear = new Date().getFullYear();
+					const startYearDropdown = $('#start-year');
+					const endYearDropdown = $('#end-year');
+
+					// Populate Start Year dropdown dynamically from current year down to 1900
+					for (let year = currentYear; year >= 1900; year--) {
+						startYearDropdown.append(new Option(year, year));
+					}
+
+					// When page loads, if start year has a value, populate End Year accordingly
+					if (startYearDropdown.val()) {
+						const selectedStartYear = parseInt(startYearDropdown.val());
+						populateEndYear(selectedStartYear);
+					}
+
+					// Update End Year based on selected Start Year
+					startYearDropdown.on('change', function() {
+						const selectedStartYear = parseInt(this.value);
+						populateEndYear(selectedStartYear);
+					});
+
+					function populateEndYear(selectedStartYear) {
+						endYearDropdown.empty().append(new Option("Select End Year", "", true, true));
+						if (selectedStartYear) {
+							// Automatically set end year as one year after the selected start year
+							endYearDropdown.append(new Option(selectedStartYear + 1, selectedStartYear + 1));
+							endYearDropdown.val(selectedStartYear + 1);
+						}
+					}
+
+					// Apply filters based on semester, academic year, and status
+					window.applyFilters = function() {
+						const selectedStartYear = parseInt($('#start-year').val());
+						const selectedEndYear = parseInt($('#end-year').val());
+						const selectedSemester = $('#semester-filter').val();
+						let startDate, endDate;
+
+						// Validate year range (must be exactly one year difference)
+						if (!selectedStartYear || !selectedEndYear || selectedEndYear - selectedStartYear !== 1) {
+							$('#start-year, #end-year').addClass('is-invalid');
+							alert("Please select a valid academic year range with a one-year difference.");
+							return;
+						} else {
+							$('#start-year, #end-year').removeClass('is-invalid');
+						}
+
+						// Define semester date ranges
+						if (selectedSemester === "1st-semester") {
+							startDate = new Date(selectedStartYear, 7, 1); // August 1
+							endDate = new Date(selectedStartYear, 11, 31); // December 31
+						} else if (selectedSemester === "2nd-semester") {
+							startDate = new Date(selectedEndYear, 0, 1); // January 1
+							endDate = new Date(selectedEndYear, 6, 31); // July 31
+						} else {
+							// If semester not selected or "all"
+							startDate = new Date(selectedStartYear, 0, 1); // January 1
+							endDate = new Date(selectedEndYear, 11, 31); // December 31
+						}
+
+						filterActivitiesByDate(startDate, endDate);
+					};
+
+					// Filters activities by date range
+					function filterActivitiesByDate(startDate, endDate) {
+						let activities = document.querySelectorAll('.evaluation-row');
+						let hasVisibleActivity = false;
+
+						activities.forEach(activity => {
+							let activityDateStr = activity.getAttribute('data-start-date');
+							if (!activityDateStr) return;
+
+							let activityDate = new Date(activityDateStr);
+
+							if (activityDate >= startDate && activityDate <= endDate) {
+								activity.style.display = 'table-row';
+								hasVisibleActivity = true;
+							} else {
+								activity.style.display = 'none';
+							}
+						});
+
+						// Toggle entire table container visibility
+						const tableContainer = document.getElementById("activityTableContainer");
+						if (tableContainer) {
+							tableContainer.style.display = hasVisibleActivity ? 'block' : 'none';
+						}
+
+						toggleNoActivityMessage(hasVisibleActivity);
+
+						// Close modal if open
+						let filterModal = document.getElementById('filterModal');
+						if (filterModal) {
+							let modalInstance = bootstrap.Modal.getInstance(filterModal);
+							if (modalInstance) modalInstance.hide();
+						}
+					}
+
+					// Show or hide fallback message
+					function toggleNoActivityMessage(hasVisibleActivity) {
+						let fallbackMessage = document.getElementById("evaluation-table-fallback");
+						if (hasVisibleActivity) {
+							fallbackMessage.classList.add("d-none");
+						} else {
+							fallbackMessage.classList.remove("d-none");
+						}
+					}
+
+					// Optional: Auto-apply current semester filter on page load
+					(function autoApplyCurrentSemester() {
+						const now = new Date();
+						const month = now.getMonth();
+						const year = now.getFullYear();
+
+						// Set start year and end year dropdowns
+						startYearDropdown.val(month >= 7 ? year : year - 1).trigger('change'); // Trigger change to populate end year
+
+						// Set semester filter accordingly
+						if (month >= 7) {
+							$('#semester-filter').val('1st-semester');
+						} else {
+							$('#semester-filter').val('2nd-semester');
+						}
+
+						// Apply filter
+						window.applyFilters();
+					})();
+
+				});
+			</script>
+
+
 			<div class="card-body">
-				<div class="table-responsive scrollbar">
+				<div class="table-responsive scrollbar" id="activityTableContainer">
 					<?php
 					$previous_organizer = '';
 					$organizer_fines = [];
@@ -95,12 +262,12 @@
 									echo '<span class="text-warning fw-bold">Waiting for admin approval...</span>';
 								} else {
 									echo '<button class="btn btn-primary"
-              data-bs-toggle="modal"
-              data-bs-target="#payNowModal"
-              data-total_fines="' . number_format($total_fines, 2) . '"
-              data-summary_id="' . $last_fine['summary_id'] . '"
-              data-student_id="' . $last_fine['student_id'] . '"
-              data-organizer="' . htmlspecialchars($last_fine['organizer'], ENT_QUOTES) . '">Pay Now</button>';
+										data-bs-toggle="modal"
+										data-bs-target="#payNowModal"
+										data-total_fines="' . number_format($total_fines, 2) . '"
+										data-summary_id="' . $last_fine['summary_id'] . '"
+										data-student_id="' . $last_fine['student_id'] . '"
+										data-organizer="' . htmlspecialchars($last_fine['organizer'], ENT_QUOTES) . '">Pay Now</button>';
 								}
 
 								echo '</div></div>';
@@ -118,7 +285,7 @@
 						endif;
 
 						if ($fine['activity_title'] !== $previous_activity) {
-							echo '<tr>';
+							echo '<tr class="evaluation-row" data-start-date="' . htmlspecialchars($fine['start_date']) . '">';
 							echo '<td>' . htmlspecialchars($fine['activity_title']) . '</td>';
 							echo '<td>' . date('Y-m-d', strtotime($fine['start_date'])) . '</td>';
 
@@ -137,11 +304,11 @@
 							echo '<td>₱' . number_format($activity_total, 2) . '</td>';
 							echo '<td class="text-center">';
 							echo '<button class="btn btn-sm border border-primary text-primary bg-transparent rounded-pill px-3"
-          style="font-weight: 500;"
-          data-bs-toggle="modal"
-          data-bs-target="#breakdownModal-' . $index . '">
-          View Breakdown
-        </button>';
+								style="font-weight: 500;"
+								data-bs-toggle="modal"
+								data-bs-target="#breakdownModal-' . $index . '">
+								View Breakdown
+								</button>';
 							echo '</td>';
 							echo '</tr>';
 
@@ -230,21 +397,26 @@
 							echo '<span class="text-warning fw-bold">Waiting for admin approval...</span>';
 						} else {
 							echo '<button class="btn btn-primary"
-          data-bs-toggle="modal"
-          data-bs-target="#payNowModal"
-          data-total_fines="' . number_format($total_fines, 2) . '"
-          data-summary_id="' . $last_fine['summary_id'] . '"
-          data-student_id="' . $last_fine['student_id'] . '"
-          data-organizer="' . htmlspecialchars($last_fine['organizer'], ENT_QUOTES) . '">Pay Now</button>';
+								data-bs-toggle="modal"
+								data-bs-target="#payNowModal"
+								data-total_fines="' . number_format($total_fines, 2) . '"
+								data-summary_id="' . $last_fine['summary_id'] . '"
+								data-student_id="' . $last_fine['student_id'] . '"
+								data-organizer="' . htmlspecialchars($last_fine['organizer'], ENT_QUOTES) . '">Pay Now</button>';
 						}
 
 						echo '</div></div>';
 					endif;
 					?>
 				</div>
+				<div class="fallback text-center my-5 py-5 border rounded shadow-sm bg-light d-none" id="evaluation-table-fallback">
+					<div class="mb-3">
+						<i class="bi bi-exclamation-circle text-muted" style="font-size: 3rem;"></i>
+					</div>
+					<h4 class="text-secondary">No data available for this semester</h4>
+					<p class="text-muted">Try adjusting your filter or check back later.</p>
+				</div>
 			</div>
-
-
 
 			<!-- Modal -->
 			<div class="modal fade" id="payNowModal" tabindex="-1" aria-labelledby="payNowModalLabel" aria-hidden="true">

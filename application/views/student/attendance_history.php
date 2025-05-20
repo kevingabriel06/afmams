@@ -1,3 +1,5 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
+
 <div class="card mb-3 mb-lg-0">
 	<div class="card-header bg-body-tertiary d-flex justify-content-between">
 		<h5 class="mb-0">Attendance History</h5>
@@ -44,6 +46,28 @@
 				</div>
 			</div>
 
+			<script>
+				document.addEventListener("DOMContentLoaded", function() {
+					let options = {
+						valueNames: ["activity", "organizer", "status"],
+						page: 10,
+						pagination: true,
+					};
+
+					let evalList = new List("attendanceTable", options);
+
+					const searchInput = document.getElementById("searchInput");
+					const fallbackMessage = document.getElementById("evaluation-table-fallback");
+
+					searchInput.addEventListener("input", function() {
+						evalList.search(this.value);
+
+						const visibleRows = document.querySelectorAll("#attendanceTable tbody tr:not([style*='display: none'])").length;
+						fallbackMessage.classList.toggle("d-none", visibleRows > 0);
+					});
+				});
+			</script>
+
 			<div class="card-body p-0">
 				<div class="table-responsive scrollbar">
 					<table class="table table-hover table-striped overflow-hidden">
@@ -58,11 +82,11 @@
 								<!-- <th scope="col">Action</th> -->
 							</tr>
 						</thead>
-						<tbody>
+						<tbody class="list">
 							<?php foreach ($attendances as $attendance): ?>
-								<tr class="align-middle">
-									<td class="text-nowrap"><?php echo $attendance->activity_title; ?></td>
-									<td class="text-nowrap"><?php echo $attendance->organizer; ?></td>
+								<tr class="align-middle" data-start-date="<?php echo $attendance->start_date; ?>">
+									<td class="text-nowrap activity"><?php echo $attendance->activity_title; ?></td>
+									<td class="text-nowrap organizer"><?php echo $attendance->organizer; ?></td>
 									<td class="text-nowrap"><?php echo $attendance->slot_name; ?></td>
 									<td class="text-nowrap">
 										<?php echo !empty($attendance->time_in) ? date("M d, Y g:i A", strtotime($attendance->time_in)) : 'No Data'; ?>
@@ -70,7 +94,7 @@
 									<td class="text-nowrap">
 										<?php echo !empty($attendance->time_out) ? date("M d, Y g:i A", strtotime($attendance->time_out)) : 'No Data'; ?>
 									</td>
-									<td>
+									<td class="status">
 										<?php
 										$status = $attendance->attendance_status;
 										switch ($status) {
@@ -114,12 +138,16 @@
                                         </div>
                                     </td> -->
 								</tr>
+
 							<?php endforeach; ?>
 						</tbody>
 					</table>
+					<!-- ✅ Move fallback outside the table -->
+					<div id="evaluation-table-fallback" class="d-none text-center p-3">No results found.</div>
 				</div>
 			</div>
 		</div>
+
 	</div>
 </div>
 
@@ -158,17 +186,6 @@
 						Please select a valid academic year range with a 1-year difference.
 					</div>
 				</div>
-
-				<!-- Status -->
-				<div class="mb-3">
-					<label for="status-filter">Status</label>
-					<select id="status-filter" class="form-select">
-						<option value="">Select Status</option>
-						<option value="Completed">Completed</option>
-						<option value="Ongoing">Ongoing</option>
-						<option value="Upcoming">Upcoming</option>
-					</select>
-				</div>
 			</div>
 
 			<div class="modal-footer">
@@ -181,61 +198,63 @@
 
 <script>
 	document.addEventListener("DOMContentLoaded", function() {
-		let options = {
-			valueNames: ["form", "activity", "status"],
-			page: 10,
-			pagination: true,
-		};
-		let evalList = new List("evaluationTable", options); // Initialize List.js
-
-		const searchInput = document.getElementById("searchInput");
-		const fallbackMessage = document.getElementById("evaluation-table-fallback");
-
-		searchInput.addEventListener("input", function() {
-			evalList.search(this.value); // Perform the search
-
-			// Check for visible rows after filtering
-			const visibleRows = document.querySelectorAll(".list tr:not([style*='display: none'])").length;
-
-			// Toggle the fallback message visibility
-			fallbackMessage.classList.toggle("d-none", visibleRows > 0);
-		});
-	});
-</script>
-
-<script>
-	document.addEventListener("DOMContentLoaded", function() {
 		const currentYear = new Date().getFullYear();
+		const currentMonth = new Date().getMonth(); // 0-based (Jan = 0)
 		const startYearDropdown = $('#start-year');
 		const endYearDropdown = $('#end-year');
-		const yearFilter = document.getElementById("year-filter");
-		const statusFilter = document.getElementById("status-filter"); // Reference to status filter dropdown
+		const semesterDropdown = $('#semester-filter');
 
-		// Populate Start Year dropdown dynamically from the current year down to 1900
+		// Populate Start Year dropdown from current year down to 1900
 		for (let year = currentYear; year >= 1900; year--) {
 			startYearDropdown.append(new Option(year, year));
 		}
 
-		// Update End Year based on selected Start Year
+		// Automatically populate End Year based on selected Start Year
 		startYearDropdown.on('change', function() {
 			const selectedStartYear = parseInt(this.value);
-			endYearDropdown.empty().append(new Option("Select End Year", "", true, true)); // Reset options
+			endYearDropdown.empty().append(new Option("Select End Year", "", true, true));
 
 			if (selectedStartYear) {
-				// Automatically set end year as one year after the selected start year
 				endYearDropdown.append(new Option(selectedStartYear + 1, selectedStartYear + 1));
 			}
 		});
 
-		// Apply filters based on semester, academic year, and status
+		// Function to detect and load current semester
+		function loadCurrentSemester() {
+			let startYear, endYear, semester;
+
+			if (currentMonth >= 7 && currentMonth <= 11) {
+				// August to December → 1st Semester
+				startYear = currentYear;
+				endYear = currentYear + 1;
+				semester = "1st-semester";
+			} else if (currentMonth >= 0 && currentMonth <= 6) {
+				// January to July → 2nd Semester
+				startYear = currentYear - 1;
+				endYear = currentYear;
+				semester = "2nd-semester";
+			}
+
+			// Set selected values
+			startYearDropdown.val(startYear).trigger('change');
+			setTimeout(() => {
+				endYearDropdown.val(endYear);
+				semesterDropdown.val(semester);
+
+				// Trigger filtering
+				applyFilters();
+			}, 200); // Slight delay to ensure end year is populated
+		}
+
+		// Main function to apply filters
 		window.applyFilters = function() {
 			const selectedStartYear = parseInt($('#start-year').val());
 			const selectedEndYear = parseInt($('#end-year').val());
 			const selectedSemester = $('#semester-filter').val();
-			const selectedStatus = statusFilter.value; // Get selected status value
+
 			let startDate, endDate;
 
-			// Validate year range (must be exactly a one-year difference)
+			// Year range must be exactly 1 year
 			if (!selectedStartYear || !selectedEndYear || selectedEndYear - selectedStartYear !== 1) {
 				$('#start-year, #end-year').addClass('is-invalid');
 				alert("Please select a valid academic year range with a one-year difference.");
@@ -244,41 +263,33 @@
 				$('#start-year, #end-year').removeClass('is-invalid');
 			}
 
-			// Define the exact date range for 1st and 2nd semesters
+			// Define semester-specific date ranges
 			if (selectedSemester === "1st-semester") {
-				startDate = new Date(selectedStartYear, 7, 1); // August 1, selected start year (e.g., Aug 1, 2024)
-				endDate = new Date(selectedStartYear, 11, 31); // December 31, selected start year (e.g., Dec 31, 2024)
+				startDate = new Date(selectedStartYear, 7, 1); // Aug 1
+				endDate = new Date(selectedStartYear, 11, 31); // Dec 31
 			} else if (selectedSemester === "2nd-semester") {
-				startDate = new Date(selectedEndYear, 0, 1); // January 1, selected end year (e.g., Jan 1, 2025)
-				endDate = new Date(selectedEndYear, 6, 31); // July 31, selected end year (e.g., July 31, 2025)
+				startDate = new Date(selectedEndYear, 0, 1); // Jan 1
+				endDate = new Date(selectedEndYear, 6, 31); // Jul 31
 			} else {
-				// Default to the full academic year (Jan 1, start year - Dec 31, end year)
-				startDate = new Date(selectedStartYear, 0, 1);
-				endDate = new Date(selectedEndYear, 11, 31);
+				startDate = new Date(selectedStartYear, 0, 1); // Jan 1
+				endDate = new Date(selectedEndYear, 11, 31); // Dec 31
 			}
 
-			filterActivitiesByDateAndStatus(startDate, endDate, selectedStatus);
+			filterActivitiesByDate(startDate, endDate);
 		};
 
-		// Function to filter activities based on the selected date range and status
-		function filterActivitiesByDateAndStatus(startDate, endDate, status) {
-			let activities = document.querySelectorAll('.evaluation-row'); // Target the table rows
+		function filterActivitiesByDate(startDate, endDate) {
+			const activities = document.querySelectorAll('tr[data-start-date]');
 			let hasVisibleActivity = false;
 
 			activities.forEach(activity => {
-				let activityDateStr = activity.getAttribute('data-start-date');
-				let activityStatus = activity.getAttribute('data-status'); // Get status from data attribute
+				const activityDateStr = activity.getAttribute('data-start-date');
+				if (!activityDateStr) return;
 
-				if (!activityDateStr) return; // Skip if no date
+				const activityDate = new Date(activityDateStr);
+				const matchesDateRange = activityDate >= startDate && activityDate <= endDate;
 
-				let activityDate = new Date(activityDateStr);
-
-				// Apply date and status filters
-				if (
-					activityDate >= startDate &&
-					activityDate <= endDate &&
-					(status === "" || activityStatus === status) // Filter by status only if selected
-				) {
+				if (matchesDateRange) {
 					activity.style.display = 'table-row';
 					hasVisibleActivity = true;
 				} else {
@@ -288,21 +299,24 @@
 
 			toggleNoActivityMessage(hasVisibleActivity);
 
-			// Close the filter modal after applying filters
-			let filterModal = document.getElementById('filterModal');
+			// Close modal if open
+			const filterModal = document.getElementById('filterModal');
 			if (filterModal) {
-				let modalInstance = bootstrap.Modal.getInstance(filterModal);
+				const modalInstance = bootstrap.Modal.getInstance(filterModal);
 				if (modalInstance) modalInstance.hide();
 			}
 		}
 
 		function toggleNoActivityMessage(hasVisibleActivity) {
-			let fallbackMessage = document.getElementById("evaluation-table-fallback");
+			const fallbackMessage = document.getElementById("evaluation-table-fallback");
 			if (hasVisibleActivity) {
 				fallbackMessage.classList.add("d-none");
 			} else {
 				fallbackMessage.classList.remove("d-none");
 			}
 		}
+
+		// Automatically load the current semester on page load
+		loadCurrentSemester();
 	});
 </script>

@@ -317,6 +317,60 @@ class AdminController extends CI_Controller
 	}
 
 	// ASSIGN STUDENT IF THEIR ARE THE AUDIENCE
+	// private function assign_students_to_activity($activity_id, $data, $timeslot_ids = [])
+	// {
+	// 	// Select student IDs by joining users and departments based on department name
+	// 	$this->db->select('u.student_id');
+	// 	$this->db->from('users u');
+	// 	$this->db->join('department d', 'u.dept_id = d.dept_id');
+	// 	$this->db->where('role', 'Student');
+
+	// 	// Filter by department name if provided and not "all"
+	// 	if (!empty($data['audience']) && strtolower($data['audience']) !== 'all') {
+	// 		$this->db->where('d.dept_name', $data['audience']); // assuming 'dept_name' is the correct column
+	// 	}
+
+	// 	$students = $this->db->get()->result();
+
+	// 	// Insert each student into attendance for each timeslot
+	// 	foreach ($students as $student) {
+	// 		foreach ($timeslot_ids as $timeslot_id) {
+	// 			// Step 1: Insert into attendance table
+	// 			$this->db->insert('attendance', [
+	// 				'activity_id' => $activity_id,
+	// 				'timeslot_id' => $timeslot_id,
+	// 				'student_id'  => $student->student_id
+	// 			]);
+
+	// 			// Step 2: Get the auto-incremented attendance_id
+	// 			$attendance_id = $this->db->insert_id();
+
+	// 			// Step 3: Insert into fines table using the retrieved attendance_id
+	// 			$this->db->insert('fines', [
+	// 				'activity_id'    => $activity_id,
+	// 				'timeslot_id'    => $timeslot_id,
+	// 				'student_id'     => $student->student_id,
+	// 				'attendance_id'  => $attendance_id,
+	// 				'status'         => 'Pending', // optional defaults
+	// 				'fines_amount'   => 0           // or whatever default you want
+	// 			]);
+	// 		}
+
+	// 		// Step 4: Insert one fines_summary per student if student_id and organizer pair does not already exist
+	// 		$this->db->where('student_id', $student->student_id);
+	// 		$this->db->where('organizer', $data['organizer']);
+	// 		$exists = $this->db->get('fines_summary')->num_rows();
+
+	// 		if ($exists === 0) {
+	// 			$this->db->insert('fines_summary', [
+	// 				'student_id' => $student->student_id,
+	// 				'organizer' => $data['organizer']
+	// 			]);
+	// 		}
+	// 	}
+	// }
+
+	// ASSIGN STUDENT IF THEY ARE THE AUDIENCE
 	private function assign_students_to_activity($activity_id, $data, $timeslot_ids = [])
 	{
 		// Select student IDs by joining users and departments based on department name
@@ -327,41 +381,60 @@ class AdminController extends CI_Controller
 
 		// Filter by department name if provided and not "all"
 		if (!empty($data['audience']) && strtolower($data['audience']) !== 'all') {
-			$this->db->where('d.dept_name', $data['audience']); // assuming 'dept_name' is the correct column
+			$this->db->where('d.dept_name', $data['audience']);
 		}
 
 		$students = $this->db->get()->result();
 
-		// Insert each student into attendance for each timeslot
 		foreach ($students as $student) {
+			// Check if student is exempted
+			$is_exempted = $this->db
+				->where('student_id', $student->student_id)
+				->get('exempted_student')
+				->num_rows() > 0;
+
 			foreach ($timeslot_ids as $timeslot_id) {
-				// Step 1: Insert into attendance table
-				$this->db->insert('attendance', [
+				// Attendance: If exempted, status = 'Exempted', else leave as default or null
+				$attendance_data = [
 					'activity_id' => $activity_id,
 					'timeslot_id' => $timeslot_id,
-					'student_id'  => $student->student_id
-				]);
+					'student_id'  => $student->student_id,
+				];
 
-				// Step 2: Get the auto-incremented attendance_id
+				if ($is_exempted) {
+					$attendance_data['status'] = 'Exempted';
+				}
+
+				$this->db->insert('attendance', $attendance_data);
 				$attendance_id = $this->db->insert_id();
 
-				// Step 3: Insert into fines table using the retrieved attendance_id
-				$this->db->insert('fines', [
+				// Fines: If exempted, status = 'No Fines' and amount = 0
+				$fines_data = [
 					'activity_id'    => $activity_id,
 					'timeslot_id'    => $timeslot_id,
 					'student_id'     => $student->student_id,
 					'attendance_id'  => $attendance_id,
-					'status'         => 'Pending', // optional defaults
-					'fines_amount'   => 0           // or whatever default you want
-				]);
+					'status'         => $is_exempted ? 'No Fines' : 'Pending',
+					'fines_amount'   => 0
+				];
+
+				$this->db->insert('fines', $fines_data);
 			}
 
-			// Step 4: Insert one fines_summary per student
-			$this->db->insert('fines_summary', [
-				'student_id' => $student->student_id
-			]);
+			// Fines Summary: Insert only if not already exists, even for exempted
+			$this->db->where('student_id', $student->student_id);
+			$this->db->where('organizer', $data['organizer']);
+			$exists = $this->db->get('fines_summary')->num_rows();
+
+			if ($exists === 0) {
+				$this->db->insert('fines_summary', [
+					'student_id' => $student->student_id,
+					'organizer'  => $data['organizer']
+				]);
+			}
 		}
 	}
+
 
 	// FETCHING ACTIVITY (STUDENT PARLIAMENT) - PAGE (FINAL CHECK)
 	public function list_activity()
@@ -1037,54 +1110,51 @@ class AdminController extends CI_Controller
 			// Update Activity and log changes
 			$updated = $this->admin->update_activity($activity_id, $data, $editor_id, $changes);
 
-			if ($updated) {
-				// Fetch Input Data
-				$start_datetimes = $this->input->post('start_datetime') ?? [];
-				$start_cutoff = $this->input->post('start_cutoff') ?? [];
-				$end_datetimes = $this->input->post('end_datetime') ?? [];
-				$end_cutoff = $this->input->post('end_cutoff') ?? [];
-				$session_types = $this->input->post('session_type') ?? [];
-				$schedule_ids = $this->input->post('timeslot_id') ?? [];
 
-				// Update or Insert Schedules
-				foreach ($start_datetimes as $i => $start_datetime) {
-					// Ensure array indexes exist before accessing them
-					$start_cutoff = $start_cutoff[$i] ?? null;
-					$end_datetime = $end_datetimes[$i] ?? null;
-					$end_cutoff = $end_cutoff[$i] ?? null;
-					$session_type = $session_types[$i] ?? null;
-					$schedule_id = $schedule_ids[$i] ?? null;
+			// Fetch Input Data
+			$start_datetimes = $this->input->post('start_datetime') ?? [];
+			$start_cutoff = $this->input->post('start_cutoff') ?? [];
+			$end_datetimes = $this->input->post('end_datetime') ?? [];
+			$end_cutoff = $this->input->post('end_cutoff') ?? [];
+			$session_types = $this->input->post('session_type') ?? [];
+			$schedule_ids = $this->input->post('timeslot_id') ?? [];
 
-					// Prepare schedule data
-					$schedule_data = [
-						'activity_id'  => $activity_id,
-						'date_time_in' => date('Y-m-d H:i:s', strtotime($start_datetime)),
-						'date_cut_in' => date('Y-m-d H:i:s', strtotime($start_cutoff)),
-						'date_time_out' => date('Y-m-d H:i:s', strtotime($end_datetime)),
-						'date_cut_out' => date('Y-m-d H:i:s', strtotime($end_cutoff)),
-						'slot_name'    => $session_type
-					];
+			// Update or Insert Schedules
+			foreach ($start_datetimes as $i => $start_datetime) {
+				// Ensure array indexes exist before accessing them
+				$start_cutoff = $start_cutoff[$i] ?? null;
+				$end_datetime = $end_datetimes[$i] ?? null;
+				$end_cutoff = $end_cutoff[$i] ?? null;
+				$session_type = $session_types[$i] ?? null;
+				$schedule_id = $schedule_ids[$i] ?? null;
 
-					if (!empty($schedule_id)) {
-						// Update existing schedule
-						$this->admin->update_schedule($schedule_id, $schedule_data);
-					} else {
-						// Insert new schedule with created_at timestamp
-						$schedule_data['created_at'] = date('Y-m-d H:i:s');
+				// Prepare schedule data
+				$schedule_data = [
+					'activity_id'  => $activity_id,
+					'date_time_in' => date('Y-m-d H:i:s', strtotime($start_datetime)),
+					'date_cut_in' => date('Y-m-d H:i:s', strtotime($start_cutoff)),
+					'date_time_out' => date('Y-m-d H:i:s', strtotime($end_datetime)),
+					'date_cut_out' => date('Y-m-d H:i:s', strtotime($end_cutoff)),
+					'slot_name'    => $session_type
+				];
 
-						$this->admin->save_schedule($schedule_data);
-					}
+				if (!empty($schedule_id)) {
+					// Update existing schedule
+					$this->admin->update_schedule($schedule_id, $schedule_data);
+				} else {
+					// Insert new schedule with created_at timestamp
+					$schedule_data['created_at'] = date('Y-m-d H:i:s');
+
+					$this->admin->save_schedule($schedule_data);
 				}
-
-				// Return Success Response
-				echo json_encode([
-					'status'   => 'success',
-					'message'  => 'Activity Updated Successfully',
-					'redirect' => site_url('admin/list-of-activity')
-				]);
-			} else {
-				echo json_encode(['status' => 'error', 'errors' => 'No changes detected or update failed.']);
 			}
+
+			// Return Success Response
+			echo json_encode([
+				'status'   => 'success',
+				'message'  => 'Activity Updated Successfully',
+				'redirect' => site_url('admin/list-of-activity')
+			]);
 		}
 	}
 
@@ -1109,6 +1179,7 @@ class AdminController extends CI_Controller
 
 		return $changes;
 	}
+
 
 
 
@@ -2697,6 +2768,7 @@ class AdminController extends CI_Controller
 		$this->db->select('SUM(fines_amount) as total_fines');
 		$this->db->from('fines');
 		$this->db->where('student_id', $student_id);
+		$this->db->where('organizer', 'Student Parliament');
 		$total_fines = $this->db->get()->row()->total_fines ?? 0;
 
 		// Check if the fines summary already exists
@@ -4120,7 +4192,7 @@ class AdminController extends CI_Controller
 				'dept_id'		=> $row[7],
 				'role'             => 'Officer',
 				'is_officer_dept'  => 'Yes',
-				'is_admin'        => ($position === 'president') ? 'Yes' : 'No',
+				'is_admin'        => ($position === 'adviser') ? 'Yes' : 'No',
 			];
 
 			$privilege[] = [
@@ -4228,7 +4300,7 @@ class AdminController extends CI_Controller
 			$student_org[] = [
 				'student_id' => $studentId,
 				'org_id'     => $orgId,
-				'is_admin'   => ($position === 'president') ? 'Yes' : 'No',
+				'is_admin'   => ($position === 'adviser') ? 'Yes' : 'No',
 				'is_officer' => 'Yes',
 			];
 
@@ -4259,6 +4331,84 @@ class AdminController extends CI_Controller
 		$rows = $sheet->toArray();
 		return $this->parseOrgFile($rows);
 	}
+
+	// IMPORTING EXEMPTED STUDENTS
+	public function import_exempted_students()
+	{
+		require_once FCPATH . 'vendor/autoload.php';
+
+		if ($_FILES['import_file']['error'] === UPLOAD_ERR_OK) {
+			$fileTmpPath = $_FILES['import_file']['tmp_name'];
+			$fileName = $_FILES['import_file']['name'];
+			$extension = pathinfo($fileName, PATHINFO_EXTENSION);
+
+			try {
+				if ($extension === 'csv') {
+					$data = $this->readCSVExempted($fileTmpPath);
+				} elseif ($extension === 'xlsx') {
+					$data = $this->readXLSXExempted($fileTmpPath);
+				} else {
+					echo json_encode(['success' => false, 'message' => 'Invalid file type. Only CSV or XLSX allowed.']);
+					return;
+				}
+
+				if (!empty($data)) {
+					$success = $this->admin->insert_exempted_students_batch($data);
+					if ($success) {
+						echo json_encode(['success' => true, 'message' => 'Exempted students imported successfully.']);
+					} else {
+						echo json_encode(['success' => false, 'message' => 'Database transaction failed.']);
+					}
+				} else {
+					echo json_encode(['success' => false, 'message' => 'No valid data found in the file.']);
+				}
+			} catch (Exception $e) {
+				echo json_encode(['success' => false, 'message' => 'Error processing file: ' . $e->getMessage()]);
+			}
+		} else {
+			echo json_encode(['success' => false, 'message' => 'No file uploaded or upload error.']);
+		}
+	}
+
+	private function parseExemptedFile($rows)
+	{
+		$students = [];
+
+		foreach ($rows as $index => $row) {
+			if ($index === 0) continue; // Skip header
+
+			if (count($row) < 5 || empty(trim($row[0])) || empty(trim($row[1]))) {
+				continue;
+			}
+
+			$students[] = [
+				'student_id'  => trim($row[0])
+			];
+		}
+
+		return $students;
+	}
+
+	private function readCSVExempted($filePath)
+	{
+		$rows = [];
+		if (($handle = fopen($filePath, "r")) !== FALSE) {
+			while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+				$rows[] = $data;
+			}
+			fclose($handle);
+		}
+		return $this->parseExemptedFile($rows);
+	}
+
+	private function readXLSXExempted($filePath)
+	{
+		$spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filePath);
+		$sheet = $spreadsheet->getActiveSheet();
+		$rows = $sheet->toArray();
+		return $this->parseExemptedFile($rows);
+	}
+
 
 	// GENERATING QR
 	public function generate_bulk_qr()

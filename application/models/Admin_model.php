@@ -487,7 +487,7 @@ class Admin_model extends CI_Model
 			$log_data = [
 				'activity_id' => $activity_id,
 				'student_id' => $this->session->userdata('student_id'),
-				'edit_time' => date('Y-m-d H:i:s'),
+				'edit_time' => (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d H:i:s'),
 				'changes' => json_encode($changes)
 			];
 			$this->db->insert('activity_edit_logs', $log_data);
@@ -510,12 +510,43 @@ class Admin_model extends CI_Model
 			->result_array();
 	}
 
-
-	// UPDATING SCHEDULE TO DATABASE
+	// UPDATING SCHEDULE TO DATABASE WITH CHANGE LOGGING
 	public function update_schedule($schedule_id, $schedule_data)
 	{
-		$this->db->where('timeslot_id', $schedule_id);
-		return $this->db->update('activity_time_slots', $schedule_data);
+		// Fetch original schedule data
+		$original = $this->db->get_where('activity_time_slots', ['timeslot_id' => $schedule_id])->row_array();
+		if (!$original) return false;
+
+		$changes = [];
+		foreach ($schedule_data as $key => $new_value) {
+			if (isset($original[$key]) && $original[$key] != $new_value) {
+				$changes[$key] = [
+					'old' => $original[$key],
+					'new' => $new_value
+				];
+			}
+		}
+
+		if (!empty($changes)) {
+			// Proceed with update
+			$this->db->where('timeslot_id', $schedule_id);
+			$this->db->update('activity_time_slots', $schedule_data);
+
+			// Prepare and insert log
+			$log_data = [
+				'activity_id' => $original['activity_id'],
+				'student_id'  => $this->session->userdata('student_id'), // Or pass as a param if needed
+				'edit_time' => (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d H:i:s'),
+				'changes' => json_encode([
+					'schedule' => $changes
+				])
+			];
+
+			$this->db->insert('activity_edit_logs', $log_data);
+			return true;
+		}
+
+		return false; // No changes
 	}
 
 	// SAVING THE SCHEDULE

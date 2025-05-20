@@ -737,69 +737,71 @@
 			</div>
 		</div>
 
-		<?php if ($activity['status'] == 'Ongoing') : ?>
-			<div class="card mb-4">
-				<div class="card-body">
-					<h5 class="fs-9 mb-3">Scans</h5>
-					<div class="row mb-3 gap-2">
-						<?php foreach ($schedules as $schedule) : ?>
-							<?php
-							date_default_timezone_set('Asia/Manila');
-							$currentDateTime = new DateTime();
+		<?php if ($privilege->able_scan == 'Yes'): ?>
+			<?php if ($activity['status'] == 'Ongoing') : ?>
+				<div class="card mb-4">
+					<div class="card-body">
+						<h5 class="fs-9 mb-3">Scans</h5>
+						<div class="row mb-3 gap-2">
+							<?php foreach ($schedules as $schedule) : ?>
+								<?php
+								date_default_timezone_set('Asia/Manila');
+								$currentDateTime = new DateTime();
 
-							$dateTimeIn = !empty($schedule['date_time_in']) ? new DateTime($schedule['date_time_in']) : null;
-							$dateCutIn = !empty($schedule['date_cut_in']) ? new DateTime($schedule['date_cut_in']) : null;
-							$dateTimeOut = !empty($schedule['date_time_out']) ? new DateTime($schedule['date_time_out']) : null;
-							$dateCutOut = !empty($schedule['date_cut_out']) ? new DateTime($schedule['date_cut_out']) : null;
+								$dateTimeIn = !empty($schedule['date_time_in']) ? new DateTime($schedule['date_time_in']) : null;
+								$dateCutIn = !empty($schedule['date_cut_in']) ? new DateTime($schedule['date_cut_in']) : null;
+								$dateTimeOut = !empty($schedule['date_time_out']) ? new DateTime($schedule['date_time_out']) : null;
+								$dateCutOut = !empty($schedule['date_cut_out']) ? new DateTime($schedule['date_cut_out']) : null;
 
-							$isTimeInValid = ($dateTimeIn && $dateCutIn && $currentDateTime >= $dateTimeIn && $currentDateTime <= $dateCutIn);
-							$isTimeOutValid = ($dateTimeOut && $dateCutOut && $currentDateTime >= $dateTimeOut && $currentDateTime <= $dateCutOut);
-							?>
+								$isTimeInValid = ($dateTimeIn && $dateCutIn && $currentDateTime >= $dateTimeIn && $currentDateTime <= $dateCutIn);
+								$isTimeOutValid = ($dateTimeOut && $dateCutOut && $currentDateTime >= $dateTimeOut && $currentDateTime <= $dateCutOut);
+								?>
 
-							<div class="col-12">
-								<div class="border-bottom border-dashed my-3"></div>
-								<label class="fw-bold">Scan Options: <?= htmlspecialchars($schedule['slot_name']); ?></label>
-								<div class="d-flex flex-row gap-4 flex-wrap mt-2">
+								<div class="col-12">
+									<div class="border-bottom border-dashed my-3"></div>
+									<label class="fw-bold">Scan Options: <?= htmlspecialchars($schedule['slot_name']); ?></label>
+									<div class="d-flex flex-row gap-4 flex-wrap mt-2">
 
-									<!-- Time In Section -->
-									<div class="d-flex flex-column align-items-start gap-1">
-										<div class="d-flex align-items-center gap-3">
-											<label class="small fw-semibold mb-0">Time In:</label>
-											<h6 class="fw-bold fst-italic text-muted mb-0">
-												<?= $dateTimeIn ? $dateTimeIn->format('Y-m-d h:i A') : 'N/A' ?>
-											</h6>
+										<!-- Time In Section -->
+										<div class="d-flex flex-column align-items-start gap-1">
+											<div class="d-flex align-items-center gap-3">
+												<label class="small fw-semibold mb-0">Time In:</label>
+												<h6 class="fw-bold fst-italic text-muted mb-0">
+													<?= $dateTimeIn ? $dateTimeIn->format('Y-m-d h:i A') : 'N/A' ?>
+												</h6>
+											</div>
+											<a href="#" class="btn btn-falcon-success btn-sm px-4 px-sm-7 scan-btn"
+												data-url="<?= site_url('officer/activity/scan-qr/time-in/' . $schedule['activity_id']); ?>"
+												data-valid="<?= $isTimeInValid ? 'true' : 'false' ?>"
+												data-type="Time In">
+												Scan QR
+											</a>
 										</div>
-										<a href="#" class="btn btn-falcon-success btn-sm px-4 px-sm-7 scan-btn"
-											data-url="<?= site_url('officer/activity/scan-qr/time-in/' . $schedule['activity_id']); ?>"
-											data-valid="<?= $isTimeInValid ? 'true' : 'false' ?>"
-											data-type="Time In">
-											Scan QR
-										</a>
-									</div>
 
-									<!-- Time Out Section -->
-									<div class="d-flex flex-column align-items-start gap-1">
-										<div class="d-flex align-items-center gap-3">
-											<label class="small fw-semibold mb-0">Time Out:</label>
-											<h6 class="fw-bold fst-italic text-muted mb-0">
-												<?= $dateTimeOut ? $dateTimeOut->format('Y-m-d h:i A') : 'N/A' ?>
-											</h6>
+										<!-- Time Out Section -->
+										<div class="d-flex flex-column align-items-start gap-1">
+											<div class="d-flex align-items-center gap-3">
+												<label class="small fw-semibold mb-0">Time Out:</label>
+												<h6 class="fw-bold fst-italic text-muted mb-0">
+													<?= $dateTimeOut ? $dateTimeOut->format('Y-m-d h:i A') : 'N/A' ?>
+												</h6>
+											</div>
+											<a href="#" class="btn btn-falcon-danger btn-sm px-4 px-sm-7 scan-btn"
+												data-url="<?= site_url('officer/activity/scan-qr/time-out/' . $schedule['activity_id']); ?>"
+												data-valid="<?= $isTimeOutValid ? 'true' : 'false' ?>"
+												data-type="Time Out">
+												Scan QR
+											</a>
 										</div>
-										<a href="#" class="btn btn-falcon-danger btn-sm px-4 px-sm-7 scan-btn"
-											data-url="<?= site_url('officer/activity/scan-qr/time-out/' . $schedule['activity_id']); ?>"
-											data-valid="<?= $isTimeOutValid ? 'true' : 'false' ?>"
-											data-type="Time Out">
-											Scan QR
-										</a>
-									</div>
 
+									</div>
+									<div class="border-bottom border-dashed my-3"></div>
 								</div>
-								<div class="border-bottom border-dashed my-3"></div>
-							</div>
-						<?php endforeach; ?>
+							<?php endforeach; ?>
+						</div>
 					</div>
 				</div>
-			</div>
+			<?php endif; ?>
 
 			<script>
 				document.addEventListener("DOMContentLoaded", function() {
