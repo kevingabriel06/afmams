@@ -176,6 +176,8 @@ class StudentController extends CI_Controller
 	{
 		$student_id = $this->session->userdata('student_id');
 
+		$organizer = $this->input->post('organizer');
+
 		// Fetch the post details
 		$post = $this->student->get_post_by_id($post_id); // Make sure this returns the post
 
@@ -235,18 +237,71 @@ class StudentController extends CI_Controller
 
 
 			// ✅ Send notification to post owner (admin or student who posted)
-			if ($post && !empty($post->student_id)) {
-				$this->db->insert('notifications', [
-					'recipient_student_id' => null,
-					'recipient_admin_id'   => $post->student_id,
-					'sender_student_id'    => $student_id,
-					'type'                 => 'post_liked',
-					'reference_id'         => $post_id,
-					'message'              => $message,
-					'is_read'              => 0,
-					'created_at'           => date('Y-m-d H:i:s'),
-					'link'                 => base_url('admin/community/')
-				]);
+			// Load Notification model
+			$this->load->model('Notification_model');
+
+			// Notify based on post ownership logic
+			if (!empty($post->org_id)) {
+				// Organization post: notify officers of that org
+				$this->db->select('student_id');
+				$this->db->from('student_org');
+				$this->db->where('org_id', $post->org_id);
+				$this->db->where('is_officer', 'Yes');
+				$officers = $this->db->get()->result();
+
+				foreach ($officers as $officer) {
+					$this->Notification_model->add_notification(
+						null,
+						$student_id,
+						'post_liked',
+						$post_id,
+						$message,
+						null,
+						base_url('admin/community/'),
+						$officer->student_id, // This is the officer recipient id (last param)
+						'recipient_officer_id'  // Optional param to specify the recipient column (see below)
+					);
+				}
+			} elseif (!empty($post->dept_id)) {
+				// Department post: notify officers of that department
+				$this->db->select('student_id');
+				$this->db->from('users');
+				$this->db->where('dept_id', $post->dept_id);
+				$this->db->where('is_officer_dept', 'Yes');
+				$officers = $this->db->get()->result();
+
+				foreach ($officers as $officer) {
+					$this->Notification_model->add_notification(
+						null,
+						$student_id,
+						'post_liked',
+						$post_id,
+						$message,
+						null,
+						base_url('admin/community/'),
+						$officer->student_id,
+						'recipient_officer_id'  // specify officer recipient column
+					);
+				}
+			} else {
+				// Student Parliament/Admin post: notify all Admins
+				$this->db->select('student_id');
+				$this->db->from('users');
+				$this->db->where('role', 'Admin');
+				$admins = $this->db->get()->result();
+
+				foreach ($admins as $admin) {
+					$this->Notification_model->add_notification(
+						null,
+						$student_id,
+						'post_liked',
+						$post_id,
+						$message,
+						$admin->student_id,
+						base_url('admin/community/')
+						// No recipient_officer_id param here, admin column used
+					);
+				}
 			}
 		}
 
@@ -576,36 +631,25 @@ class StudentController extends CI_Controller
 	{
 		$data['title'] = 'Summary of Fines';
 		$student_id = $this->session->userdata('student_id');
+
 		$this->load->model('Student_model');
 
-		// Fetch user data
-		$data['users'] = $this->student->get_student($student_id);
+		// Get student info
+		$data['users'] = $this->Student_model->get_student($student_id);
 
-		// ✅ Fetch only this student's fines
-		$data['fines'] = $this->Student_model->get_fines_with_summary_and_activity($student_id);
+		// Get student's fines summary and individual fines
+		$data['fines_summary'] = $this->Student_model->get_fines_summary_by_student($student_id);
+		$data['fines'] = $this->Student_model->get_fines_by_student($student_id);
 
-		// Fetch all time slots
-		$this->db->select('timeslot_id, activity_id, slot_name, date_time_in, date_time_out');
-		$time_slots = $this->db->get('activity_time_slots')->result_array();
+		// ✅ Load all time slots and organize them into a lookup
+		// $data['slot_lookup'] = $this->Student_model->get_time_slot_lookup();
 
-		// Build a lookup: [activity_id][timeslot_id] => ['slot_name' => ..., 'in' => ..., 'out' => ...]
-		$slot_lookup = [];
-		foreach ($time_slots as $slot) {
-			$slot_lookup[$slot['activity_id']][$slot['timeslot_id']] = [
-				'slot_name' => $slot['slot_name'],
-				'in' => $slot['date_time_in'],
-				'out' => $slot['date_time_out'],
-			];
-		}
-
-		$data['slot_lookup'] = $slot_lookup; // Pass to the view
-
-
-		// Load the views
+		// Load views
 		$this->load->view('layout/header', $data);
 		$this->load->view('student/summary_fines', $data);
 		$this->load->view('layout/footer', $data);
 	}
+
 
 
 
@@ -627,7 +671,7 @@ class StudentController extends CI_Controller
 		$reference_number_students = $this->input->post('reference_number_students');
 		$receipt_filename = '';
 
-		// Handle receipt upload if provided
+		// Handle receipt upload
 		if (!empty($_FILES['receipt']['name'])) {
 			$config['upload_path'] = './uploads/fine_receipts/';
 			$config['allowed_types'] = 'jpg|jpeg|png|gif';
@@ -641,22 +685,36 @@ class StudentController extends CI_Controller
 			}
 		}
 
-		// Insert fine payment record
-		$data = [
+		// Check for existing summary
+		$this->db->where([
 			'student_id' => $student_id,
 			'organizer' => $organizer,
-			'total_fines' => $total_fines,
-			'fines_status' => 'Pending',
-			'mode_payment' => $mode_payment,
-			'reference_number_students' => $reference_number_students,
-			'receipt' => $receipt_filename,
-			'last_updated' => date('Y-m-d H:i:s'),
-		];
+			'fines_status !=' => 'Paid'
+		]);
+		$existing_summary = $this->db->get('fines_summary')->row();
 
-		$this->db->insert('fines_summary', $data);
-		$fine_summary_id = $this->db->insert_id(); // Reference for notifications
+		if ($existing_summary) {
+			// Update existing summary
+			$update_data = [
+				'total_fines' => $total_fines,
+				'fines_status' => 'Pending',
+				'mode_payment' => $mode_payment,
+				'reference_number_students' => $reference_number_students,
+				'receipt' => $receipt_filename,
+				'last_updated' => date('Y-m-d H:i:s'),
+			];
 
-		// Get student name for message
+			$this->db->where('summary_id', $existing_summary->summary_id);
+			$this->db->update('fines_summary', $update_data);
+
+			$fine_summary_id = $existing_summary->summary_id;
+		} else {
+			// Optional: handle error if summary doesn't exist
+			echo json_encode(['status' => 'error', 'message' => 'No existing fine summary found.']);
+			return;
+		}
+
+		// Get student name for notification
 		$this->db->select('first_name, last_name');
 		$this->db->from('users');
 		$this->db->where('student_id', $student_id);
@@ -665,10 +723,7 @@ class StudentController extends CI_Controller
 
 		$notification_message = $student_name . ' submitted a fine payment to ' . $organizer . '.';
 
-		// Load Notification model if not already loaded
-		$this->load->model('Notification_model');
-
-		// Notify based on organizer role
+		// Send notification
 		$organizer_info = $this->Notification_model->get_organizer_role_info($organizer);
 
 		if (!$organizer_info) {

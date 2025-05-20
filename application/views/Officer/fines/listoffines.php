@@ -437,21 +437,39 @@
 
 			// Action Dropdown
 			const actionCell = document.createElement('td');
+
+			let dropdownItems = '';
+
+			if (student.status === 'Unpaid') {
+				dropdownItems += `
+<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#paymentModal" data-student-id="${student.id}">Confirm Payment</a>
+<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" data-student-id="${student.id}">View Details</a>
+<a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#editFinesModal" data-student-id="${student.id}">Edit Fines</a>
+`;
+			} else if (student.status === 'Pending') {
+				dropdownItems += `
+<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#paymentModal" data-student-id="${student.id}">Confirm Payment</a>
+<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" data-student-id="${student.id}">View Details</a>
+`;
+			} else if (student.status === 'Paid') {
+				dropdownItems += `
+<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" data-student-id="${student.id}">View Details</a>
+`;
+			}
+
 			actionCell.innerHTML = `
-            <div class="dropdown font-sans-serif position-static">
-                <button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button"
-                    data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    <span class="fas fa-ellipsis-h fs-10"></span>
-                </button>
-                <div class="dropdown-menu dropdown-menu-end border py-0">
-                    <div class="py-2">
-                        <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#paymentModal" data-student-id="${student.id}">Confirm Payment</a>
-                        <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" data-student-id="${student.id}">View Details</a>
-                        <a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#editFinesModal" data-student-id="${student.id}">Edit Fines</a>
-                    </div>
-                </div>
-            </div>
-        `;
+<div class="dropdown font-sans-serif position-static">
+<button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button"
+data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+<span class="fas fa-ellipsis-h fs-10"></span>
+</button>
+<div class="dropdown-menu dropdown-menu-end border py-0">
+<div class="py-2">
+${dropdownItems}
+</div>
+</div>
+</div>
+`;
 			row.appendChild(actionCell);
 			tableBody.appendChild(row);
 		});
@@ -551,7 +569,95 @@
 			}
 		});
 	});
+
+	// View Details Modal
+	document.addEventListener('DOMContentLoaded', () => {
+		const viewDetailsModal = document.getElementById('viewDetailsModal');
+		const viewBreakdownTable = document.querySelector("#viewFinesTableBody");
+		const viewReceiptContainer = viewDetailsModal.querySelector('#viewReceiptImageContainer');
+		const viewReceiptImage = viewDetailsModal.querySelector('#viewReceiptImage');
+		const baseImageUrl = "<?= base_url('assets/receipt/') ?>"; // adjust path as needed
+
+		viewDetailsModal.addEventListener('show.bs.modal', event => {
+			const studentId = event.relatedTarget.getAttribute('data-student-id');
+			const student = studentsData.find(s => s.id == studentId); // replace with finesData if needed
+
+			if (student) {
+				// Populate basic details
+				viewDetailsModal.querySelector('#viewName').textContent = student.name;
+				viewDetailsModal.querySelector('#viewDepartment').textContent = student.department;
+				viewDetailsModal.querySelector('#viewTotalFines').textContent = `₱${parseFloat(student.total_fines).toFixed(2)}`;
+				viewDetailsModal.querySelector('#viewReferenceNumber').textContent = student.reference || 'N/A';
+
+
+				// Receipt
+				if (student.receipt) {
+					viewReceiptImage.src = baseImageUrl + student.receipt;
+					viewReceiptContainer.classList.remove('d-none');
+				} else {
+					viewReceiptImage.src = '';
+					viewReceiptContainer.classList.add('d-none');
+				}
+
+				// Fines table
+				viewBreakdownTable.innerHTML = '';
+				student.fines.forEach((fine, i) => {
+					viewBreakdownTable.innerHTML += `
+					<tr>
+						<td>${i + 1}</td>
+						<td>${fine.reason}</td>
+						<td>₱${parseFloat(fine.fine).toFixed(2)}</td>
+						<td>${fine.title}</td>
+						<td>${fine.event_date}</td>
+					</tr>
+				`;
+				});
+			}
+		});
+	});
+
+	// Edit Fines Modal
+	const editFinesModal = document.getElementById('editFinesModal');
+	const editFinesTableBody = document.getElementById('editFinesTableBody');
+	const editStudentIdInput = document.getElementById('editStudentId');
+
+	editFinesModal.addEventListener('show.bs.modal', event => {
+		const studentId = event.relatedTarget.getAttribute('data-student-id');
+		const student = studentsData.find(s => s.id == studentId);
+
+		if (!student) return;
+
+		// Set the hidden input for student_id
+		editStudentIdInput.value = student.id;
+
+		// Clear existing rows
+		editFinesTableBody.innerHTML = '';
+
+		// Loop and add fines
+		student.fines.forEach((fine, index) => {
+			editFinesTableBody.innerHTML += `
+		<tr>
+			<td>${index + 1}</td>
+			<td>${fine.title || 'N/A'}</td>
+			<td>
+				<input type="text" name="reasons[]" class="form-control form-control-sm" 
+					value="${fine.reason || ''}" placeholder="Reason">
+			</td>
+			<td>
+				<input type="number" name="amounts[]" class="form-control form-control-sm" 
+					value="${fine.fine || 0}" min="0" step="0.01">
+			</td>
+			<td>
+				<input type="text" name="change_reasons[]" class="form-control form-control-sm" 
+					placeholder="Reason for change">
+			</td>
+		</tr>
+	`;
+		});
+
+	});
 </script>
+
 
 <!-- 
 <script>

@@ -1567,6 +1567,44 @@ class Officer_model extends CI_Model
 		return $query->result_array(); // Return the result as an array
 	}
 
+
+
+
+	// public function flash_fines()
+	// {
+	// 	$student_id = $this->session->userdata('student_id'); // current user
+
+	// 	$this->db->select('fines_summary.*, users.*, department.*, fines.*, activity.*');
+	// 	$this->db->from('fines_summary');
+	// 	$this->db->join('users', 'users.student_id = fines_summary.student_id');
+	// 	$this->db->join('department', 'department.dept_id = users.dept_id');
+	// 	$this->db->join('fines', 'fines.student_id = fines_summary.student_id'); // Join only by student_id here
+	// 	$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+
+	// 	$this->db->join('student_org', "student_org.student_id = '$student_id'", 'left');
+
+	// 	// Officer checks for current logged-in user
+	// 	$this->db->group_start();
+	// 	$this->db->where("users.student_id", $student_id);
+	// 	$this->db->where("users.role", 'Officer');
+	// 	$this->db->where("users.is_officer_dept", 'Yes');
+	// 	$this->db->group_end();
+
+	// 	$this->db->or_group_start();
+	// 	$this->db->where("student_org.student_id", $student_id);
+	// 	$this->db->where("student_org.is_officer", 'Yes');
+	// 	$this->db->group_end();
+
+	// 	$this->db->order_by('users.student_id, activity.activity_id');
+
+	// 	$query = $this->db->get();
+	// 	return $query->result_array();
+	// }
+
+
+
+
+
 	public function verify_reference($student_id, $reference_number)
 	{
 		$this->db->where('student_id', $student_id);
@@ -1618,6 +1656,14 @@ class Officer_model extends CI_Model
 
 
 
+	//to update fines summary of student
+	public function update_fines_summary_with_organizer($student_id, $organizer, $data)
+	{
+		$this->db->where('student_id', $student_id);
+		$this->db->where('organizer', $organizer); // ✅ Target the correct organizer
+		return $this->db->update('fines_summary', $data);
+	}
+
 	public function get_fine_summary($student_id, $organizer)
 	{
 		$this->db->select('fines_summary.*');
@@ -1625,11 +1671,12 @@ class Officer_model extends CI_Model
 		$this->db->join('fines', 'fines.student_id = fines_summary.student_id');
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
 		$this->db->where('fines_summary.student_id', $student_id);
-		$this->db->where('activity.organizer', $organizer);
-		$this->db->group_by('fines_summary.summary_id'); // Avoid duplicate rows
+		$this->db->where('fines_summary.organizer', $organizer); // ✅ This is the key fix
+		$this->db->group_by('fines_summary.summary_id');
 		$this->db->limit(1);
 		return $this->db->get()->row();
 	}
+
 
 	public function update_fines_summary_receipt($student_id, $data)
 	{

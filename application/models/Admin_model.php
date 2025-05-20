@@ -1442,43 +1442,85 @@ class Admin_model extends CI_Model
 		$this->update_fines_summary();
 	}
 
+	// public function update_fines_summary()
+	// {
+	// 	// Get all fines grouped by student and activity
+	// 	$this->db->select('student_id, activity_id, SUM(fines_amount) as total_fines');
+	// 	$this->db->from('fines');
+	// 	$this->db->group_by(['student_id', 'activity_id']);
+	// 	$summaries = $this->db->get()->result();
+
+	// 	foreach ($summaries as $summary) {
+	// 		// Check if record exists in fines_summary
+	// 		$exists = $this->db->get_where('fines_summary', [
+	// 			'student_id' => $summary->student_id,
+	// 			'activity_id' => $summary->activity_id
+	// 		])->row();
+
+	// 		// Determine fines status (whether it is paid or unpaid)
+	// 		$fines_status = $summary->total_fines > 0 ? 'Unpaid' : 'Paid';
+
+	// 		if ($exists) {
+	// 			// Update existing fines summary record
+	// 			$this->db->where([
+	// 				'student_id' => $summary->student_id,
+	// 				'activity_id' => $summary->activity_id
+	// 			]);
+	// 			$this->db->update('fines_summary', [
+	// 				'total_fines' => $summary->total_fines,
+	// 				'fines_status' => $fines_status,
+	// 				'updated_at' => date('Y-m-d H:i:s') // Adding updated timestamp
+	// 			]);
+	// 		} else {
+	// 			// Insert new fines summary record
+	// 			$this->db->insert('fines_summary', [
+	// 				'student_id' => $summary->student_id,
+	// 				'activity_id' => $summary->activity_id,
+	// 				'total_fines' => $summary->total_fines,
+	// 				'fines_status' => $fines_status,
+	// 				'created_at' => date('Y-m-d H:i:s') // Adding created timestamp
+	// 			]);
+	// 		}
+	// 	}
+	// }
+
+
+
 	public function update_fines_summary()
 	{
-		// Get all fines grouped by student and activity
-		$this->db->select('student_id, activity_id, SUM(fines_amount) as total_fines');
+		// Group fines by student and organizer (change as per your design)
+		$this->db->select('student_id, activity.organizer, SUM(fines_amount) as total_fines');
 		$this->db->from('fines');
-		$this->db->group_by(['student_id', 'activity_id']);
+		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+		$this->db->group_by(['student_id', 'activity.organizer']);
 		$summaries = $this->db->get()->result();
 
 		foreach ($summaries as $summary) {
-			// Check if record exists in fines_summary
+			// Check if record exists in fines_summary by student and organizer
 			$exists = $this->db->get_where('fines_summary', [
 				'student_id' => $summary->student_id,
-				'activity_id' => $summary->activity_id
+				'organizer' => $summary->organizer,
 			])->row();
 
-			// Determine fines status (whether it is paid or unpaid)
 			$fines_status = $summary->total_fines > 0 ? 'Unpaid' : 'Paid';
 
 			if ($exists) {
-				// Update existing fines summary record
 				$this->db->where([
 					'student_id' => $summary->student_id,
-					'activity_id' => $summary->activity_id
+					'organizer' => $summary->organizer,
 				]);
 				$this->db->update('fines_summary', [
 					'total_fines' => $summary->total_fines,
 					'fines_status' => $fines_status,
-					'updated_at' => date('Y-m-d H:i:s') // Adding updated timestamp
+					'last_updated' => date('Y-m-d H:i:s')
 				]);
 			} else {
-				// Insert new fines summary record
 				$this->db->insert('fines_summary', [
 					'student_id' => $summary->student_id,
-					'activity_id' => $summary->activity_id,
+					'organizer' => $summary->organizer,
 					'total_fines' => $summary->total_fines,
 					'fines_status' => $fines_status,
-					'created_at' => date('Y-m-d H:i:s') // Adding created timestamp
+					'created_at' => date('Y-m-d H:i:s')
 				]);
 			}
 		}
@@ -2103,11 +2145,6 @@ class Admin_model extends CI_Model
 		$this->db->where('student_id', $student_id);
 		return $this->db->update('users', ['is_admin' => $status]); // Update only one record
 	}
-
-
-
-
-
 
 
 
