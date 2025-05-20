@@ -319,6 +319,12 @@ class AdminController extends CI_Controller
 	// ASSIGN STUDENT IF THEIR ARE THE AUDIENCE
 	private function assign_students_to_activity($activity_id, $data, $timeslot_ids = [])
 	{
+
+		// Get organizer from activity table
+		$activity = $this->db->select('organizer')->from('activity')->where('activity_id', $activity_id)->get()->row();
+		$organizer = $activity ? $activity->organizer : null;
+
+
 		// Select student IDs by joining users and departments based on department name
 		$this->db->select('u.student_id');
 		$this->db->from('users u');
@@ -356,10 +362,27 @@ class AdminController extends CI_Controller
 				]);
 			}
 
-			// Step 4: Insert one fines_summary per student
-			$this->db->insert('fines_summary', [
-				'student_id' => $student->student_id
-			]);
+			// Step 4: Check if a summary already exists
+			$this->db->where('student_id', $student->student_id);
+			$this->db->where('organizer', $organizer);
+			$existing_summary = $this->db->get('fines_summary')->row();
+
+			if ($existing_summary) {
+				// Update the existing summary (optional fields can be included)
+				$this->db->where('summary_id', $existing_summary->summary_id);
+				$this->db->update('fines_summary', [
+					'fines_status' => 'Unpaid',
+					'last_updated' => date('Y-m-d H:i:s') // Optional
+				]);
+			} else {
+				// Insert new summary
+				$this->db->insert('fines_summary', [
+					'student_id' => $student->student_id,
+					'organizer'  => $organizer,
+					'fines_status' => 'Unpaid',
+					'last_updated' => date('Y-m-d H:i:s') // Optional
+				]);
+			}
 		}
 	}
 
@@ -3117,20 +3140,21 @@ class AdminController extends CI_Controller
 		$activity_id = $this->input->post('activity_id');
 		$total_fines = $this->input->post('total_fines');
 		$mode_of_payment = $this->input->post('mode_of_payment');
-		$reference_number = trim($this->input->post('reference_number'));
+		$reference_number = trim($this->input->post('reference_number')); // Admin input (cleaned)
 
 		$organizer = 'Student Parliament';
-		$record = $this->admin->get_fine_summary($student_id, $organizer); // ✅ correct
-		$admin_student_id = $this->session->userdata('student_id'); // Get logged-in admin's student_id
-
+		$record = $this->admin->get_fine_summary($student_id, $organizer); // ✅ retrieve student's fine summary
+		$admin_student_id = $this->session->userdata('student_id'); // Logged-in admin's student_id
 
 		if (!$record) {
 			echo json_encode(['status' => 'error', 'message' => 'No fines summary found.']);
 			return;
 		}
 
+		$student_reference = trim($record->reference_number_students); // 🧼 Clean student's stored reference
+
 		// CASE: REFERENCE NUMBER MISMATCH - REJECTED
-		if ($reference_number !== $record->reference_number_students) {
+		if (strcasecmp($reference_number, $student_reference) !== 0) {
 			$this->admin->update_fines_summary($student_id, [
 				'reference_number_admin' => $reference_number,
 				'fines_status' => 'Pending',
@@ -3140,10 +3164,10 @@ class AdminController extends CI_Controller
 
 			// ❌ Send rejection notification
 			$this->Notification_model->add_notification(
-				$student_id,                 // recipient_student_id
-				$admin_student_id,                        // sender_student_id (admin)
-				'fine_payment_rejected',          // type
-				$record->summary_id,         // reference_id
+				$student_id,                        // recipient_student_id
+				$admin_student_id,                  // sender_student_id (admin)
+				'fine_payment_rejected',            // type
+				$record->summary_id,                // reference_id
 				'Your fine payment could not be confirmed. Please double-check your reference number.'
 			);
 
@@ -3161,19 +3185,17 @@ class AdminController extends CI_Controller
 
 		if ($updated) {
 			$summary_id = $record->summary_id;
-			$this->generate_and_store_fine_receipt($summary_id);
+			$this->generate_and_store_fine_receipt($summary_id); // 🎟️ Generate receipt
 
 			// ✅ Send approval notification
 			$this->Notification_model->add_notification(
-				$student_id,               // recipient_student_id
-				$admin_student_id,                      // sender_student_id (admin)
-				'fine_payment_approved',        // type
-				$summary_id,               // reference_id
-				'has approved your fine payment  and marked as paid.',
+				$student_id,                      // recipient_student_id
+				$admin_student_id,                // sender_student_id (admin)
+				'fine_payment_approved',          // type
+				$summary_id,                      // reference_id
+				'has approved your fine payment and marked it as paid.',
 				null,
 				base_url('student/summary-fines/')
-
-
 			);
 
 			echo json_encode(['status' => 'success', 'message' => 'Payment verified and receipt generated.']);
@@ -3181,6 +3203,7 @@ class AdminController extends CI_Controller
 			echo json_encode(['status' => 'error', 'message' => 'Update failed.']);
 		}
 	}
+
 
 
 	public function generate_and_store_fine_receipt($summary_id)

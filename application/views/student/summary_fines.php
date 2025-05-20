@@ -68,9 +68,12 @@
 								echo '<div>';
 
 								$summary_id = $last_fine['summary_id'];
-								$summary_related_fines = array_filter($organizer_fines, function ($f) use ($summary_id) {
-									return $f['summary_id'] == $summary_id;
+								$summary_related_fines = array_filter($organizer_fines, function ($f) use ($summary_id, $previous_organizer) {
+									return $f['summary_id'] == $summary_id && $f['organizer'] == $previous_organizer;
 								});
+
+
+
 
 								$hasPending = false;
 								$hasPaid = false;
@@ -170,13 +173,18 @@
 							}
 
 							$activity_total_breakdown = 0;
-							foreach ($aggregated_fines as $label => $amount) {
-								echo '<li class="list-group-item d-flex justify-content-between align-items-center">';
-								echo '<span>' . htmlspecialchars($label) . '</span>';
-								echo '<span>₱' . number_format($amount, 2) . '</span>';
-								echo '</li>';
-								$activity_total_breakdown += $amount;
+							$slot_order = ['Morning_in', 'Morning_out', 'Afternoon_in', 'Afternoon_out', 'Evening_in', 'Evening_out'];
+
+							foreach ($slot_order as $label) {
+								if (isset($aggregated_fines[$label])) {
+									echo '<li class="list-group-item d-flex justify-content-between align-items-center">';
+									echo '<span>' . htmlspecialchars($label) . '</span>';
+									echo '<span>₱' . number_format($aggregated_fines[$label], 2) . '</span>';
+									echo '</li>';
+									$activity_total_breakdown += $aggregated_fines[$label];
+								}
 							}
+
 
 							echo '<li class="list-group-item d-flex justify-content-between align-items-center fw-bold">';
 							echo '<span>Total</span>';
@@ -194,7 +202,9 @@
 
 					// Final organizer footer
 					if (!empty($organizer_fines)):
-						$total_fines = array_sum(array_column($organizer_fines, 'fines_amount'));
+						$last_fine = end($organizer_fines);
+						$total_fines = $last_fine['total_fines'] ?? 0;
+
 						$last_fine = end($organizer_fines);
 
 						echo '</tbody></table>';

@@ -153,6 +153,7 @@ class Notification_model extends CI_Model
 	}
 
 
+	//For pay_fines notification
 	public function get_organizer_role_info($organizer_name)
 	{
 		// Check if organizer is an Admin (from users table with full name match)
@@ -193,5 +194,35 @@ class Notification_model extends CI_Model
 		}
 
 		return null; // Unknown organizer type
+	}
+
+
+
+	public function get_organizer_info_by_student_id($student_id)
+	{
+		// Get role of the user (e.g. admin, officer, etc.)
+		$this->db->select('role');
+		$this->db->from('users');
+		$this->db->where('student_id', $student_id);
+		$user = $this->db->get()->row();
+
+		if (!$user || !$user->role) {
+			return null;
+		}
+
+		$role = $user->role;
+
+		// Prepare the response to match your notification logic
+		$organizer_info = ['type' => $role];
+
+		if ($role === 'admin') {
+			$organizer_info['admin_student_ids'] = [$student_id];
+		} elseif ($role === 'officer') {
+			$organizer_info['officer_student_ids'] = [$student_id];
+		} else {
+			return null; // Not an admin or officer
+		}
+
+		return $organizer_info;
 	}
 }
