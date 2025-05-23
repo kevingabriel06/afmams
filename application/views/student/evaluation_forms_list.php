@@ -113,18 +113,29 @@
 											</button>
 											<div class="dropdown-menu dropdown-menu-end border py-0">
 												<div class="py-2">
-													<?php if ($form->remarks == 'Answered'): ?>
+													<?php
+													if ($form->remarks == 'Answered') : ?>
 														<a class="dropdown-item" href="<?php echo site_url('student/evaluation-answers/' . $form->form_id); ?>">View Response</a>
-													<?php elseif ($form->remarks == 'Pending'): ?>
-														<a class="dropdown-item" href="<?php echo site_url('student/evaluation-form-questions/' . $form->form_id); ?>">Answer Evaluation Form</a>
-													<?php elseif ($form->remarks == 'Missing'): ?>
-														<h6 class="dropdown-item text-danger">No Action Available</h6>
-													<?php endif; ?>
 
+													<?php elseif ($form->status_evaluation == 'Upcoming') : ?>
+														<!-- For Upcoming status, remarks must be pending, but show no action -->
+														<h6 class="dropdown-item text-danger">No Action Available</h6>
+
+													<?php elseif ($form->status_evaluation == 'Ongoing' && $form->remarks == 'Pending') : ?>
+														<a class="dropdown-item" href="<?php echo site_url('student/evaluation-form-questions/' . $form->form_id); ?>">Answer Evaluation Form</a>
+
+													<?php elseif ($form->remarks == 'Missing') : ?>
+														<h6 class="dropdown-item text-danger">No Action Available</h6>
+
+													<?php else: ?>
+														<!-- Optional fallback -->
+														<h6 class="dropdown-item text-muted">No Action Available</h6>
+													<?php endif; ?>
 												</div>
 											</div>
 										</div>
 									</td>
+
 								</tr>
 							<?php endforeach; ?>
 

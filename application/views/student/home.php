@@ -589,7 +589,7 @@
 	$(document).ready(function() {
 
 		// Handle form submission via AJAX with SweetAlert
-		$('#registrationForm').on('submit', function(e) {
+		$('#registrationForm').off('submit').on('submit', function(e) {
 			e.preventDefault();
 
 			const form = $(this);
@@ -613,7 +613,7 @@
 							confirmButtonColor: '#3085d6',
 							confirmButtonText: 'OK'
 						}).then(() => {
-							location.reload(); // Reload after the user clicks OK
+							location.reload();
 						});
 					} else {
 						Swal.fire({
@@ -635,6 +635,7 @@
 				}
 			});
 		});
+
 
 		// Handle modal open with data passed
 		$('.attend-button').on('click', function() {
