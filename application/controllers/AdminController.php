@@ -412,6 +412,7 @@ class AdminController extends CI_Controller
 				}
 
 				$this->db->insert('attendance', $attendance_data);
+
 				$attendance_id = $this->db->insert_id();
 
 				// Fines: If exempted, status = 'No Fines' and amount = 0
@@ -422,7 +423,7 @@ class AdminController extends CI_Controller
 					'attendance_id'  => $attendance_id,
 					'status'         => 'Pending', // optional defaults
 					'fines_amount'   => 0           // or whatever default you want
-				]);
+				];
 			}
 
 			// Step 4: Check if a summary already exists
