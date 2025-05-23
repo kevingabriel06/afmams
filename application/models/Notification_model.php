@@ -153,19 +153,162 @@ class Notification_model extends CI_Model
 	}
 
 
-	//For pay_fines notification
-	public function get_organizer_role_info($organizer_name)
+	//for like_post
+
+	public function get_post_organizer_type($post_id)
 	{
-		// Check if organizer is an Admin (from users table with full name match)
+		$this->db->select('org_id, dept_id');
+		$this->db->where('post_id', $post_id);
+		$post = $this->db->get('post')->row();
+
+		if (!$post) return null;
+
+		if (!empty($post->org_id)) return 'org';
+		if (!empty($post->dept_id)) return 'dept';
+
+		// If neither org nor dept, then admin post
+		return 'admin';
+	}
+
+	public function get_post_organizer($post_id)
+	{
+		$this->db->select('org_id, dept_id');
+		$this->db->where('post_id', $post_id);
+		$post = $this->db->get('post')->row();
+
+		if (!$post) return null;
+
+		if (!empty($post->org_id)) return $post->org_id;
+		if (!empty($post->dept_id)) return $post->dept_id;
+
+		return null; // admin posts have no org or dept id
+	}
+
+
+	public function get_org_officer_ids_by_id($org_id)
+	{
+		$this->db->select('student_id');
+		$this->db->from('student_org');
+		$this->db->where('org_id', $org_id);
+		$this->db->where('is_officer', 'Yes');
+
+		$query = $this->db->get();
+		return array_column($query->result_array(), 'student_id');
+	}
+
+	public function get_dept_officer_ids_by_id($dept_id)
+	{
 		$this->db->select('student_id');
 		$this->db->from('users');
-		$this->db->where('role', 'Admin');
-		$this->db->where("CONCAT(first_name, ' ', last_name) =", $organizer_name);
-		$admin = $this->db->get()->row();
+		$this->db->where('dept_id', $dept_id);
+		$this->db->where('is_officer_dept', 'Yes');
+		$this->db->where('role', 'Officer');
 
-		if ($admin) {
-			return ['type' => 'admin', 'admin_student_ids' => [$admin->student_id]];
+		$query = $this->db->get();
+		return array_column($query->result_array(), 'student_id');
+	}
+
+
+
+	//for like post end
+
+
+	//used in excuse application, register notifications 
+
+	public function get_activity_organizer($activity_id)
+	{
+		$this->db->select('organizer');
+		$this->db->from('activity'); // ✅ Correct table name
+		$this->db->where('activity_id', $activity_id);
+		$query = $this->db->get();
+
+		if ($query->num_rows() > 0) {
+			return $query->row()->organizer;
 		}
+		return null;
+	}
+
+
+	public function get_activity_organizer_type($activity_id)
+	{
+		$this->db->select('organizer');
+		$this->db->from('activity');
+		$this->db->where('activity_id', $activity_id);
+		$organizer = $this->db->get()->row('organizer');
+
+		if (!$organizer) return null;
+
+		if (strtolower(trim($organizer)) === 'student parliament') {
+			return 'admin';
+		}
+
+		// Check if it's a department
+		$this->db->where('dept_name', $organizer);
+		if ($this->db->get('department')->num_rows() > 0) {
+			return 'dept';
+		}
+
+		// Check if it's an organization
+		$this->db->where('org_name', $organizer);
+		if ($this->db->get('organization')->num_rows() > 0) {
+			return 'org';
+		}
+
+		return null; // Unknown organizer
+	}
+
+	public function get_org_officer_ids_by_name($org_name)
+	{
+		$this->db->select('student_id');
+		$this->db->from('student_org so');
+		$this->db->join('organization o', 'so.org_id = o.org_id');
+		$this->db->where('o.org_name', $org_name);
+		$this->db->where('so.is_officer', 'Yes');
+
+		$query = $this->db->get();
+		return array_column($query->result_array(), 'student_id');
+	}
+
+
+	public function get_dept_officer_ids_by_name($dept_name)
+	{
+		$this->db->select('student_id');
+		$this->db->from('users u');
+		$this->db->join('department d', 'u.dept_id = d.dept_id');
+		$this->db->where('d.dept_name', $dept_name);
+		$this->db->where('u.is_officer_dept', 'Yes');
+		$this->db->where('u.role', 'Officer');
+
+		$query = $this->db->get();
+		return array_column($query->result_array(), 'student_id');
+	}
+
+
+
+
+
+
+
+
+	// excuse notifs  end
+
+
+
+	//For pay_fines notification 
+	public function get_organizer_role_info($organizer_name)
+	{
+		// Check if organizer is an Admin
+		// If organizer is Student Parliament (or admin group), get all admins
+		if (strtolower($organizer_name) === 'student parliament') {
+			$this->db->select('student_id');
+			$this->db->from('users');
+			$this->db->where('role', 'Admin');
+			$admins = $this->db->get()->result();
+			$admin_ids = array_column($admins, 'student_id');
+
+			return ['type' => 'admin', 'admin_student_ids' => $admin_ids];
+		}
+
 
 		// Check if organizer is an Organization
 		$org = $this->db->get_where('organization', ['org_name' => $organizer_name])->row();
@@ -186,6 +329,7 @@ class Notification_model extends CI_Model
 			$this->db->select('student_id');
 			$this->db->from('users');
 			$this->db->where('dept_id', $dept->dept_id);
+			$this->db->where('role', 'Officer'); // Added role check
 			$this->db->where('is_officer_dept', 'Yes');
 			$officers = $this->db->get()->result();
 			$officer_ids = array_column($officers, 'student_id');
@@ -193,7 +337,7 @@ class Notification_model extends CI_Model
 			return ['type' => 'dept', 'officer_student_ids' => $officer_ids];
 		}
 
-		return null; // Unknown organizer type
+		return null; // Unknown organizer
 	}
 
 
@@ -225,4 +369,7 @@ class Notification_model extends CI_Model
 
 		return $organizer_info;
 	}
+
+
+	//For pay_fines notification end
 }

@@ -1545,18 +1545,183 @@ class Admin_model extends CI_Model
 
 	public function flash_fines()
 	{
-		$this->db->select('*');
+		$this->db->select('
+        *,
+        activity_time_slots.slot_name,
+        activity_time_slots.date_time_in,
+        activity_time_slots.date_time_out,
+		attendance.time_in,
+        attendance.time_out,
+        attendance.attendance_status,
+		attendance.attendance_id
+    ');
 		$this->db->from('fines_summary');
-		$this->db->join('users', 'users.student_id = fines_summary.student_id'); // Fixed join condition
+		$this->db->join('users', 'users.student_id = fines_summary.student_id');
 		$this->db->join('department', 'department.dept_id = users.dept_id');
-		$this->db->join('fines', 'fines.student_id = fines_summary.student_id'); // Ensures fines are matched by both activity_id and student_id
-		$this->db->join('activity', 'activity.activity_id = fines.activity_id'); // Fixed join condition
-		$this->db->where('activity.organizer', 'Student Parliament'); // Apply correct where condition
-		$this->db->order_by('users.student_id, activity.activity_id'); // Order by student and then event/activity
+		$this->db->join('fines', 'fines.student_id = fines_summary.student_id');
+		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+		$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = fines.timeslot_id', 'left');  // added this join
+		$this->db->join('attendance', 'attendance.student_id = fines_summary.student_id AND attendance.activity_id = fines.activity_id AND attendance.timeslot_id = fines.timeslot_id', 'left');
+
+
+
+		$this->db->where('activity.organizer', 'Student Parliament');
+		$this->db->order_by('users.student_id, activity.activity_id');
 
 		$query = $this->db->get();
-		return $query->result_array(); // Return result as an array
+		return $query->result_array();
 	}
+
+
+
+	//EDIT FINES START
+
+
+	//to get the fines_id needed to be updated
+	public function get_fine_by_id($fines_id)
+	{
+		return $this->db->where('fines_id', $fines_id)->get('fines')->row();
+	}
+
+	public function edit_fines()
+	{
+		$this->load->model('Admin_model');
+
+		$student_id = $this->input->post('student_id');
+		$reasons = $this->input->post('reason');
+		$amounts = $this->input->post('amount');
+		$changes = $this->input->post('changes');
+		$event_ids = $this->input->post('event_id');
+
+		if (!$student_id || !$reasons || !$amounts || !$event_ids) {
+			echo json_encode(['status' => 'error', 'message' => 'Missing data']);
+			return;
+		}
+
+		$success = true;
+
+		for ($i = 0; $i < count($event_ids); $i++) {
+			$fine_id = $event_ids[$i];
+			$reason = $reasons[$i];
+			$amount = $amounts[$i];
+			$remark = $changes[$i];
+
+			$data = [
+				'fines_reason' => $reason,
+				'fines_amount' => $amount,
+				'remarks' => $remark,
+			];
+
+			// Update fine record
+			$updatedFine = $this->Admin_model->update_fine($fine_id, $data);
+
+			// Now update attendance based on reason and slot_name
+			if ($updatedFine) {
+				// Fetch related attendance and slot info by fine_id (you may need to create this method)
+				$attendanceInfo = $this->Admin_model->get_attendance_and_slot_by_fine_id($fine_id);
+
+				if ($attendanceInfo) {
+					$attendance_id = $attendanceInfo->attendance_id;
+					$slot_name = $attendanceInfo->slot_name;
+
+					$attendanceUpdate = [];
+
+					// Update attendance time_in/time_out based on reason and slot_name
+					if ($reason === 'Absent') {
+						// If Absent, clear the time_in or time_out accordingly
+						if (strpos(strtolower($slot_name), 'in') !== false) {
+							$attendanceUpdate['time_in'] = null;
+						} elseif (strpos(strtolower($slot_name), 'out') !== false) {
+							$attendanceUpdate['time_out'] = null;
+						}
+					} elseif ($reason === 'Present') {
+						// You can add logic here if you want to restore or update times for Present
+						// Example: set current datetime or a default time, or leave unchanged
+					} elseif ($reason === 'Incomplete') {
+						// Maybe clear only time_out or handle partial attendance
+						if (strpos(strtolower($slot_name), 'out') !== false) {
+							$attendanceUpdate['time_out'] = null;
+						}
+					}
+
+					if (!empty($attendanceUpdate)) {
+						$this->Admin_model->update_attendance($attendance_id, $attendanceUpdate);
+					}
+				}
+			} else {
+				$success = false;
+				break;
+			}
+		}
+
+		if ($success) {
+			echo json_encode(['status' => 'success']);
+		} else {
+			echo json_encode(['status' => 'error', 'message' => 'Update failed']);
+		}
+	}
+
+
+	// public function get_attendance_and_slot_by_fine_id($fines_id)
+	// {
+	// 	$this->db->select('a.attendance_id, s.slot_name');
+	// 	$this->db->from('fines f');
+	// 	$this->db->join('activity_time_slots s', 's.timeslot_id = f.timeslot_id');
+	// 	$this->db->join('attendance a', 'a.attendance_id = f.attendance_id');
+	// 	$this->db->where('f.fines_id', $fines_id);
+	// 	$query = $this->db->get();
+
+	// 	if ($query->num_rows() > 0) {
+	// 		return $query->row();
+	// 	} else {
+	// 		return null;
+	// 	}
+	// }
+
+
+	// In Admin_model.php
+
+	public function get_slot_info_by_attendance_id($attendance_id)
+	{
+		$this->db->select('ats.slot_name, ats.date_time_in, ats.date_time_out');
+		$this->db->from('attendance a');
+		$this->db->join('activity_time_slots ats', 'a.timeslot_id = ats.timeslot_id', 'left');
+		$this->db->where('a.attendance_id', $attendance_id);
+		$query = $this->db->get();
+		return $query->row();
+	}
+
+
+	public function get_attendance_by_id($attendance_id)
+	{
+		return $this->db->get_where('attendance', ['attendance_id' => $attendance_id])->row();
+	}
+
+
+
+
+	public function update_attendance($attendance_id, $data)
+	{
+		$this->db->where('attendance_id', $attendance_id);
+		return $this->db->update('attendance', $data);
+	}
+
+
+
+	public function update_fine($fines_id, $data)
+	{
+		$this->db->where('fines_id', $fines_id);
+		$this->db->update('fines', $data);
+
+		$affected = $this->db->affected_rows();
+		// Return true if update query executed successfully (affected rows >= 0)
+		return $affected !== false;
+	}
+
+
+
+	// EDIT FINES END
+
 
 	public function verify_reference($student_id, $reference_number)
 	{

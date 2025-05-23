@@ -1,3 +1,7 @@
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+
 <div class="card mb-3 mb-lg-0">
 	<div class="card-header bg-body-tertiary d-flex justify-content-between">
 		<h5 class="mb-0">Summary of Fines</h5>
@@ -898,11 +902,22 @@
 		}
 
 		studentsMap.get(fine.student_id).fines.push({
-			eventId: fine.activity_id,
+			eventId: fine.attendance_id, //use this to know which table to update
+			fines_id: fine.fines_id, // ✅ For fines update
+			attendance_id: fine.attendance_id, // ✅ For attendance update
 			fine: fine.fines_amount,
 			reason: fine.fines_reason,
 			event_date: fine.start_date,
-			title: fine.activity_title
+			title: fine.activity_title,
+			changes: fine.remarks,
+
+
+			// Add these:
+			slot_name: fine.slot_name || 'No Slot Name',
+			time_in: fine.date_time_in || 'N/A',
+			time_out: fine.date_time_out || 'N/A',
+			attendance_id: fine.attendance_id || null,
+			timeslot_id: fine.timeslot_id || null
 		});
 	});
 
@@ -977,23 +992,43 @@
 					`;
 		row.appendChild(statusCell);
 
+
 		// Action Dropdown
 		const actionCell = document.createElement('td');
+
+		let dropdownItems = '';
+
+		if (student.status === 'Unpaid') {
+			dropdownItems += `
+<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#paymentModal" data-student-id="${student.id}">Confirm Payment</a>
+<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" data-student-id="${student.id}">View Details</a>
+<a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#editFinesModal" data-student-id="${student.id}">Edit Fines</a>
+`;
+		} else if (student.status === 'Pending') {
+			dropdownItems += `
+<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#paymentModal" data-student-id="${student.id}">Confirm Payment</a>
+<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" data-student-id="${student.id}">View Details</a>
+`;
+		} else if (student.status === 'Paid') {
+			dropdownItems += `
+<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" data-student-id="${student.id}">View Details</a>
+`;
+		}
+
 		actionCell.innerHTML = `
-						<div class="dropdown font-sans-serif position-static">
-							<button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button"
-								data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-								<span class="fas fa-ellipsis-h fs-10"></span>
-							</button>
-							<div class="dropdown-menu dropdown-menu-end border py-0">
-								<div class="py-2">
-									<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#paymentModal" data-student-id="${student.id}">Confirm Payment</a>
-									<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" data-student-id="${student.id}">View Details</a>
-									<a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#editFinesModal" data-student-id="${student.id}">Edit Fines</a>
-								</div>
-							</div>
-						</div>
-					`;
+<div class="dropdown font-sans-serif position-static">
+<button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button"
+data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+<span class="fas fa-ellipsis-h fs-10"></span>
+</button>
+<div class="dropdown-menu dropdown-menu-end border py-0">
+<div class="py-2">
+${dropdownItems}
+</div>
+</div>
+</div>
+`;
+
 		row.appendChild(actionCell);
 		tableBody.appendChild(row);
 	});
@@ -1090,6 +1125,7 @@
 		});
 	});
 
+	// Edit Fines Modal
 	document.addEventListener('DOMContentLoaded', () => {
 		const editFinesModal = document.getElementById('editFinesModal');
 		const editFinesTableBody = document.getElementById('editFinesTableBody');
@@ -1109,20 +1145,37 @@
 
 					student.fines.forEach((fine, i) => {
 						const row = document.createElement('tr');
+
+
+						// Determine whether the slot is for IN or OUT based on the slot name
+						const slotName = fine.slot_name || 'No Slot Name';
+						const timeIn = fine.time_in || 'N/A';
+						const timeOut = fine.time_out || 'N/A';
+
 						row.innerHTML = `
-										<td>${i + 1}</td>
-										<td>${fine.title}</td>
-										<td>
-											<select name="reason[]" class="form-control">
-												<option value="Absent" ${fine.reason === 'Absent' ? 'selected' : ''}>Absent</option>
-												<option value="Incomplete" ${fine.reason === 'Incomplete' ? 'selected' : ''}>Incomplete</option>
-												<option value="Present" ${fine.reason === 'Present' ? 'selected' : ''}>Present</option>
-											</select>
-										</td>
-										<td><input type="number" step="0.01" name="amount[]" class="form-control" value="${fine.fine}"></td>
-										<td><input type="text" name="changes[]" class="form-control" value="${fine.changes}"></td>
-										<input type="hidden" name="event_id[]" value="${fine.eventId}">
-									`;
+    <td>${i + 1}</td>
+    <td>
+        <strong>${fine.title}</strong><br>
+        <small class="text-muted">
+            ${slotName}<br>
+            In: ${timeIn}<br>
+            Out: ${timeOut}
+        </small>
+    </td>
+    <td>
+        <select name="reason[]" class="form-control">
+            <option value="Absent" ${fine.reason === 'Absent' ? 'selected' : ''}>Absent</option>
+            <option value="Present" ${fine.reason === 'Present' ? 'selected' : ''}>Present</option>
+        </select>
+    </td>
+    <td><input type="number" step="0.01" name="amount[]" class="form-control" value="${fine.fine}"></td>
+    <td><input type="text" name="changes[]" class="form-control" value="${fine.changes}"></td>
+    
+	<input type="hidden" name="fines_id[]" value="${fine.fines_id}">
+<input type="hidden" name="attendance_id[]" value="${fine.attendance_id}">
+
+`;
+
 						editFinesTableBody.appendChild(row);
 					});
 				}
@@ -1133,30 +1186,67 @@
 			editFinesForm.addEventListener('submit', function(e) {
 				e.preventDefault();
 
-				const formData = new FormData(this);
-				const studentId = formData.get("student_id");
-				const reasons = formData.getAll("reason[]");
-				const amounts = formData.getAll("amount[]");
-				const eventIds = formData.getAll("event_id[]");
-				const changes = formData.getAll("changes[]");
+				Swal.fire({
+					title: 'Are you sure?',
+					text: "Do you want to update the fines?",
+					icon: 'warning',
+					showCancelButton: true,
+					confirmButtonColor: '#3085d6',
+					cancelButtonColor: '#d33',
+					confirmButtonText: 'Yes, update it!',
+					cancelButtonText: 'Cancel'
+				}).then((result) => {
+					if (result.isConfirmed) {
+						const formData = new FormData(this);
 
-				console.log('Edited Fines:', {
-					studentId,
-					reasons,
-					amounts,
-					eventIds
+						fetch('<?= base_url("index.php/AdminController/edit_fines") ?>', {
+								method: 'POST',
+								body: formData
+							})
+							.then(response => response.json())
+							.then(data => {
+								if (data.status === 'success') {
+									Swal.fire({
+										icon: 'success',
+										title: 'Success',
+										text: 'Fines successfully updated.',
+										timer: 1500,
+										showConfirmButton: false
+									}).then(() => {
+										const modalInstance = bootstrap.Modal.getInstance(editFinesModal);
+										if (modalInstance) modalInstance.hide();
+
+										location.reload();
+									});
+								} else {
+									Swal.fire({
+										icon: 'error',
+										title: 'Update Failed',
+										text: data.message || 'Failed to update fines.'
+									});
+								}
+							})
+							.catch(error => {
+								console.error('Error updating fines:', error);
+								Swal.fire({
+									icon: 'error',
+									title: 'Error',
+									text: 'An error occurred while updating.'
+								});
+							});
+					}
+					// else user cancelled, do nothing
 				});
-
-				alert('Fines updated (dummy success). You can hook this to a real backend call.');
-
-				const modalInstance = bootstrap.Modal.getInstance(editFinesModal);
-				if (modalInstance) {
-					modalInstance.hide();
-				}
 			});
 		}
+
+
+
 	});
 </script>
+
+<!-- <option value="Incomplete" ${fine.reason === 'Incomplete' ? 'selected' : ''}>Incomplete</option> -->
+<!-- <input type="hidden" name="event_id[]" value="${fine.eventId}"> -->
 
 <script>
 	$(document).ready(function() {

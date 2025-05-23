@@ -240,75 +240,79 @@ class StudentController extends CI_Controller
 			// Load Notification model
 			$this->load->model('Notification_model');
 
-			// Notify based on post ownership logic
-			if (!empty($post->org_id)) {
-				// Organization post: notify officers of that org
-				$this->db->select('student_id');
-				$this->db->from('student_org');
-				$this->db->where('org_id', $post->org_id);
-				$this->db->where('is_officer', 'Yes');
-				$officers = $this->db->get()->result();
+			// Get organizer type and ID for the post
+			$organizer_type = $this->Notification_model->get_post_organizer_type($post_id);
+			$organizer_id = $this->Notification_model->get_post_organizer($post_id);
 
-				foreach ($officers as $officer) {
-					$this->Notification_model->add_notification(
-						null,
-						$student_id,
-						'post_liked',
-						$post_id,
-						$message,
-						null,
-						base_url('admin/community/'),
-						$officer->student_id, // This is the officer recipient id (last param)
-						'recipient_officer_id'  // Optional param to specify the recipient column (see below)
-					);
-				}
-			} elseif (!empty($post->dept_id)) {
-				// Department post: notify officers of that department
-				$this->db->select('student_id');
-				$this->db->from('users');
-				$this->db->where('dept_id', $post->dept_id);
-				$this->db->where('is_officer_dept', 'Yes');
-				$officers = $this->db->get()->result();
 
-				foreach ($officers as $officer) {
-					$this->Notification_model->add_notification(
-						null,
-						$student_id,
-						'post_liked',
-						$post_id,
-						$message,
-						null,
-						base_url('admin/community/'),
-						$officer->student_id,
-						'recipient_officer_id'  // specify officer recipient column
-					);
-				}
+			// Set link based on organizer type
+			if ($organizer_type === 'admin') {
+				$link = base_url('admin/community/');
 			} else {
-				// Student Parliament/Admin post: notify all Admins
-				$this->db->select('student_id');
-				$this->db->from('users');
-				$this->db->where('role', 'Admin');
-				$admins = $this->db->get()->result();
+				// For 'org' or 'dept' or any officer type
+				$link = base_url('officer/community/');
+			}
 
-				foreach ($admins as $admin) {
-					$this->Notification_model->add_notification(
-						null,
-						$student_id,
-						'post_liked',
-						$post_id,
-						$message,
-						$admin->student_id,
-						base_url('admin/community/')
-						// No recipient_officer_id param here, admin column used
-					);
-				}
+			switch ($organizer_type) {
+				case 'admin':
+					$admin_ids = $this->Notification_model->get_admin_student_ids();
+					foreach ($admin_ids as $admin_id) {
+						$this->Notification_model->add_notification(
+							null,
+							$student_id,
+							'post_liked',
+							$post_id,
+							$message,
+							$admin_id,
+							$link
+						);
+					}
+					break;
+
+				case 'org':
+					$org_officer_ids = $this->Notification_model->get_org_officer_ids_by_id($organizer_id);
+					foreach ($org_officer_ids as $officer_id) {
+						$this->Notification_model->add_notification(
+							null,
+							$student_id,
+							'post_liked',
+							$post_id,
+							$message,
+							null,
+							$link,
+							$officer_id,
+							'recipient_officer_id'
+						);
+					}
+					break;
+
+				case 'dept':
+					$dept_officer_ids = $this->Notification_model->get_dept_officer_ids_by_id($organizer_id);
+					foreach ($dept_officer_ids as $officer_id) {
+						$this->Notification_model->add_notification(
+							null,
+							$student_id,
+							'post_liked',
+							$post_id,
+							$message,
+							null,
+							$link,
+							$officer_id,
+							'recipient_officer_id'
+						);
+					}
+					break;
+
+				default:
+					log_message('error', "Unknown organizer type for post $post_id");
+					break;
 			}
 		}
 
-		// Get the updated like count
+		// Get updated like count
 		$new_like_count = $this->student->get_like_count($post_id);
 
-		// Return the response
+		// Return response
 		echo json_encode([
 			'like_img' => $like_img,
 			'like_text' => $like_text,
@@ -330,7 +334,7 @@ class StudentController extends CI_Controller
 					'errors' => validation_errors()
 				];
 			} else {
-				// Prepare data for insertion
+				// Prepare comment data
 				$data = array(
 					'post_id' => $this->input->post('post_id'),
 					'content' => $this->input->post('comment'),
@@ -338,37 +342,101 @@ class StudentController extends CI_Controller
 				);
 
 				$result = $this->student->add_comment($data);
+
 				if ($result) {
 					$post_id = $this->input->post('post_id');
+					$sender_id = $this->session->userdata('student_id');
 
-					// ✅ Send notification to the post owner
-					$post = $this->student->get_post_by_id($post_id); // You should have this method in your model
-					if ($post && !empty($post->student_id) && $post->student_id !== $this->session->userdata('student_id')) {
-						$this->db->insert('notifications', [
-							'recipient_student_id' => null,
-							'recipient_admin_id'   => $post->student_id,
-							'sender_student_id'    => $this->session->userdata('student_id'),
-							'type'                 => 'commented',
-							'reference_id'         => $post_id,
-							'message'              => 'commented on your post.',
-							'is_read'              => 0,
-							'created_at'           => date('Y-m-d H:i:s'),
-							'link'                 => base_url('admin/community/')
-						]);
+					// Load Notification model
+					$this->load->model('Notification_model');
+
+					// Get post origin
+					$organizer_type = $this->Notification_model->get_post_organizer_type($post_id);
+					$organizer_id = $this->Notification_model->get_post_organizer($post_id);
+
+					// Set link based on organizer type
+					if ($organizer_type === 'admin') {
+						$link = base_url('admin/community/');
+					} else {
+						// For 'org' or 'dept' or any officer type
+						$link = base_url('officer/community/');
+					}
+
+					$message = 'commented on your post.';
+
+					switch ($organizer_type) {
+						case 'admin':
+							$admin_ids = $this->Notification_model->get_admin_student_ids();
+							foreach ($admin_ids as $admin_id) {
+								if ($admin_id != $sender_id) {
+									$this->Notification_model->add_notification(
+										null,
+										$sender_id,
+										'commented',
+										$post_id,
+										$message,
+										$admin_id,
+										$link
+									);
+								}
+							}
+							break;
+
+						case 'org':
+							$officers = $this->Notification_model->get_org_officer_ids_by_id($organizer_id);
+							foreach ($officers as $officer_id) {
+								if ($officer_id != $sender_id) {
+									$this->Notification_model->add_notification(
+										null,
+										$sender_id,
+										'commented',
+										$post_id,
+										$message,
+										null,
+										$link,
+										$officer_id,
+										'recipient_officer_id'
+									);
+								}
+							}
+							break;
+
+						case 'dept':
+							$officers = $this->Notification_model->get_dept_officer_ids_by_id($organizer_id);
+							foreach ($officers as $officer_id) {
+								if ($officer_id != $sender_id) {
+									$this->Notification_model->add_notification(
+										null,
+										$sender_id,
+										'commented',
+										$post_id,
+										$message,
+										null,
+										$link,
+										$officer_id,
+										'recipient_officer_id'
+									);
+								}
+							}
+							break;
+
+						default:
+							log_message('error', "Unknown organizer type for post $post_id");
+							break;
 					}
 
 					// Fetch updated comment count
 					$comments_count = $this->student->get_comment_count($post_id);
 
 					// Fetch the newly added comment only
-					$new_comment = $this->student->get_latest_comment($post_id); // Ensure this function fetches only the latest
+					$new_comment = $this->student->get_latest_comment($post_id);
 
-					// Ensure correct JSON response
+					// Send response
 					$response = array(
 						'status' => 'success',
 						'message' => 'Comment Saved Successfully',
 						'comments_count' => $comments_count,
-						'new_comment' => array( // Make sure this is an array with expected keys
+						'new_comment' => array(
 							'first_name' => $new_comment->first_name ?? 'Unknown',
 							'last_name' => $new_comment->last_name ?? 'Unknown',
 							'profile_pic' => base_url('assets/profile/') . ($new_comment->profile_pic ?? 'default.jpg'),
@@ -382,10 +450,10 @@ class StudentController extends CI_Controller
 					);
 				}
 			}
+			echo json_encode($response);
 		}
-
-		echo json_encode($response);
 	}
+
 
 	// REGISTRATION
 	public function register()
@@ -462,57 +530,74 @@ class StudentController extends CI_Controller
 		];
 
 		if ($this->student->insert_registration($data)) {
-
-			// === Send Notifications ===
+			// === Send Notifications with Organizer Type logic ===
 			$this->load->model('Notification_model');
 
-			// Assuming $activity_id and $student_id are already set from your registration data
 			$activity_name = $this->Notification_model->get_activity_name($activity_id) ?? 'Unknown Activity';
+			$organizer = $this->Notification_model->get_activity_organizer($activity_id);
+			$organizer_type = $this->Notification_model->get_activity_organizer_type($activity_id);
+			$sender_student_id = $student_id;
+
 			$notification_message = 'submitted a registration request for "' . $activity_name . '"';
-			$link = base_url('admin/activity-details/' . $activity_id);
-
-			// Notify Admins
-			$admin_student_ids = $this->Notification_model->get_admin_student_ids();
-			foreach ($admin_student_ids as $admin_student_id) {
-				$this->Notification_model->add_notification(
-					null,                  // recipient_student_id = NULL
-					$student_id,           // sender_student_id
-					'registration_submitted', // type
-					$activity_id,          // reference_id
-					$notification_message, // message
-					$admin_student_id,     // recipient_admin_id
-					$link
-				);
+			// Set link based on organizer type
+			if ($organizer_type === 'admin') {
+				$link = base_url('admin/activity-details/' . $activity_id);
+			} else {
+				// For 'org' or 'dept' or any officer type
+				$link = base_url('officer/activity-details/' . $activity_id);
 			}
 
-			// Notify Organization Officers
-			$org_officer_ids = $this->Notification_model->get_org_officer_ids();
-			foreach ($org_officer_ids as $officer_id) {
-				$this->Notification_model->add_notification(
-					null,                  // recipient_student_id = NULL
-					$student_id,
-					'registration_submitted',
-					$activity_id,
-					$notification_message,
-					null,                  // recipient_admin_id = NULL
-					$link,
-					$officer_id            // recipient_officer_id
-				);
-			}
+			switch ($organizer_type) {
+				case 'admin':
+					$admin_ids = $this->Notification_model->get_admin_student_ids();
+					foreach ($admin_ids as $admin_id) {
+						$this->Notification_model->add_notification(
+							null,
+							$sender_student_id,
+							'registration_submitted',
+							$activity_id,
+							$notification_message,
+							$admin_id,
+							$link
+						);
+					}
+					break;
 
-			// Notify Department Officers
-			$dept_officer_ids = $this->Notification_model->get_dept_officer_ids();
-			foreach ($dept_officer_ids as $officer_id) {
-				$this->Notification_model->add_notification(
-					null,
-					$student_id,
-					'registration_submitted',
-					$activity_id,
-					$notification_message,
-					null,
-					$link,
-					$officer_id
-				);
+				case 'org':
+					$org_officer_ids = $this->Notification_model->get_org_officer_ids_by_name($organizer);
+					foreach ($org_officer_ids as $officer_id) {
+						$this->Notification_model->add_notification(
+							null,
+							$sender_student_id,
+							'registration_submitted',
+							$activity_id,
+							$notification_message,
+							null,
+							$link,
+							$officer_id
+						);
+					}
+					break;
+
+				case 'dept':
+					$dept_officer_ids = $this->Notification_model->get_dept_officer_ids_by_name($organizer);
+					foreach ($dept_officer_ids as $officer_id) {
+						$this->Notification_model->add_notification(
+							null,
+							$sender_student_id,
+							'registration_submitted',
+							$activity_id,
+							$notification_message,
+							null,
+							$link,
+							$officer_id
+						);
+					}
+					break;
+
+				default:
+					log_message('error', "Unknown organizer type for activity $activity_id");
+					break;
 			}
 
 			echo json_encode([
@@ -526,6 +611,7 @@ class StudentController extends CI_Controller
 			]);
 		}
 	}
+
 
 	// FOR FREE EVENT 
 	public function attend_free_event()
@@ -738,7 +824,9 @@ class StudentController extends CI_Controller
 						$fine_summary_id,
 						$notification_message,
 						$admin_id,
-						base_url('admin/list-fines/')
+						base_url('admin/list-fines/'),
+						null
+
 					);
 				}
 			} else {
@@ -750,7 +838,7 @@ class StudentController extends CI_Controller
 						$fine_summary_id,
 						$notification_message,
 						null,
-						base_url('admin/list-fines/'),
+						base_url('officer/list-fines/'),
 						$officer_id
 					);
 				}
@@ -959,18 +1047,34 @@ class StudentController extends CI_Controller
 
 		$student_id = $this->session->userdata('student_id');
 
-		// FETCH USER DATA
+		// Fetch form details with fields
+		$form_details = $this->student->get_form_details($form_id);
+
+		// Fetch answers for that form and student
+		$form_answers = $this->student->get_form_answers($form_id, $student_id);
+
+		// Map answers to form_fields by form_fields_id to merge answers with fields
+		$answers_map = [];
+		foreach ($form_answers as $answer) {
+			$answers_map[$answer->form_fields_id] = $answer->answer;
+		}
+
+		// Add 'answer' property to each form field
+		foreach ($form_details->form_fields as &$field) {
+			$field->answer = isset($answers_map[$field->form_fields_id]) ? $answers_map[$field->form_fields_id] : null;
+		}
+
+		$data['form_data'] = $form_details;
+
+		// Fetch user data
 		$data['users'] = $this->student->get_student($student_id);
 
-		// Fetch form data along with answers
-		$data['form_data'] = $this->student->get_evaluation_answer($form_id);
-
-
-		// Load Views
+		// Load views
 		$this->load->view('layout/header', $data);
 		$this->load->view('student/evaluation_form_answers', $data);
 		$this->load->view('layout/footer', $data);
 	}
+
 
 
 
@@ -1094,72 +1198,83 @@ class StudentController extends CI_Controller
 
 
 		// Notify Admins (send notifications)
-		// Load the Notification model
+
 		$this->load->model('Notification_model');
 
 		// Get activity details
 		$activity_id = $data['activity_id'];
 		$activity_name = $this->Notification_model->get_activity_name($activity_id) ?? 'Unknown Activity';
-
-		// Sender is the student submitting the excuse
+		$organizer = $this->Notification_model->get_activity_organizer($activity_id); // You'll write this method
+		$organizer_type = $this->Notification_model->get_activity_organizer_type($activity_id); // You'll write this too
 		$sender_student_id = $this->input->post('student_id');
 
 		// Build the notification message and link
 		$notification_message = 'submitted an excuse application for "' . $activity_name . '"';
-		$link = base_url('admin/list-of-excuse-letter/' . $activity_id);
 
-		// ------------------------
-		// Notify Admins
-		// ------------------------
-		$admin_student_ids = $this->Notification_model->get_admin_student_ids();
 
-		foreach ($admin_student_ids as $admin_student_id) {
-			$this->Notification_model->add_notification(
-				null,                      // recipient_student_id = NULL
-				$sender_student_id,        // sender_student_id
-				'excuse_submitted',        // type
-				$activity_id,              // reference_id
-				$notification_message,     // message
-				$admin_student_id,         // recipient_admin_id
-				$link                      // link
-			);
+		// Set link based on organizer type
+		if ($organizer_type === 'admin') {
+			$link = base_url('admin/list-of-excuse-letter/' . $activity_id);
+		} else {
+			// For 'org' or 'dept' or any officer type
+			$link = base_url('officer/list-of-excuse-letter/' . $activity_id);
 		}
 
-		// ------------------------
-		// Notify Organization Officers
-		// ------------------------
-		$org_officer_ids = $this->Notification_model->get_org_officer_ids(); // You will create this method
 
-		foreach ($org_officer_ids as $officer_id) {
-			$this->Notification_model->add_notification(
-				null,                      // recipient_student_id = NULL
-				$sender_student_id,
-				'excuse_submitted',
-				$activity_id,
-				$notification_message,
-				null,                      // recipient_admin_id = NULL
-				$link,
-				$officer_id                // recipient_officer_id
-			);
+		// Targeted notification based on organizer type
+		switch ($organizer_type) {
+			case 'admin':
+				$admin_ids = $this->Notification_model->get_admin_student_ids();
+				foreach ($admin_ids as $admin_id) {
+					$this->Notification_model->add_notification(
+						null,
+						$sender_student_id,
+						'excuse_submitted',
+						$activity_id,
+						$notification_message,
+						$admin_id,
+						$link
+					);
+				}
+				break;
+
+			case 'org':
+				$org_officer_ids = $this->Notification_model->get_org_officer_ids_by_name($organizer);
+				foreach ($org_officer_ids as $officer_id) {
+					$this->Notification_model->add_notification(
+						null,
+						$sender_student_id,
+						'excuse_submitted',
+						$activity_id,
+						$notification_message,
+						null,
+						$link,
+						$officer_id
+					);
+				}
+				break;
+
+			case 'dept':
+				$dept_officer_ids = $this->Notification_model->get_dept_officer_ids_by_name($organizer);
+				foreach ($dept_officer_ids as $officer_id) {
+					$this->Notification_model->add_notification(
+						null,
+						$sender_student_id,
+						'excuse_submitted',
+						$activity_id,
+						$notification_message,
+						null,
+						$link,
+						$officer_id
+					);
+				}
+				break;
+
+			default:
+				log_message('error', "Unknown organizer type for activity $activity_id");
+				break;
 		}
 
-		// ------------------------
-		// Notify Department Officers
-		// ------------------------
-		$dept_officer_ids = $this->Notification_model->get_dept_officer_ids(); // You will create this method
-
-		foreach ($dept_officer_ids as $officer_id) {
-			$this->Notification_model->add_notification(
-				null,
-				$sender_student_id,
-				'excuse_submitted',
-				$activity_id,
-				$notification_message,
-				null,
-				$link,
-				$officer_id
-			);
-		}
 
 		// Final success response
 		echo json_encode(['status' => 'success', 'message' => 'Your application has been submitted successfully.']);

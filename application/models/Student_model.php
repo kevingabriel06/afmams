@@ -930,10 +930,39 @@ class Student_model extends CI_Model
 
 	public function save_response($data)
 	{
-		// Insert into evaluation_responses table
-		$this->db->insert('evaluation_responses', $data);
-		return $this->db->insert_id(); // return the response ID
+		$form_id = $data['form_id'];
+		$student_id = $data['student_id'];
+
+		// Prepare update data (remarks + submitted_at)
+		$update_data = [
+			'remarks' => $data['remarks'],
+			'submitted_at' => date('Y-m-d H:i:s')
+		];
+
+		// Check if record exists
+		$existing = $this->db->get_where('evaluation_responses', [
+			'form_id' => $form_id,
+			'student_id' => $student_id
+		])->row();
+
+		if ($existing) {
+			// Update existing record
+			$this->db->where('evaluation_response_id', $existing->evaluation_response_id);
+			$this->db->update('evaluation_responses', $update_data);
+			return $existing->evaluation_response_id;
+		} else {
+			// Insert new record (if necessary)
+			$insert_data = [
+				'form_id' => $form_id,
+				'student_id' => $student_id,
+				'remarks' => $data['remarks'],
+				'submitted_at' => date('Y-m-d H:i:s')
+			];
+			$this->db->insert('evaluation_responses', $insert_data);
+			return $this->db->insert_id();
+		}
 	}
+
 
 	public function save_answers($data)
 	{

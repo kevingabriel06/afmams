@@ -422,7 +422,9 @@ class AdminController extends CI_Controller
 					'attendance_id'  => $attendance_id,
 					'status'         => 'Pending', // optional defaults
 					'fines_amount'   => 0           // or whatever default you want
-				]);
+				];
+
+				$this->db->insert('fines', $fines_data); // ✅ Add this line
 			}
 
 			// Step 4: Check if a summary already exists
@@ -2815,6 +2817,197 @@ class AdminController extends CI_Controller
 		$this->admin->auto_fines_missing_time_in(); // This should do the logic
 		echo "Auto fines executed at " . date('Y-m-d H:i:s');
 	}
+
+
+
+	//EDIT FINES 
+
+	// public function edit_fines()
+	// {
+	// 	$this->load->model('Admin_model');
+
+	// 	$student_id = $this->input->post('student_id');
+	// 	$reasons    = $this->input->post('reason');
+	// 	$amounts    = $this->input->post('amount');
+	// 	$changes    = $this->input->post('changes');
+	// 	// $event_ids  = $this->input->post('event_id');
+	// 	$fines_ids = $this->input->post('fines_id');
+	// 	$attendance_ids = $this->input->post('attendance_id');
+
+
+	// 	if (
+	// 		!$student_id ||
+	// 		!is_array($reasons) ||
+	// 		!is_array($amounts) ||
+	// 		!is_array($changes) ||
+	// 		!is_array($fines_ids) ||
+	// 		!is_array($attendance_ids)
+	// 	) {
+	// 		echo json_encode([
+	// 			'status' => 'error',
+	// 			'message' => 'Missing or invalid input data.'
+	// 		]);
+	// 		return;
+	// 	}
+
+	// 	$errors = [];
+
+	// 	for ($i = 0; $i < count($fines_ids); $i++) {
+	// 		$fine_id = $fines_ids[$i];
+	// 		$attendance_id = $attendance_ids[$i];
+
+	// 		// Fetch fine to confirm it exists
+	// 		$fine = $this->Admin_model->get_fine_by_id($fine_id);
+
+	// 		if (!$fine) {
+	// 			$errors[] = "Fine ID $fine_id not found.";
+	// 			continue;
+	// 		}
+
+	// 		$data = [
+	// 			'fines_reason' => $reasons[$i],
+	// 			'fines_amount' => $amounts[$i],
+	// 			'remarks'      => $changes[$i],
+	// 		];
+
+	// 		$updated = $this->Admin_model->update_fine($fine_id, $data);
+
+	// 		if (!$updated) {
+	// 			$errors[] = "Failed to update fine ID: $fine_id";
+	// 			continue;
+	// 		}
+
+	// 		// Optional: update attendance (if you want to do it here)
+
+
+	// 		$slotInfo = $this->Admin_model->get_slot_info_by_attendance_id($attendance_id);
+
+	// 		$attendanceUpdate = [];
+
+	// 		if ($reasons[$i] === 'Absent') {
+	// 			// Clear times if absent
+	// 			$attendanceUpdate['time_in'] = null;
+	// 			$attendanceUpdate['time_out'] = null;
+	// 		} else if ($slotInfo) {
+	// 			// Use date_time_in/out from timeslot for present
+	// 			$attendanceUpdate['time_in'] = $slotInfo->date_time_in;
+	// 			$attendanceUpdate['time_out'] = $slotInfo->date_time_out;
+	// 		}
+
+	// 		if (!empty($attendanceUpdate)) {
+	// 			$this->Admin_model->update_attendance($attendance_id, $attendanceUpdate);
+	// 		}
+	// 	}
+
+	// 	if (empty($errors)) {
+	// 		echo json_encode(['status' => 'success']);
+	// 	} else {
+	// 		echo json_encode([
+	// 			'status' => 'error',
+	// 			'message' => implode("; ", $errors)
+	// 		]);
+	// 	}
+	// }
+
+
+
+
+	public function edit_fines()
+	{
+		$this->load->model('Admin_model');
+
+		$student_id     = $this->input->post('student_id');
+		$reasons        = $this->input->post('reason');
+		$amounts        = $this->input->post('amount');
+		$changes        = $this->input->post('changes');
+		$fines_ids      = $this->input->post('fines_id');
+		$attendance_ids = $this->input->post('attendance_id');
+
+		if (
+			!$student_id ||
+			!is_array($reasons) ||
+			!is_array($amounts) ||
+			!is_array($changes) ||
+			!is_array($fines_ids) ||
+			!is_array($attendance_ids)
+		) {
+			echo json_encode([
+				'status' => 'error',
+				'message' => 'Missing or invalid input data.'
+			]);
+			return;
+		}
+
+		$errors = [];
+
+		for ($i = 0; $i < count($fines_ids); $i++) {
+			$fine_id = $fines_ids[$i];
+			$attendance_id = $attendance_ids[$i];
+
+			// 1. Update attendance first
+			$slotInfo = $this->Admin_model->get_slot_info_by_attendance_id($attendance_id);
+			$attendanceUpdate = [];
+
+			if ($reasons[$i] === 'Absent') {
+				$attendanceUpdate['time_in'] = null;
+				$attendanceUpdate['time_out'] = null;
+			} else if ($slotInfo) {
+				$attendanceUpdate['time_in'] = $slotInfo->date_time_in;
+				$attendanceUpdate['time_out'] = $slotInfo->date_time_out;
+			}
+
+			if (!empty($attendanceUpdate)) {
+				$this->Admin_model->update_attendance($attendance_id, $attendanceUpdate);
+			}
+
+			// 2. Fetch updated attendance
+			$attendance = $this->Admin_model->get_attendance_by_id($attendance_id);
+			if (!$attendance) {
+				$errors[] = "Attendance ID $attendance_id not found.";
+				continue;
+			}
+
+			// 3. Determine reason from updated attendance
+			$time_in = $attendance->time_in;
+			$time_out = $attendance->time_out;
+
+			if (is_null($time_in) && is_null($time_out)) {
+				$fine_reason = 'Absent';
+			} elseif (is_null($time_in) || is_null($time_out)) {
+				$fine_reason = 'Incomplete';
+			} else {
+				$fine_reason = 'Present';
+			}
+
+			// 4. Update fine record
+			$data = [
+				'fines_reason' => $fine_reason,
+				'fines_amount' => $amounts[$i],
+				'remarks'      => $changes[$i],
+			];
+
+			$updated = $this->Admin_model->update_fine($fine_id, $data);
+			if (!$updated) {
+				$errors[] = "Failed to update fine ID: $fine_id";
+				continue;
+			}
+		}
+
+		if (empty($errors)) {
+			echo json_encode(['status' => 'success']);
+		} else {
+			echo json_encode([
+				'status' => 'error',
+				'message' => implode("; ", $errors)
+			]);
+		}
+	}
+
+
+
+
+
+
 
 	public function scanUnified_timeout()
 	{

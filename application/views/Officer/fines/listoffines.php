@@ -346,6 +346,32 @@
 			});
 		}
 
+		// Push fine for Time In if exists
+		if (fine.time_in) {
+			studentsMap.get(fine.student_id).fines.push({
+				eventId: fine.activity_id + '_in',
+				fine: fine.fines_amount,
+				reason: 'In',
+				event_date: fine.start_date,
+				title: fine.slot_name + ' In',
+				time: fine.time_in,
+				changes: fine.remarks
+			});
+		}
+
+		// Push fine for Time Out if exists
+		if (fine.time_out) {
+			studentsMap.get(fine.student_id).fines.push({
+				eventId: fine.activity_id + '_out',
+				fine: fine.fines_amount,
+				reason: 'Out',
+				event_date: fine.start_date,
+				title: fine.slot_name + ' Out',
+				time: fine.time_out,
+				changes: fine.remarks
+			});
+		}
+
 		studentsMap.get(fine.student_id).fines.push({
 			eventId: fine.activity_id,
 			fine: fine.fines_amount,
@@ -617,44 +643,71 @@ ${dropdownItems}
 	});
 
 	// Edit Fines Modal
-	const editFinesModal = document.getElementById('editFinesModal');
-	const editFinesTableBody = document.getElementById('editFinesTableBody');
-	const editStudentIdInput = document.getElementById('editStudentId');
+	document.addEventListener('DOMContentLoaded', () => {
+		const editFinesModal = document.getElementById('editFinesModal');
+		const editFinesTableBody = document.getElementById('editFinesTableBody');
+		const editFinesForm = document.getElementById('editFinesForm');
 
-	editFinesModal.addEventListener('show.bs.modal', event => {
-		const studentId = event.relatedTarget.getAttribute('data-student-id');
-		const student = studentsData.find(s => s.id == studentId);
+		if (editFinesModal) {
+			editFinesModal.addEventListener('show.bs.modal', function(event) {
+				const trigger = event.relatedTarget;
+				if (!trigger) return;
 
-		if (!student) return;
+				const studentId = trigger.getAttribute('data-student-id');
+				const student = studentsData.find(s => s.id == studentId);
 
-		// Set the hidden input for student_id
-		editStudentIdInput.value = student.id;
+				if (student) {
+					document.getElementById('editStudentId').value = student.id;
+					editFinesTableBody.innerHTML = '';
 
-		// Clear existing rows
-		editFinesTableBody.innerHTML = '';
+					student.fines.forEach((fine, i) => {
+						const row = document.createElement('tr');
+						row.innerHTML = `
+										<td>${i + 1}</td>
+										<td>${fine.title}</td>
+										<td>
+											<select name="reason[]" class="form-control">
+												<option value="Absent" ${fine.reason === 'Absent' ? 'selected' : ''}>Absent</option>
+												<option value="Incomplete" ${fine.reason === 'Incomplete' ? 'selected' : ''}>Incomplete</option>
+												<option value="Present" ${fine.reason === 'Present' ? 'selected' : ''}>Present</option>
+											</select>
+										</td>
+										<td><input type="number" step="0.01" name="amount[]" class="form-control" value="${fine.fine}"></td>
+										<td><input type="text" name="changes[]" class="form-control" value="${fine.changes}"></td>
+										<input type="hidden" name="event_id[]" value="${fine.eventId}">
+									`;
+						editFinesTableBody.appendChild(row);
+					});
+				}
+			});
+		}
 
-		// Loop and add fines
-		student.fines.forEach((fine, index) => {
-			editFinesTableBody.innerHTML += `
-		<tr>
-			<td>${index + 1}</td>
-			<td>${fine.title || 'N/A'}</td>
-			<td>
-				<input type="text" name="reasons[]" class="form-control form-control-sm" 
-					value="${fine.reason || ''}" placeholder="Reason">
-			</td>
-			<td>
-				<input type="number" name="amounts[]" class="form-control form-control-sm" 
-					value="${fine.fine || 0}" min="0" step="0.01">
-			</td>
-			<td>
-				<input type="text" name="change_reasons[]" class="form-control form-control-sm" 
-					placeholder="Reason for change">
-			</td>
-		</tr>
-	`;
-		});
+		if (editFinesForm) {
+			editFinesForm.addEventListener('submit', function(e) {
+				e.preventDefault();
 
+				const formData = new FormData(this);
+				const studentId = formData.get("student_id");
+				const reasons = formData.getAll("reason[]");
+				const amounts = formData.getAll("amount[]");
+				const eventIds = formData.getAll("event_id[]");
+				const changes = formData.getAll("changes[]");
+
+				console.log('Edited Fines:', {
+					studentId,
+					reasons,
+					amounts,
+					eventIds
+				});
+
+				alert('Fines updated (dummy success). You can hook this to a real backend call.');
+
+				const modalInstance = bootstrap.Modal.getInstance(editFinesModal);
+				if (modalInstance) {
+					modalInstance.hide();
+				}
+			});
+		}
 	});
 </script>
 
