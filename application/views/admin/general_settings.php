@@ -368,12 +368,59 @@
 						</div>
 					</div>
 					<div class="d-flex justify-content-end align-items-center gap-2 mt-3">
-						<a href="<?= base_url('assets/templates/Template-ImportingExemptedStudents.xlsx') ?>" class="btn btn-sm btn-outline-secondary" download>
+						<a href="<?= base_url('assets/templates/Template-ImportingStudents.xlsx') ?>" class="btn btn-sm btn-outline-secondary" download>
 							Download Template
 						</a>
 						<button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModalExempted">
 							Open
 						</button>
+						<button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#studentExempted">
+							View
+						</button>
+
+					</div>
+				</div>
+			</div>
+
+			<!-- Modal -->
+			<div class="modal fade" id="studentExempted" tabindex="-1" aria-labelledby="studentExemptedLabel" aria-hidden="true">
+				<div class="modal-dialog modal-lg">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h5 class="modal-title" id="studentExemptedLabel">Exempted Students</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						</div>
+						<div class="modal-body">
+							<table class="table table-bordered table-striped">
+								<thead>
+									<tr>
+										<th>#</th>
+										<th>Student ID</th>
+										<th>Name</th>
+										<th>Department</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php if (!empty($exempted)) : ?>
+										<?php foreach ($exempted as $index => $student) : ?>
+											<tr>
+												<td><?= $index + 1 ?></td>
+												<td><?= htmlspecialchars($student->student_id) ?></td>
+												<td><?= htmlspecialchars($student->first_name . " " . $student->last_name) ?></td>
+												<td><?= htmlspecialchars($student->dept_name) ?></td>
+											</tr>
+										<?php endforeach; ?>
+									<?php else : ?>
+										<tr>
+											<td colspan="2" class="text-center">No exempted students found.</td>
+										</tr>
+									<?php endif; ?>
+								</tbody>
+							</table>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+						</div>
 					</div>
 				</div>
 			</div>

@@ -375,7 +375,7 @@ class AdminController extends CI_Controller
 	{
 
 		// Get organizer from activity table
-		$activity = $this->db->select('organizer')->from('activity')->where('activity_id', $activity_id)->get()->row();
+		$activity = $this->db->select('organizer, start_date, registration_deadline, registration_fee')->from('activity')->where('activity_id', $activity_id)->get()->row();
 		$organizer = $activity ? $activity->organizer : null;
 
 
@@ -396,7 +396,7 @@ class AdminController extends CI_Controller
 			// Check if student is exempted
 			$is_exempted = $this->db
 				->where('student_id', $student->student_id)
-				->get('exempted_student')
+				->get('exempted_students')
 				->num_rows() > 0;
 
 			foreach ($timeslot_ids as $timeslot_id) {
@@ -408,7 +408,12 @@ class AdminController extends CI_Controller
 				];
 
 				if ($is_exempted) {
-					$attendance_data['status'] = 'Exempted';
+					$attendance_data = [
+						'activity_id' => $activity_id,
+						'timeslot_id' => $timeslot_id,
+						'student_id'  => $student->student_id,
+						'attendance_status' => 'Exempted'
+					];
 				}
 
 				$this->db->insert('attendance', $attendance_data);
@@ -433,21 +438,62 @@ class AdminController extends CI_Controller
 			$this->db->where('organizer', $organizer);
 			$existing_summary = $this->db->get('fines_summary')->row();
 
+			// Derive semester and academic year from start date
+			$start_date = strtotime($activity->start_date); // Ensure $start_datetime is defined
+
+			$month = (int)date('m', $start_date);
+			$year = (int)date('Y', $start_date);
+
+			// Determine semester and academic year
+			if ($month >= 8 && $month <= 12) {
+				$semester = '1st Semester';
+				$academic_year = $year . '-' . ($year + 1);
+			} else {
+				$semester = '2nd Semester';
+				$academic_year = ($year - 1) . '-' . $year;
+			}
+
+			// Update or Insert
 			if ($existing_summary) {
-				// Update the existing summary (optional fields can be included)
+				// Update the existing summary
 				$this->db->where('summary_id', $existing_summary->summary_id);
 				$this->db->update('fines_summary', [
-					'fines_status' => 'Unpaid',
-					'last_updated' => date('Y-m-d H:i:s') // Optional
+					'fines_status'   => 'Unpaid',
+					'semester'       => $semester,
+					'academic_year'  => $academic_year,
+					'last_updated'   => date('Y-m-d H:i:s')
 				]);
 			} else {
 				// Insert new summary
 				$this->db->insert('fines_summary', [
-					'student_id' => $student->student_id,
-					'organizer'  => $organizer,
-					'fines_status' => 'Unpaid',
-					'last_updated' => date('Y-m-d H:i:s') // Optional
+					'student_id'     => $student->student_id,
+					'organizer'      => $organizer,
+					'fines_status'   => 'Unpaid',
+					'semester'       => $semester,
+					'academic_year'  => $academic_year,
+					'last_updated'   => date('Y-m-d H:i:s')
 				]);
+			}
+
+			// Step 5: Registration
+			$fee_valid = !empty($activity->registration_fee) || $activity->registration_fee == 0;
+			$deadline_valid = !empty($activity->registration_deadline) || $activity->registration_deadline == '0000-00-00';
+
+			if ($fee_valid && $deadline_valid) {
+				$exists = $this->db
+					->where('activity_id', $activity_id)
+					->where('student_id', $student->student_id)
+					->get('registrations')
+					->num_rows();
+
+				if ($exists === 0) {
+					$this->db->insert('registrations', [
+						'activity_id' => $activity_id,
+						'student_id' => $student->student_id,
+						'payment_type' => 'No Status',
+						'registration_status' => 'Pending'
+					]);
+				}
 			}
 		}
 	}
@@ -937,16 +983,6 @@ class AdminController extends CI_Controller
 		$pdf->Output('I', $filename);
 	}
 
-
-
-
-
-
-
-
-
-
-
 	// SHARING ACTIVITY FROM THE ACTIVITY DETAILS
 	public function share_activity()
 	{
@@ -1136,6 +1172,8 @@ class AdminController extends CI_Controller
 			$session_types = $this->input->post('session_type') ?? [];
 			$schedule_ids = $this->input->post('timeslot_id') ?? [];
 
+			$timeslot_ids = [];
+
 			// Update or Insert Schedules
 			foreach ($start_datetimes as $i => $start_datetime) {
 				// Ensure array indexes exist before accessing them
@@ -1158,13 +1196,17 @@ class AdminController extends CI_Controller
 				if (!empty($schedule_id)) {
 					// Update existing schedule
 					$this->admin->update_schedule($schedule_id, $schedule_data);
+					$timeslot_ids[] = $schedule_id;
 				} else {
 					// Insert new schedule with created_at timestamp
 					$schedule_data['created_at'] = date('Y-m-d H:i:s');
-
-					$this->admin->save_schedule($schedule_data);
+					$new_schedule_id = $this->admin->save_schedule($schedule_data);
+					$timeslot_ids[] = $new_schedule_id;
 				}
 			}
+
+			// Assign students again after update
+			$this->assign_students_to_activity_again($activity_id, $data, $timeslot_ids);
 
 			// Return Success Response
 			echo json_encode([
@@ -1174,6 +1216,86 @@ class AdminController extends CI_Controller
 			]);
 		}
 	}
+
+	private function assign_students_to_activity_again($activity_id, $data, $timeslot_ids = [])
+	{
+		// Get organizer from activity table
+		$activity = $this->db->select('organizer')->from('activity')->where('activity_id', $activity_id)->get()->row();
+		$organizer = $activity ? $activity->organizer : null;
+
+		// ✅ First, delete existing attendance and fines related to this activity
+		$this->db->where('activity_id', $activity_id)->delete('fines');
+		$this->db->where('activity_id', $activity_id)->delete('attendance');
+
+		// Select student IDs by joining users and departments based on department name
+		$this->db->select('u.student_id');
+		$this->db->from('users u');
+		$this->db->join('department d', 'u.dept_id = d.dept_id');
+		$this->db->where('role', 'Student');
+
+		if (!empty($data['audience']) && strtolower($data['audience']) !== 'all') {
+			$this->db->where('d.dept_name', $data['audience']);
+		}
+
+		$students = $this->db->get()->result();
+
+		foreach ($students as $student) {
+			// Check if student is exempted
+			$is_exempted = $this->db
+				->where('student_id', $student->student_id)
+				->get('exempted_student')
+				->num_rows() > 0;
+
+			foreach ($timeslot_ids as $timeslot_id) {
+				// Attendance
+				$attendance_data = [
+					'activity_id' => $activity_id,
+					'timeslot_id' => $timeslot_id,
+					'student_id'  => $student->student_id,
+				];
+
+				if ($is_exempted) {
+					$attendance_data['status'] = 'Exempted';
+				}
+
+				$this->db->insert('attendance', $attendance_data);
+				$attendance_id = $this->db->insert_id();
+
+				// Fines
+				$fines_data = [
+					'activity_id'    => $activity_id,
+					'timeslot_id'    => $timeslot_id,
+					'student_id'     => $student->student_id,
+					'attendance_id'  => $attendance_id,
+					'status'         => 'Pending',
+					'fines_amount'   => 0
+				];
+
+				$this->db->insert('fines', $fines_data);
+			}
+
+			// Summary (either update or insert)
+			$this->db->where('student_id', $student->student_id);
+			$this->db->where('organizer', $organizer);
+			$existing_summary = $this->db->get('fines_summary')->row();
+
+			if ($existing_summary) {
+				$this->db->where('summary_id', $existing_summary->summary_id);
+				$this->db->update('fines_summary', [
+					'fines_status' => 'Unpaid',
+					'last_updated' => date('Y-m-d H:i:s')
+				]);
+			} else {
+				$this->db->insert('fines_summary', [
+					'student_id' => $student->student_id,
+					'organizer'  => $organizer,
+					'fines_status' => 'Unpaid',
+					'last_updated' => date('Y-m-d H:i:s')
+				]);
+			}
+		}
+	}
+
 
 	public function get_edit_logs($activity_id)
 	{
@@ -1530,11 +1652,19 @@ class AdminController extends CI_Controller
 				$this->db->insert('notifications', $notification_data);
 
 				if ($student->role === 'Student') {
-					// Insert into evaluation_responses table
-					$this->db->insert('evaluation_responses', [
-						'form_id'     => $formId,
-						'student_id'  => $student->student_id,
-					]);
+					// Check if the student is present in the attendance table for the activity
+					$this->db->where('student_id', $student->student_id);
+					$this->db->where('activity_id', $activity_id); // Make sure $activityId is defined
+					$this->db->where('attendance_status', 'Present'); // Make sure $activityId is defined
+					$attendance = $this->db->get('attendance')->row();
+
+					if ($attendance) {
+						// Insert into evaluation_responses table
+						$this->db->insert('evaluation_responses', [
+							'form_id'    => $formId,
+							'student_id' => $student->student_id,
+						]);
+					}
 				}
 			}
 
@@ -4197,6 +4327,7 @@ class AdminController extends CI_Controller
 
 		// FETCH USER PROFILE
 		$data['users'] = $this->admin->get_student($student_id);
+		$data['exempted'] = $this->admin->get_exempted_students();
 
 		// DYNAMIC DROPDOWN OPTIONS
 		$logo_targets = [];
@@ -4545,38 +4676,42 @@ class AdminController extends CI_Controller
 	{
 		require_once FCPATH . 'vendor/autoload.php';
 
-		if ($_FILES['import_file']['error'] === UPLOAD_ERR_OK) {
-			$fileTmpPath = $_FILES['import_file']['tmp_name'];
-			$fileName = $_FILES['import_file']['name'];
-			$extension = pathinfo($fileName, PATHINFO_EXTENSION);
+		if (!isset($_FILES['import_file']) || $_FILES['import_file']['error'] !== UPLOAD_ERR_OK) {
+			echo json_encode(['success' => false, 'message' => 'No file uploaded or an upload error occurred.']);
+			return;
+		}
 
-			try {
-				if ($extension === 'csv') {
-					$data = $this->readCSVExempted($fileTmpPath);
-				} elseif ($extension === 'xlsx') {
-					$data = $this->readXLSXExempted($fileTmpPath);
-				} else {
-					echo json_encode(['success' => false, 'message' => 'Invalid file type. Only CSV or XLSX allowed.']);
-					return;
-				}
+		$fileTmpPath = $_FILES['import_file']['tmp_name'];
+		$fileName = $_FILES['import_file']['name'];
+		$extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
 
-				if (!empty($data)) {
-					$success = $this->admin->insert_exempted_students_batch($data);
-					if ($success) {
-						echo json_encode(['success' => true, 'message' => 'Exempted students imported successfully.']);
-					} else {
-						echo json_encode(['success' => false, 'message' => 'Database transaction failed.']);
-					}
-				} else {
-					echo json_encode(['success' => false, 'message' => 'No valid data found in the file.']);
-				}
-			} catch (Exception $e) {
-				echo json_encode(['success' => false, 'message' => 'Error processing file: ' . $e->getMessage()]);
+		try {
+			// Validate file type
+			if ($extension === 'csv') {
+				$data = $this->readCSVExempted($fileTmpPath);
+			} elseif ($extension === 'xlsx') {
+				$data = $this->readXLSXExempted($fileTmpPath);
+			} else {
+				echo json_encode(['success' => false, 'message' => 'Invalid file type. Only CSV or XLSX allowed.']);
+				return;
 			}
-		} else {
-			echo json_encode(['success' => false, 'message' => 'No file uploaded or upload error.']);
+
+			// Proceed with data insertion if there's valid content
+			if (!empty($data)) {
+				$success = $this->admin->insert_exempted_students_batch($data);
+				if ($success) {
+					echo json_encode(['success' => true, 'message' => 'Exempted students imported successfully.']);
+				} else {
+					echo json_encode(['success' => false, 'message' => 'Failed to import data into the database.']);
+				}
+			} else {
+				echo json_encode(['success' => false, 'message' => 'The uploaded file is empty or contains invalid data.']);
+			}
+		} catch (Exception $e) {
+			echo json_encode(['success' => false, 'message' => 'An error occurred while processing the file: ' . $e->getMessage()]);
 		}
 	}
+
 
 	private function parseExemptedFile($rows)
 	{
@@ -4585,7 +4720,7 @@ class AdminController extends CI_Controller
 		foreach ($rows as $index => $row) {
 			if ($index === 0) continue; // Skip header
 
-			if (count($row) < 5 || empty(trim($row[0])) || empty(trim($row[1]))) {
+			if (count($row) < 5 || empty(trim($row[0]))) {
 				continue;
 			}
 

@@ -321,7 +321,7 @@ class OfficerController extends CI_Controller
 	{
 
 		// Get organizer from activity table
-		$activity = $this->db->select('organizer')->from('activity')->where('activity_id', $activity_id)->get()->row();
+		$activity = $this->db->select('organizer, start_date, registration_deadline, registration_fee')->from('activity')->where('activity_id', $activity_id)->get()->row();
 		$organizer = $activity ? $activity->organizer : null;
 
 
@@ -381,21 +381,62 @@ class OfficerController extends CI_Controller
 			$this->db->where('organizer', $organizer);
 			$existing_summary = $this->db->get('fines_summary')->row();
 
+			// Derive semester and academic year from start date
+			$start_date = strtotime($activity->start_date); // Ensure $start_datetime is defined
+
+			$month = (int)date('m', $start_date);
+			$year = (int)date('Y', $start_date);
+
+			// Determine semester and academic year
+			if ($month >= 8 && $month <= 12) {
+				$semester = '1st Semester';
+				$academic_year = $year . '-' . ($year + 1);
+			} else {
+				$semester = '2nd Semester';
+				$academic_year = ($year - 1) . '-' . $year;
+			}
+
+			// Update or Insert
 			if ($existing_summary) {
-				// Update the existing summary (optional fields can be included)
+				// Update the existing summary
 				$this->db->where('summary_id', $existing_summary->summary_id);
 				$this->db->update('fines_summary', [
-					'fines_status' => 'Unpaid',
-					'last_updated' => date('Y-m-d H:i:s') // Optional
+					'fines_status'   => 'Unpaid',
+					'semester'       => $semester,
+					'academic_year'  => $academic_year,
+					'last_updated'   => date('Y-m-d H:i:s')
 				]);
 			} else {
 				// Insert new summary
 				$this->db->insert('fines_summary', [
-					'student_id' => $student->student_id,
-					'organizer'  => $organizer,
-					'fines_status' => 'Unpaid',
-					'last_updated' => date('Y-m-d H:i:s') // Optional
+					'student_id'     => $student->student_id,
+					'organizer'      => $organizer,
+					'fines_status'   => 'Unpaid',
+					'semester'       => $semester,
+					'academic_year'  => $academic_year,
+					'last_updated'   => date('Y-m-d H:i:s')
 				]);
+			}
+
+			// Step 5: Registration
+			$fee_valid = !empty($activity->registration_fee) || $activity->registration_fee == 0;
+			$deadline_valid = !empty($activity->registration_deadline) || $activity->registration_deadline == '0000-00-00';
+
+			if ($fee_valid && $deadline_valid) {
+				$exists = $this->db
+					->where('activity_id', $activity_id)
+					->where('student_id', $student->student_id)
+					->get('registrations')
+					->num_rows();
+
+				if ($exists === 0) {
+					$this->db->insert('registrations', [
+						'activity_id' => $activity_id,
+						'student_id' => $student->student_id,
+						'payment_type' => 'No Status',
+						'registration_status' => 'Pending'
+					]);
+				}
 			}
 		}
 	}
@@ -1317,11 +1358,19 @@ class OfficerController extends CI_Controller
 				$this->db->insert('notifications', $notification_data);
 
 				if ($student->role === 'Student') {
-					// Insert into evaluation_responses table
-					$this->db->insert('evaluation_responses', [
-						'form_id'     => $formId,
-						'student_id'  => $student->student_id,
-					]);
+					// Check if the student is present in the attendance table for the activity
+					$this->db->where('student_id', $student->student_id);
+					$this->db->where('activity_id', $activity_id); // Make sure $activityId is defined
+					$this->db->where('attendance_status', 'Present'); // Make sure $activityId is defined
+					$attendance = $this->db->get('attendance')->row();
+
+					if ($attendance) {
+						// Insert into evaluation_responses table
+						$this->db->insert('evaluation_responses', [
+							'form_id'    => $formId,
+							'student_id' => $student->student_id,
+						]);
+					}
 				}
 			}
 

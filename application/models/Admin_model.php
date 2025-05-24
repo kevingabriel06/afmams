@@ -2023,6 +2023,16 @@ class Admin_model extends CI_Model
 		return $this->db->trans_status(); // Returns true on success, false on failure
 	}
 
+	public function insert_exempted_students_batch($data)
+	{
+		$this->db->trans_start();
+		$this->db->insert_batch('exempted_students', $data);
+		$this->db->trans_complete();
+
+		return $this->db->trans_status(); // true on success, false on failure
+	}
+
+
 	public function insert_organization($data)
 	{
 		return $this->db->insert('organization', $data);
@@ -2040,6 +2050,16 @@ class Admin_model extends CI_Model
 			$data['logo'] = $logo;
 		}
 		return $this->db->where('org_id', $id)->update('organization', $data);
+	}
+
+	public function get_exempted_students()
+	{
+		// Join users table if you want more details (e.g., name, dept)
+		$this->db->select('e.student_id, u.first_name, u.last_name, d.dept_name');
+		$this->db->from('exempted_students e');
+		$this->db->join('users u', 'u.student_id = e.student_id', 'left');
+		$this->db->join('department d', 'd.dept_id = u.dept_id', 'left');
+		return $this->db->get()->result();
 	}
 
 	public function get_students_without_qr()
