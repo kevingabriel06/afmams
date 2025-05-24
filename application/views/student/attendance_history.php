@@ -34,9 +34,10 @@
 									</div>
 								</form>
 							</div>
-							<button class="btn btn-sm btn-falcon-default ms-2" type="button">
+							<a href="<?php echo base_url('StudentController/export_attendance_pdf'); ?>" target="_blank" class="btn btn-sm btn-falcon-default ms-2">
 								<span class="fas fa-download"></span>
-							</button>
+							</a>
+
 							<button class="btn btn-sm btn-falcon-default ms-2" type="button"
 								data-bs-toggle="modal" data-bs-target="#filterModal">
 								<span class="fas fa-filter"></span>

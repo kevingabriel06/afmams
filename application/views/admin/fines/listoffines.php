@@ -259,6 +259,9 @@
 
 			<div class="modal-body">
 				<input type="hidden" name="student_id" id="modalStudentId">
+				<input type="hidden" name="academic_year" id="modalAcademicYear" value="">
+				<input type="hidden" name="semester" id="modalSemester" value="">
+
 
 				<!-- Total Fines -->
 				<div class="mb-3">
@@ -897,7 +900,11 @@
 				total_fines: fine.total_fines,
 				reference: fine.reference_number_admin,
 				receipt: fine.receipt,
-				changes: fine.remarks
+				changes: fine.remarks,
+
+				// Add these:
+				academic_year: fine.academic_year,
+				semester: fine.semester
 			});
 		}
 
@@ -1000,8 +1007,7 @@
 
 		if (student.status === 'Unpaid') {
 			dropdownItems += `
-<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#paymentModal" data-student-id="${student.id}">Confirm Payment</a>
-<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" data-student-id="${student.id}">View Details</a>
+
 <a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#editFinesModal" data-student-id="${student.id}">Edit Fines</a>
 `;
 		} else if (student.status === 'Pending') {
@@ -1050,6 +1056,10 @@ ${dropdownItems}
 				paymentModal.querySelector('#modalTotalFines').value = `₱${student.total_fines}`;
 				paymentModal.querySelector('#modalModePayment').value = student.mode_payment || '';
 				paymentModal.querySelector('#modeOfPayment').value = student.mode_payment || '';
+
+				// Add these two lines:
+				paymentModal.querySelector('#modalAcademicYear').value = student.academic_year || '';
+				paymentModal.querySelector('#modalSemester').value = student.semester || '';
 
 				if (student.receipt) {
 					receiptImage.src = baseImageUrl + student.receipt;

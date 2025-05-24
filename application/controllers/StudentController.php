@@ -709,6 +709,144 @@ class StudentController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
+
+	public function export_attendance_pdf()
+	{
+		$this->load->library('pdf');
+
+		$student_id = $this->session->userdata('student_id');
+		$attendances = $this->student->get_attendance($student_id);
+
+		// Group by organizer
+		$grouped = [];
+		foreach ($attendances as $a) {
+			$grouped[$a->organizer][] = $a;
+		}
+
+		$pdf = new PDF('P', 'mm', 'A4');
+		$pdf->SetMargins(10, 10, 10);
+		$pdf->AddPage();
+
+		$pdf->SetFont('Arial', 'B', 14);
+		$pdf->Cell(0, 10, 'Attendance History', 0, 1, 'C');
+		$pdf->Ln(5);
+
+		// Columns under organizer header
+		$columns = ['Activity', 'Time Slot', 'Time-in', 'Time-out', 'Status'];
+
+		// First, calculate max widths for the columns (excluding Organizer column which spans all)
+		$pdf->SetFont('Arial', 'B', 11);
+		$max_widths = [];
+		foreach ($columns as $col) {
+			$max_widths[] = $pdf->GetStringWidth($col) + 6; // padding
+		}
+
+		// Calculate max width per column from data
+		foreach ($grouped as $organizer => $activities) {
+			foreach ($activities as $a) {
+				$vals = [
+					$a->activity_title,
+					$a->slot_name,
+					!empty($a->time_in) ? date("M d, Y g:i A", strtotime($a->time_in)) : 'No Data',
+					!empty($a->time_out) ? date("M d, Y g:i A", strtotime($a->time_out)) : 'No Data',
+					$a->attendance_status
+				];
+
+				foreach ($vals as $i => $val) {
+					$w = $pdf->GetStringWidth($val) + 6;
+					if ($w > $max_widths[$i]) $max_widths[$i] = $w;
+				}
+			}
+		}
+
+		// Total width for columns
+		// Calculate total width of columns
+		$total_width = array_sum($max_widths);
+
+		$page_width = 190; // A4 width minus margins
+
+		if ($total_width < $page_width) {
+			// Distribute remaining space evenly among columns
+			$remaining = $page_width - $total_width;
+			$add_per_col = $remaining / count($max_widths);
+			foreach ($max_widths as &$w) {
+				$w += $add_per_col;
+			}
+			unset($w);
+		} elseif ($total_width > $page_width) {
+			// Scale down if wider than page width
+			$scale = $page_width / $total_width;
+			foreach ($max_widths as &$w) {
+				$w = $w * $scale;
+			}
+			unset($w);
+		}
+
+		// Loop through each organizer group and print table for each
+		$pdf->SetFont('Arial', '', 11);
+		foreach ($grouped as $organizer => $activities) {
+			// Organizer header row spanning all columns
+			$pdf->SetFont('Arial', 'B', 12);
+			$pdf->SetFillColor(220, 220, 220);
+			$pdf->Cell($page_width, 10, $organizer, 1, 1, 'L', true);
+
+			// Print sub-header row with column titles
+			$pdf->SetFont('Arial', 'B', 11);
+			$pdf->SetFillColor(200, 200, 200);
+			foreach ($columns as $i => $col) {
+				$pdf->Cell($max_widths[$i], 8, $col, 1, 0, 'C', true);
+			}
+			$pdf->Ln();
+
+			// Print rows of data
+			$pdf->SetFont('Arial', '', 11);
+			foreach ($activities as $a) {
+				$time_in = !empty($a->time_in) ? date("M d, Y g:i A", strtotime($a->time_in)) : 'No Data';
+				$time_out = !empty($a->time_out) ? date("M d, Y g:i A", strtotime($a->time_out)) : 'No Data';
+				$status = $a->attendance_status;
+
+				// Color status text
+				switch ($status) {
+					case 'Present':
+						$pdf->SetTextColor(0, 128, 0);
+						break;
+					case 'Excused':
+						$pdf->SetTextColor(0, 0, 255);
+						break;
+					case 'Absent':
+						$pdf->SetTextColor(255, 0, 0);
+						break;
+					case 'Incompleted':
+						$pdf->SetTextColor(255, 165, 0);
+						break;
+					default:
+						$pdf->SetTextColor(0, 0, 0);
+				}
+
+				$pdf->Cell($max_widths[0], 7, $a->activity_title, 1);
+				$pdf->Cell($max_widths[1], 7, $a->slot_name, 1);
+				$pdf->Cell($max_widths[2], 7, $time_in, 1);
+				$pdf->Cell($max_widths[3], 7, $time_out, 1);
+				$pdf->Cell($max_widths[4], 7, $status, 1, 0, 'C');
+				$pdf->Ln();
+
+				$pdf->SetTextColor(0, 0, 0);
+			}
+
+			$pdf->Ln(5); // spacing between organizers
+		}
+
+		$pdf->Output('I', 'Attendance_History_Grouped.pdf');
+	}
+
+
+
+
+
+
+
+
+
 	public function list_attendees() {}
 
 
@@ -727,6 +865,11 @@ class StudentController extends CI_Controller
 		$data['fines_summary'] = $this->Student_model->get_fines_summary_by_student($student_id);
 		$data['fines'] = $this->Student_model->get_fines_by_student($student_id);
 
+
+		// Pass student_id to the view
+		$data['student_id'] = $student_id;
+
+
 		// ✅ Load all time slots and organize them into a lookup
 		// $data['slot_lookup'] = $this->Student_model->get_time_slot_lookup();
 
@@ -735,7 +878,6 @@ class StudentController extends CI_Controller
 		$this->load->view('student/summary_fines', $data);
 		$this->load->view('layout/footer', $data);
 	}
-
 
 
 
@@ -853,6 +995,108 @@ class StudentController extends CI_Controller
 	//PAY SUMMARY OF FINES END
 
 
+
+	public function export_fines_pdf($student_id)
+	{
+		// Load model and FPDF library
+		$this->load->model('Student_model');
+		$this->load->library('pdf');  // Assuming your FPDF lib is named 'pdf'
+
+		// Fetch fines data as array of arrays
+		$fines = $this->Student_model->get_fines_by_student($student_id);
+
+		// Group fines by organizer
+		$grouped = [];
+		foreach ($fines as $fine) {
+			$organizer = $fine['organizer'] ?? 'Unknown Organizer';
+			$grouped[$organizer][] = $fine;
+		}
+
+		// Create PDF
+		$pdf = new PDF('P', 'mm', 'A4');
+		$pdf->SetMargins(10, 10, 10);
+		$pdf->AddPage();
+
+		// Title
+		$pdf->SetFont('Arial', 'B', 14);
+		$pdf->Cell(0, 10, 'Summary of Fines', 0, 1, 'C');
+		$pdf->Ln(5);
+
+		// Define columns
+		$columns = ['Activity', 'Date', 'Amount', 'Reason'];
+
+		// Set font for measuring
+		$pdf->SetFont('Arial', 'B', 11);
+		$max_widths = [];
+		foreach ($columns as $col) {
+			$max_widths[] = $pdf->GetStringWidth($col) + 6;
+		}
+
+		// Adjust max widths based on data
+		foreach ($grouped as $organizer => $fines_list) {
+			foreach ($fines_list as $fine) {
+				$vals = [
+					$fine['activity_title'] ?? '',
+					!empty($fine['start_date']) ? date('Y-m-d', strtotime($fine['start_date'])) : 'N/A',
+					'Php ' . number_format($fine['fines_amount'], 2),
+					$fine['fines_reason'] ?? '',
+				];
+				foreach ($vals as $i => $val) {
+					$w = $pdf->GetStringWidth($val) + 6;
+					if ($w > $max_widths[$i]) $max_widths[$i] = $w;
+				}
+			}
+		}
+
+		// Total width and page width
+		$total_width = array_sum($max_widths);
+		$page_width = 190;
+
+		if ($total_width < $page_width) {
+			$remaining = $page_width - $total_width;
+			$add_per_col = $remaining / count($max_widths);
+			foreach ($max_widths as &$w) {
+				$w += $add_per_col;
+			}
+			unset($w);
+		} elseif ($total_width > $page_width) {
+			$scale = $page_width / $total_width;
+			foreach ($max_widths as &$w) {
+				$w *= $scale;
+			}
+			unset($w);
+		}
+
+		// Output data grouped by organizer
+		foreach ($grouped as $organizer => $fines_list) {
+			$pdf->SetFont('Arial', 'B', 12);
+			$pdf->SetFillColor(220, 220, 220);
+			$pdf->Cell($page_width, 10, $organizer, 1, 1, 'L', true);
+
+			// Column headers
+			$pdf->SetFont('Arial', 'B', 11);
+			$pdf->SetFillColor(200, 200, 200);
+			foreach ($columns as $i => $col) {
+				$pdf->Cell($max_widths[$i], 8, $col, 1, 0, 'C', true);
+			}
+			$pdf->Ln();
+
+			// Rows
+			$pdf->SetFont('Arial', '', 11);
+			foreach ($fines_list as $fine) {
+				$pdf->Cell($max_widths[0], 7, $fine['activity_title'], 1);
+				$pdf->Cell($max_widths[1], 7, !empty($fine['start_date']) ? date('Y-m-d', strtotime($fine['start_date'])) : 'N/A', 1);
+				$pdf->Cell($max_widths[2], 7, 'Php ' . number_format($fine['fines_amount'], 2), 1);
+				$pdf->Cell($max_widths[3], 7, $fine['fines_reason'], 1);
+				$pdf->Ln();
+			}
+
+			$pdf->Ln(5);
+		}
+
+		// Output PDF
+		$pdf->Output('I', 'Summary_of_Fines.pdf');
+	}
 
 
 

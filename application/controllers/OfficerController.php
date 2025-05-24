@@ -2966,6 +2966,10 @@ class OfficerController extends CI_Controller
 		$mode_of_payment = $this->input->post('mode_of_payment');
 		$reference_number = trim($this->input->post('reference_number'));
 
+
+		$academic_year = $this->input->post('academic_year'); // get from POST form
+		$semester = $this->input->post('semester');           // get from POST form
+
 		$officer_student_id = $this->session->userdata('student_id');
 
 		// Load organizer info
@@ -3000,7 +3004,7 @@ class OfficerController extends CI_Controller
 		}
 
 		// Get fine summary with organizer
-		$record = $this->officer->get_fine_summary($student_id, $organizer);
+		$record = $this->officer->get_fine_summary($student_id, $organizer, $academic_year, $semester);
 
 		if (!$record) {
 			echo json_encode(['status' => 'error', 'message' => 'No fines summary found.']);
@@ -3016,14 +3020,14 @@ class OfficerController extends CI_Controller
 
 		// CASE: Reference number mismatch
 		if ($reference_number !== $record->reference_number_students) {
-			$this->officer->update_fines_summary_with_organizer($student_id, $organizer, [
+			$this->officer->update_fines_summary_with_organizer($student_id, $organizer, $academic_year, $semester, [
 				'reference_number_admin' => $reference_number,
 				'fines_status' => 'Pending',
 				'mode_payment' => $mode_of_payment,
 				'last_updated' => date('Y-m-d H:i:s')
 			]);
 
-			$this->Notification_model->add_notification(
+			$updated = $this->Notification_model->add_notification(
 				$student_id,
 				$admin_student_id,
 				'fine_payment_rejected',
@@ -3035,13 +3039,13 @@ class OfficerController extends CI_Controller
 			return;
 		}
 
-		// CASE: Reference number matches - Approve
-		$updated = $this->officer->update_fines_summary_with_organizer($student_id, $organizer, [
+		// CASE: REFERENCE MATCH - APPROVED
+		$updated = $this->admin->update_fines_summary_receipt($student_id, [
 			'reference_number_admin' => $reference_number,
 			'fines_status' => 'Paid',
 			'mode_payment' => $mode_of_payment,
 			'last_updated' => date('Y-m-d H:i:s')
-		]);
+		], $academic_year, $semester); // ADDED: pass academic_year and semester to update method
 
 		if ($updated) {
 			$summary_id = $record->summary_id;
@@ -3163,10 +3167,23 @@ class OfficerController extends CI_Controller
 		$this->db->where('summary_id', $summary_id);
 		$this->db->update('fines_summary', [
 			'generated_receipt' => $filename,
-			'verification_code' => $verification_code, // ✅ Save the code
+			'verification_code' => $verification_code,
 			'last_updated' => date('Y-m-d H:i:s')
 		]);
+
+		if ($this->db->affected_rows() === 0) {
+			log_message('error', "No rows updated for summary_id $summary_id");
+		} else {
+			log_message('debug', "Fines summary updated successfully for summary_id $summary_id");
+		}
+
+		$error = $this->db->error();
+		if (!empty($error['message'])) {
+			log_message('error', "DB error: " . $error['message']);
+		}
 	}
+
+
 
 
 

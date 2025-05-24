@@ -3399,8 +3399,12 @@ class AdminController extends CI_Controller
 		$mode_of_payment = $this->input->post('mode_of_payment');
 		$reference_number = trim($this->input->post('reference_number')); // Admin input (cleaned)
 
+		$academic_year = $this->input->post('academic_year'); // get from POST form
+		$semester = $this->input->post('semester');           // get from POST form
+
 		$organizer = 'Student Parliament';
-		$record = $this->admin->get_fine_summary($student_id, $organizer); // ✅ retrieve student's fine summary
+		$record = $this->admin->get_fine_summary($student_id, $organizer, $academic_year, $semester);
+		// ✅ retrieve student's fine summary //ADDED FOR AY AND SEM
 		$admin_student_id = $this->session->userdata('student_id'); // Logged-in admin's student_id
 
 		if (!$record) {
@@ -3417,7 +3421,7 @@ class AdminController extends CI_Controller
 				'fines_status' => 'Pending',
 				'mode_payment' => $mode_of_payment,
 				'last_updated' => date('Y-m-d H:i:s')
-			]);
+			], $academic_year, $semester); // ADDED: pass academic_year and semester to update method
 
 			// ❌ Send rejection notification
 			$this->Notification_model->add_notification(
@@ -3438,7 +3442,7 @@ class AdminController extends CI_Controller
 			'fines_status' => 'Paid',
 			'mode_payment' => $mode_of_payment,
 			'last_updated' => date('Y-m-d H:i:s')
-		]);
+		], $academic_year, $semester); // ADDED: pass academic_year and semester to update method
 
 		if ($updated) {
 			$summary_id = $record->summary_id;
