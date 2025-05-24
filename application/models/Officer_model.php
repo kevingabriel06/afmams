@@ -1306,43 +1306,108 @@ class Officer_model extends CI_Model
 		$this->update_fines_summary();
 	}
 
+	// public function update_fines_summary()
+	// {
+	// 	// Get all fines grouped by student and activity
+	// 	$this->db->select('student_id, activity_id, SUM(fines_amount) as total_fines');
+	// 	$this->db->from('fines');
+	// 	$this->db->group_by(['student_id', 'activity_id']);
+	// 	$summaries = $this->db->get()->result();
+
+	// 	foreach ($summaries as $summary) {
+	// 		// Check if record exists in fines_summary
+	// 		$exists = $this->db->get_where('fines_summary', [
+	// 			'student_id' => $summary->student_id,
+	// 			'activity_id' => $summary->activity_id
+	// 		])->row();
+
+	// 		// Determine fines status (whether it is paid or unpaid)
+	// 		$fines_status = $summary->total_fines > 0 ? 'Unpaid' : 'Paid';
+
+	// 		if ($exists) {
+	// 			// Update existing fines summary record
+	// 			$this->db->where([
+	// 				'student_id' => $summary->student_id,
+	// 				'activity_id' => $summary->activity_id
+	// 			]);
+	// 			$this->db->update('fines_summary', [
+	// 				'total_fines' => $summary->total_fines,
+	// 				'fines_status' => $fines_status,
+	// 				'updated_at' => date('Y-m-d H:i:s') // Adding updated timestamp
+	// 			]);
+	// 		} else {
+	// 			// Insert new fines summary record
+	// 			$this->db->insert('fines_summary', [
+	// 				'student_id' => $summary->student_id,
+	// 				'activity_id' => $summary->activity_id,
+	// 				'total_fines' => $summary->total_fines,
+	// 				'fines_status' => $fines_status,
+	// 				'created_at' => date('Y-m-d H:i:s') // Adding created timestamp
+	// 			]);
+	// 		}
+	// 	}
+	// }
+
+
 	public function update_fines_summary()
 	{
-		// Get all fines grouped by student and activity
-		$this->db->select('student_id, activity_id, SUM(fines_amount) as total_fines');
+		// First, join fines with activity and fines_summary to get academic_year and semester
+		$this->db->select('
+		fines.student_id, 
+		activity.organizer, 
+		fines_summary.academic_year, 
+		fines_summary.semester, 
+		SUM(fines.fines_amount) as total_fines
+	');
 		$this->db->from('fines');
-		$this->db->group_by(['student_id', 'activity_id']);
+		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+		$this->db->join('fines_summary', 'fines_summary.student_id = fines.student_id AND fines_summary.organizer = activity.organizer', 'left');
+		$this->db->group_by([
+			'fines.student_id',
+			'activity.organizer',
+			'fines_summary.academic_year',
+			'fines_summary.semester'
+		]);
+
 		$summaries = $this->db->get()->result();
 
 		foreach ($summaries as $summary) {
-			// Check if record exists in fines_summary
-			$exists = $this->db->get_where('fines_summary', [
-				'student_id' => $summary->student_id,
-				'activity_id' => $summary->activity_id
-			])->row();
+			if (!$summary->academic_year || !$summary->semester) {
+				// You may choose to skip or log this case
+				continue;
+			}
 
-			// Determine fines status (whether it is paid or unpaid)
 			$fines_status = $summary->total_fines > 0 ? 'Unpaid' : 'Paid';
 
+			// Check if record exists
+			$exists = $this->db->get_where('fines_summary', [
+				'student_id'     => $summary->student_id,
+				'organizer'      => $summary->organizer,
+				'academic_year'  => $summary->academic_year,
+				'semester'       => $summary->semester
+			])->row();
+
 			if ($exists) {
-				// Update existing fines summary record
 				$this->db->where([
-					'student_id' => $summary->student_id,
-					'activity_id' => $summary->activity_id
+					'student_id'     => $summary->student_id,
+					'organizer'      => $summary->organizer,
+					'academic_year'  => $summary->academic_year,
+					'semester'       => $summary->semester
 				]);
 				$this->db->update('fines_summary', [
 					'total_fines' => $summary->total_fines,
 					'fines_status' => $fines_status,
-					'updated_at' => date('Y-m-d H:i:s') // Adding updated timestamp
+					'last_updated' => date('Y-m-d H:i:s')
 				]);
 			} else {
-				// Insert new fines summary record
 				$this->db->insert('fines_summary', [
 					'student_id' => $summary->student_id,
-					'activity_id' => $summary->activity_id,
+					'organizer' => $summary->organizer,
+					'academic_year' => $summary->academic_year,   // ADDED
+					'semester' => $summary->semester,             // ADDED
 					'total_fines' => $summary->total_fines,
 					'fines_status' => $fines_status,
-					'created_at' => date('Y-m-d H:i:s') // Adding created timestamp
+					'created_at' => date('Y-m-d H:i:s')
 				]);
 			}
 		}
@@ -1570,36 +1635,6 @@ class Officer_model extends CI_Model
 
 
 
-	// public function flash_fines()
-	// {
-	// 	$student_id = $this->session->userdata('student_id'); // current user
-
-	// 	$this->db->select('fines_summary.*, users.*, department.*, fines.*, activity.*');
-	// 	$this->db->from('fines_summary');
-	// 	$this->db->join('users', 'users.student_id = fines_summary.student_id');
-	// 	$this->db->join('department', 'department.dept_id = users.dept_id');
-	// 	$this->db->join('fines', 'fines.student_id = fines_summary.student_id'); // Join only by student_id here
-	// 	$this->db->join('activity', 'activity.activity_id = fines.activity_id');
-
-	// 	$this->db->join('student_org', "student_org.student_id = '$student_id'", 'left');
-
-	// 	// Officer checks for current logged-in user
-	// 	$this->db->group_start();
-	// 	$this->db->where("users.student_id", $student_id);
-	// 	$this->db->where("users.role", 'Officer');
-	// 	$this->db->where("users.is_officer_dept", 'Yes');
-	// 	$this->db->group_end();
-
-	// 	$this->db->or_group_start();
-	// 	$this->db->where("student_org.student_id", $student_id);
-	// 	$this->db->where("student_org.is_officer", 'Yes');
-	// 	$this->db->group_end();
-
-	// 	$this->db->order_by('users.student_id, activity.activity_id');
-
-	// 	$query = $this->db->get();
-	// 	return $query->result_array();
-	// }
 
 
 
@@ -1657,14 +1692,17 @@ class Officer_model extends CI_Model
 
 
 	//to update fines summary of student
-	public function update_fines_summary_with_organizer($student_id, $organizer, $data)
+	public function update_fines_summary_with_organizer($student_id, $organizer, $academic_year, $semester, $data)
 	{
 		$this->db->where('student_id', $student_id);
-		$this->db->where('organizer', $organizer); // ✅ Target the correct organizer
+		$this->db->where('organizer', $organizer);
+		$this->db->where('academic_year', $academic_year);
+		$this->db->where('semester', $semester);
 		return $this->db->update('fines_summary', $data);
 	}
 
-	public function get_fine_summary($student_id, $organizer)
+
+	public function get_fine_summary($student_id, $organizer, $academic_year, $semester)
 	{
 		$this->db->select('fines_summary.*');
 		$this->db->from('fines_summary');
@@ -1672,6 +1710,8 @@ class Officer_model extends CI_Model
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
 		$this->db->where('fines_summary.student_id', $student_id);
 		$this->db->where('fines_summary.organizer', $organizer); // ✅ This is the key fix
+		$this->db->where('fines_summary.academic_year', $academic_year);
+		$this->db->where('fines_summary.semester', $semester);
 		$this->db->group_by('fines_summary.summary_id');
 		$this->db->limit(1);
 		return $this->db->get()->row();
@@ -1691,6 +1731,39 @@ class Officer_model extends CI_Model
 		return $record ? $record->summary_id : null;
 	}
 
+
+
+
+	// public function flash_fines()
+	// {
+	// 	$student_id = $this->session->userdata('student_id'); // current user
+
+	// 	$this->db->select('fines_summary.*, users.*, department.*, fines.*, activity.*');
+	// 	$this->db->from('fines_summary');
+	// 	$this->db->join('users', 'users.student_id = fines_summary.student_id');
+	// 	$this->db->join('department', 'department.dept_id = users.dept_id');
+	// 	$this->db->join('fines', 'fines.student_id = fines_summary.student_id'); // Join only by student_id here
+	// 	$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+
+	// 	$this->db->join('student_org', "student_org.student_id = '$student_id'", 'left');
+
+	// 	// Officer checks for current logged-in user
+	// 	$this->db->group_start();
+	// 	$this->db->where("users.student_id", $student_id);
+	// 	$this->db->where("users.role", 'Officer');
+	// 	$this->db->where("users.is_officer_dept", 'Yes');
+	// 	$this->db->group_end();
+
+	// 	$this->db->or_group_start();
+	// 	$this->db->where("student_org.student_id", $student_id);
+	// 	$this->db->where("student_org.is_officer", 'Yes');
+	// 	$this->db->group_end();
+
+	// 	$this->db->order_by('users.student_id, activity.activity_id');
+
+	// 	$query = $this->db->get();
+	// 	return $query->result_array();
+	// }
 
 	//FINES RECEIPT END
 

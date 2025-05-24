@@ -1488,26 +1488,48 @@ class Admin_model extends CI_Model
 
 	public function update_fines_summary()
 	{
-		// Group fines by student and organizer (change as per your design)
-		$this->db->select('student_id, activity.organizer, SUM(fines_amount) as total_fines');
+		// First, join fines with activity and fines_summary to get academic_year and semester
+		$this->db->select('
+		fines.student_id, 
+		activity.organizer, 
+		fines_summary.academic_year, 
+		fines_summary.semester, 
+		SUM(fines.fines_amount) as total_fines
+	');
 		$this->db->from('fines');
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
-		$this->db->group_by(['student_id', 'activity.organizer']);
+		$this->db->join('fines_summary', 'fines_summary.student_id = fines.student_id AND fines_summary.organizer = activity.organizer', 'left');
+		$this->db->group_by([
+			'fines.student_id',
+			'activity.organizer',
+			'fines_summary.academic_year',
+			'fines_summary.semester'
+		]);
+
 		$summaries = $this->db->get()->result();
 
 		foreach ($summaries as $summary) {
-			// Check if record exists in fines_summary by student and organizer
-			$exists = $this->db->get_where('fines_summary', [
-				'student_id' => $summary->student_id,
-				'organizer' => $summary->organizer,
-			])->row();
+			if (!$summary->academic_year || !$summary->semester) {
+				// You may choose to skip or log this case
+				continue;
+			}
 
 			$fines_status = $summary->total_fines > 0 ? 'Unpaid' : 'Paid';
 
+			// Check if record exists
+			$exists = $this->db->get_where('fines_summary', [
+				'student_id'     => $summary->student_id,
+				'organizer'      => $summary->organizer,
+				'academic_year'  => $summary->academic_year,
+				'semester'       => $summary->semester
+			])->row();
+
 			if ($exists) {
 				$this->db->where([
-					'student_id' => $summary->student_id,
-					'organizer' => $summary->organizer,
+					'student_id'     => $summary->student_id,
+					'organizer'      => $summary->organizer,
+					'academic_year'  => $summary->academic_year,
+					'semester'       => $summary->semester
 				]);
 				$this->db->update('fines_summary', [
 					'total_fines' => $summary->total_fines,
@@ -1518,6 +1540,8 @@ class Admin_model extends CI_Model
 				$this->db->insert('fines_summary', [
 					'student_id' => $summary->student_id,
 					'organizer' => $summary->organizer,
+					'academic_year' => $summary->academic_year,   // ADDED
+					'semester' => $summary->semester,             // ADDED
 					'total_fines' => $summary->total_fines,
 					'fines_status' => $fines_status,
 					'created_at' => date('Y-m-d H:i:s')
@@ -1737,7 +1761,7 @@ class Admin_model extends CI_Model
 		return false;
 	}
 
-	public function get_fine_summary($student_id, $organizer)
+	public function get_fine_summary($student_id, $organizer, $academic_year, $semester)
 	{
 		$this->db->select('fines_summary.*');
 		$this->db->from('fines_summary');
@@ -1745,6 +1769,8 @@ class Admin_model extends CI_Model
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
 		$this->db->where('fines_summary.student_id', $student_id);
 		$this->db->where('activity.organizer', $organizer);
+		$this->db->where('fines_summary.academic_year', $academic_year);
+		$this->db->where('fines_summary.semester', $semester);
 		$this->db->group_by('fines_summary.summary_id'); // Avoid duplicate rows
 		$this->db->limit(1);
 		return $this->db->get()->row();

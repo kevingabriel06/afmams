@@ -24,9 +24,10 @@
 					<!-- Search Input -->
 					<div class="d-flex align-items-center justify-content-between justify-content-lg-end px-x1">
 						<div class="d-flex align-items-center" id="table-ticket-replace-element">
-							<button class="btn btn-sm btn-falcon-default ms-2" type="button">
+							<a href="<?= base_url('StudentController/export_fines_pdf/' . $student_id) ?>" class="btn btn-sm btn-falcon-default ms-2" target="_blank">
 								<span class="fas fa-download"></span>
-							</button>
+							</a>
+
 							<button class="btn btn-sm btn-falcon-default ms-2" type="button"
 								data-bs-toggle="modal" data-bs-target="#filterModal">
 								<span class="fas fa-filter"></span>

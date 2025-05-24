@@ -1326,6 +1326,79 @@ class Student_model extends CI_Model
 
 
 
+
+
+	public function get_fines_with_details()
+	{
+		// Get all summaries
+		$summaries = $this->db->get('fines_summary')->result();
+
+		foreach ($summaries as &$summary) {
+			$summary->fine_details = $this->db
+				->where('student_id', $summary->student_id)
+				->get('fines')
+				->result();
+		}
+
+		return $summaries;
+	}
+
+
+
+
+
+
+
+	public function get_fines_by_student($student_id)
+	{
+		$this->db->select('
+        fines.*, 
+        activity.activity_title, 
+        activity.start_date, 
+        activity.organizer, 
+        activity_time_slots.slot_name, 
+        fines_summary.summary_id, 
+        fines_summary.fines_status, 
+		 fines_summary.total_fines, 
+        fines_summary.generated_receipt, 
+        attendance.time_in, 
+        attendance.time_out, 
+        attendance.attendance_status, 
+        attendance.photo_path
+    ');
+		$this->db->from('fines');
+		$this->db->join('activity', 'activity.activity_id = fines.activity_id', 'left');
+		$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = fines.timeslot_id', 'left');
+		$this->db->join('fines_summary', 'fines_summary.student_id = fines.student_id AND fines_summary.organizer = activity.organizer', 'left');
+		$this->db->join('attendance', 'attendance.attendance_id = fines.attendance_id', 'left');
+		$this->db->where('fines.student_id', $student_id);
+		$this->db->order_by('activity.organizer', 'ASC');
+		$this->db->order_by('activity.activity_title', 'ASC');
+		$query = $this->db->get();
+		return $query->result_array();
+	}
+
+
+	//For Displaying Fines Table
+	public function get_fines_summary_by_student($student_id)
+	{
+		return $this->db->get_where('fines_summary', ['student_id' => $student_id])->result_array();
+	}
+
+
+	//FOR EXPORTING
+
+	public function get_fines_by_student_with_organizer($student_id)
+	{
+		$this->db->select('f.*, a.organizer');
+		$this->db->from('fines f');
+		$this->db->join('activity a', 'f.activity_id = a.activity_id', 'left');
+		$this->db->where('f.student_id', $student_id);
+		$query = $this->db->get();
+		return $query->result_array();
+	}
+	//EXPORTING END
+
 	// public function get_fines_with_summary_and_activity($student_id = null)
 	// {
 	// 	$this->db->select('
@@ -1367,28 +1440,6 @@ class Student_model extends CI_Model
 	// }
 
 
-	public function get_fines_with_details()
-	{
-		// Get all summaries
-		$summaries = $this->db->get('fines_summary')->result();
-
-		foreach ($summaries as &$summary) {
-			$summary->fine_details = $this->db
-				->where('student_id', $summary->student_id)
-				->get('fines')
-				->result();
-		}
-
-		return $summaries;
-	}
-
-
-	//For Displaying Fines Table
-	public function get_fines_summary_by_student($student_id)
-	{
-		return $this->db->get_where('fines_summary', ['student_id' => $student_id])->result_array();
-	}
-
 	// public function get_fines_by_student($student_id)
 	// {
 	// 	$this->db->select('
@@ -1408,36 +1459,6 @@ class Student_model extends CI_Model
 	// 	$this->db->where('fines.student_id', $student_id);
 	// 	return $this->db->get()->result_array();
 	// }
-
-
-	public function get_fines_by_student($student_id)
-	{
-		$this->db->select('
-        fines.*, 
-        activity.activity_title, 
-        activity.start_date, 
-        activity.organizer, 
-        activity_time_slots.slot_name, 
-        fines_summary.summary_id, 
-        fines_summary.fines_status, 
-		 fines_summary.total_fines, 
-        fines_summary.generated_receipt, 
-        attendance.time_in, 
-        attendance.time_out, 
-        attendance.attendance_status, 
-        attendance.photo_path
-    ');
-		$this->db->from('fines');
-		$this->db->join('activity', 'activity.activity_id = fines.activity_id', 'left');
-		$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = fines.timeslot_id', 'left');
-		$this->db->join('fines_summary', 'fines_summary.student_id = fines.student_id AND fines_summary.organizer = activity.organizer', 'left');
-		$this->db->join('attendance', 'attendance.attendance_id = fines.attendance_id', 'left');
-		$this->db->where('fines.student_id', $student_id);
-		$this->db->order_by('activity.organizer', 'ASC');
-		$this->db->order_by('activity.activity_title', 'ASC');
-		$query = $this->db->get();
-		return $query->result_array();
-	}
 
 	// public function get_fines_with_summary_and_activity($student_id = null)
 	// {
@@ -1495,25 +1516,6 @@ class Student_model extends CI_Model
 	// 	$query = $this->db->get();
 	// 	return $query->result_array();
 	// }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
