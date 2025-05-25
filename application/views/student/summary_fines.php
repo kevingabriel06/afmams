@@ -279,8 +279,11 @@
 
 							echo '<table class="table table-hover table-striped table-bordered mt-4 mb-4">';
 							echo '<thead class="table-light">';
-							echo '<tr><th colspan="4" class="text-start">Source of Fine: ' . htmlspecialchars($fine['organizer']) . '</th></tr>';
-							echo '<tr><th>Activity</th><th>Date</th><th>Amount</th><th class="text-center">Action</th></tr>';
+							echo '<tr class="bg-primary bg-opacity-10"><th colspan="5" class="text-start">Source of Fine: ' . htmlspecialchars($fine['organizer']) . '</th></tr>';
+
+
+							echo '<tr><th>Activity</th><th>Date</th><th>Amount</th><th>Status</th><th class="text-center">Action</th></tr>';
+
 							echo '</thead><tbody>';
 
 							$organizer_fines = [];
@@ -306,6 +309,62 @@
 							}
 
 							echo '<td>₱' . number_format($activity_total, 2) . '</td>';
+
+							// Compute attendance status for the activity
+							$attendanceStatuses = [];
+							foreach ($fines as $f) {
+								if ($f['activity_id'] == $fine['activity_id'] && $f['student_id'] == $fine['student_id']) {
+									$attendanceStatuses[] = $f['attendance_status'];
+								}
+							}
+
+							$uniqueStatuses = array_unique($attendanceStatuses);
+
+							if (count($uniqueStatuses) === 1) {
+								$overallAttendanceStatus = $uniqueStatuses[0]; // Present or Absent
+							} else {
+								$overallAttendanceStatus = 'Incomplete';
+							}
+
+							// Badge color mapping
+							$label = $overallAttendanceStatus;
+
+							switch ($overallAttendanceStatus) {
+								case 'Present':
+									$badgeClass = 'badge-subtle-success';
+									$icon = 'fa-check';
+									break;
+								case 'Excused':
+									$badgeClass = 'badge-subtle-primary';
+									$icon = 'fa-user-check';
+									break;
+								case 'Absent':
+									$badgeClass = 'badge-subtle-danger';
+									$icon = 'fa-times';
+									break;
+								case 'Incomplete':
+									$badgeClass = 'badge-subtle-warning';
+									$icon = 'fa-exclamation';
+									break;
+								case null:
+									$badgeClass = 'badge-subtle-secondary';
+									$icon = 'fa-question';
+									$label = 'No Status';
+									break;
+								default:
+									$badgeClass = 'badge-subtle-secondary';
+									$icon = 'fa-question';
+									$label = htmlspecialchars($overallAttendanceStatus);
+							}
+
+							echo '<td><span class="badge ' . $badgeClass . ' rounded-pill px-3 py-1 fw-medium"><i class="fa ' . $icon . ' me-1"></i>' . $label . '</span></td>';
+
+
+
+
+
+
+
 							echo '<td class="text-center">';
 							echo '<button class="btn btn-sm border border-primary text-primary bg-transparent rounded-pill px-3"
 								style="font-weight: 500;"
@@ -316,26 +375,65 @@
 							echo '</td>';
 							echo '</tr>';
 
+
+							// Modal
 							// Modal
 							echo '<div class="modal fade" id="breakdownModal-' . $index . '" tabindex="-1" aria-labelledby="breakdownModalLabel-' . $index . '" aria-hidden="true">';
-							echo '<div class="modal-dialog modal-dialog-scrollable">';
-							echo '<div class="modal-content">';
-							echo '<div class="modal-header">';
-							echo '<h5 class="modal-title">Fine Breakdown - ' . htmlspecialchars($fine['activity_title']) . '</h5>';
+							echo '<div class="modal-dialog modal-dialog-scrollable modal-md">';
+							echo '<div class="modal-content shadow-sm border-0 rounded-3">';
+
+							// Modal Header with light blue background
+							echo '<div class="modal-header" style="background-color: #cce5ff;">';
+							echo '<h5 class="modal-title fw-bold" id="breakdownModalLabel-' . $index . '">';
+							echo 'Fine Breakdown - ' . htmlspecialchars($fine['activity_title']);
+							echo '</h5>';
 							echo '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>';
 							echo '</div>';
-							echo '<div class="modal-body"><ul class="list-group">';
 
+							echo '<div class="modal-body p-3">';
+
+							// Header row using flexbox
+							echo '<div style="display: flex; font-weight: 600; border-bottom: 2px solid #99caff; padding-bottom: 8px; margin-bottom: 12px; color: #004085;">';
+							echo '<div style="flex: 1;">Slot / Time</div>';
+							echo '<div style="flex: 1; text-align: right;">Fine Amount</div>';
+							echo '</div>';
+
+							// Step 1: Detect slots used in this activity
+							$used_slots = [];
+							foreach ($fines as $f) {
+								if ($f['activity_id'] == $fine['activity_id']) {
+									$used_slots[$f['slot_name']] = true;
+								}
+							}
+
+							// Step 2: Pre-fill relevant slot+in/out combos with 0.00
 							$aggregated_fines = [];
+							foreach ($used_slots as $slot => $_) {
+								$aggregated_fines[$slot . '_in'] = 0.00;
+								$aggregated_fines[$slot . '_out'] = 0.00;
+							}
+
+							// Step 3: Aggregate fines and collect times
+							$student_slot_times = [];
+
 							foreach ($fines as $f) {
 								if ($f['activity_id'] == $fine['activity_id'] && $f['student_id'] == $fine['student_id']) {
+									$slot = $f['slot_name'];
+
+									if (!empty($f['time_in'])) {
+										$student_slot_times[$slot . '_in'] = $f['time_in'];
+									}
+									if (!empty($f['time_out'])) {
+										$student_slot_times[$slot . '_out'] = $f['time_out'];
+									}
+
 									if (!isset($f['time_in']) || $f['time_in'] === null) {
-										$key = $f['slot_name'] . '_in';
-										$aggregated_fines[$key] = ($aggregated_fines[$key] ?? 0) + $f['fines_amount'];
+										$key = $slot . '_in';
+										$aggregated_fines[$key] += $f['fines_amount'];
 									}
 									if (!isset($f['time_out']) || $f['time_out'] === null) {
-										$key = $f['slot_name'] . '_out';
-										$aggregated_fines[$key] = ($aggregated_fines[$key] ?? 0) + $f['fines_amount'];
+										$key = $slot . '_out';
+										$aggregated_fines[$key] += $f['fines_amount'];
 									}
 								}
 							}
@@ -343,26 +441,52 @@
 							$activity_total_breakdown = 0;
 							$slot_order = ['Morning_in', 'Morning_out', 'Afternoon_in', 'Afternoon_out', 'Evening_in', 'Evening_out'];
 
+							// List each fine with flex layout
 							foreach ($slot_order as $label) {
 								if (isset($aggregated_fines[$label])) {
-									echo '<li class="list-group-item d-flex justify-content-between align-items-center">';
-									echo '<span>' . htmlspecialchars($label) . '</span>';
-									echo '<span>₱' . number_format($aggregated_fines[$label], 2) . '</span>';
-									echo '</li>';
+									echo '<div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #e1e7f0;">';
+
+									// Slot / Time with optional time in small muted text
+									echo '<div style="flex: 1; color: #004085;">';
+									echo htmlspecialchars($label);
+									if (isset($student_slot_times[$label])) {
+										$time = date('h:i A', strtotime($student_slot_times[$label]));
+										echo ' <small style="color: #6c757d;">(' . $time . ')</small>';
+									} else {
+										echo ' <small style="color: #adb5bd; font-style: italic;">(No record)</small>';
+									}
+
+									echo '</div>';
+
+									// Fine amount right aligned
+									echo '<div style="flex: 1; text-align: right; font-weight: 600;">₱' . number_format($aggregated_fines[$label], 2) . '</div>';
+
+									echo '</div>';
+
 									$activity_total_breakdown += $aggregated_fines[$label];
 								}
 							}
 
+							// Total row
+							echo '<div style="display: flex; justify-content: space-between; padding: 10px 0; font-weight: 700; border-top: 2px solid #99caff; color: #004085;">';
+							echo '<div>Total</div>';
+							echo '<div>₱' . number_format($activity_total_breakdown, 2) . '</div>';
+							echo '</div>';
 
-							echo '<li class="list-group-item d-flex justify-content-between align-items-center fw-bold">';
-							echo '<span>Total</span>';
-							echo '<span>₱' . number_format($activity_total_breakdown, 2) . '</span>';
-							echo '</li>';
+							echo '</div>'; // modal-body
 
-							echo '</ul></div></div></div></div>';
+							// Modal footer with close button
+							echo '<div class="modal-footer">';
+							echo '<button type="button" class="btn btn-outline-primary btn-sm" data-bs-dismiss="modal">Close</button>';
+							echo '</div>';
+
+							echo '</div></div></div>';
+
+
 
 							$previous_activity = $fine['activity_title'];
 						}
+
 
 						$organizer_fines[] = $fine;
 
