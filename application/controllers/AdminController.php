@@ -1283,7 +1283,7 @@ class AdminController extends CI_Controller
 			echo json_encode([
 				'status'   => 'success',
 				'message'  => 'Activity Updated Successfully',
-				'redirect' => site_url('admin/list-of-activity')
+				'redirect' => site_url('admin/activity-details/' . $activity_id)
 			]);
 		}
 	}
@@ -2838,6 +2838,22 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
+	public function impose_fines_timein()
+	{
+		// Get raw JSON input and decode it
+		$inputJSON = file_get_contents('php://input');
+		$input = json_decode($inputJSON, true);
+
+		$activity_id = $input['activity_id'] ?? null;
+		$timeslot_id = $input['timeslot_id'] ?? null;
+
+		log_message('debug', "Received activity_id: $activity_id, timeslot_id: $timeslot_id");
+
+		$this->admin->imposeFinesIfAbsentIn($activity_id, $timeslot_id);
+
+		echo json_encode(['status' => 'success']);
+	}
+
 	// SCANNING AND FACIAL RECOGNITION - PAGE (FINAL CHECK)
 	public function time_out($activity_id)
 	{
@@ -2857,6 +2873,22 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/attendance/scanqr_timeout', $data);
 		$this->load->view('layout/footer', $data);
+	}
+
+	public function impose_fines_timeout()
+	{
+		// Get raw JSON input and decode it
+		$inputJSON = file_get_contents('php://input');
+		$input = json_decode($inputJSON, true);
+
+		$activity_id = $input['activity_id'] ?? null;
+		$timeslot_id = $input['timeslot_id'] ?? null;
+
+		log_message('debug', "Received activity_id: $activity_id, timeslot_id: $timeslot_id");
+
+		$this->admin->imposeFinesIfAbsentOut($activity_id, $timeslot_id);
+
+		echo json_encode(['status' => 'success']);
 	}
 
 	public function scanUnified_timein()
@@ -2911,47 +2943,47 @@ class AdminController extends CI_Controller
 				]));
 		}
 
-		// Get the timeslot cut-off for fines calculation
-		$timeslot = $this->db->get_where('activity_time_slots', [
-			'timeslot_id' => $timeslot_id
-		])->row();
+		// // Get the timeslot cut-off for fines calculation
+		// $timeslot = $this->db->get_where('activity_time_slots', [
+		// 	'timeslot_id' => $timeslot_id
+		// ])->row();
 
-		if ($timeslot && strtotime($timeslot->date_cut_in) < strtotime($current_datetime)) {
-			// Apply fines logic: Check if student hasn't time-in and is past the cut-off
-			$activity = $this->db->get_where('activity', [
-				'activity_id' => $activity_id
-			])->row();
+		// if ($timeslot && strtotime($timeslot->date_cut_in) < strtotime($current_datetime)) {
+		// 	// Apply fines logic: Check if student hasn't time-in and is past the cut-off
+		// 	$activity = $this->db->get_where('activity', [
+		// 		'activity_id' => $activity_id
+		// 	])->row();
 
-			$fine_amount = $activity->fines ?? 0;
+		// 	$fine_amount = $activity->fines ?? 0;
 
-			// Check if the student is eligible for fines
-			$existing_fine = $this->db->get_where('fines', [
-				'student_id' => $student_id,
-				'activity_id' => $activity_id,
-				'timeslot_id' => $timeslot_id
-			])->row();
+		// 	// Check if the student is eligible for fines
+		// 	$existing_fine = $this->db->get_where('fines', [
+		// 		'student_id' => $student_id,
+		// 		'activity_id' => $activity_id,
+		// 		'timeslot_id' => $timeslot_id
+		// 	])->row();
 
-			if (!$existing_fine) {
-				// Insert fine record if no fine exists
-				$this->db->insert('fines', [
-					'student_id' => $student_id,
-					'activity_id' => $activity_id,
-					'timeslot_id' => $timeslot_id,
-					'fines_amount' => $fine_amount,
-					//'created_at' => date('Y-m-d H:i:s')
-				]);
-			} else {
-				// Update the fine record if one already exists
-				$this->db->where([
-					'student_id' => $student_id,
-					'activity_id' => $activity_id,
-					'timeslot_id' => $timeslot_id
-				]);
-				$this->db->update('fines', [
-					'fines_amount' => $existing_fine->fines_amount + $fine_amount, // Accumulate fine if necessary
-				]);
-			}
-		}
+		// 	if (!$existing_fine) {
+		// 		// Insert fine record if no fine exists
+		// 		$this->db->insert('fines', [
+		// 			'student_id' => $student_id,
+		// 			'activity_id' => $activity_id,
+		// 			'timeslot_id' => $timeslot_id,
+		// 			'fines_amount' => $fine_amount,
+		// 			//'created_at' => date('Y-m-d H:i:s')
+		// 		]);
+		// 	} else {
+		// 		// Update the fine record if one already exists
+		// 		$this->db->where([
+		// 			'student_id' => $student_id,
+		// 			'activity_id' => $activity_id,
+		// 			'timeslot_id' => $timeslot_id
+		// 		]);
+		// 		$this->db->update('fines', [
+		// 			'fines_amount' => $existing_fine->fines_amount + $fine_amount, // Accumulate fine if necessary
+		// 		]);
+		// 	}
+		// }
 
 		// Update attendance
 		$update_data = ['time_in' => $current_datetime];
@@ -2959,7 +2991,7 @@ class AdminController extends CI_Controller
 
 		if ($updated) {
 			// Update or Insert fines summary after attendance update
-			$this->update_fines_summary_for_student($student_id);
+			//$this->update_fines_summary_for_student($student_id);
 
 			return $this->output
 				->set_content_type('application/json')
@@ -2979,38 +3011,38 @@ class AdminController extends CI_Controller
 		}
 	}
 
-	private function update_fines_summary_for_student($student_id)
-	{
-		// Get total fines for the student and activity
-		$this->db->select('SUM(fines_amount) as total_fines');
-		$this->db->from('fines');
-		$this->db->where('student_id', $student_id);
+	// private function update_fines_summary_for_student($student_id)
+	// {
+	// 	// Get total fines for the student and activity
+	// 	$this->db->select('SUM(fines_amount) as total_fines');
+	// 	$this->db->from('fines');
+	// 	$this->db->where('student_id', $student_id);
 
-		$total_fines = $this->db->get()->row()->total_fines ?? 0;
+	// 	$total_fines = $this->db->get()->row()->total_fines ?? 0;
 
-		// Check if the fines summary already exists
-		$existing_summary = $this->db->get_where('fines_summary', [
-			'student_id' => $student_id,
-		])->row();
+	// 	// Check if the fines summary already exists
+	// 	$existing_summary = $this->db->get_where('fines_summary', [
+	// 		'student_id' => $student_id,
+	// 	])->row();
 
-		if ($existing_summary) {
-			$this->db->where([
-				'student_id' => $student_id
-			]);
-			$this->db->where('organizer', 'Student Parliament');
-			$this->db->update('fines_summary', [
-				'total_fines'  => $total_fines,
-				'fines_status' => $total_fines > 0 ? 'Unpaid' : 'Paid'
-			]);
-		} else {
-			// Insert a new summary record
-			$this->db->insert('fines_summary', [
-				'student_id' => $student_id,
-				'total_fines' => $total_fines,
-				'fines_status' => $total_fines > 0 ? 'Unpaid' : 'Paid'
-			]);
-		}
-	}
+	// 	if ($existing_summary) {
+	// 		$this->db->where([
+	// 			'student_id' => $student_id
+	// 		]);
+	// 		$this->db->where('organizer', 'Student Parliament');
+	// 		$this->db->update('fines_summary', [
+	// 			'total_fines'  => $total_fines,
+	// 			'fines_status' => $total_fines > 0 ? 'Unpaid' : 'Paid'
+	// 		]);
+	// 	} else {
+	// 		// Insert a new summary record
+	// 		$this->db->insert('fines_summary', [
+	// 			'student_id' => $student_id,
+	// 			'total_fines' => $total_fines,
+	// 			'fines_status' => $total_fines > 0 ? 'Unpaid' : 'Paid'
+	// 		]);
+	// 	}
+	// }
 
 	// // This method will be called by the cron job
 	// public function auto_fines_missing_time_in()
@@ -3204,12 +3236,6 @@ class AdminController extends CI_Controller
 		}
 	}
 
-
-
-
-
-
-
 	public function scanUnified_timeout()
 	{
 		date_default_timezone_set('Asia/Manila');
@@ -3262,47 +3288,47 @@ class AdminController extends CI_Controller
 				]));
 		}
 
-		// Get the timeslot cut-off for fines calculation
-		$timeslot = $this->db->get_where('activity_time_slots', [
-			'timeslot_id' => $timeslot_id
-		])->row();
+		// // Get the timeslot cut-off for fines calculation
+		// $timeslot = $this->db->get_where('activity_time_slots', [
+		// 	'timeslot_id' => $timeslot_id
+		// ])->row();
 
-		if ($timeslot && strtotime($timeslot->date_cut_in) < strtotime($current_datetime)) {
-			// Apply fines logic: Check if student hasn't time-in and is past the cut-off
-			$activity = $this->db->get_where('activity', [
-				'activity_id' => $activity_id
-			])->row();
+		// if ($timeslot && strtotime($timeslot->date_cut_in) < strtotime($current_datetime)) {
+		// 	// Apply fines logic: Check if student hasn't time-in and is past the cut-off
+		// 	$activity = $this->db->get_where('activity', [
+		// 		'activity_id' => $activity_id
+		// 	])->row();
 
-			$fine_amount = $activity->fines ?? 0;
+		// 	$fine_amount = $activity->fines ?? 0;
 
-			// Check if the student is eligible for fines
-			$existing_fine = $this->db->get_where('fines', [
-				'student_id' => $student_id,
-				'activity_id' => $activity_id,
-				'timeslot_id' => $timeslot_id
-			])->row();
+		// 	// Check if the student is eligible for fines
+		// 	$existing_fine = $this->db->get_where('fines', [
+		// 		'student_id' => $student_id,
+		// 		'activity_id' => $activity_id,
+		// 		'timeslot_id' => $timeslot_id
+		// 	])->row();
 
-			if (!$existing_fine) {
-				// Insert fine record if no fine exists
-				$this->db->insert('fines', [
-					'student_id' => $student_id,
-					'activity_id' => $activity_id,
-					'timeslot_id' => $timeslot_id,
-					'fines_amount' => $fine_amount,
-					//'created_at' => date('Y-m-d H:i:s')
-				]);
-			} else {
-				// Update the fine record if one already exists
-				$this->db->where([
-					'student_id' => $student_id,
-					'activity_id' => $activity_id,
-					'timeslot_id' => $timeslot_id
-				]);
-				$this->db->update('fines', [
-					'fines_amount' => $existing_fine->fines_amount + $fine_amount, // Accumulate fine if necessary
-				]);
-			}
-		}
+		// 	if (!$existing_fine) {
+		// 		// Insert fine record if no fine exists
+		// 		$this->db->insert('fines', [
+		// 			'student_id' => $student_id,
+		// 			'activity_id' => $activity_id,
+		// 			'timeslot_id' => $timeslot_id,
+		// 			'fines_amount' => $fine_amount,
+		// 			//'created_at' => date('Y-m-d H:i:s')
+		// 		]);
+		// 	} else {
+		// 		// Update the fine record if one already exists
+		// 		$this->db->where([
+		// 			'student_id' => $student_id,
+		// 			'activity_id' => $activity_id,
+		// 			'timeslot_id' => $timeslot_id
+		// 		]);
+		// 		$this->db->update('fines', [
+		// 			'fines_amount' => $existing_fine->fines_amount + $fine_amount, // Accumulate fine if necessary
+		// 		]);
+		// 	}
+		// }
 
 		// Update attendance
 		$update_data = ['time_out' => $current_datetime];
@@ -3310,7 +3336,7 @@ class AdminController extends CI_Controller
 
 		if ($updated) {
 			// Update or Insert fines summary after attendance update
-			$this->update_fines_summary_for_student($student_id);
+			// $this->update_fines_summary_for_student($student_id);
 
 			return $this->output
 				->set_content_type('application/json')
@@ -3362,7 +3388,7 @@ class AdminController extends CI_Controller
 		$data['timeslots'] = $this->admin->get_timeslots_by_activity($activity_id);
 		$data['departments'] = $this->admin->department_selection();
 
-		$data['activity_id'] = $activity_id; // Add this line
+		$data['activity_id'] = $activity_id; // Add this line 
 
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/attendance/listofattendees', $data);

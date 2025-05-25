@@ -66,16 +66,175 @@
                     <div>
                         <h6 class="mb-1">Scheduled Time:</h6>
                         <?php if (!empty($schedule) && isset($schedule[0]['date_time_in'])) : ?>
-                            <p class="mb-0">
+                            <p class="mb-0" id="schedule_time_range"
+                                data-start="<?= $schedule[0]['date_time_in'] ?>"
+                                data-end="<?= $schedule[0]['date_cut_in'] ?>">
                                 <?php
-                                $date = strtotime($schedule[0]['date_time_in']);
-                                echo date('F j, Y | g:i a', $date);
-                                ?>
+                                echo date('F j, Y | g:i a', strtotime($schedule[0]['date_time_out']));
+                                ?> to <?php
+                                        echo date('F j, Y | g:i a', strtotime($schedule[0]['date_cut_out']));
+                                        ?>
                             </p>
                         <?php else : ?>
                             <p class="mb-0">No scheduled time available</p>
                         <?php endif; ?>
                     </div>
+
+                    <!-- <script>
+                        let promptShown = false; // Prevent multiple prompts
+
+                        // Pass PHP variables to JS
+                        const activity_id = '<?php echo $activity['activity_id'] ?? ''; ?>';
+                        const timeslot_id = '<?php echo $activity['timeslot_id'] ?? ''; ?>';
+
+                        function getCurrentDateTimeFormatted() {
+                            const now = new Date();
+                            const options = {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true
+                            };
+                            return now.toLocaleString('en-US', options);
+                        }
+
+                        function performFineProcess(activity_id, timeslot_id) {
+                            console.log('Performing fine imposition for activity_id:', activity_id, 'timeslot_id:', timeslot_id);
+
+                            fetch('<?php echo site_url('admin/activity/update-fine/time-in'); ?>', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        activity_id: activity_id,
+                                        timeslot_id: timeslot_id
+                                    })
+                                })
+                                .then(response => {
+                                    if (!response.ok) throw new Error('Network response was not ok');
+                                    return response.json();
+                                })
+                                .then(data => {
+                                    console.log('Fines imposed:', data);
+                                    Swal.fire('Done!', 'Fines have been imposed successfully.', 'success')
+                                    window.location.href = '<?php echo site_url('admin/activity-details/'); ?>' + activity_id;
+                                })
+                                .catch(error => {
+                                    console.error('Error imposing fines:', error);
+                                    Swal.fire('Error', 'There was an error imposing fines.', 'error');
+                                });
+                        }
+
+
+                        function checkTimeRange() {
+                            const now = new Date();
+                            document.getElementById('scan_datetime').innerText = getCurrentDateTimeFormatted();
+
+                            const scheduleElement = document.getElementById('schedule_time_range');
+                            if (!scheduleElement) return;
+
+                            const start = new Date(scheduleElement.getAttribute('data-start'));
+                            const end = new Date(scheduleElement.getAttribute('data-end'));
+
+                            // Outside time range
+                            if ((now < start || now > end) && !promptShown) {
+                                promptShown = true;
+
+                                Swal.fire({
+                                    title: 'Out of Range',
+                                    text: 'You are outside the scheduled time. Do you want to proceed with imposing fines?',
+                                    icon: 'warning',
+                                    showCancelButton: true,
+                                    confirmButtonText: 'Yes, impose fines',
+                                    reverseButtons: true
+                                }).then((result) => {
+                                    if (result.isConfirmed) {
+                                        performFineProcess(activity_id, timeslot_id); // Pass IDs to your function
+                                    } else {
+                                        promptShown = false; // Allow retry
+                                    }
+                                });
+                            }
+                        }
+
+                        // Run every second
+                        setInterval(checkTimeRange, 1000);
+                    </script> -->
+
+                    <script>
+                        let fineProcessed = false; // Prevent multiple triggers
+
+                        // Pass PHP variables to JS
+                        const activity_id = '<?php echo $activity['activity_id'] ?? ''; ?>';
+                        const timeslot_id = '<?php echo $activity['timeslot_id'] ?? ''; ?>';
+
+                        function getCurrentDateTimeFormatted() {
+                            const now = new Date();
+                            const options = {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true
+                            };
+                            return now.toLocaleString('en-US', options);
+                        }
+
+                        function performFineProcess(activity_id, timeslot_id) {
+                            console.log('Performing fine imposition for activity_id:', activity_id, 'timeslot_id:', timeslot_id);
+
+                            fetch('<?php echo site_url('admin/activity/update-fine/time-in'); ?>', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        activity_id: activity_id,
+                                        timeslot_id: timeslot_id
+                                    })
+                                })
+                                .then(response => {
+                                    if (!response.ok) throw new Error('Network response was not ok');
+                                    return response.json();
+                                })
+                                .then(data => {
+                                    console.log('Fines imposed:', data);
+                                    Swal.fire('Done!', 'Fines have been imposed.', 'success');
+
+                                    setTimeout(function() {
+                                        window.location.href = '<?php echo site_url('admin/activity-details/'); ?>' + activity_id;
+                                    }, 2000); // Delay for 2 seconds
+                                })
+                                .catch(error => {
+                                    console.error('Error imposing fines:', error);
+                                    Swal.fire('Error', 'There was an error imposing fines.', 'error');
+                                });
+                        }
+
+                        function checkTimeRange() {
+                            const now = new Date();
+                            document.getElementById('scan_datetime').innerText = getCurrentDateTimeFormatted();
+
+                            const scheduleElement = document.getElementById('schedule_time_range');
+                            if (!scheduleElement || fineProcessed) return;
+
+                            const start = new Date(scheduleElement.getAttribute('data-start'));
+                            const end = new Date(scheduleElement.getAttribute('data-end'));
+
+                            if (now < start || now > end) {
+                                fineProcessed = true;
+                                performFineProcess(activity_id, timeslot_id);
+                            }
+                        }
+
+                        setInterval(checkTimeRange, 1000);
+                    </script>
+
+
                 </div>
             </div>
         </div>

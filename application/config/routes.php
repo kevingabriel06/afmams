@@ -124,7 +124,9 @@ $route['admin/list-activities-attendance'] = 'AdminController/list_activities_at
 $route['admin/list-attendees/(:num)'] = 'AdminController/list_attendees/$1';
 // ~ TAKING OF ATTENDANCE~
 $route['admin/activity/scan-qr/time-in/(:num)'] = 'AdminController/time_in/$1';
+$route['admin/activity/update-fine/time-in'] = 'AdminController/impose_fines_timein';
 $route['admin/activity/scan-qr/time-out/(:num)'] = 'AdminController/time_out/$1';
+$route['admin/activity/update-fine/time-out'] = 'AdminController/impose_fines_timeout';
 $route['admin/activity/face-recognition/(:num)'] = 'AdminController/face_recognition/$1';
 $route['admin/attendance/get-faces'] = 'AdminController/getFaces';
 $route['admin/attendance/detect_timein'] = 'AdminController/scanUnified_timein';
