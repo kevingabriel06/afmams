@@ -1000,7 +1000,14 @@ class Student_model extends CI_Model
 		$this->db->from('activity');
 		$this->db->join('forms', 'forms.activity_id = activity.activity_id', 'inner');
 		$this->db->join('evaluation_responses', 'evaluation_responses.form_id = forms.form_id AND evaluation_responses.student_id = ' . $this->db->escape($student_id), 'left');
-		$this->db->join('attendance', 'attendance.activity_id = activity.activity_id AND attendance.student_id = ' . $this->db->escape($student_id) . ' AND attendance.time_in IS NOT NULL', 'inner'); //only students who attended can answer
+		$this->db->join(
+			'attendance',
+			'attendance.activity_id = activity.activity_id 
+			 AND attendance.student_id = ' . $this->db->escape($student_id) . ' 
+			 AND (attendance.time_in IS NOT NULL OR attendance.time_out IS NOT NULL)',
+			'inner'
+		);
+
 
 
 		// Audience filters
