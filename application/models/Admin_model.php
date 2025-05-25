@@ -1009,6 +1009,77 @@ class Admin_model extends CI_Model
 		return $query->result_array();
 	}
 
+	public function imposeFinesIfAbsentIn($activity_id, $timeslot_id)
+	{
+		// 1. Get the activity details
+		$activity = $this->db->get_where('activity', ['activity_id' => $activity_id])->row();
+		if (!$activity) return;
+
+		$fine_amount = $activity->fines;
+		$start_date = $activity->start_date; // Format: YYYY-MM-DD
+
+		// 2. Determine semester and academic year
+		$month = (int)date('m', strtotime($start_date));
+		$year = (int)date('Y', strtotime($start_date));
+
+		if ($month >= 8 && $month <= 12) {
+			$semester = '1st Semester';
+			$academic_year = $year . '-' . ($year + 1);
+		} else {
+			$semester = '2nd Semester';
+			$academic_year = ($year - 1) . '-' . $year;
+		}
+
+		// 3. Get all students with NULL time_in for this activity and timeslot
+		$this->db->where('activity_id', $activity_id);
+		$this->db->where('timeslot_id', $timeslot_id);
+		$this->db->where('time_in IS NULL', null, false);
+		$students = $this->db->get('attendance')->result();
+
+		foreach ($students as $student) {
+			// 4. Update the fines table for each student
+			$this->db->where([
+				'student_id'  => $student->student_id,
+				'activity_id' => $activity_id,
+				'timeslot_id' => $timeslot_id
+			]);
+			$this->db->update('fines', [
+				'fines_amount' => $fine_amount,
+				'remarks'      => 'Late/Absent during attendance time window'
+			]);
+
+			// 5. Get total fine for the student
+			$this->db->select_sum('fines_amount');
+			$this->db->where('student_id', $student->student_id);
+			$total = $this->db->get('fines')->row()->fines_amount;
+
+			// 6. Check if a summary already exists
+			$summary = $this->db->get_where('fines_summary', [
+				'student_id'     => $student->student_id,
+				'academic_year'  => $academic_year,
+				'semester'       => $semester
+			])->row();
+
+			if ($summary) {
+				// Update existing summary
+				$this->db->where([
+					'student_id'    => $student->student_id,
+					'academic_year' => $academic_year,
+					'semester'      => $semester
+				]);
+				$this->db->update('fines_summary', ['total_fines' => $total]);
+			} else {
+				// Insert new summary
+				$this->db->insert('fines_summary', [
+					'student_id'    => $student->student_id,
+					'total_fines'   => $total,
+					'academic_year' => $academic_year,
+					'semester'      => $semester
+				]);
+			}
+		}
+	}
+
 	public function get_students_realtime_time_out($activity_id)
 	{
 		// Set timezone
@@ -1024,6 +1095,206 @@ class Admin_model extends CI_Model
 		$query = $this->db->get();
 		return $query->result_array();
 	}
+
+	// public function imposeFinesIfAbsentOut($activity_id, $timeslot_id)
+	// {
+	// 	// 1. Get the fine amount from the activity
+	// 	$activity = $this->db->get_where('activity', ['activity_id' => $activity_id])->row();
+
+	// 	$fine_amount = $activity->fines;
+
+	// 	// 2. Get all students with NULL time_in for this activity and timeslot
+	// 	$this->db->where('activity_id', $activity_id);
+	// 	$this->db->where('timeslot_id', $timeslot_id);
+	// 	$this->db->where('time_out IS NULL', null, false);
+	// 	$students = $this->db->get('attendance')->result();
+
+	// 	foreach ($students as $student) {
+	// 		// 1. Get existing fines_amount for the student/activity/timeslot
+	// 		$this->db->select('fines_amount');
+	// 		$this->db->where([
+	// 			'student_id'  => $student->student_id,
+	// 			'activity_id' => $activity_id,
+	// 			'timeslot_id' => $timeslot_id
+	// 		]);
+	// 		$existing_fine = $this->db->get('fines')->row();
+
+	// 		$current_fine = $existing_fine ? $existing_fine->fines_amount : 0;
+
+	// 		// 2. Calculate new total fine
+	// 		$new_fine = $current_fine + $fine_amount;
+
+	// 		// 3. Update fines table with the new total fine
+	// 		$this->db->where([
+	// 			'student_id'  => $student->student_id,
+	// 			'activity_id' => $activity_id,
+	// 			'timeslot_id' => $timeslot_id
+	// 		]);
+	// 		$this->db->update('fines', [
+	// 			'fines_amount' => $new_fine,
+	// 			'remarks'      => 'Late/Absent during attendance time window'
+	// 		]);
+
+	// 		// 4. Get total fine for the student
+	// 		$this->db->select_sum('fines_amount');
+	// 		$this->db->where('student_id', $student->student_id);
+	// 		$total = $this->db->get('fines')->row()->fines_amount;  // NOTE: fixed typo here to fines_amount
+
+	// 		// 5. Check if a summary already exists
+	// 		$summary = $this->db->get_where('fines_summary', [
+	// 			'student_id' => $student->student_id
+	// 		])->row();
+
+	// 		if ($summary) {
+	// 			// Update existing summary
+	// 			$this->db->where('student_id', $student->student_id);
+	// 			$this->db->update('fines_summary', ['total_fines' => $total]);
+	// 		} else {
+	// 			// Insert new summary
+	// 			$this->db->insert('fines_summary', [
+	// 				'student_id'  => $student->student_id,
+	// 				'total_fines' => $total
+	// 			]);
+	// 		}
+	// 	}
+
+	// 	// 1. Absent: Both time_in and time_out are NULL
+	// 	$this->db->where('activity_id', $activity_id);
+	// 	$this->db->where('timeslot_id', $timeslot_id);
+	// 	$this->db->where('time_in IS NULL', null, false);
+	// 	$this->db->where('time_out IS NULL', null, false);
+
+	// 	$absent_students = $this->db->get('attendance')->result();
+
+
+	// 	// 2. Incomplete: Either time_in OR time_out is NULL, but NOT both
+	// 	$this->db->where('activity_id', $activity_id);
+	// 	$this->db->where('timeslot_id', $timeslot_id);
+
+	// 	// Start grouping OR condition
+	// 	$this->db->group_start();
+	// 	$this->db->where('time_in IS NULL', null, false);
+	// 	$this->db->or_where('time_out IS NULL', null, false);
+	// 	$this->db->group_end();
+
+	// 	// Exclude those with both NULL (absent)
+	// 	$this->db->where('(NOT (time_in IS NULL AND time_out IS NULL))', null, false);
+
+	// 	$incomplete_students = $this->db->get('attendance')->result();
+
+	// 	foreach ($absent_students as $absent) {
+	// 		// 1. Update the fines table for each student
+	// 		$this->db->where([
+	// 			'student_id'  => $absent->student_id,
+	// 			'activity_id' => $activity_id,
+	// 			'timeslot_id' => $timeslot_id
+	// 		]);
+	// 		$this->db->update('attendance', [
+	// 			'attendance_status' => 'Absent',
+	// 		]);
+	// 	}
+
+
+	// 	foreach ($incomplete_students as $incomplete) {
+	// 		// 1. Update the fines table for each student
+	// 		$this->db->where([
+	// 			'student_id'  => $incomplete->student_id,
+	// 			'activity_id' => $activity_id,
+	// 			'timeslot_id' => $timeslot_id
+	// 		]);
+	// 		$this->db->update('attendance', [
+	// 			'attendance_status' => 'Incomplete',
+	// 		]);
+	// 	}
+	// }
+
+	public function imposeFinesIfAbsentOut($activity_id, $timeslot_id)
+	{
+		// 1. Get the fine amount from the activity
+		$activity = $this->db->get_where('activity', ['activity_id' => $activity_id])->row();
+		$fine_amount = $activity->fines;
+
+		// 2. Get all attendance records for this activity and timeslot
+		$this->db->where('activity_id', $activity_id);
+		$this->db->where('timeslot_id', $timeslot_id);
+		$attendance_records = $this->db->get('attendance')->result();
+
+		foreach ($attendance_records as $record) {
+			$student_id = $record->student_id;
+			$is_time_in_null = is_null($record->time_in);
+			$is_time_out_null = is_null($record->time_out);
+
+			// Determine attendance status
+			if ($is_time_in_null && $is_time_out_null) {
+				$status = 'Absent';
+			} elseif ($is_time_in_null || $is_time_out_null) {
+				$status = 'Incomplete';
+			} else {
+				$status = 'Present';
+			}
+
+			// Only impose fine if time_out is NULL or if status is not Present
+			if ($is_time_out_null || $status !== 'Present') {
+				// Get existing fine amount
+				$this->db->select('fines_amount');
+				$this->db->where([
+					'student_id'  => $student_id,
+					'activity_id' => $activity_id,
+					'timeslot_id' => $timeslot_id
+				]);
+				$existing_fine = $this->db->get('fines')->row();
+				$current_fine = $existing_fine ? $existing_fine->fines_amount : 0;
+				$new_fine = $current_fine + $fine_amount;
+
+				// Update or insert fine
+				if ($existing_fine) {
+					$this->db->where([
+						'student_id'  => $student_id,
+						'activity_id' => $activity_id,
+						'timeslot_id' => $timeslot_id
+					]);
+					$this->db->update('fines', [
+						'fines_amount' => $new_fine,
+						'remarks'      => 'Late/Absent during attendance time window'
+					]);
+				} else {
+					$this->db->insert('fines', [
+						'student_id'    => $student_id,
+						'activity_id'   => $activity_id,
+						'timeslot_id'   => $timeslot_id,
+						'fines_amount'  => $fine_amount,
+						'remarks'       => 'Late/Absent during attendance time window'
+					]);
+				}
+
+				// Update summary
+				$this->db->select_sum('fines_amount');
+				$this->db->where('student_id', $student_id);
+				$total = $this->db->get('fines')->row()->fines_amount;
+
+				$summary = $this->db->get_where('fines_summary', ['student_id' => $student_id])->row();
+
+				if ($summary) {
+					$this->db->where('student_id', $student_id);
+					$this->db->update('fines_summary', ['total_fines' => $total]);
+				} else {
+					$this->db->insert('fines_summary', [
+						'student_id'  => $student_id,
+						'total_fines' => $total
+					]);
+				}
+			}
+
+			// Update attendance status
+			$this->db->where([
+				'student_id'  => $student_id,
+				'activity_id' => $activity_id,
+				'timeslot_id' => $timeslot_id
+			]);
+			$this->db->update('attendance', ['attendance_status' => $status]);
+		}
+	}
+
 
 	// FUNCTIONALITY FOR SCANNING AND RECOGNITION
 	public function update_attendance_time_in($student_id, $activity_id, $timeslot_id, $update_data)
@@ -1179,7 +1450,7 @@ class Admin_model extends CI_Model
 	public function get_all_students_attendance_by_activity($activity_id)
 	{
 		// Step 1: Get all students who have attendance records with department info
-		$this->db->select('users.*, department.dept_name');
+		$this->db->select('users.*, department.dept_name, attendance.*');
 		$this->db->from('attendance');
 		$this->db->join('users', 'attendance.student_id = users.student_id', 'inner'); // Only include students with attendance records
 		$this->db->join('department', 'department.dept_id = users.dept_id', 'left');
@@ -1198,6 +1469,7 @@ class Admin_model extends CI_Model
 				'student_id' => $student->student_id,
 				'name'       => $student->first_name . ' ' . $student->last_name,
 				'dept_name'  => isset($student->dept_name) ? $student->dept_name : 'No Department',
+				'attendance_status' => $student->attendance_status
 			];
 
 			$slot_statuses = [];
