@@ -1506,6 +1506,11 @@ class AdminController extends CI_Controller
 					$old = isset($change['old']) ? $change['old'] : 'N/A';
 					$new = isset($change['new']) ? $change['new'] : 'N/A';
 
+					// Convert to 12-hour format if values look like datetime or time
+					$old = $this->formatIfTime($old);
+					$new = $this->formatIfTime($new);
+
+					// Sanitize text
 					$old = $this->sanitize_text($old);
 					$new = $this->sanitize_text($new);
 
@@ -1572,7 +1577,25 @@ class AdminController extends CI_Controller
 		return $text;
 	}
 
+	private function formatIfTime($value)
+	{
+		$formats = ['Y-m-d H:i:s', 'Y-m-d H:i', 'Y-m-d\TH:i:s', 'H:i:s', 'H:i'];
 
+		foreach ($formats as $format) {
+			$dt = DateTime::createFromFormat($format, $value);
+			if ($dt && $dt->format($format) === $value) {
+				return $dt->format('M d, Y | g:ia');  // May 25. 2025 | 8:00pm
+			}
+		}
+
+		// Also try generic strtotime (for cases like "2025-05-25 20:00")
+		if (strtotime($value)) {
+			$dt = new DateTime($value);
+			return $dt->format('M d, Y | g:ia');
+		}
+
+		return $value; // Return unchanged if not a datetime
+	}
 
 
 
@@ -1783,16 +1806,15 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
-	// UPDATE EVALUATION
 	public function update_eval($form_id)
 	{
 		// Validate form ID
-		if (!$form_id) {
+		if (!$form_id || !is_numeric($form_id)) {
 			echo json_encode(['success' => false, 'message' => 'Invalid form ID.']);
 			return;
 		}
 
-		// Validate input fields
+		// Validate required input fields
 		$this->form_validation->set_rules('formtitle', 'Form Title', 'required');
 		$this->form_validation->set_rules('formdescription', 'Form Description', 'required');
 
@@ -1801,16 +1823,16 @@ class AdminController extends CI_Controller
 			return;
 		}
 
-		// Prepare form data
+		// Prepare main form data
 		$formData = [
-			'activity_id' => $this->input->post('activity'),
-			'title' => $this->input->post('formtitle'),
-			'form_description' => $this->input->post('formdescription'),
+			'activity_id'           => $this->input->post('activity'),
+			'title'                 => $this->input->post('formtitle'),
+			'form_description'      => $this->input->post('formdescription'),
 			'start_date_evaluation' => date('Y-m-d H:i:s', strtotime($this->input->post('startdate'))),
-			'end_date_evaluation' => date('Y-m-d H:i:s', strtotime($this->input->post('enddate'))),
+			'end_date_evaluation'   => date('Y-m-d H:i:s', strtotime($this->input->post('enddate'))),
 		];
 
-		// Handle Cover Image Upload (if new file is uploaded)
+		// Handle optional cover image upload
 		if (!empty($_FILES['coverUpload']['name'])) {
 			$coverImage = $this->upload_file('coverUpload', './assets/theme_evaluation');
 			if (!$coverImage['status']) {
@@ -1820,32 +1842,36 @@ class AdminController extends CI_Controller
 			$formData['cover_theme'] = $coverImage['file_name'];
 		}
 
-		// Retrieve form fields (ensure correct format)
+		// Decode JSON field input
 		$fields = json_decode($this->input->post('fields'), true);
 		if (!is_array($fields)) {
 			echo json_encode(['success' => false, 'message' => 'Invalid form fields data.']);
 			return;
 		}
 
-		// Start database transaction
+		log_message('debug', 'Received fields: ' . print_r($fields, true));
+
+		// Begin transaction
 		$this->db->trans_start();
 
-		// Update main form data
+		// Update form
 		$this->db->where('form_id', $form_id)->update('forms', $formData);
 
-		// Fetch existing field IDs from database
+		// Get current field IDs
 		$existingFields = $this->db->select('form_fields_id')->where('form_id', $form_id)->get('formfields')->result_array();
 		$existingFieldIds = array_column($existingFields, 'form_fields_id');
 
-		$updatedFieldIds = []; // Track updated/new fields
+		$updatedFieldIds = [];
 
 		foreach ($fields as $index => $field) {
-			$fieldId = $field['form_fields_id'] ?? null;
+			// Normalize field ID
+			$fieldId = isset($field['form_fields_id']) && is_numeric($field['form_fields_id']) ? (int)$field['form_fields_id'] : null;
 
+			// Build field data
 			$fieldData = [
 				'form_id'     => $form_id,
-				'label'       => $field['label'],
-				'type'        => $field['type'],
+				'label'       => $field['label'] ?? '',
+				'type'        => $field['type'] ?? 'text',
 				'placeholder' => $field['placeholder'] ?? null,
 				'required'    => !empty($field['required']) ? 1 : 0,
 				'order'       => $index + 1,
@@ -1862,7 +1888,7 @@ class AdminController extends CI_Controller
 			}
 		}
 
-		// Identify and delete removed fields
+		// Delete fields that were removed
 		$fieldsToDelete = array_diff($existingFieldIds, $updatedFieldIds);
 		if (!empty($fieldsToDelete)) {
 			$this->db->where_in('form_fields_id', $fieldsToDelete)->delete('formfields');
@@ -1871,17 +1897,18 @@ class AdminController extends CI_Controller
 		// Commit transaction
 		$this->db->trans_complete();
 
-		// Check transaction status
+		// Check transaction result
 		if ($this->db->trans_status() === FALSE) {
 			echo json_encode(['success' => false, 'message' => 'Failed to update the form.']);
 		} else {
 			echo json_encode([
-				'success' => true,
-				'message' => 'Form updated successfully.',
+				'success'  => true,
+				'message'  => 'Form updated successfully.',
 				'redirect' => site_url('admin/list-activity-evaluation'),
 			]);
 		}
 	}
+
 
 	// VIEWING OF EVALUATION FORM - PAGE (FINAL CHECK)
 	public function view_evaluationform($form_id)

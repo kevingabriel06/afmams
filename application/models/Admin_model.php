@@ -641,20 +641,20 @@ class Admin_model extends CI_Model
 	public function get_student_evaluation_responses($form_id)
 	{
 		$this->db->select("
-            evaluation_responses.evaluation_response_id,
-            evaluation_responses.student_id,
-            CONCAT(users.first_name, ' ', users.last_name) AS name,
-            department.dept_name,
-            formfields.label AS question,
-            formfields.type,
-            response_answer.answer,
-            evaluation_responses.submitted_at
-        ");
+		    evaluation_responses.evaluation_response_id,
+		    evaluation_responses.student_id,
+		    CONCAT(users.first_name, ' ', users.last_name) AS name,
+		    department.dept_name,
+		    formfields.label AS question,
+		    formfields.type,
+		    response_answer.answer,
+		    evaluation_responses.submitted_at
+		");
 		$this->db->from('evaluation_responses');
-		$this->db->join('response_answer', 'response_answer.evaluation_response_id = evaluation_responses.evaluation_response_id');
-		$this->db->join('formfields', 'formfields.form_fields_id = response_answer.form_fields_id');
-		$this->db->join('users', 'users.student_id = evaluation_responses.student_id');
-		$this->db->join('department', 'department.dept_id = users.dept_id');
+		$this->db->join('response_answer', 'response_answer.evaluation_response_id = evaluation_responses.evaluation_response_id', 'left');
+		$this->db->join('formfields', 'formfields.form_fields_id = response_answer.form_fields_id', 'left');
+		$this->db->join('users', 'users.student_id = evaluation_responses.student_id', 'left');
+		$this->db->join('department', 'department.dept_id = users.dept_id', 'left');
 		$this->db->where('evaluation_responses.form_id', $form_id);
 
 		$query = $this->db->get();

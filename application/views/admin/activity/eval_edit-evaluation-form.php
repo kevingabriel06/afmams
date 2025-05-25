@@ -221,9 +221,9 @@
 
 <script>
   let fieldCount = 0;
-  let formFields = <?php echo json_encode($form_data['form_fields']); ?>; // Get existing fields
+  let formFields = <?php echo json_encode(isset($form_data['form_fields']) ? $form_data['form_fields'] : []); ?>;
 
-  function addField(type, label = "", answer = "", required = false) {
+  function addField(type, label = "", answer = "", required = false, form_fields_id = "") {
     const formFieldsContainer = document.getElementById("form-fields");
     const fieldId = `field-${fieldCount}`;
     let checked = required ? 'checked' : '';
@@ -237,43 +237,42 @@
           <label for="label-${fieldCount}" class="form-label">Question</label>
           <div class="form-check">
             <input type="hidden" name="required[${fieldId}]" value="0">
-            <input class="form-check-input" type="checkbox" id="required-${fieldCount}" name="required[${fieldId}]" value="1" ${checked} onchange="toggleRequired('${fieldId}', this)" <?php echo $isOngoing ? 'disabled' : ''; ?>/>
+            <input class="form-check-input" type="checkbox" id="required-${fieldCount}" name="required[${fieldId}]" value="1" ${checked} onchange="toggleRequired('${fieldId}', this)" <?= $isOngoing ? 'disabled' : '' ?> />
             <label class="form-check-label" for="required-${fieldCount}">Required</label>
           </div>
         </div>
         <div class="input-group has-validation">
-          <input class="form-control mb-2" id="label-${fieldCount}" type="text" name="labels[]" value="${label}" placeholder="Enter your question" required <?php echo $isOngoing ? 'readonly' : ''; ?>/>
+          <input type="hidden" name="form_fields_id[]" value="${form_fields_id}" />
+          <input class="form-control mb-2" id="label-${fieldCount}" type="text" name="labels[]" value="${label}" placeholder="Enter your question" required <?= $isOngoing ? 'readonly' : '' ?> />
         </div>
         <input class="form-control mb-2" id="answer-${fieldCount}" type="text" name="answers[]" placeholder="Short Answer" disabled/>
         <input type="hidden" name="type[]" id="type-${fieldCount}" value="short" />
-        <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')" <?php echo $isOngoing ? 'disabled' : ''; ?>>Remove</button>
-      </div>
-    `;
+        <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')" <?= $isOngoing ? 'disabled' : '' ?>>Remove</button>
+      </div>`;
     } else if (type === "textarea") {
       newField = `
       <div class="form-group mb-3 border-bottom border-dashed" id="${fieldId}">
         <div class="d-flex justify-content-between align-items-center">
           <label for="label-${fieldCount}" class="form-label">Question</label>
           <div class="form-check">
-          <input type="hidden" name="required[${fieldId}]" value="0">
-            <input class="form-check-input" type="checkbox" id="required-${fieldCount}" name="required[${fieldId}]" value="1" ${checked} onchange="toggleRequired('${fieldId}', this)" <?php echo $isOngoing ? 'disabled' : ''; ?>/>
+            <input type="hidden" name="required[${fieldId}]" value="0">
+            <input class="form-check-input" type="checkbox" id="required-${fieldCount}" name="required[${fieldId}]" value="1" ${checked} onchange="toggleRequired('${fieldId}', this)" <?= $isOngoing ? 'disabled' : '' ?> />
             <label class="form-check-label" for="required-${fieldCount}">Required</label>
           </div>
         </div>
         <div class="input-group has-validation">
-          <input class="form-control mb-2" id="label-${fieldCount}" type="text" name="labels[]" value="${label}" placeholder="Enter your question" required <?php echo $isOngoing ? 'readonly' : ''; ?>/>
+          <input type="hidden" name="form_fields_id[]" value="${form_fields_id}" />
+          <input class="form-control mb-2" id="label-${fieldCount}" type="text" name="labels[]" value="${label}" placeholder="Enter your question" required <?= $isOngoing ? 'readonly' : '' ?> />
         </div>
         <textarea class="form-control mb-2" id="answer-${fieldCount}" rows="3" name="answers[]" placeholder="Long Answer" disabled></textarea>
         <input type="hidden" name="type[]" id="type-${fieldCount}" value="textarea" />
-        <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')" <?php echo $isOngoing ? 'disabled' : ''; ?>>Remove</button>
-      </div>
-    `;
+        <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')" <?= $isOngoing ? 'disabled' : '' ?>>Remove</button>
+      </div>`;
     } else if (type === "rating") {
       let stars = [1, 2, 3, 4]
         .map(
           (i) => `<i class="far fa-star ${answer == i ? "fas" : ""}" onclick="setRating(this, ${i})" data-value="${i}"></i>`
-        )
-        .join("");
+        ).join("");
 
       newField = `
       <div class="form-group mb-3 border-bottom border-dashed" id="${fieldId}">
@@ -281,21 +280,21 @@
           <label for="label-${fieldCount}" class="form-label">Question</label>
           <div class="form-check">
             <input type="hidden" name="required[${fieldId}]" value="0">
-            <input class="form-check-input" type="checkbox" id="required-${fieldCount}" name="required[${fieldId}]" value="1" ${checked} onchange="toggleRequired('${fieldId}', this)" <?php echo $isOngoing ? 'disabled' : ''; ?> />
+            <input class="form-check-input" type="checkbox" id="required-${fieldCount}" name="required[${fieldId}]" value="1" ${checked} onchange="toggleRequired('${fieldId}', this)" <?= $isOngoing ? 'disabled' : '' ?> />
             <label class="form-check-label" for="required-${fieldCount}">Required</label>
           </div>
         </div>
         <div class="input-group has-validation">
-          <input class="form-control mb-2" id="label-${fieldCount}" type="text" name="labels[]" value="${label}" placeholder="Enter your question" required <?php echo $isOngoing ? 'readonly' : ''; ?>/>
+          <input type="hidden" name="form_fields_id[]" value="${form_fields_id}" />
+          <input class="form-control mb-2" id="label-${fieldCount}" type="text" name="labels[]" value="${label}" placeholder="Enter your question" required <?= $isOngoing ? 'readonly' : '' ?> />
         </div>
         <div class="rating-stars mb-2" id="rating-${fieldCount}">
           ${stars}
         </div>
         <input type="hidden" name="answers[]" id="rating-value-${fieldCount}" value="${answer}" />
         <input type="hidden" name="type[]" id="type-${fieldCount}" value="rating" />
-        <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')" <?php echo $isOngoing ? 'disabled' : ''; ?>>Remove</button>
-      </div>
-    `;
+        <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')" <?= $isOngoing ? 'disabled' : '' ?>>Remove</button>
+      </div>`;
     }
 
     formFieldsContainer.insertAdjacentHTML("beforeend", newField);
@@ -303,12 +302,15 @@
   }
 
   function loadExistingFields() {
-    formFields.forEach(field => {
-      addField(field.type, field.label, field.answer, field.required == 1);
-    });
+    if (Array.isArray(formFields)) {
+      formFields.forEach(field => {
+        //addField(field.type, field.label, field.answer, field.required == 1, field.id ?? "");
+        addField(field.type, field.label, field.answer, field.required == 1, field.form_fields_id);
+      });
+    }
   }
 
-  window.onload = loadExistingFields; // Load existing fields on page load
+  window.onload = loadExistingFields;
 
   function toggleRequired(fieldId, checkbox) {
     const field = document.getElementById(fieldId);
@@ -324,7 +326,7 @@
 
   function removeField(fieldId) {
     const field = document.getElementById(fieldId);
-    field.remove();
+    field?.remove();
   }
 
   function setRating(star, rating) {
@@ -336,6 +338,7 @@
     ratingInput.value = rating;
   }
 </script>
+
 
 <script>
   $("#editForm").on("submit", function(e) {
@@ -349,6 +352,7 @@
     $("#form-fields .form-group").each(function() {
       fields.push({
         field_id: $(this).data("field-id") || null, // Include field ID if updating existing fields
+        form_fields_id: $(this).find('input[name="form_fields_id[]"]').val(),
         label: $(this).find('input[name="labels[]"]').val(),
         type: $(this).find('input[name="type[]"]').val(),
         placeholder: $(this).find('input[name="answers[]"]').val() || null,
