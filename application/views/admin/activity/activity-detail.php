@@ -471,10 +471,10 @@
 								.addClass(getStatusBadgeClass(status));
 
 							// Receipt display logic
-							if (paymentType === 'Cash') {
+							if (paymentType === 'Cash' || !receipt) {
 								$('#receiptContainer').html('<p class="mb-0 fw-semibold">Cash Payment – No Receipt Image</p>');
 							} else {
-								const imagePath = '<?= base_url("uploads/receipts/") ?>' + receipt;
+								const imagePath = '<?= base_url("assets/registration_receipt/") ?>' + receipt;
 								$('#receiptContainer').html(
 									`<img id="modalReceiptImage" src="${imagePath}" alt="Payment Receipt" class="img-fluid rounded" style="max-height: 300px;">`
 								);

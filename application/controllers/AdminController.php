@@ -491,7 +491,7 @@ class AdminController extends CI_Controller
 						'activity_id' => $activity_id,
 						'student_id' => $student->student_id,
 						'payment_type' => 'No Status',
-						'registration_status' => 'Pending'
+						'registration_status' => 'No Status'
 					]);
 				}
 			}
@@ -772,14 +772,74 @@ class AdminController extends CI_Controller
 	}
 
 
+	// // CASH REGISTRATION
+	// public function save_cash_payment()
+	// {
+	// 	$student_id = $this->input->post('student_id', TRUE);  // Sanitize input
+	// 	$activity_id = $this->input->post('activity_id', TRUE);
+	// 	$receipt_number = $this->input->post('receipt_number', TRUE);
+	// 	$amount_paid = $this->input->post('amount_paid', TRUE);
+	// 	$remark = $this->input->post('remark', TRUE);
+
+	// 	// Validate required fields
+	// 	if (empty($student_id) || empty($activity_id) || empty($receipt_number) || empty($amount_paid)) {
+	// 		echo json_encode([
+	// 			'status' => 'error',
+	// 			'message' => 'All fields are required. Please fill in the missing information.'
+	// 		]);
+	// 		return;
+	// 	}
+
+	// 	// Check if student is already registered for this activity
+	// 	$already_registered = $this->admin->is_student_registered($student_id, $activity_id);
+
+	// 	if ($already_registered) {
+	// 		echo json_encode([
+	// 			'status' => 'error',
+	// 			'message' => 'This student is already registered for the selected activity.'
+	// 		]);
+	// 		return;
+	// 	}
+
+	// 	// Prepare data for insertion
+	// 	$data = array(
+	// 		'student_id'             => $student_id,
+	// 		'activity_id'            => $activity_id,
+	// 		'payment_type'           => 'Cash',
+	// 		'reference_number'       => $receipt_number,
+	// 		'reference_number_admin' => $receipt_number,
+	// 		'amount_paid'            => $amount_paid,
+	// 		'registration_status'    => 'Verified',
+	// 		'remark'                 => $remark,
+	// 		'registered_at'          => date('Y-m-d H:i:s'),
+	// 		'updated_at'             => date('Y-m-d H:i:s')
+	// 	);
+
+	// 	// Insert into the database
+	// 	$inserted = $this->admin->insert_cash_payment($data);
+
+	// 	// Return the response as JSON
+	// 	if ($inserted) {
+	// 		echo json_encode([
+	// 			'status' => 'success',
+	// 			'message' => 'Cash payment recorded successfully!'
+	// 		]);
+	// 	} else {
+	// 		echo json_encode([
+	// 			'status' => 'error',
+	// 			'message' => 'Failed to record cash payment. Please try again.'
+	// 		]);
+	// 	}
+	// }
+
 	// CASH REGISTRATION
 	public function save_cash_payment()
 	{
-		$student_id = $this->input->post('student_id', TRUE);  // Sanitize input
-		$activity_id = $this->input->post('activity_id', TRUE);
+		$student_id     = $this->input->post('student_id', TRUE);
+		$activity_id    = $this->input->post('activity_id', TRUE);
 		$receipt_number = $this->input->post('receipt_number', TRUE);
-		$amount_paid = $this->input->post('amount_paid', TRUE);
-		$remark = $this->input->post('remark', TRUE);
+		$amount_paid    = $this->input->post('amount_paid', TRUE);
+		$remark         = $this->input->post('remark', TRUE);
 
 		// Validate required fields
 		if (empty($student_id) || empty($activity_id) || empty($receipt_number) || empty($amount_paid)) {
@@ -790,18 +850,7 @@ class AdminController extends CI_Controller
 			return;
 		}
 
-		// Check if student is already registered for this activity
-		$already_registered = $this->admin->is_student_registered($student_id, $activity_id);
-
-		if ($already_registered) {
-			echo json_encode([
-				'status' => 'error',
-				'message' => 'This student is already registered for the selected activity.'
-			]);
-			return;
-		}
-
-		// Prepare data for insertion
+		// Prepare the data
 		$data = array(
 			'student_id'             => $student_id,
 			'activity_id'            => $activity_id,
@@ -811,26 +860,48 @@ class AdminController extends CI_Controller
 			'amount_paid'            => $amount_paid,
 			'registration_status'    => 'Verified',
 			'remark'                 => $remark,
-			'registered_at'          => date('Y-m-d H:i:s'),
-			'updated_at'             => date('Y-m-d H:i:s')
+			'updated_at'             => date('Y-m-d H:i:s'),
 		);
 
-		// Insert into the database
-		$inserted = $this->admin->insert_cash_payment($data);
+		// Check if the student is already registered
+		$already_registered = $this->admin->is_student_registered($student_id, $activity_id);
 
-		// Return the response as JSON
-		if ($inserted) {
-			echo json_encode([
-				'status' => 'success',
-				'message' => 'Cash payment recorded successfully!'
-			]);
+		if ($already_registered) {
+			// Update existing registration
+			$updated = $this->admin->update_cash_payment($student_id, $activity_id, $data);
+
+			if ($updated) {
+				echo json_encode([
+					'status' => 'success',
+					'message' => 'Cash payment updated successfully!'
+				]);
+			} else {
+				echo json_encode([
+					'status' => 'error',
+					'message' => 'Failed to update cash payment. Please try again.'
+				]);
+			}
 		} else {
-			echo json_encode([
-				'status' => 'error',
-				'message' => 'Failed to record cash payment. Please try again.'
-			]);
+			// Add registered_at field for new insert
+			$data['registered_at'] = date('Y-m-d H:i:s');
+
+			// Insert new record
+			$inserted = $this->admin->insert_cash_payment($data);
+
+			if ($inserted) {
+				echo json_encode([
+					'status' => 'success',
+					'message' => 'Cash payment recorded successfully!'
+				]);
+			} else {
+				echo json_encode([
+					'status' => 'error',
+					'message' => 'Failed to record cash payment. Please try again.'
+				]);
+			}
 		}
 	}
+
 
 
 	public function export_registered_students_pdf()
@@ -1205,8 +1276,8 @@ class AdminController extends CI_Controller
 				}
 			}
 
-			// Assign students again after update
-			$this->assign_students_to_activity_again($activity_id, $data, $timeslot_ids);
+			// // Assign students again after update
+			// $this->assign_students_to_activity_again($activity_id, $data, $timeslot_ids);
 
 			// Return Success Response
 			echo json_encode([
@@ -1217,84 +1288,84 @@ class AdminController extends CI_Controller
 		}
 	}
 
-	private function assign_students_to_activity_again($activity_id, $data, $timeslot_ids = [])
-	{
-		// Get organizer from activity table
-		$activity = $this->db->select('organizer')->from('activity')->where('activity_id', $activity_id)->get()->row();
-		$organizer = $activity ? $activity->organizer : null;
+	// private function assign_students_to_activity_again($activity_id, $data, $timeslot_ids = [])
+	// {
+	// 	// Get organizer from activity table
+	// 	$activity = $this->db->select('organizer')->from('activity')->where('activity_id', $activity_id)->get()->row();
+	// 	$organizer = $activity ? $activity->organizer : null;
 
-		// ✅ First, delete existing attendance and fines related to this activity
-		$this->db->where('activity_id', $activity_id)->delete('fines');
-		$this->db->where('activity_id', $activity_id)->delete('attendance');
+	// 	// ✅ First, delete existing attendance and fines related to this activity
+	// 	$this->db->where('activity_id', $activity_id)->delete('fines');
+	// 	$this->db->where('activity_id', $activity_id)->delete('attendance');
 
-		// Select student IDs by joining users and departments based on department name
-		$this->db->select('u.student_id');
-		$this->db->from('users u');
-		$this->db->join('department d', 'u.dept_id = d.dept_id');
-		$this->db->where('role', 'Student');
+	// 	// Select student IDs by joining users and departments based on department name
+	// 	$this->db->select('u.student_id');
+	// 	$this->db->from('users u');
+	// 	$this->db->join('department d', 'u.dept_id = d.dept_id');
+	// 	$this->db->where('role', 'Student');
 
-		if (!empty($data['audience']) && strtolower($data['audience']) !== 'all') {
-			$this->db->where('d.dept_name', $data['audience']);
-		}
+	// 	if (!empty($data['audience']) && strtolower($data['audience']) !== 'all') {
+	// 		$this->db->where('d.dept_name', $data['audience']);
+	// 	}
 
-		$students = $this->db->get()->result();
+	// 	$students = $this->db->get()->result();
 
-		foreach ($students as $student) {
-			// Check if student is exempted
-			$is_exempted = $this->db
-				->where('student_id', $student->student_id)
-				->get('exempted_student')
-				->num_rows() > 0;
+	// 	foreach ($students as $student) {
+	// 		// Check if student is exempted
+	// 		$is_exempted = $this->db
+	// 			->where('student_id', $student->student_id)
+	// 			->get('exempted_student')
+	// 			->num_rows() > 0;
 
-			foreach ($timeslot_ids as $timeslot_id) {
-				// Attendance
-				$attendance_data = [
-					'activity_id' => $activity_id,
-					'timeslot_id' => $timeslot_id,
-					'student_id'  => $student->student_id,
-				];
+	// 		foreach ($timeslot_ids as $timeslot_id) {
+	// 			// Attendance
+	// 			$attendance_data = [
+	// 				'activity_id' => $activity_id,
+	// 				'timeslot_id' => $timeslot_id,
+	// 				'student_id'  => $student->student_id,
+	// 			];
 
-				if ($is_exempted) {
-					$attendance_data['status'] = 'Exempted';
-				}
+	// 			if ($is_exempted) {
+	// 				$attendance_data['status'] = 'Exempted';
+	// 			}
 
-				$this->db->insert('attendance', $attendance_data);
-				$attendance_id = $this->db->insert_id();
+	// 			$this->db->insert('attendance', $attendance_data);
+	// 			$attendance_id = $this->db->insert_id();
 
-				// Fines
-				$fines_data = [
-					'activity_id'    => $activity_id,
-					'timeslot_id'    => $timeslot_id,
-					'student_id'     => $student->student_id,
-					'attendance_id'  => $attendance_id,
-					'status'         => 'Pending',
-					'fines_amount'   => 0
-				];
+	// 			// Fines
+	// 			$fines_data = [
+	// 				'activity_id'    => $activity_id,
+	// 				'timeslot_id'    => $timeslot_id,
+	// 				'student_id'     => $student->student_id,
+	// 				'attendance_id'  => $attendance_id,
+	// 				'status'         => 'Pending',
+	// 				'fines_amount'   => 0
+	// 			];
 
-				$this->db->insert('fines', $fines_data);
-			}
+	// 			$this->db->insert('fines', $fines_data);
+	// 		}
 
-			// Summary (either update or insert)
-			$this->db->where('student_id', $student->student_id);
-			$this->db->where('organizer', $organizer);
-			$existing_summary = $this->db->get('fines_summary')->row();
+	// 		// Summary (either update or insert)
+	// 		$this->db->where('student_id', $student->student_id);
+	// 		$this->db->where('organizer', $organizer);
+	// 		$existing_summary = $this->db->get('fines_summary')->row();
 
-			if ($existing_summary) {
-				$this->db->where('summary_id', $existing_summary->summary_id);
-				$this->db->update('fines_summary', [
-					'fines_status' => 'Unpaid',
-					'last_updated' => date('Y-m-d H:i:s')
-				]);
-			} else {
-				$this->db->insert('fines_summary', [
-					'student_id' => $student->student_id,
-					'organizer'  => $organizer,
-					'fines_status' => 'Unpaid',
-					'last_updated' => date('Y-m-d H:i:s')
-				]);
-			}
-		}
-	}
+	// 		if ($existing_summary) {
+	// 			$this->db->where('summary_id', $existing_summary->summary_id);
+	// 			$this->db->update('fines_summary', [
+	// 				'fines_status' => 'Unpaid',
+	// 				'last_updated' => date('Y-m-d H:i:s')
+	// 			]);
+	// 		} else {
+	// 			$this->db->insert('fines_summary', [
+	// 				'student_id' => $student->student_id,
+	// 				'organizer'  => $organizer,
+	// 				'fines_status' => 'Unpaid',
+	// 				'last_updated' => date('Y-m-d H:i:s')
+	// 			]);
+	// 		}
+	// 	}
+	// }
 
 
 	public function get_edit_logs($activity_id)
@@ -1554,11 +1625,11 @@ class AdminController extends CI_Controller
 			'form_description'   => $this->input->post('formdescription'),
 			'activity_id'        => $this->input->post('activity'),
 			'start_date_evaluation' => $this->input->post('startdate')
-				? date('Y-m-d H:i:s', strtotime($this->input->post('startdate')))
+				? date('Y-m-d H:i:s', strtotime($this->input->post('startdate')))  // 24-hour format
 				: date('Y-m-d H:i:s'),
 
 			'end_date_evaluation' => $this->input->post('enddate')
-				? date('Y-m-d H:i:s', strtotime($this->input->post('enddate')))
+				? date('Y-m-d H:i:s', strtotime($this->input->post('enddate')))    // 24-hour format
 				: date('Y-m-d H:i:s', strtotime('+1 week')),
 			'status_evaluation'     => $this->input->post('status_evaluation'),
 		);
@@ -2878,7 +2949,6 @@ class AdminController extends CI_Controller
 				]);
 				$this->db->update('fines', [
 					'fines_amount' => $existing_fine->fines_amount + $fine_amount, // Accumulate fine if necessary
-					'updated_at' => date('Y-m-d H:i:s')
 				]);
 			}
 		}
@@ -2915,21 +2985,21 @@ class AdminController extends CI_Controller
 		$this->db->select('SUM(fines_amount) as total_fines');
 		$this->db->from('fines');
 		$this->db->where('student_id', $student_id);
-		$this->db->where('organizer', 'Student Parliament');
+
 		$total_fines = $this->db->get()->row()->total_fines ?? 0;
 
 		// Check if the fines summary already exists
 		$existing_summary = $this->db->get_where('fines_summary', [
-			'student_id' => $student_id
+			'student_id' => $student_id,
 		])->row();
 
 		if ($existing_summary) {
-			// Update the existing summary
 			$this->db->where([
 				'student_id' => $student_id
 			]);
+			$this->db->where('organizer', 'Student Parliament');
 			$this->db->update('fines_summary', [
-				'total_fines' => $total_fines,
+				'total_fines'  => $total_fines,
 				'fines_status' => $total_fines > 0 ? 'Unpaid' : 'Paid'
 			]);
 		} else {
@@ -2942,12 +3012,12 @@ class AdminController extends CI_Controller
 		}
 	}
 
-	// This method will be called by the cron job
-	public function auto_fines_missing_time_in()
-	{
-		$this->admin->auto_fines_missing_time_in(); // This should do the logic
-		echo "Auto fines executed at " . date('Y-m-d H:i:s');
-	}
+	// // This method will be called by the cron job
+	// public function auto_fines_missing_time_in()
+	// {
+	// 	$this->admin->auto_fines_missing_time_in(); // This should do the logic
+	// 	echo "Auto fines executed at " . date('Y-m-d H:i:s');
+	// }
 
 
 
@@ -3230,7 +3300,6 @@ class AdminController extends CI_Controller
 				]);
 				$this->db->update('fines', [
 					'fines_amount' => $existing_fine->fines_amount + $fine_amount, // Accumulate fine if necessary
-					'updated_at' => date('Y-m-d H:i:s')
 				]);
 			}
 		}
@@ -4412,21 +4481,23 @@ class AdminController extends CI_Controller
 					continue;
 				}
 
-				if (count($row) >= 6) {
-					$studentId = $row[0];
-					$firstName = $row[1];
+				// Skip if row is completely empty or required fields are missing
+				if (count($row) >= 6 && !empty(trim($row[0])) && !empty(trim($row[1]))) {
+					$studentId = trim($row[0]);
+					$firstNameRaw = trim($row[1]);
+					$firstName = str_replace(' ', '', $firstNameRaw); // Remove spaces
 					$generatedPassword = password_hash(substr($studentId, -4) . strtolower($firstName), PASSWORD_DEFAULT);
 
 					$data[] = [
 						'student_id'   => $studentId,
 						'first_name'   => $firstName,
-						'middle_name'  => $row[2],
-						'last_name'    => $row[3],
-						'sex'          => $row[4],
-						'year_level'   => $row[5],
-						'email'        => $row[6],
+						'middle_name'  => trim($row[2] ?? ''),
+						'last_name'    => trim($row[3] ?? ''),
+						'sex'          => trim($row[4] ?? ''),
+						'year_level'   => trim($row[5] ?? ''),
+						'email'        => trim($row[6] ?? ''),
 						'password'     => $generatedPassword,
-						'dept_id'      => $row[7],
+						'dept_id'      => trim($row[7] ?? ''),
 					];
 				}
 			}
@@ -4445,26 +4516,29 @@ class AdminController extends CI_Controller
 		foreach ($rows as $index => $row) {
 			if ($index === 0) continue; // Skip header row
 
-			if (count($row) >= 6) {
-				$studentId = $row[0];
-				$firstName = $row[1];
+			if (count($row) >= 6 && !empty(trim($row[0])) && !empty(trim($row[1]))) {
+				$studentId = trim($row[0]);
+				$firstNameRaw = trim($row[1]);
+				$firstName = str_replace(' ', '', $firstNameRaw); // Remove spaces
 				$generatedPassword = password_hash(substr($studentId, -4) . strtolower($firstName), PASSWORD_DEFAULT);
 
 				$data[] = [
 					'student_id'   => $studentId,
 					'first_name'   => $firstName,
-					'middle_name'  => $row[2],
-					'last_name'    => $row[3],
-					'sex'          => $row[4],
-					'year_level'   => $row[5],
-					'email'        => $row[6],
+					'middle_name'  => trim($row[2] ?? ''),
+					'last_name'    => trim($row[3] ?? ''),
+					'sex'          => trim($row[4] ?? ''),
+					'year_level'   => trim($row[5] ?? ''),
+					'email'        => trim($row[6] ?? ''),
 					'password'     => $generatedPassword,
-					'dept_id'      => $row[7],
+					'dept_id'      => trim($row[7] ?? ''),
 				];
 			}
 		}
 		return $data;
 	}
+
+
 
 	// IMPORT DEPARTMENT OFFICERS
 	public function import_list_dept()

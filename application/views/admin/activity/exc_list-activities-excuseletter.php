@@ -1,5 +1,3 @@
-<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-
 <div class="row gx-3">
     <div class="col-xxl-10 col-xl-12">
         <div class="card" id="ticketsTable"
@@ -63,10 +61,10 @@
                                         </div>
                                     </td>
                                     <td class="px-7 py-2">
-                                        <?php if ($activity->status === 'Completed'): ?>
-                                            <span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Completed<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span>
-                                        <?php elseif ($activity->status === 'Upcoming'): ?>
+                                        <?php if ($activity->status === 'Upcoming'): ?>
                                             <span class="badge badge rounded-pill d-block p-2 badge-subtle-danger">Upcoming<span class="ms-1 fas fa-redo" data-fa-transform="shrink-2"></span></span>
+                                        <?php elseif ($activity->status === 'Completed'): ?>
+                                            <span class="badge badge rounded-pill d-block p-2 badge-subtle-success">Completed<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span></span>
                                         <?php elseif ($activity->status === 'Ongoing'): ?>
                                             <span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">Ongoing<span class="ms-1 fas fa-stream" data-fa-transform="shrink-2"></span></span>
                                         <?php endif; ?>
@@ -241,40 +239,28 @@
             };
 
 
-            // Function to filter activities based on the selected date range and status
             function filterActivitiesByDateAndStatus(startDate, endDate, status) {
-                let activities = document.querySelectorAll('.activity-row'); // Target the table rows
+                let activities = document.querySelectorAll('.activity-row');
                 let hasVisibleActivity = false;
 
                 activities.forEach(activity => {
                     let activityDateStr = activity.getAttribute('data-start-date');
-                    let activityStatus = activity.getAttribute('data-status'); // Get status from data attribute
+                    let activityStatus = activity.getAttribute('data-status');
+                    let activityDate = new Date(activityDateStr + 'T00:00:00'); // safer parsing
 
-                    if (!activityDateStr) return; // Skip if no date
+                    let isInDateRange = activityDate >= startDate && activityDate <= endDate;
+                    let isStatusMatch = status === "" || activityStatus === status;
 
-                    let activityDate = new Date(activityDateStr);
-
-                    // Apply date and status filters
-                    if (
-                        activityDate >= startDate &&
-                        activityDate <= endDate &&
-                        (status === "" || activityStatus === status) // Filter by status only if selected
-                    ) {
-                        activity.style.display = 'table-row';
+                    if (isInDateRange && isStatusMatch) {
+                        activity.style.display = "";
                         hasVisibleActivity = true;
                     } else {
-                        activity.style.display = 'none';
+                        activity.style.display = "none";
                     }
                 });
 
-                toggleNoActivityMessage(hasVisibleActivity);
-
-                // Close the filter modal after applying filters
-                let filterModal = document.getElementById('filterModal');
-                if (filterModal) {
-                    let modalInstance = bootstrap.Modal.getInstance(filterModal);
-                    if (modalInstance) modalInstance.hide();
-                }
+                // Toggle the "No activities listed" row
+                document.getElementById("no-activity-row").style.display = hasVisibleActivity ? "none" : "";
             }
 
             function toggleNoActivityMessage(hasVisibleActivity) {

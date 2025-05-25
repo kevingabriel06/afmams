@@ -274,6 +274,8 @@
 												data-activity-id="<?= $item->activity_id; ?>"
 												data-registration-fee="<?= $item->registration_fee; ?>"
 												data-status="<?= $item->registration_status; ?>"
+												data-act-status="<?= $item->status; ?>"
+												data-qr-code="<?= $item->qr_code; ?>"
 												data-student-id="<?= $this->session->userdata('student_id') ?>">
 												Register
 											</button>
@@ -305,6 +307,10 @@
 						<input type="hidden" id="modal_activity_id" name="activity_id">
 						<input type="hidden" id="modal_status" name="status">
 						<input type="hidden" id="modal_student_id" value="<?php echo $this->session->userdata('student_id'); ?>" name="student_id">
+
+						<div id="modal_qr_code" class="text-center mb-3">
+							<img id="qrCodeImage" src="" alt="QR Code" class="img-fluid d-none" style="width: 100%; max-width: 100%;">
+						</div>
 
 						<!-- Reference Number -->
 						<div class="mb-3">
@@ -524,6 +530,8 @@
 	document.addEventListener("DOMContentLoaded", function() {
 		const uploadContainer = document.getElementById("receipt-upload-container");
 		const uploadInput = document.getElementById("receipt-upload");
+		const receiptPreview = document.getElementById("receipt-preview");
+		const receiptPlaceholder = document.getElementById("receipt-placeholder");
 
 		// Trigger file upload when clicking on the preview area
 		uploadContainer.addEventListener("click", function() {
@@ -536,44 +544,72 @@
 			if (file) {
 				const reader = new FileReader();
 				reader.onload = function(e) {
-					document.getElementById("receipt-preview").src = e.target.result;
-					document.getElementById("receipt-preview").classList.remove("d-none");
-					document.getElementById("receipt-placeholder").classList.add("d-none");
+					receiptPreview.src = e.target.result;
+					receiptPreview.classList.remove("d-none");
+					receiptPlaceholder.classList.add("d-none");
 				};
 				reader.readAsDataURL(file);
 			}
 		});
 
-		const registrationModal = document.getElementById('registrationModal');
-		const modalActivityIdInput = document.getElementById('modal_activity_id');
-		const modalRegistrationInput = document.getElementById('modal_amount');
-		const modalStatusInput = document.getElementById('modal_status');
-		const registrationForm = document.getElementById('registrationForm');
-		const statusMessage = document.getElementById('status-message');
+		const registrationModal = document.getElementById("registrationModal");
+		const modalActivityIdInput = document.getElementById("modal_activity_id");
+		const modalRegistrationInput = document.getElementById("modal_amount");
+		const modalStatusInput = document.getElementById("modal_status");
+		const registrationForm = document.getElementById("registrationForm");
+		const statusMessage = document.getElementById("status-message");
+
+		const modalBody = registrationModal.querySelector(".modal-body");
 
 		// === Register Button Click Handler ===
-		$(document).on('click', '.open-registration-modal', function() {
-			const activityId = $(this).data('activity-id');
-			const registration = $(this).data('registration-fee');
-			const status = $(this).data('status');
+		$(document).on("click", ".open-registration-modal", function() {
+			const activityId = $(this).data("activity-id");
+			const registration = $(this).data("registration-fee");
+			const status = $(this).data("status");
+			const actstatus = $(this).data("act-status");
+			const qrCode = $(this).data("qr-code");
 
-			$('#modal_activity_id').val(activityId);
-			$('#modal_amount').val(registration);
-			$('#modal_status').val(status);
+			const qrCodeImagePath = "<?= base_url('assets/qrcodeRegistration/'); ?>" + qrCode;
 
+			// Populate modal fields
+			$("#modal_activity_id").val(activityId);
+			$("#modal_amount").val(registration);
+			$("#modal_status").val(status);
+
+			const qrCodeImage = document.getElementById("qrCodeImage");
+
+			// Show proper content based on status
 			if (status === "Pending") {
-				$('#registrationForm').addClass("d-none");
-				$('#status-message').removeClass("d-none alert-success").addClass("alert-warning").text("Your registration is pending. Please wait for the admin to verify.");
+				$("#registrationForm").addClass("d-none");
+				$("#status-message")
+					.removeClass("d-none alert-success")
+					.addClass("alert alert-warning")
+					.text("Your registration is pending. Please wait for the admin to verify.");
+				qrCodeImage.classList.add("d-none"); // Hide QR code
 			} else if (status === "Verified") {
-				$('#registrationForm').addClass("d-none");
-				$('#status-message').removeClass("d-none alert-info").addClass("alert-success").text("You are registered to this activity.");
+				$("#registrationForm").addClass("d-none");
+				$("#status-message")
+					.removeClass("d-none alert-warning")
+					.addClass("alert alert-success")
+					.text("You are registered to this activity.");
+				qrCodeImage.classList.add("d-none"); // Hide QR code
+			} else if (actstatus === "Completed" || actstatus === "Ongoing") {
+				$("#registrationForm").addClass("d-none");
+				$("#status-message")
+					.removeClass("d-none alert-success")
+					.addClass("alert alert-danger")
+					.text("This activity is not accepting registration. Contact the organizer.");
+				qrCodeImage.classList.add("d-none"); // Hide QR code
 			} else {
-				$('#registrationForm').removeClass("d-none");
-				$('#status-message').addClass("d-none").text("");
+				// Show registration form
+				$("#registrationForm").removeClass("d-none");
+				$("#status-message").addClass("d-none").text("");
+				qrCodeImage.src = qrCodeImagePath;
+				qrCodeImage.classList.remove("d-none"); // Show QR code
 			}
 		});
 
-		// === Reset modal on close ===
+
 		registrationModal.addEventListener('hidden.bs.modal', function() {
 			registrationForm.reset();
 			receiptPreview.src = "";
@@ -582,6 +618,10 @@
 			registrationForm.classList.remove('d-none');
 			statusMessage.classList.add('d-none');
 			statusMessage.innerText = "";
+
+			const qrCodeImage = document.getElementById("qrCodeImage");
+			qrCodeImage.src = "";
+			qrCodeImage.classList.add("d-none");
 		});
 	});
 

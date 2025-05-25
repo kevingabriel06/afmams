@@ -348,7 +348,12 @@
 											data.forEach(notification => {
 												if (notification.is_read == 0) unreadCount++;
 
-												const profileImg = '<?= base_url("assets/profile/") ?>' + notification.profile_pic;
+												const baseProfilePath = '<?= base_url("assets/profile/") ?>';
+												const defaultProfile = 'default.jpg';
+
+												const profileImg = notification.profile_pic ?
+													baseProfilePath + notification.profile_pic :
+													baseProfilePath + defaultProfile;
 												const fullName = notification.first_name + ' ' + notification.last_name;
 												const message = notification.message;
 												const date = new Date(notification.created_at).toLocaleString('en-US', {
@@ -366,7 +371,7 @@
                                class="list-group-item list-group-item-action d-flex align-items-center" 
                                style="${highlightStyle}" 
                                data-id="${notification.id}">
-                                <img src="${profileImg}" alt="Profile" class="rounded-circle me-2" width="40" height="40">
+							   <img src="${profileImg}" alt="Profile" class="rounded-circle me-2" width="40" height="40">
                                 <div>
                                     <strong>${fullName}</strong><br>
                                     ${message}<br>

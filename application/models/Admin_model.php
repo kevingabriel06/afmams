@@ -328,6 +328,18 @@ class Admin_model extends CI_Model
 		return $query->result();
 	}
 
+	public function get_activities_excuse()
+	{
+		$this->db->select('activity.*');
+		$this->db->from('activity');
+		$this->db->where('organizer', 'Student Parliament');
+		$this->db->where('status', 'Upcoming');
+
+		$query = $this->db->get();
+
+		return $query->result();
+	}
+
 	// FETCHING SPECIFIC ACTIVITY USING ACTIVITY ID 
 	public function get_activity($activity_id)
 	{
@@ -388,6 +400,13 @@ class Admin_model extends CI_Model
 		} else {
 			return false;
 		}
+	}
+
+	public function update_cash_payment($student_id, $activity_id, $data)
+	{
+		$this->db->where('student_id', $student_id);
+		$this->db->where('activity_id', $activity_id);
+		return $this->db->update('registrations', $data); // Replace with your actual table name
 	}
 
 	// FOR REFERENCE NUMBER
@@ -2019,7 +2038,7 @@ class Admin_model extends CI_Model
 	// GENERAL SETTINGS (FINAL CHECK)
 	protected $table = 'users'; // Your database table name
 
-	public function insert_student($user_data_batch, $privilege_batch)
+	public function insert_student($user_data_batch)
 	{
 		$this->db->trans_start();
 		$this->db->insert_batch($this->table, $user_data_batch);

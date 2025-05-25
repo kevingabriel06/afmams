@@ -80,6 +80,8 @@ class StudentController extends CI_Controller
 		$data['users'] = $this->student->get_student($student_id);
 		$data['authors'] = $this->student->get_user();
 
+
+
 		// Fetch student profile picture
 		$current_profile_pic = $this->Student_model->get_profile_pic($student_id);
 		// Ensure a default profile picture if none exists
@@ -456,21 +458,175 @@ class StudentController extends CI_Controller
 
 
 	// REGISTRATION
+	// public function register()
+	// {
+
+	// 	// Set validation rules
+	// 	$this->form_validation->set_rules('student_id', 'Student ID', 'required');
+	// 	$this->form_validation->set_rules('activity_id', 'Activity ID', 'required');
+	// 	$this->form_validation->set_rules('payment_type', 'Payment Type', 'required|in_list[Cash,Online Payment]');
+	// 	$this->form_validation->set_rules('amount', 'Amount Paid');
+
+	// 	// Additional rule for Online Payment: reference number required
+	// 	if ($this->input->post('payment_type') === 'Online Payment') {
+	// 		$this->form_validation->set_rules('reference_number', 'Reference Number', 'required');
+	// 	}
+
+	// 	// Run validation
+	// 	if ($this->form_validation->run() == FALSE) {
+	// 		echo json_encode([
+	// 			'status' => 'error',
+	// 			'message' => validation_errors()
+	// 		]);
+	// 		return;
+	// 	}
+
+	// 	$student_id       = $this->input->post('student_id');
+	// 	$activity_id      = $this->input->post('activity_id');
+	// 	$payment_type     = $this->input->post('payment_type');
+	// 	$reference_number = $this->input->post('reference_number');
+	// 	$amount_paid      = $this->input->post('amount');
+	// 	$gcash_receipt    = null;
+
+	// 	// Handle file upload (optional for Cash, required for Online Payment)
+	// 	if (!empty($_FILES['receipt']['name'])) {
+	// 		$config['upload_path']   = './assets/registration_receipt/';
+	// 		$config['allowed_types'] = 'jpg|jpeg|png';
+	// 		$config['max_size']      = 2048; // 2MB
+	// 		$config['file_name']     = 'proof_' . time() . '_' . $student_id;
+
+	// 		$this->load->library('upload', $config);
+	// 		$this->upload->initialize($config);
+
+	// 		if (!$this->upload->do_upload('receipt')) {
+	// 			echo json_encode([
+	// 				'status' => 'error',
+	// 				'message' => strip_tags($this->upload->display_errors())
+	// 			]);
+	// 			return;
+	// 		}
+
+	// 		$upload_data   = $this->upload->data();
+	// 		$gcash_receipt = $upload_data['file_name'];
+	// 	}
+
+	// 	// If Online Payment and no receipt uploaded
+	// 	if ($payment_type === 'Online Payment' && $gcash_receipt === null) {
+	// 		echo json_encode([
+	// 			'status' => 'error',
+	// 			'message' => 'Gcash receipt image is required for Online Payment.'
+	// 		]);
+	// 		return;
+	// 	}
+
+	// 	// Prepare data
+	// 	$data = [
+	// 		'student_id'       => $student_id,
+	// 		'activity_id'      => $activity_id,
+	// 		'payment_type'     => $payment_type,
+	// 		'reference_number' => ($payment_type === 'Cash') ? null : $reference_number,
+	// 		'amount_paid'      => $amount_paid,
+	// 		'receipt'          => $gcash_receipt,
+	// 		'registration_status' => 'Pending',
+	// 		'registered_at'    => date('Y-m-d H:i:s'),
+	// 	];
+
+	// 	if ($this->student->insert_registration($data)) {
+	// 		// === Send Notifications with Organizer Type logic ===
+	// 		$this->load->model('Notification_model');
+
+	// 		$activity_name = $this->Notification_model->get_activity_name($activity_id) ?? 'Unknown Activity';
+	// 		$organizer = $this->Notification_model->get_activity_organizer($activity_id);
+	// 		$organizer_type = $this->Notification_model->get_activity_organizer_type($activity_id);
+	// 		$sender_student_id = $student_id;
+
+	// 		$notification_message = 'submitted a registration request for "' . $activity_name . '"';
+	// 		// Set link based on organizer type
+	// 		if ($organizer_type === 'admin') {
+	// 			$link = base_url('admin/activity-details/' . $activity_id);
+	// 		} else {
+	// 			// For 'org' or 'dept' or any officer type
+	// 			$link = base_url('officer/activity-details/' . $activity_id);
+	// 		}
+
+	// 		switch ($organizer_type) {
+	// 			case 'admin':
+	// 				$admin_ids = $this->Notification_model->get_admin_student_ids();
+	// 				foreach ($admin_ids as $admin_id) {
+	// 					$this->Notification_model->add_notification(
+	// 						null,
+	// 						$sender_student_id,
+	// 						'registration_submitted',
+	// 						$activity_id,
+	// 						$notification_message,
+	// 						$admin_id,
+	// 						$link
+	// 					);
+	// 				}
+	// 				break;
+
+	// 			case 'org':
+	// 				$org_officer_ids = $this->Notification_model->get_org_officer_ids_by_name($organizer);
+	// 				foreach ($org_officer_ids as $officer_id) {
+	// 					$this->Notification_model->add_notification(
+	// 						null,
+	// 						$sender_student_id,
+	// 						'registration_submitted',
+	// 						$activity_id,
+	// 						$notification_message,
+	// 						null,
+	// 						$link,
+	// 						$officer_id
+	// 					);
+	// 				}
+	// 				break;
+
+	// 			case 'dept':
+	// 				$dept_officer_ids = $this->Notification_model->get_dept_officer_ids_by_name($organizer);
+	// 				foreach ($dept_officer_ids as $officer_id) {
+	// 					$this->Notification_model->add_notification(
+	// 						null,
+	// 						$sender_student_id,
+	// 						'registration_submitted',
+	// 						$activity_id,
+	// 						$notification_message,
+	// 						null,
+	// 						$link,
+	// 						$officer_id
+	// 					);
+	// 				}
+	// 				break;
+
+	// 			default:
+	// 				log_message('error', "Unknown organizer type for activity $activity_id");
+	// 				break;
+	// 		}
+
+	// 		echo json_encode([
+	// 			'status' => 'success',
+	// 			'message' => 'Registration submitted successfully!'
+	// 		]);
+	// 	} else {
+	// 		echo json_encode([
+	// 			'status' => 'error',
+	// 			'message' => 'Database error. Please try again.'
+	// 		]);
+	// 	}
+	// }
+
+	// REGISTRATION
 	public function register()
 	{
-
 		// Set validation rules
 		$this->form_validation->set_rules('student_id', 'Student ID', 'required');
 		$this->form_validation->set_rules('activity_id', 'Activity ID', 'required');
 		$this->form_validation->set_rules('payment_type', 'Payment Type', 'required|in_list[Cash,Online Payment]');
 		$this->form_validation->set_rules('amount', 'Amount Paid');
 
-		// Additional rule for Online Payment: reference number required
 		if ($this->input->post('payment_type') === 'Online Payment') {
 			$this->form_validation->set_rules('reference_number', 'Reference Number', 'required');
 		}
 
-		// Run validation
 		if ($this->form_validation->run() == FALSE) {
 			echo json_encode([
 				'status' => 'error',
@@ -486,11 +642,11 @@ class StudentController extends CI_Controller
 		$amount_paid      = $this->input->post('amount');
 		$gcash_receipt    = null;
 
-		// Handle file upload (optional for Cash, required for Online Payment)
+		// Handle file upload
 		if (!empty($_FILES['receipt']['name'])) {
 			$config['upload_path']   = './assets/registration_receipt/';
 			$config['allowed_types'] = 'jpg|jpeg|png';
-			$config['max_size']      = 2048; // 2MB
+			$config['max_size']      = 2048;
 			$config['file_name']     = 'proof_' . time() . '_' . $student_id;
 
 			$this->load->library('upload', $config);
@@ -508,7 +664,6 @@ class StudentController extends CI_Controller
 			$gcash_receipt = $upload_data['file_name'];
 		}
 
-		// If Online Payment and no receipt uploaded
 		if ($payment_type === 'Online Payment' && $gcash_receipt === null) {
 			echo json_encode([
 				'status' => 'error',
@@ -517,10 +672,7 @@ class StudentController extends CI_Controller
 			return;
 		}
 
-		// Prepare data
 		$data = [
-			'student_id'       => $student_id,
-			'activity_id'      => $activity_id,
 			'payment_type'     => $payment_type,
 			'reference_number' => ($payment_type === 'Cash') ? null : $reference_number,
 			'amount_paid'      => $amount_paid,
@@ -529,72 +681,48 @@ class StudentController extends CI_Controller
 			'registered_at'    => date('Y-m-d H:i:s'),
 		];
 
-		if ($this->student->insert_registration($data)) {
-			// === Send Notifications with Organizer Type logic ===
-			$this->load->model('Notification_model');
+		$this->load->model('Student_model');
 
+		if ($this->student->registration_exists($student_id, $activity_id)) {
+			$result = $this->student->update_registration($student_id, $activity_id, $data);
+		} else {
+			$data['student_id'] = $student_id;
+			$data['activity_id'] = $activity_id;
+			$result = $this->student->insert_registration($data);
+		}
+
+		if ($result) {
+			// Notifications same as before...
+			$this->load->model('Notification_model');
 			$activity_name = $this->Notification_model->get_activity_name($activity_id) ?? 'Unknown Activity';
 			$organizer = $this->Notification_model->get_activity_organizer($activity_id);
 			$organizer_type = $this->Notification_model->get_activity_organizer_type($activity_id);
 			$sender_student_id = $student_id;
-
 			$notification_message = 'submitted a registration request for "' . $activity_name . '"';
-			// Set link based on organizer type
-			if ($organizer_type === 'admin') {
-				$link = base_url('admin/activity-details/' . $activity_id);
-			} else {
-				// For 'org' or 'dept' or any officer type
-				$link = base_url('officer/activity-details/' . $activity_id);
-			}
+
+			$link = ($organizer_type === 'admin')
+				? base_url('admin/activity-details/' . $activity_id)
+				: base_url('officer/activity-details/' . $activity_id);
 
 			switch ($organizer_type) {
 				case 'admin':
 					$admin_ids = $this->Notification_model->get_admin_student_ids();
 					foreach ($admin_ids as $admin_id) {
-						$this->Notification_model->add_notification(
-							null,
-							$sender_student_id,
-							'registration_submitted',
-							$activity_id,
-							$notification_message,
-							$admin_id,
-							$link
-						);
+						$this->Notification_model->add_notification(null, $sender_student_id, 'registration_submitted', $activity_id, $notification_message, $admin_id, $link);
 					}
 					break;
-
 				case 'org':
 					$org_officer_ids = $this->Notification_model->get_org_officer_ids_by_name($organizer);
 					foreach ($org_officer_ids as $officer_id) {
-						$this->Notification_model->add_notification(
-							null,
-							$sender_student_id,
-							'registration_submitted',
-							$activity_id,
-							$notification_message,
-							null,
-							$link,
-							$officer_id
-						);
+						$this->Notification_model->add_notification(null, $sender_student_id, 'registration_submitted', $activity_id, $notification_message, null, $link, $officer_id);
 					}
 					break;
-
 				case 'dept':
 					$dept_officer_ids = $this->Notification_model->get_dept_officer_ids_by_name($organizer);
 					foreach ($dept_officer_ids as $officer_id) {
-						$this->Notification_model->add_notification(
-							null,
-							$sender_student_id,
-							'registration_submitted',
-							$activity_id,
-							$notification_message,
-							null,
-							$link,
-							$officer_id
-						);
+						$this->Notification_model->add_notification(null, $sender_student_id, 'registration_submitted', $activity_id, $notification_message, null, $link, $officer_id);
 					}
 					break;
-
 				default:
 					log_message('error', "Unknown organizer type for activity $activity_id");
 					break;
@@ -611,6 +739,7 @@ class StudentController extends CI_Controller
 			]);
 		}
 	}
+
 
 
 	// FOR FREE EVENT 

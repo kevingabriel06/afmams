@@ -803,9 +803,9 @@
 									timer: 2000
 								});
 
-								// setTimeout(function() {
-								//     window.location.href = response.redirect;
-								// }, 2000);
+								setTimeout(function() {
+									window.location.href = response.redirect;
+								}, 2000);
 							}
 						},
 						error: function() {

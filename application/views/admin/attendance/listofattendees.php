@@ -146,6 +146,10 @@
 											<span class="badge badge rounded-pill d-block p-2 badge-subtle-primary">
 												Excused
 											</span>
+										<?php elseif ($student['status'] == 'Exempted'): ?>
+											<span class="badge badge rounded-pill d-block p-2 badge-subtle-primary">
+												Exempted
+											</span>
 										<?php endif; ?>
 									</td>
 								</tr>

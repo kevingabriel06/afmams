@@ -392,6 +392,22 @@ class Student_model extends CI_Model
 		return $this->db->insert('registrations', $data);
 	}
 
+	// Check if registration exists
+	public function registration_exists($student_id, $activity_id)
+	{
+		return $this->db->where('student_id', $student_id)
+			->where('activity_id', $activity_id)
+			->count_all_results('registrations') > 0;
+	}
+
+	// Update registration
+	public function update_registration($student_id, $activity_id, $data)
+	{
+		return $this->db->where('student_id', $student_id)
+			->where('activity_id', $activity_id)
+			->update('registrations', $data);
+	}
+
 	//POST LIKES, COMMENTS START
 
 
