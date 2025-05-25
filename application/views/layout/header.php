@@ -159,11 +159,15 @@
 									<a class="nav-link" href="<?php echo site_url('officer/list-activities-attendance'); ?>" role="button">
 										<div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-calendar-alt"></span></span><span class="nav-link-text ps-1">Attendance</span></div>
 									</a><!-- Fines pages-->
-									<?php if ($privilege->manage_fines == 'Yes'): ?>
+									<?php if (isset($privilege) && is_object($privilege) && isset($privilege->manage_fines) && $privilege->manage_fines == 'Yes'): ?>
 										<a class="nav-link" href="<?php echo site_url('officer/list-fines') ?>" role="button">
-											<div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fas fa-coins"></span></span><span class="nav-link-text ps-1">Fines</span></div>
+											<div class="d-flex align-items-center">
+												<span class="nav-link-icon"><span class="fas fa-coins"></span></span>
+												<span class="nav-link-text ps-1">Fines</span>
+											</div>
 										</a>
 									<?php endif; ?>
+
 									<!-- Activity management pages-->
 									<a class="nav-link dropdown-indicator" href="#email" role="button" data-bs-toggle="collapse" aria-expanded="false" aria-controls="">
 										<div class="d-flex align-items-center"><span class="nav-link-icon"><span class="fab fa-buromobelexperte"></span></span><span class="nav-link-text ps-1">Activity</span></div>

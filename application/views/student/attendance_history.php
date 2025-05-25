@@ -74,79 +74,144 @@
 					<table class="table table-hover table-striped overflow-hidden">
 						<thead>
 							<tr>
-								<th scope="col" class="text-nowrap">Activity</th>
-								<th scope="col" class="text-nowrap">Organizer</th>
-								<th scope="col" class="text-nowrap"></th>
-								<th scope="col" class="text-nowrap">Time-in</th>
-								<th scope="col" class="text-nowrap">Time-out</th>
-								<th scope="col">Status</th>
-								<!-- <th scope="col">Action</th> -->
+								<th class="text-nowrap">Activity</th>
+								<th class="text-nowrap">Organizer</th>
+								<th class="text-nowrap">Status</th>
+								<th class="text-nowrap">Action</th>
 							</tr>
 						</thead>
 						<tbody class="list">
-							<?php foreach ($attendances as $attendance): ?>
-								<tr class="align-middle" data-start-date="<?php echo $attendance->start_date; ?>">
-									<td class="text-nowrap activity"><?php echo $attendance->activity_title; ?></td>
-									<td class="text-nowrap organizer"><?php echo $attendance->organizer; ?></td>
-									<td class="text-nowrap"><?php echo $attendance->slot_name; ?></td>
-									<td class="text-nowrap">
-										<?php echo !empty($attendance->time_in) ? date("M d, Y g:i A", strtotime($attendance->time_in)) : 'No Data'; ?>
-									</td>
-									<td class="text-nowrap">
-										<?php echo !empty($attendance->time_out) ? date("M d, Y g:i A", strtotime($attendance->time_out)) : 'No Data'; ?>
-									</td>
-									<td class="status">
-										<?php
-										$status = $attendance->attendance_status;
-										switch ($status) {
-											case 'Present':
-												$badgeClass = 'badge-subtle-success';
-												$icon = 'fa-check';
-												break;
-											case 'Excused':
-												$badgeClass = 'badge-subtle-primary';
-												$icon = 'fa-user-check';
-												break;
-											case 'Absent':
-												$badgeClass = 'badge-subtle-danger';
-												$icon = 'fa-times';
-												break;
-											case 'Incompleted':
-												$badgeClass = 'badge-subtle-warning';
-												$icon = 'fa-exclamation';
-												break;
-											default:
-												$badgeClass = 'badge-subtle-secondary';
-												$icon = 'fa-question';
-										}
-										?>
-										<span class="badge rounded-pill d-block p-2 <?php echo $badgeClass; ?>">
-											<?php echo $status; ?>
-											<span class="ms-1 fas <?php echo $icon; ?>" data-fa-transform="shrink-2"></span>
-										</span>
-									</td>
-									<!-- <td class="text-nowrap">
-                                        <div class="dropdown font-sans-serif position-static">
-                                            <button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button"
-                                                data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                                <span class="fas fa-ellipsis-h fs-10"></span>
-                                            </button>
-                                            <div class="dropdown-menu dropdown-menu-end border py-0">
-                                                <div class="py-2">
-                                                    <a class="dropdown-item" href="#">View Details</a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td> -->
+							<?php if (empty($attendances)): ?>
+								<tr>
+									<td colspan="4" class="text-center py-3">No attendance records found.</td>
 								</tr>
+							<?php else: ?>
+								<?php foreach ($attendances as $index => $attendance): ?>
+									<tr class="align-middle">
+										<td class="text-nowrap"><?php echo $attendance->activity_title; ?></td>
+										<td class="text-nowrap"><?php echo $attendance->organizer; ?></td>
+										<td class="text-nowrap">
+											<?php
+											$status = $attendance->attendance_status;
+											switch ($status) {
+												case 'Present':
+													$badgeClass = 'badge-subtle-success';
+													$icon = 'fa-check';
+													break;
+												case 'Excused':
+													$badgeClass = 'badge-subtle-primary';
+													$icon = 'fa-user-check';
+													break;
+												case 'Absent':
+													$badgeClass = 'badge-subtle-danger';
+													$icon = 'fa-times';
+													break;
+												case 'Incomplete':
+													$badgeClass = 'badge-subtle-warning';
+													$icon = 'fa-exclamation';
+													break;
+												default:
+													$badgeClass = 'badge-subtle-secondary';
+													$icon = 'fa-question';
+											}
+											?>
+											<span class="badge rounded-pill d-block p-2 <?php echo $badgeClass; ?>">
+												<?php echo $status; ?>
+												<span class="ms-1 fas <?php echo $icon; ?>" data-fa-transform="shrink-2"></span>
+											</span>
+										</td>
+										<td>
+											<?php echo '<button class="btn btn-sm border border-primary text-primary bg-transparent rounded-pill px-3"
+    style="font-weight: 500;"
+    data-bs-toggle="modal"
+    data-bs-target="#modal-' . $index . '">
+    View Breakdown
+</button>'; ?>
 
-							<?php endforeach; ?>
+										</td>
+									</tr>
+
+									<!-- Modal -->
+									<div class="modal fade" id="modal-<?php echo $index; ?>" tabindex="-1" aria-labelledby="modalLabel-<?php echo $index; ?>" aria-hidden="true">
+										<div class="modal-dialog modal-dialog-centered modal-lg">
+											<div class="modal-content" style="border: none; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 1rem;">
+												<div class="modal-header" style="background-color: #e7f1ff; color: #0d6efd; border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
+													<h5 class="modal-title fw-bold" id="modalLabel-<?php echo $index; ?>">
+														Attendance Breakdown - <?php echo htmlspecialchars($attendance->activity_title); ?>
+													</h5>
+
+													<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+												</div>
+												<div class="modal-body" style="padding: 1.5rem; background-color: #fff;">
+
+													<?php
+													// Original data
+													$slotNames = explode(',', $attendance->slot_name);
+													$timeIns = explode(',', $attendance->all_time_in);
+													$timeOuts = explode(',', $attendance->all_time_out);
+													$slotCount = max(count($slotNames), count($timeIns), count($timeOuts));
+
+													// Combine and sort
+													$combinedSlots = [];
+													for ($i = 0; $i < $slotCount; $i++) {
+														$name = trim(strtolower($slotNames[$i] ?? "Slot " . ($i + 1)));
+														$combinedSlots[] = [
+															'original_name' => $slotNames[$i] ?? "Slot " . ($i + 1),
+															'sort_order' => ($name === 'morning' ? 1 : ($name === 'afternoon' ? 2 : ($name === 'evening' ? 3 : 4))),
+															'time_in' => $timeIns[$i] ?? null,
+															'time_out' => $timeOuts[$i] ?? null
+														];
+													}
+
+													usort($combinedSlots, function ($a, $b) {
+														return $a['sort_order'] <=> $b['sort_order'];
+													});
+													?>
+
+													<?php foreach ($combinedSlots as $slot): ?>
+														<div style="border: 1px solid #dee2e6; border-radius: .5rem; padding: 1rem; margin-bottom: 1rem; background-color: #f8f9fa;">
+															<h6 style="color: #0d6efd; font-weight: 600; margin-bottom: 1rem;">
+																<?php echo htmlspecialchars($slot['original_name']); ?>
+															</h6>
+															<div style="display: flex; justify-content: space-between;">
+																<div style="width: 48%;">
+																	<strong>Time-in:</strong><br>
+																	<span>
+																		<?php echo !empty($slot['time_in'])
+																			? date("M d, Y g:i A", strtotime($slot['time_in']))
+																			: '<span style="color: #6c757d; font-style: italic;">No Data</span>'; ?>
+																	</span>
+																</div>
+																<div style="width: 48%;">
+																	<strong>Time-out:</strong><br>
+																	<span>
+																		<?php echo !empty($slot['time_out'])
+																			? date("M d, Y g:i A", strtotime($slot['time_out']))
+																			: '<span style="color: #6c757d; font-style: italic;">No Data</span>'; ?>
+																	</span>
+																</div>
+															</div>
+														</div>
+													<?php endforeach; ?>
+
+												</div>
+												<div class="modal-footer" style="background-color: #f1f1f1; border-bottom-left-radius: 1rem; border-bottom-right-radius: 1rem;">
+													<button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Close</button>
+												</div>
+											</div>
+										</div>
+									</div>
+
+
+
+
+								<?php endforeach; ?>
+							<?php endif; ?>
 						</tbody>
 					</table>
-					<!-- ✅ Move fallback outside the table -->
-					<div id="evaluation-table-fallback" class="d-none text-center p-3">No results found.</div>
 				</div>
 			</div>
+
 		</div>
 
 	</div>

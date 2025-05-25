@@ -18,6 +18,20 @@ class Student_model extends CI_Model
 		return $this->db->get_where('users', ['student_id' => $student_id])->row_array();
 	}
 
+	//For export files details
+
+	public function get_student_info($student_id)
+	{
+		return $this->db
+			->select('u.student_id, u.first_name, u.middle_name, u.last_name, u.dept_id, d.dept_name')
+			->from('users u')
+			->join('department d', 'u.dept_id = d.dept_id', 'left')  // left join in case dept_id is null
+			->where('u.student_id', $student_id)
+			->get()
+			->row_array();
+	}
+
+
 	// HOME
 
 	// FECTCHING WHO IS THE AUTHOR OF THE POST
@@ -454,28 +468,88 @@ class Student_model extends CI_Model
 		return $query->result();
 	}
 
+	// public function get_attendance($student_id)
+	// {
+
+	// 	$student_id = $this->session->userdata('student_id');
+
+	// 	$this->db->select('');
+	// 	$this->db->from('attendance');
+	// 	$this->db->join('activity', 'activity.activity_id = attendance.activity_id');
+	// 	$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = attendance.timeslot_id');
+	// 	$this->db->where('attendance.student_id', $student_id);
+
+	// 	$query = $this->db->get();
+	// 	return $query->result();
+	// }
+
+	// // Helper function to combine multiple slot statuses into one
+	// private function combineStatus($current, $new)
+	// {
+	// 	if ($current === 'Present' && $new === 'Present') return 'Present';
+	// 	if ($current === 'Absent' && $new === 'Absent') return 'Absent';
+	// 	return 'Incomplete';
+	// }
+
+
 	public function get_attendance($student_id)
 	{
-
-		$student_id = $this->session->userdata('student_id');
-
-		$this->db->select('');
+		$this->db->select('
+        GROUP_CONCAT(attendance.attendance_id ORDER BY activity_time_slots.slot_name) AS attendance_ids,
+        GROUP_CONCAT(attendance.time_in ORDER BY activity_time_slots.slot_name) AS all_time_in,
+        GROUP_CONCAT(attendance.time_out ORDER BY activity_time_slots.slot_name) AS all_time_out,
+        GROUP_CONCAT(activity_time_slots.slot_name ORDER BY activity_time_slots.slot_name) AS slot_name,
+        attendance.activity_id,
+        activity.activity_title,
+        activity.organizer,
+        activity.start_date
+    ');
 		$this->db->from('attendance');
 		$this->db->join('activity', 'activity.activity_id = attendance.activity_id');
 		$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = attendance.timeslot_id');
 		$this->db->where('attendance.student_id', $student_id);
+		$this->db->group_by('attendance.activity_id');
 
 		$query = $this->db->get();
-		return $query->result();
+		$results = $query->result();
+
+		foreach ($results as &$record) {
+			$timeIns = explode(',', $record->all_time_in);
+			$timeOuts = explode(',', $record->all_time_out);
+
+			$total = max(count($timeIns), count($timeOuts));
+			$emptyCount = 0;
+			$filledCount = 0;
+			$incompleteCount = 0;
+
+			for ($i = 0; $i < $total; $i++) {
+				$in = isset($timeIns[$i]) ? trim($timeIns[$i]) : '';
+				$out = isset($timeOuts[$i]) ? trim($timeOuts[$i]) : '';
+
+				if ($in === '' && $out === '') {
+					$emptyCount++;
+				} elseif ($in !== '' && $out !== '') {
+					$filledCount++;
+				} else {
+					// Mixed case - incomplete attendance for this timeslot
+					$incompleteCount++;
+				}
+			}
+
+			if ($emptyCount === $total) {
+				$record->attendance_status = 'Absent';
+			} elseif ($filledCount === $total) {
+				$record->attendance_status = 'Present';
+			} else {
+				$record->attendance_status = 'Incomplete';
+			}
+		}
+
+		return $results;
 	}
 
-	// Helper function to combine multiple slot statuses into one
-	private function combineStatus($current, $new)
-	{
-		if ($current === 'Present' && $new === 'Present') return 'Present';
-		if ($current === 'Absent' && $new === 'Absent') return 'Absent';
-		return 'Incomplete';
-	}
+
+
 
 
 
@@ -614,6 +688,71 @@ class Student_model extends CI_Model
 	}
 
 
+	// public function get_activities_for_users_excuse_application()
+	// {
+	// 	$student_id = $this->session->userdata('student_id');
+
+	// 	// Get the student's department and name
+	// 	$user = $this->db->select('users.dept_id, department.dept_name')
+	// 		->from('users')
+	// 		->join('department', 'users.dept_id = department.dept_id')
+	// 		->where('student_id', $student_id)
+	// 		->get()
+	// 		->row();
+
+	// 	$user_dept_name = $user ? $user->dept_name : null;
+
+	// 	// Get all orgs the student belongs to
+	// 	$orgs = $this->db->select('student_org.org_id, organization.org_name')
+	// 		->from('student_org')
+	// 		->join('organization', 'student_org.org_id = organization.org_id')
+	// 		->where('student_id', $student_id)
+	// 		->get()
+	// 		->result();
+
+	// 	$org_names = array_map(function ($org) {
+	// 		return $org->org_name;
+	// 	}, $orgs);
+
+	// 	// Step 1: Get activity IDs where the student already submitted excuse
+	// 	$submitted_excuses = $this->db->select('activity_id')
+	// 		->from('excuse_application')
+	// 		->where('student_id', $student_id)
+	// 		->get()
+	// 		->result();
+
+	// 	$submitted_activity_ids = array_map(function ($row) {
+	// 		return $row->activity_id;
+	// 	}, $submitted_excuses);
+
+	// 	// Step 2: Fetch upcoming activities
+	// 	$this->db->select('activity.*');
+	// 	$this->db->from('activity');
+
+	// 	$this->db->where('activity.status', 'Upcoming');
+
+	// 	// Filter by audience
+	// 	$this->db->group_start();
+	// 	$this->db->or_where('activity.audience', 'All');
+	// 	if ($user_dept_name) {
+	// 		$this->db->or_where('activity.audience', $user_dept_name);
+	// 	}
+	// 	if (!empty($org_names)) {
+	// 		$this->db->or_where_in('activity.audience', $org_names);
+	// 	}
+	// 	$this->db->group_end();
+
+	// 	// Exclude activities where the student already submitted an excuse
+	// 	if (!empty($submitted_activity_ids)) {
+	// 		$this->db->where_not_in('activity.activity_id', $submitted_activity_ids);
+	// 	}
+
+	// 	$query = $this->db->get();
+	// 	return $query->result();
+	// }
+
+
+
 	public function get_activities_for_users_excuse_application()
 	{
 		$student_id = $this->session->userdata('student_id');
@@ -640,7 +779,7 @@ class Student_model extends CI_Model
 			return $org->org_name;
 		}, $orgs);
 
-		// Step 1: Get activity IDs where the student already submitted excuse
+		// Get activity IDs where the student already submitted an excuse
 		$submitted_excuses = $this->db->select('activity_id')
 			->from('excuse_application')
 			->where('student_id', $student_id)
@@ -651,11 +790,20 @@ class Student_model extends CI_Model
 			return $row->activity_id;
 		}, $submitted_excuses);
 
-		// Step 2: Fetch upcoming activities
+		// Fetch eligible activities
 		$this->db->select('activity.*');
 		$this->db->from('activity');
 
+		// WHERE clause for status
+		$this->db->group_start();
 		$this->db->where('activity.status', 'Upcoming');
+		$this->db->or_where('activity.status', 'Ongoing');
+		// Completed but only within 5 days from end_date
+		$this->db->or_group_start();
+		$this->db->where('activity.status', 'Completed');
+		$this->db->where('activity.end_date >=', date('Y-m-d', strtotime('-5 days')));
+		$this->db->group_end();
+		$this->db->group_end();
 
 		// Filter by audience
 		$this->db->group_start();
@@ -668,7 +816,7 @@ class Student_model extends CI_Model
 		}
 		$this->db->group_end();
 
-		// Exclude activities where the student already submitted an excuse
+		// Exclude activities already submitted for excuse
 		if (!empty($submitted_activity_ids)) {
 			$this->db->where_not_in('activity.activity_id', $submitted_activity_ids);
 		}
@@ -676,6 +824,7 @@ class Student_model extends CI_Model
 		$query = $this->db->get();
 		return $query->result();
 	}
+
 
 
 
@@ -851,6 +1000,7 @@ class Student_model extends CI_Model
 		$this->db->from('activity');
 		$this->db->join('forms', 'forms.activity_id = activity.activity_id', 'inner');
 		$this->db->join('evaluation_responses', 'evaluation_responses.form_id = forms.form_id AND evaluation_responses.student_id = ' . $this->db->escape($student_id), 'left');
+		$this->db->join('attendance', 'attendance.activity_id = activity.activity_id AND attendance.student_id = ' . $this->db->escape($student_id) . ' AND attendance.time_in IS NOT NULL', 'inner'); //only students who attended can answer
 
 
 		// Audience filters
@@ -1312,7 +1462,8 @@ class Student_model extends CI_Model
         fines_summary.reference_number_admin,
         fines_summary.reference_number_students,
         fines_summary.last_updated,
-        fines_summary.organizer, 
+        fines_summary.organizer,
+		fines_summary.approved_by, 
         users.first_name,
         users.last_name,
         fines.fines_id,

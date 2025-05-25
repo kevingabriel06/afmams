@@ -98,12 +98,15 @@
 															const activity = $(this).data('activity');
 															const subject = $(this).data('subject');
 															const status = $(this).data('status');
+															const remarks = $(this).data('remarks');
 															const content = $(this).data('content');
 															const documentFile = $(this).data('document');
+
 
 															$('#detail-activity').text(activity);
 															$('#detail-subject').text(subject);
 															$('#detail-content').text(content);
+															$('#detail-remarks').text(remarks);
 
 															// Set status badge class
 															const $statusBadge = $('#detail-status');
@@ -231,15 +234,16 @@
 												<div class="fw-medium text-dark" id="detail-subject"></div>
 											</div>
 
-											<div class="mb-3 d-flex justify-content-between align-items-center border-bottom pb-2">
-												<div class="text-muted"><i class="bi bi-check-circle me-2 text-primary"></i>Status:</div>
-												<div>
-													<span id="detail-status" class="badge px-2 py-1 fs-12 rounded-pill">Pending</span>
+											<!-- Status -->
+											<div class="mb-3 d-flex align-items-center border-bottom pb-2 gap-2">
+												<div class="text-muted d-flex align-items-center">
+													<i class="bi bi-check-circle me-2 text-primary"></i>Status:
 												</div>
-												<span id="detail-status" class="badge px-2 py-1 fs-7 rounded-pill"></span>
-
-
+												<div>
+													<span id="detail-status" class="badge px-2 py-1 fs-12 rounded-pill bg-warning text-dark">Pending</span>
+												</div>
 											</div>
+
 
 											<!-- Remarks -->
 											<div class="mb-3">

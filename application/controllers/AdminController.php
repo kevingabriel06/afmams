@@ -551,6 +551,7 @@ class AdminController extends CI_Controller
 		$action            = $this->input->post('action'); // 'Verified' or 'Rejected'
 		$remarks           = $this->input->post('remarks');
 
+
 		$this->load->model('Notification_model');;
 
 		$record = $this->admin->get_reference_data($student_id, $activity_id);
@@ -575,7 +576,8 @@ class AdminController extends CI_Controller
 			$this->admin->validate_registration($student_id, $activity_id, [
 				'reference_number_admin' => $reference_number,
 				'registration_status'    => 'Rejected',
-				'remark' => "Reference number doesn't match the admin's record. Please contact support if this is a mistake."
+				'remark' => "Reference number doesn't match the admin's record. Please contact support if this is a mistake.",
+				'approved_by'            => $admin_id  // <-- Add this line here as well
 			]);
 
 			$this->Notification_model->add_notification(
@@ -594,7 +596,8 @@ class AdminController extends CI_Controller
 		$update = $this->admin->validate_registration($student_id, $activity_id, [
 			'reference_number_admin' => $reference_number,
 			'registration_status'    => $action,
-			'remark'                 => $remarks
+			'remark'                 => $remarks,
+			'approved_by'            => $admin_id  // <-- Add this line here as well
 		]);
 
 		if ($update) {
@@ -639,8 +642,21 @@ class AdminController extends CI_Controller
 		$this->load->model('Student_model');
 		require_once(APPPATH . 'third_party/fpdf.php');
 
+		// Get receipt data with approver info (adjust this method as needed)
 		$receipt_data = $this->Student_model->get_receipt_by_id($registration_id);
 		if (!$receipt_data) return;
+
+		// Fetch approver name if approved_by_student_id exists
+		$approver_name = 'N/A';
+		if (!empty($receipt_data['approved_by'])) {
+			$approver = $this->db->select('first_name, middle_name, last_name')
+				->where('student_id', $receipt_data['approved_by'])
+				->get('users')
+				->row();
+			if ($approver) {
+				$approver_name = strtoupper(trim($approver->first_name . ' ' . $approver->middle_name . ' ' . $approver->last_name));
+			}
+		}
 
 		$filename = 'receipt_' . $registration_id . '.pdf';
 		$folder_path = FCPATH . 'uploads/generated_receipts/';
@@ -652,7 +668,7 @@ class AdminController extends CI_Controller
 
 		$verification_code = strtoupper(substr(md5($registration_id . time()), 0, 8));
 
-		// Step 1: Session role info
+		// --- User session and header/footer setup (your existing code) ---
 		$user = [
 			'role'             => $this->session->userdata('role'),
 			'student_id'       => $this->session->userdata('student_id'),
@@ -663,18 +679,14 @@ class AdminController extends CI_Controller
 
 		$headerImage = '';
 		$footerImage = '';
-		$watermarkPath = ''; // default empty
+		$watermarkPath = '';
 
-		// Step 2: Dynamic header/footer retrieval
 		if ($user['role'] === 'Admin') {
 			$settings = $this->db->get('student_parliament_settings')->row();
 			if ($settings) {
 				$headerImage = $settings->header;
 				$footerImage = $settings->footer;
-
-				if (!empty($settings->logo)) {
-					$watermarkPath = $settings->logo;
-				}
+				if (!empty($settings->logo)) $watermarkPath = $settings->logo;
 			}
 		} elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
 			$org = $this->db->select('organization.header, organization.footer, organization.logo')
@@ -684,25 +696,17 @@ class AdminController extends CI_Controller
 			if ($org) {
 				$headerImage = $org->header;
 				$footerImage = $org->footer;
-
-				if (!empty($org->logo)) {
-					$watermarkPath = $org->logo;
-				}
+				if (!empty($org->logo)) $watermarkPath = $org->logo;
 			}
 		} elseif ($user['role'] === 'Officer' && $user['is_officer_dept'] === 'Yes') {
 			$dept = $this->db->select('header, footer, logo')->where('dept_id', $user['dept_id'])->get('department')->row();
 			if ($dept) {
 				$headerImage = $dept->header;
 				$footerImage = $dept->footer;
-
-				if (!empty($dept->logo)) {
-					$watermarkPath = $dept->logo;
-				}
+				if (!empty($dept->logo)) $watermarkPath = $dept->logo;
 			}
 		}
 
-
-		// Step 3: Use custom PDF with header/footer support
 		$pdf = new PDF();
 		$pdf->headerImage = $headerImage;
 		$pdf->footerImage = $footerImage;
@@ -732,6 +736,7 @@ class AdminController extends CI_Controller
 		$pdf->SetFont('Arial', '', 10);
 		$pdf->Cell(0, 8, strtoupper($receipt_data['student_id'] . ' - ' . $receipt_data['first_name'] . ' ' . $receipt_data['middle_name'] . ' ' . $receipt_data['last_name']), 0, 1, 'L');
 
+
 		$pdf->Ln(5);
 		$pdf->SetFont('Arial', 'B', 10);
 		$pdf->Cell(120, 8, 'Description', 1, 0, 'C');
@@ -750,6 +755,14 @@ class AdminController extends CI_Controller
 		$pdf->SetFont('Arial', '', 10);
 		$pdf->Cell(50, 8, 'Payment Type:', 0, 0, 'L');
 		$pdf->Cell(0, 8, $receipt_data['reference_number'] ? 'E-Payment (GCash)' : 'Cash', 0, 1, 'L');
+
+
+		// Add Approved By section here
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell(50, 8, 'Approved By:', 0, 0, 'L');
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell(0, 8, $approver_name, 0, 1, 'L');
+
 
 		$pdf->Ln(15);
 		$pdf->SetFont('Arial', 'B', 12);
@@ -1746,6 +1759,7 @@ class AdminController extends CI_Controller
 			]);
 		}
 	}
+
 
 	// EDITING EVALUATION - PAGE (FINAL CHECK)
 	public function edit_evaluationform($form_id)
@@ -3601,6 +3615,9 @@ class AdminController extends CI_Controller
 		$academic_year = $this->input->post('academic_year'); // get from POST form
 		$semester = $this->input->post('semester');           // get from POST form
 
+		$admin_student_id = $this->session->userdata('student_id');
+
+
 		$organizer = 'Student Parliament';
 		$record = $this->admin->get_fine_summary($student_id, $organizer, $academic_year, $semester);
 		// ✅ retrieve student's fine summary //ADDED FOR AY AND SEM
@@ -3640,6 +3657,7 @@ class AdminController extends CI_Controller
 			'reference_number_admin' => $reference_number,
 			'fines_status' => 'Paid',
 			'mode_payment' => $mode_of_payment,
+			'approved_by' => $admin_student_id, // ✅ Add this line
 			'last_updated' => date('Y-m-d H:i:s')
 		], $academic_year, $semester); // ADDED: pass academic_year and semester to update method
 
@@ -3671,11 +3689,23 @@ class AdminController extends CI_Controller
 		$this->load->model('Student_model');
 		require_once(APPPATH . 'third_party/fpdf.php');
 
-		// Get all fines for the summary
+		// Get fines summary data
 		$fines_data = $this->Student_model->get_fine_summary_data($summary_id);
 		if (empty($fines_data)) return;
 
-		$receipt_data = $fines_data[0]; // general info comes from first row
+		$receipt_data = $fines_data[0]; // general info from first fine entry
+
+		// Fetch approver name if approved_by exists
+		$approver_name = 'N/A';
+		if (!empty($receipt_data['approved_by'])) {
+			$approver = $this->db->select('first_name, middle_name, last_name')
+				->where('student_id', $receipt_data['approved_by'])
+				->get('users')
+				->row();
+			if ($approver) {
+				$approver_name = strtoupper(trim($approver->first_name . ' ' . $approver->middle_name . ' ' . $approver->last_name));
+			}
+		}
 
 		$filename = 'fine_receipt_' . $summary_id . '.pdf';
 		$folder_path = FCPATH . 'uploads/fine_receipts/';
@@ -3687,14 +3717,52 @@ class AdminController extends CI_Controller
 
 		$verification_code = strtoupper(substr(md5($summary_id . time()), 0, 8));
 
+		// Get user session info for header/footer/logo
+		$user = [
+			'role'             => $this->session->userdata('role'),
+			'student_id'       => $this->session->userdata('student_id'),
+			'is_officer'       => $this->session->userdata('is_officer'),
+			'is_officer_dept'  => $this->session->userdata('is_officer_dept'),
+			'dept_id'          => $this->session->userdata('dept_id'),
+		];
+
+		$headerImage = '';
+		$footerImage = '';
+		$watermarkPath = '';
+
+		if ($user['role'] === 'Admin') {
+			$settings = $this->db->get('student_parliament_settings')->row();
+			if ($settings) {
+				$headerImage = $settings->header;
+				$footerImage = $settings->footer;
+				if (!empty($settings->logo)) $watermarkPath = $settings->logo;
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+			$org = $this->db->select('organization.header, organization.footer, organization.logo')
+				->join('organization', 'student_org.org_id = organization.org_id')
+				->where('student_org.student_id', $user['student_id'])
+				->get('student_org')->row();
+			if ($org) {
+				$headerImage = $org->header;
+				$footerImage = $org->footer;
+				if (!empty($org->logo)) $watermarkPath = $org->logo;
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer_dept'] === 'Yes') {
+			$dept = $this->db->select('header, footer, logo')->where('dept_id', $user['dept_id'])->get('department')->row();
+			if ($dept) {
+				$headerImage = $dept->header;
+				$footerImage = $dept->footer;
+				if (!empty($dept->logo)) $watermarkPath = $dept->logo;
+			}
+		}
+
 		$pdf = new PDF();
+		$pdf->headerImage = $headerImage;
+		$pdf->footerImage = $footerImage;
+		$pdf->watermarkPath = $watermarkPath;
+
 		$pdf->AddPage();
 		$pdf->SetAutoPageBreak(true, 10);
-
-		$logoPath = FCPATH . 'application/third_party/receiptlogo.png';
-		if (file_exists($logoPath)) {
-			$pdf->Image($logoPath, 35, 70, 140, 100, 'PNG');
-		}
 
 		$pdf->SetFont('Arial', 'B', 16);
 		$pdf->Cell(0, 10, 'FINE PAYMENT RECEIPT', 0, 1, 'C');
@@ -3748,6 +3816,13 @@ class AdminController extends CI_Controller
 		$pdf->Cell(50, 8, 'Payment Type:', 0, 0, 'L');
 		$pdf->Cell(0, 8, $receipt_data['mode_payment'], 0, 1, 'L');
 
+
+		// Add Approved By section here
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell(50, 8, 'Approved By:', 0, 0, 'L');
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell(0, 8, $approver_name, 0, 1, 'L');
+
 		$pdf->Ln(15);
 		$pdf->SetFont('Arial', 'B', 12);
 		$pdf->Cell(0, 8, 'Verification Code:', 0, 1, 'C');
@@ -3760,14 +3835,16 @@ class AdminController extends CI_Controller
 
 		$pdf->Output($filepath, 'F');
 
-		// ✅ Update the `fines_summary` table
+		// Update fines_summary table with receipt info
 		$this->db->where('summary_id', $summary_id);
 		$this->db->update('fines_summary', [
 			'generated_receipt' => $filename,
-			'verification_code' => $verification_code, // ✅ Save the code
+			'verification_code' => $verification_code,
 			'last_updated' => date('Y-m-d H:i:s')
 		]);
 	}
+
+
 
 	public function update_status()
 	{

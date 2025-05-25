@@ -556,9 +556,8 @@ class Admin_model extends CI_Model
 				'activity_id' => $original['activity_id'],
 				'student_id'  => $this->session->userdata('student_id'), // Or pass as a param if needed
 				'edit_time' => (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d H:i:s'),
-				'changes' => json_encode([
-					'schedule' => $changes
-				])
+				'changes' => json_encode($changes)
+
 			];
 
 			$this->db->insert('activity_edit_logs', $log_data);
@@ -1780,18 +1779,40 @@ class Admin_model extends CI_Model
 		return false;
 	}
 
+	// public function get_fine_summary($student_id, $organizer, $academic_year, $semester)
+	// {
+	// 	$this->db->select('fines_summary.*');
+	// 	$this->db->from('fines_summary');
+	// 	$this->db->join('fines', 'fines.student_id = fines_summary.student_id');
+	// 	$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+	// 	$this->db->where('fines_summary.student_id', $student_id);
+	// 	$this->db->where('activity.organizer', $organizer);
+	// 	$this->db->where('fines_summary.academic_year', $academic_year);
+	// 	$this->db->where('fines_summary.semester', $semester);
+	// 	$this->db->group_by('fines_summary.summary_id'); // Avoid duplicate rows
+	// 	$this->db->limit(1);
+	// 	return $this->db->get()->row();
+	// }
+
+
 	public function get_fine_summary($student_id, $organizer, $academic_year, $semester)
 	{
-		$this->db->select('fines_summary.*');
+		$this->db->select('fines_summary.*, 
+                       users.first_name AS approver_first_name, 
+                       users.last_name AS approver_last_name');
 		$this->db->from('fines_summary');
 		$this->db->join('fines', 'fines.student_id = fines_summary.student_id');
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+		// Join users table for the approver
+		$this->db->join('users', 'users.user_id = fines_summary.approved_by', 'left');
+
 		$this->db->where('fines_summary.student_id', $student_id);
 		$this->db->where('activity.organizer', $organizer);
 		$this->db->where('fines_summary.academic_year', $academic_year);
 		$this->db->where('fines_summary.semester', $semester);
 		$this->db->group_by('fines_summary.summary_id'); // Avoid duplicate rows
 		$this->db->limit(1);
+
 		return $this->db->get()->row();
 	}
 
@@ -1801,11 +1822,22 @@ class Admin_model extends CI_Model
 
 
 
-	public function update_fines_summary_receipt($student_id, $data)
+
+	// public function update_fines_summary_receipt($student_id, $data)
+	// {
+	// 	$this->db->where('student_id', $student_id);
+	// 	return $this->db->update('fines_summary', $data);
+	// }
+
+
+	public function update_fines_summary_receipt($student_id, $data, $academic_year, $semester)
 	{
 		$this->db->where('student_id', $student_id);
+		$this->db->where('academic_year', $academic_year);
+		$this->db->where('semester', $semester);
 		return $this->db->update('fines_summary', $data);
 	}
+
 
 	// PROFILE SETTINGS (FINAL CHECK)
 	public function get_user_profile()
