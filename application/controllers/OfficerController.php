@@ -178,6 +178,9 @@ class OfficerController extends CI_Controller
 		$data['attendance_data'] = $attendance_data_result['attendance_data'];
 		$data['attendance_rate'] = $attendance_data_result['attendance_rate'];
 
+		$data['student_count'] = $this->officer->number_of_students();
+		$data['officer_count'] = $this->officer->number_of_officers();
+
 		$this->load->view('layout/header', $data);
 		$this->load->view('officer/dashboard', $data);
 		$this->load->view('layout/footer', $data);
@@ -354,6 +357,12 @@ class OfficerController extends CI_Controller
 
 		// Insert each student into attendance for each timeslot
 		foreach ($students as $student) {
+			// Check if student is exempted
+			$is_exempted = $this->db
+				->where('student_id', $student->student_id)
+				->get('exempted_students')
+				->num_rows() > 0;
+
 			foreach ($timeslot_ids as $timeslot_id) {
 				// Step 1: Insert into attendance table
 				$this->db->insert('attendance', [
@@ -362,6 +371,14 @@ class OfficerController extends CI_Controller
 					'student_id'  => $student->student_id
 				]);
 
+				if ($is_exempted) {
+					$this->db->insert('attendance', [
+						'activity_id' => $activity_id,
+						'timeslot_id' => $timeslot_id,
+						'student_id'  => $student->student_id,
+						'attendance_status' => 'Exempted'
+					]);
+				}
 				// Step 2: Get the auto-incremented attendance_id
 				$attendance_id = $this->db->insert_id();
 
@@ -434,14 +451,12 @@ class OfficerController extends CI_Controller
 						'activity_id' => $activity_id,
 						'student_id' => $student->student_id,
 						'payment_type' => 'No Status',
-						'registration_status' => 'Pending'
+						'registration_status' => 'No Status'
 					]);
 				}
 			}
 		}
 	}
-
-
 
 	// FETCHING ACTIVITY - PAGE (FINAL CHECK)
 	public function list_activity()
@@ -569,8 +584,6 @@ class OfficerController extends CI_Controller
 		}
 	}
 
-
-
 	public function generate_and_store_receipt($registration_id)
 	{
 		$this->load->model('Student_model');
@@ -655,6 +668,7 @@ class OfficerController extends CI_Controller
 		$this->db->update('registrations', [
 			'generated_receipt' => $filename,
 			'remark' => 'Receipt generated.',
+			'verification_code' => $verification_code,
 		]);
 	}
 
@@ -707,7 +721,6 @@ class OfficerController extends CI_Controller
 			]);
 		}
 	}
-
 
 	public function export_registered_students_pdf()
 	{
@@ -941,7 +954,6 @@ class OfficerController extends CI_Controller
 		}
 	}
 
-
 	// EDITING OF ACTIVITY - PAGE (FINAL CHECK)
 	public function edit_activity($activity_id)
 	{
@@ -987,25 +999,199 @@ class OfficerController extends CI_Controller
 	// 		$this->form_validation->set_rules('session_type[]', 'Session Type', 'required');
 	// 	}
 	// }
+	// public function update_activity($activity_id)
+	// {
+	// 	if ($this->input->post()) {
+	// 		// Set Validation Rules
+	// 		$this->form_validation->set_rules('title', 'Activity Title', 'required');
+	// 		$this->form_validation->set_rules('date_start', 'Start Date', 'required');
+	// 		$this->form_validation->set_rules('date_end', 'End Date', 'required');
+	// 		$this->form_validation->set_rules('description', 'Description', 'required');
+	// 		$this->form_validation->set_rules('registration_fee', 'Registration Fee', 'numeric');
+	// 		$this->form_validation->set_rules('fines', 'Fines', 'numeric');
+	// 		$this->form_validation->set_rules('session_type[]', 'Session Type', 'required');
+	// 		$this->form_validation->set_rules('start_datetime[]', 'Start Date & Time', 'required');
+	// 		$this->form_validation->set_rules('end_datetime[]', 'End Date & Time', 'required');
+
+	// 		// Run Validation
+	// 		if ($this->form_validation->run() == FALSE) {
+	// 			echo json_encode(['status' => 'error', 'errors' => validation_errors()]);
+	// 			return;
+	// 		}
+	// 		if ($this->form_validation->run() == FALSE) {
+	// 			echo json_encode(['status' => 'error', 'errors' => validation_errors()]);
+	// 			return;
+	// 		}
+
+	// 		// Check if Activity Exists
+	// 		$activity = $this->officer->get_activity($activity_id);
+	// 		if (!$activity) {
+	// 			echo json_encode(['status' => 'error', 'errors' => 'Activity not found.']);
+	// 			return;
+	// 		}
+
+	// 		// Prepare Activity Data
+	// 		$data = [
+	// 			'activity_title'        => $this->input->post('title'),
+	// 			'start_date'            => $this->input->post('date_start'),
+	// 			'end_date'              => $this->input->post('date_end'),
+	// 			'description'           => $this->input->post('description'),
+	// 			'registration_deadline' => $this->input->post('registration_deadline'),
+	// 			'registration_fee'      => str_replace(",", "", $this->input->post('registration_fee')),
+	// 			'organizer'             => $this->session->userdata('dept_name') ?: $this->session->userdata('org_name'),
+	// 			'fines'                 => str_replace(",", "", $this->input->post('fines')),
+	// 			'audience'              => $this->input->post('audience')
+	// 		];
+	// 		// Prepare New Activity Data
+	// 		$data = [
+	// 			'activity_title'        => trim($this->input->post('title')),
+	// 			'start_date'            => $this->input->post('date_start'),
+	// 			'end_date'              => $this->input->post('date_end'),
+	// 			'description'           => trim($this->input->post('description')),
+	// 			'registration_deadline' => $this->input->post('registration_deadline'),
+	// 			'registration_fee'      => str_replace(",", "", $this->input->post('registration_fee')),
+	// 			'organizer'             => $this->session->userdata('dept_name') ?: $this->session->userdata('org_name'),
+	// 			'fines'                 => str_replace(",", "", $this->input->post('fines')),
+	// 			'audience'              => $this->input->post('audience')
+	// 		];
+
+	// 		// Handle Cover Image Upload
+	// 		if (!empty($_FILES['coverUpload']['name'])) {
+	// 			$coverImage = $this->upload_file('coverUpload', './assets/coverEvent');
+	// 			if (!$coverImage['status']) {
+	// 				echo json_encode(['status' => 'error', 'errors' => $coverImage['error']]);
+	// 				return;
+	// 			}
+	// 			$data['activity_image'] = $coverImage['file_name'];
+	// 		}
+
+	// 		// Handle QR Code Upload
+	// 		if (!empty($_FILES['qrcode']['name'])) {
+	// 			$qrCode = $this->upload_file('qrcode', './assets/qrcodeRegistration');
+	// 			if (!$qrCode['status']) {
+	// 				echo json_encode(['status' => 'error', 'errors' => $qrCode['error']]);
+	// 				return;
+	// 			}
+	// 			$data['qr_code'] = $qrCode['file_name'];
+	// 		}
+	// 		// Handle QR Code Upload
+	// 		if (!empty($_FILES['qrcode']['name'])) {
+	// 			$qrCode = $this->upload_file('qrcode', './assets/qrcodeRegistration');
+	// 			if (!$qrCode['status']) {
+	// 				echo json_encode(['status' => 'error', 'errors' => $qrCode['error']]);
+	// 				return;
+	// 			}
+	// 			$data['qr_code'] = $qrCode['file_name'];
+	// 		}
+
+	// 		// Compare Changes
+	// 		$changes = $this->get_activity_changes($activity, $data);
+
+	// 		// if (empty($changes)) {
+	// 		//     echo json_encode(['status' => 'error', 'errors' => 'No changes detected.']);
+	// 		//     return;
+	// 		// }
+
+	// 		// Update Activity
+	// 		$this->officer->update_activity($activity_id, $data);
+	// 		// Update Activity
+	// 		$updated = $this->officer->update_activity($activity_id, $data);
+
+	// 		// Fetch Input Data
+	// 		$start_datetimes = $this->input->post('start_datetime') ?? [];
+	// 		$start_cutoff = $this->input->post('start_cutoff') ?? [];
+	// 		$end_datetimes = $this->input->post('end_datetime') ?? [];
+	// 		$end_cutoff = $this->input->post('end_cutoff') ?? [];
+	// 		$session_types = $this->input->post('session_type') ?? [];
+	// 		$schedule_ids = $this->input->post('timeslot_id') ?? [];
+	// 		if ($updated) {
+	// 			// Log the changes (optional: create this method in your model)
+	// 			$this->officer->log_activity_changes([
+	// 				'activity_id' => $activity_id,
+	// 				'student_id'     => $this->session->userdata('student_id'),
+	// 				'changes'     => json_encode($changes),
+	// 				'edit_time'  => date('Y-m-d H:i:s')
+	// 			]);
+
+	// 			// Handle Schedule Inputs
+	// 			$start_datetimes = $this->input->post('start_datetime') ?? [];
+	// 			$start_cutoffs   = $this->input->post('start_cutoff') ?? [];
+	// 			$end_datetimes   = $this->input->post('end_datetime') ?? [];
+	// 			$end_cutoffs     = $this->input->post('end_cutoff') ?? [];
+	// 			$session_types   = $this->input->post('session_type') ?? [];
+	// 			$schedule_ids    = $this->input->post('timeslot_id') ?? [];
+
+	// 			// Update or Insert Schedules
+	// 			foreach ($start_datetimes as $i => $start_datetime) {
+	// 				// Ensure array indexes exist before accessing them
+	// 				$start_cutoff = $start_cutoff[$i] ?? null;
+	// 				$end_datetime = $end_datetimes[$i] ?? null;
+	// 				$end_cutoff = $end_cutoff[$i] ?? null;
+	// 				$session_type = $session_types[$i] ?? null;
+	// 				$schedule_id = $schedule_ids[$i] ?? null;
+
+	// 				// Prepare schedule data
+	// 				$schedule_data = [
+	// 					'activity_id'  => $activity_id,
+	// 					'date_time_in' => date('Y-m-d H:i:s', strtotime($start_datetime)),
+	// 					'date_cut_in' => date('Y-m-d H:i:s', strtotime($start_cutoff)),
+	// 					'date_time_out' => date('Y-m-d H:i:s', strtotime($end_datetime)),
+	// 					'date_cut_out' => date('Y-m-d H:i:s', strtotime($end_cutoff)),
+	// 					'slot_name'    => $session_type
+	// 				];
+	// 				foreach ($start_datetimes as $i => $start_datetime) {
+	// 					$schedule_data = [
+	// 						'activity_id'   => $activity_id,
+	// 						'date_time_in'  => date('Y-m-d H:i:s', strtotime($start_datetime)),
+	// 						'date_cut_in'   => date('Y-m-d H:i:s', strtotime($start_cutoffs[$i] ?? null)),
+	// 						'date_time_out' => date('Y-m-d H:i:s', strtotime($end_datetimes[$i] ?? null)),
+	// 						'date_cut_out'  => date('Y-m-d H:i:s', strtotime($end_cutoffs[$i] ?? null)),
+	// 						'slot_name'     => $session_types[$i] ?? ''
+	// 					];
+
+	// 					if (!empty($schedule_id)) {
+	// 						// Update existing schedule
+	// 						$this->officer->update_schedule($schedule_id, $schedule_data);
+	// 					} else {
+	// 						// Insert new schedule with created_at timestamp
+	// 						$schedule_data['created_at'] = date('Y-m-d H:i:s');
+
+	// 						$this->officer->save_schedule($schedule_data);
+	// 					}
+	// 				}
+	// 				if (!empty($schedule_ids[$i])) {
+	// 					// Update existing schedule
+	// 					$this->officer->update_schedule($schedule_ids[$i], $schedule_data);
+	// 				} else {
+	// 					// Insert new schedule
+	// 					$schedule_data['created_at'] = date('Y-m-d H:i:s');
+	// 					$this->officer->save_schedule($schedule_data);
+	// 				}
+	// 			}
+
+	// 			echo json_encode([
+	// 				'status' => 'success',
+	// 				'message' => 'Activity Updated Successfully',
+	// 				'redirect' => site_url('officer/list-of-activity')
+	// 			]);
+	// 		} else {
+	// 			echo json_encode(['status' => 'error', 'errors' => 'Update failed.']);
+	// 		}
+	// 	}
+	// }
+
+	// UPDATE THE ACTIVITY
 	public function update_activity($activity_id)
 	{
 		if ($this->input->post()) {
 			// Set Validation Rules
-			$this->form_validation->set_rules('title', 'Activity Title', 'required');
 			$this->form_validation->set_rules('date_start', 'Start Date', 'required');
 			$this->form_validation->set_rules('date_end', 'End Date', 'required');
-			$this->form_validation->set_rules('description', 'Description', 'required');
-			$this->form_validation->set_rules('registration_fee', 'Registration Fee', 'numeric');
-			$this->form_validation->set_rules('fines', 'Fines', 'numeric');
-			$this->form_validation->set_rules('session_type[]', 'Session Type', 'required');
 			$this->form_validation->set_rules('start_datetime[]', 'Start Date & Time', 'required');
 			$this->form_validation->set_rules('end_datetime[]', 'End Date & Time', 'required');
+			$this->form_validation->set_rules('session_type[]', 'Session Type', 'required');
 
 			// Run Validation
-			if ($this->form_validation->run() == FALSE) {
-				echo json_encode(['status' => 'error', 'errors' => validation_errors()]);
-				return;
-			}
 			if ($this->form_validation->run() == FALSE) {
 				echo json_encode(['status' => 'error', 'errors' => validation_errors()]);
 				return;
@@ -1029,18 +1215,7 @@ class OfficerController extends CI_Controller
 				'organizer'             => $this->session->userdata('dept_name') ?: $this->session->userdata('org_name'),
 				'fines'                 => str_replace(",", "", $this->input->post('fines')),
 				'audience'              => $this->input->post('audience')
-			];
-			// Prepare New Activity Data
-			$data = [
-				'activity_title'        => trim($this->input->post('title')),
-				'start_date'            => $this->input->post('date_start'),
-				'end_date'              => $this->input->post('date_end'),
-				'description'           => trim($this->input->post('description')),
-				'registration_deadline' => $this->input->post('registration_deadline'),
-				'registration_fee'      => str_replace(",", "", $this->input->post('registration_fee')),
-				'organizer'             => $this->session->userdata('dept_name') ?: $this->session->userdata('org_name'),
-				'fines'                 => str_replace(",", "", $this->input->post('fines')),
-				'audience'              => $this->input->post('audience')
+
 			];
 
 			// Handle Cover Image Upload
@@ -1062,28 +1237,16 @@ class OfficerController extends CI_Controller
 				}
 				$data['qr_code'] = $qrCode['file_name'];
 			}
-			// Handle QR Code Upload
-			if (!empty($_FILES['qrcode']['name'])) {
-				$qrCode = $this->upload_file('qrcode', './assets/qrcodeRegistration');
-				if (!$qrCode['status']) {
-					echo json_encode(['status' => 'error', 'errors' => $qrCode['error']]);
-					return;
-				}
-				$data['qr_code'] = $qrCode['file_name'];
-			}
 
-			// Compare Changes
+			// Get the logged-in user's ID (editor)
+			$editor_id = $this->session->userdata('user_id'); // Or use appropriate session variable
+
+			// Track changes (this is where we log the changes)
 			$changes = $this->get_activity_changes($activity, $data);
 
-			// if (empty($changes)) {
-			//     echo json_encode(['status' => 'error', 'errors' => 'No changes detected.']);
-			//     return;
-			// }
+			// Update Activity and log changes
+			$updated = $this->officer->update_activity($activity_id, $data, $editor_id, $changes);
 
-			// Update Activity
-			$this->officer->update_activity($activity_id, $data);
-			// Update Activity
-			$updated = $this->officer->update_activity($activity_id, $data);
 
 			// Fetch Input Data
 			$start_datetimes = $this->input->post('start_datetime') ?? [];
@@ -1092,109 +1255,72 @@ class OfficerController extends CI_Controller
 			$end_cutoff = $this->input->post('end_cutoff') ?? [];
 			$session_types = $this->input->post('session_type') ?? [];
 			$schedule_ids = $this->input->post('timeslot_id') ?? [];
-			if ($updated) {
-				// Log the changes (optional: create this method in your model)
-				$this->officer->log_activity_changes([
-					'activity_id' => $activity_id,
-					'student_id'     => $this->session->userdata('student_id'),
-					'changes'     => json_encode($changes),
-					'edit_time'  => date('Y-m-d H:i:s')
-				]);
 
-				// Handle Schedule Inputs
-				$start_datetimes = $this->input->post('start_datetime') ?? [];
-				$start_cutoffs   = $this->input->post('start_cutoff') ?? [];
-				$end_datetimes   = $this->input->post('end_datetime') ?? [];
-				$end_cutoffs     = $this->input->post('end_cutoff') ?? [];
-				$session_types   = $this->input->post('session_type') ?? [];
-				$schedule_ids    = $this->input->post('timeslot_id') ?? [];
+			$timeslot_ids = [];
 
-				// Update or Insert Schedules
-				foreach ($start_datetimes as $i => $start_datetime) {
-					// Ensure array indexes exist before accessing them
-					$start_cutoff = $start_cutoff[$i] ?? null;
-					$end_datetime = $end_datetimes[$i] ?? null;
-					$end_cutoff = $end_cutoff[$i] ?? null;
-					$session_type = $session_types[$i] ?? null;
-					$schedule_id = $schedule_ids[$i] ?? null;
+			// Update or Insert Schedules
+			foreach ($start_datetimes as $i => $start_datetime) {
+				// Ensure array indexes exist before accessing them
+				$start_cutoff = $start_cutoff[$i] ?? null;
+				$end_datetime = $end_datetimes[$i] ?? null;
+				$end_cutoff = $end_cutoff[$i] ?? null;
+				$session_type = $session_types[$i] ?? null;
+				$schedule_id = $schedule_ids[$i] ?? null;
 
-					// Prepare schedule data
-					$schedule_data = [
-						'activity_id'  => $activity_id,
-						'date_time_in' => date('Y-m-d H:i:s', strtotime($start_datetime)),
-						'date_cut_in' => date('Y-m-d H:i:s', strtotime($start_cutoff)),
-						'date_time_out' => date('Y-m-d H:i:s', strtotime($end_datetime)),
-						'date_cut_out' => date('Y-m-d H:i:s', strtotime($end_cutoff)),
-						'slot_name'    => $session_type
-					];
-					foreach ($start_datetimes as $i => $start_datetime) {
-						$schedule_data = [
-							'activity_id'   => $activity_id,
-							'date_time_in'  => date('Y-m-d H:i:s', strtotime($start_datetime)),
-							'date_cut_in'   => date('Y-m-d H:i:s', strtotime($start_cutoffs[$i] ?? null)),
-							'date_time_out' => date('Y-m-d H:i:s', strtotime($end_datetimes[$i] ?? null)),
-							'date_cut_out'  => date('Y-m-d H:i:s', strtotime($end_cutoffs[$i] ?? null)),
-							'slot_name'     => $session_types[$i] ?? ''
-						];
-
-						if (!empty($schedule_id)) {
-							// Update existing schedule
-							$this->officer->update_schedule($schedule_id, $schedule_data);
-						} else {
-							// Insert new schedule with created_at timestamp
-							$schedule_data['created_at'] = date('Y-m-d H:i:s');
-
-							$this->officer->save_schedule($schedule_data);
-						}
-					}
-					if (!empty($schedule_ids[$i])) {
-						// Update existing schedule
-						$this->officer->update_schedule($schedule_ids[$i], $schedule_data);
-					} else {
-						// Insert new schedule
-						$schedule_data['created_at'] = date('Y-m-d H:i:s');
-						$this->officer->save_schedule($schedule_data);
-					}
-				}
-
-				echo json_encode([
-					'status' => 'success',
-					'message' => 'Activity Updated Successfully',
-					'redirect' => site_url('officer/list-of-activity')
-				]);
-			} else {
-				echo json_encode(['status' => 'error', 'errors' => 'Update failed.']);
-			}
-		}
-	}
-
-	private function get_activity_changes($original, $new_data)
-	{
-		$changes = [];
-		foreach ($new_data as $key => $new_value) {
-			$original_value = isset($original[$key]) ? $original[$key] : null;
-
-			// Normalize both values if needed
-			if (is_string($new_value)) $new_value = trim($new_value);
-			if (is_string($original_value)) $original_value = trim($original_value);
-
-			if ($original_value != $new_value) {
-				// Debug output to inspect values
-				var_dump("Field: $key", "Original:", $original_value, "New:", $new_value);
-
-				$changes[$key] = [
-					'old' => $original_value,
-					'new' => $new_value
+				// Prepare schedule data
+				$schedule_data = [
+					'activity_id'  => $activity_id,
+					'date_time_in' => date('Y-m-d H:i:s', strtotime($start_datetime)),
+					'date_cut_in' => date('Y-m-d H:i:s', strtotime($start_cutoff)),
+					'date_time_out' => date('Y-m-d H:i:s', strtotime($end_datetime)),
+					'date_cut_out' => date('Y-m-d H:i:s', strtotime($end_cutoff)),
+					'slot_name'    => $session_type
 				];
+
+				if (!empty($schedule_id)) {
+					// Update existing schedule
+					$this->officer->update_schedule($schedule_id, $schedule_data);
+					$timeslot_ids[] = $schedule_id;
+				} else {
+					// Insert new schedule with created_at timestamp
+					$schedule_data['created_at'] = date('Y-m-d H:i:s');
+					$new_schedule_id = $this->officer->save_schedule($schedule_data);
+					$timeslot_ids[] = $new_schedule_id;
+				}
 			}
+
+			// // Assign students again after update
+			// $this->assign_students_to_activity_again($activity_id, $data, $timeslot_ids);
+
+			// Return Success Response
+			echo json_encode([
+				'status'   => 'success',
+				'message'  => 'Activity Updated Successfully',
+				'redirect' => site_url('officer/activity-details/' . $activity_id)
+			]);
 		}
-		return $changes;
 	}
 
 	public function get_edit_logs($activity_id)
 	{
 		$logs = $this->officer->get_activity_logs($activity_id);
 		echo json_encode($logs);
+	}
+
+	// Get the changes made between the original activity and the new data
+	private function get_activity_changes($original, $new_data)
+	{
+		$changes = [];
+		foreach ($new_data as $key => $new_value) {
+			if (isset($original[$key]) && $original[$key] != $new_value) {
+				$changes[$key] = [
+					'old' => $original[$key],
+					'new' => $new_value
+				];
+			}
+		}
+
+		return $changes;
 	}
 
 	// public function get_edit_logs($activity_id)
@@ -1407,16 +1533,115 @@ class OfficerController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
-	// UPDATE EVALUATION
+	// // UPDATE EVALUATION
+	// public function update_eval($form_id)
+	// {
+	// 	// Validate form ID
+	// 	if (!$form_id) {
+	// 		echo json_encode(['success' => false, 'message' => 'Invalid form ID.']);
+	// 		return;
+	// 	}
+
+	// 	// Validate input fields
+	// 	$this->form_validation->set_rules('formtitle', 'Form Title', 'required');
+	// 	$this->form_validation->set_rules('formdescription', 'Form Description', 'required');
+
+	// 	if ($this->form_validation->run() === FALSE) {
+	// 		echo json_encode(['success' => false, 'message' => strip_tags(validation_errors())]);
+	// 		return;
+	// 	}
+
+	// 	// Prepare form data
+	// 	$formData = [
+	// 		'activity_id' => $this->input->post('activity'),
+	// 		'title' => $this->input->post('formtitle'),
+	// 		'form_description' => $this->input->post('formdescription'),
+	// 		'start_date_evaluation' => $this->input->post('startdate'),
+	// 		'end_date_evaluation' => $this->input->post('enddate'),
+	// 	];
+
+	// 	// Handle Cover Image Upload (if new file is uploaded)
+	// 	if (!empty($_FILES['coverUpload']['name'])) {
+	// 		$coverImage = $this->upload_file('coverUpload', './assets/theme_evaluation');
+	// 		if (!$coverImage['status']) {
+	// 			echo json_encode(['success' => false, 'message' => $coverImage['error']]);
+	// 			return;
+	// 		}
+	// 		$formData['cover_theme'] = $coverImage['file_name'];
+	// 	}
+
+	// 	// Retrieve form fields (ensure correct format)
+	// 	$fields = json_decode($this->input->post('fields'), true);
+	// 	if (!is_array($fields)) {
+	// 		echo json_encode(['success' => false, 'message' => 'Invalid form fields data.']);
+	// 		return;
+	// 	}
+
+	// 	// Start database transaction
+	// 	$this->db->trans_start();
+
+	// 	// Update main form data
+	// 	$this->db->where('form_id', $form_id)->update('forms', $formData);
+
+	// 	// Fetch existing field IDs from database
+	// 	$existingFields = $this->db->select('form_fields_id')->where('form_id', $form_id)->get('formfields')->result_array();
+	// 	$existingFieldIds = array_column($existingFields, 'form_fields_id');
+
+	// 	$updatedFieldIds = []; // Track updated/new fields
+
+	// 	foreach ($fields as $index => $field) {
+	// 		$fieldId = $field['form_fields_id'] ?? null;
+
+	// 		$fieldData = [
+	// 			'form_id'     => $form_id,
+	// 			'label'       => $field['label'],
+	// 			'type'        => $field['type'],
+	// 			'placeholder' => $field['placeholder'] ?? null,
+	// 			'required'    => !empty($field['required']) ? 1 : 0,
+	// 			'order'       => $index + 1,
+	// 		];
+
+	// 		if ($fieldId && in_array($fieldId, $existingFieldIds)) {
+	// 			// Update existing field
+	// 			$this->db->where('form_fields_id', $fieldId)->update('formfields', $fieldData);
+	// 			$updatedFieldIds[] = $fieldId;
+	// 		} else {
+	// 			// Insert new field
+	// 			$this->db->insert('formfields', $fieldData);
+	// 			$updatedFieldIds[] = $this->db->insert_id();
+	// 		}
+	// 	}
+
+	// 	// Identify and delete removed fields
+	// 	$fieldsToDelete = array_diff($existingFieldIds, $updatedFieldIds);
+	// 	if (!empty($fieldsToDelete)) {
+	// 		$this->db->where_in('form_fields_id', $fieldsToDelete)->delete('formfields');
+	// 	}
+
+	// 	// Commit transaction
+	// 	$this->db->trans_complete();
+
+	// 	// Check transaction status
+	// 	if ($this->db->trans_status() === FALSE) {
+	// 		echo json_encode(['success' => false, 'message' => 'Failed to update the form.']);
+	// 	} else {
+	// 		echo json_encode([
+	// 			'success' => true,
+	// 			'message' => 'Form updated successfully.',
+	// 			'redirect' => site_url('officer/list-activity-evaluation'),
+	// 		]);
+	// 	}
+	// }
+
 	public function update_eval($form_id)
 	{
 		// Validate form ID
-		if (!$form_id) {
+		if (!$form_id || !is_numeric($form_id)) {
 			echo json_encode(['success' => false, 'message' => 'Invalid form ID.']);
 			return;
 		}
 
-		// Validate input fields
+		// Validate required input fields
 		$this->form_validation->set_rules('formtitle', 'Form Title', 'required');
 		$this->form_validation->set_rules('formdescription', 'Form Description', 'required');
 
@@ -1425,16 +1650,16 @@ class OfficerController extends CI_Controller
 			return;
 		}
 
-		// Prepare form data
+		// Prepare main form data
 		$formData = [
-			'activity_id' => $this->input->post('activity'),
-			'title' => $this->input->post('formtitle'),
-			'form_description' => $this->input->post('formdescription'),
-			'start_date_evaluation' => $this->input->post('startdate'),
-			'end_date_evaluation' => $this->input->post('enddate'),
+			'activity_id'           => $this->input->post('activity'),
+			'title'                 => $this->input->post('formtitle'),
+			'form_description'      => $this->input->post('formdescription'),
+			'start_date_evaluation' => date('Y-m-d H:i:s', strtotime($this->input->post('startdate'))),
+			'end_date_evaluation'   => date('Y-m-d H:i:s', strtotime($this->input->post('enddate'))),
 		];
 
-		// Handle Cover Image Upload (if new file is uploaded)
+		// Handle optional cover image upload
 		if (!empty($_FILES['coverUpload']['name'])) {
 			$coverImage = $this->upload_file('coverUpload', './assets/theme_evaluation');
 			if (!$coverImage['status']) {
@@ -1444,32 +1669,36 @@ class OfficerController extends CI_Controller
 			$formData['cover_theme'] = $coverImage['file_name'];
 		}
 
-		// Retrieve form fields (ensure correct format)
+		// Decode JSON field input
 		$fields = json_decode($this->input->post('fields'), true);
 		if (!is_array($fields)) {
 			echo json_encode(['success' => false, 'message' => 'Invalid form fields data.']);
 			return;
 		}
 
-		// Start database transaction
+		log_message('debug', 'Received fields: ' . print_r($fields, true));
+
+		// Begin transaction
 		$this->db->trans_start();
 
-		// Update main form data
+		// Update form
 		$this->db->where('form_id', $form_id)->update('forms', $formData);
 
-		// Fetch existing field IDs from database
+		// Get current field IDs
 		$existingFields = $this->db->select('form_fields_id')->where('form_id', $form_id)->get('formfields')->result_array();
 		$existingFieldIds = array_column($existingFields, 'form_fields_id');
 
-		$updatedFieldIds = []; // Track updated/new fields
+		$updatedFieldIds = [];
 
 		foreach ($fields as $index => $field) {
-			$fieldId = $field['form_fields_id'] ?? null;
+			// Normalize field ID
+			$fieldId = isset($field['form_fields_id']) && is_numeric($field['form_fields_id']) ? (int)$field['form_fields_id'] : null;
 
+			// Build field data
 			$fieldData = [
 				'form_id'     => $form_id,
-				'label'       => $field['label'],
-				'type'        => $field['type'],
+				'label'       => $field['label'] ?? '',
+				'type'        => $field['type'] ?? 'text',
 				'placeholder' => $field['placeholder'] ?? null,
 				'required'    => !empty($field['required']) ? 1 : 0,
 				'order'       => $index + 1,
@@ -1486,7 +1715,7 @@ class OfficerController extends CI_Controller
 			}
 		}
 
-		// Identify and delete removed fields
+		// Delete fields that were removed
 		$fieldsToDelete = array_diff($existingFieldIds, $updatedFieldIds);
 		if (!empty($fieldsToDelete)) {
 			$this->db->where_in('form_fields_id', $fieldsToDelete)->delete('formfields');
@@ -1495,13 +1724,13 @@ class OfficerController extends CI_Controller
 		// Commit transaction
 		$this->db->trans_complete();
 
-		// Check transaction status
+		// Check transaction result
 		if ($this->db->trans_status() === FALSE) {
 			echo json_encode(['success' => false, 'message' => 'Failed to update the form.']);
 		} else {
 			echo json_encode([
-				'success' => true,
-				'message' => 'Form updated successfully.',
+				'success'  => true,
+				'message'  => 'Form updated successfully.',
 				'redirect' => site_url('officer/list-activity-evaluation'),
 			]);
 		}
@@ -2366,7 +2595,7 @@ class OfficerController extends CI_Controller
 				$response = [
 					'status' => 'success',
 					'message' => 'You shared a post.',
-					'redirect' => site_url('admin/community')
+					'redirect' => site_url('officer/community')
 				];
 			} else {
 				// Database insertion failed
@@ -2583,57 +2812,54 @@ class OfficerController extends CI_Controller
 				]));
 		}
 
-		// Get the timeslot cut-off for fines calculation
-		$timeslot = $this->db->get_where('activity_time_slots', [
-			'timeslot_id' => $timeslot_id
-		])->row();
+		// // Get the timeslot cut-off for fines calculation
+		// $timeslot = $this->db->get_where('activity_time_slots', [
+		// 	'timeslot_id' => $timeslot_id
+		// ])->row();
 
-		if ($timeslot && strtotime($timeslot->date_cut_in) < strtotime($current_datetime)) {
-			// Apply fines logic: Check if student hasn't time-in and is past the cut-off
-			$activity = $this->db->get_where('activity', [
-				'activity_id' => $activity_id
-			])->row();
+		// if ($timeslot && strtotime($timeslot->date_cut_in) < strtotime($current_datetime)) {
+		// 	// Apply fines logic: Check if student hasn't time-in and is past the cut-off
+		// 	$activity = $this->db->get_where('activity', [
+		// 		'activity_id' => $activity_id
+		// 	])->row();
 
-			$fine_amount = $activity->fines ?? 0;
+		// 	$fine_amount = $activity->fines ?? 0;
 
-			// Check if the student is eligible for fines
-			$existing_fine = $this->db->get_where('fines', [
-				'student_id' => $student_id,
-				'activity_id' => $activity_id,
-				'timeslot_id' => $timeslot_id
-			])->row();
+		// 	// Check if the student is eligible for fines
+		// 	$existing_fine = $this->db->get_where('fines', [
+		// 		'student_id' => $student_id,
+		// 		'activity_id' => $activity_id,
+		// 		'timeslot_id' => $timeslot_id
+		// 	])->row();
 
-			if (!$existing_fine) {
-				// Insert fine record if no fine exists
-				$this->db->insert('fines', [
-					'student_id' => $student_id,
-					'activity_id' => $activity_id,
-					'timeslot_id' => $timeslot_id,
-					'fines_amount' => $fine_amount,
-					//'created_at' => date('Y-m-d H:i:s')
-				]);
-			} else {
-				// Update the fine record if one already exists
-				$this->db->where([
-					'student_id' => $student_id,
-					'activity_id' => $activity_id,
-					'timeslot_id' => $timeslot_id
-				]);
-				$this->db->update('fines', [
-					'fines_amount' => $existing_fine->fines_amount + $fine_amount, // Accumulate fine if necessary
-					'updated_at' => date('Y-m-d H:i:s')
-				]);
-			}
-		}
+		// 	if (!$existing_fine) {
+		// 		// Insert fine record if no fine exists
+		// 		$this->db->insert('fines', [
+		// 			'student_id' => $student_id,
+		// 			'activity_id' => $activity_id,
+		// 			'timeslot_id' => $timeslot_id,
+		// 			'fines_amount' => $fine_amount,
+		// 			//'created_at' => date('Y-m-d H:i:s')
+		// 		]);
+		// 	} else {
+		// 		// Update the fine record if one already exists
+		// 		$this->db->where([
+		// 			'student_id' => $student_id,
+		// 			'activity_id' => $activity_id,
+		// 			'timeslot_id' => $timeslot_id
+		// 		]);
+		// 		$this->db->update('fines', [
+		// 			'fines_amount' => $existing_fine->fines_amount + $fine_amount, // Accumulate fine if necessary
+		// 			'updated_at' => date('Y-m-d H:i:s')
+		// 		]);
+		// 	}
+		// }
 
 		// Update attendance
 		$update_data = ['time_in' => $current_datetime];
 		$updated = $this->officer->update_attendance_time_in($student_id, $activity_id, $timeslot_id, $update_data);
 
 		if ($updated) {
-			// Update or Insert fines summary after attendance update
-			$this->update_fines_summary_for_student($student_id);
-
 			return $this->output
 				->set_content_type('application/json')
 				->set_status_header(200)
@@ -2652,43 +2878,20 @@ class OfficerController extends CI_Controller
 		}
 	}
 
-	private function update_fines_summary_for_student($student_id)
+	public function impose_fines_timein()
 	{
-		// Get total fines for the student and activity
-		$this->db->select('SUM(fines_amount) as total_fines');
-		$this->db->from('fines');
-		$this->db->where('student_id', $student_id);
-		$total_fines = $this->db->get()->row()->total_fines ?? 0;
+		// Get raw JSON input and decode it
+		$inputJSON = file_get_contents('php://input');
+		$input = json_decode($inputJSON, true);
 
-		// Check if the fines summary already exists
-		$existing_summary = $this->db->get_where('fines_summary', [
-			'student_id' => $student_id
-		])->row();
+		$activity_id = $input['activity_id'] ?? null;
+		$timeslot_id = $input['timeslot_id'] ?? null;
 
-		if ($existing_summary) {
-			// Update the existing summary
-			$this->db->where([
-				'student_id' => $student_id
-			]);
-			$this->db->update('fines_summary', [
-				'total_fines' => $total_fines,
-				'fines_status' => $total_fines > 0 ? 'Unpaid' : 'Paid'
-			]);
-		} else {
-			// Insert a new summary record
-			$this->db->insert('fines_summary', [
-				'student_id' => $student_id,
-				'total_fines' => $total_fines,
-				'fines_status' => $total_fines > 0 ? 'Unpaid' : 'Paid'
-			]);
-		}
-	}
+		log_message('debug', "Received activity_id: $activity_id, timeslot_id: $timeslot_id");
 
-	// This method will be called by the cron job
-	public function auto_fines_missing_time_in()
-	{
-		$this->officer->auto_fines_missing_time_in(); // This should do the logic
-		echo "Auto fines executed at " . date('Y-m-d H:i:s');
+		$this->officer->imposeFinesIfAbsentIn($activity_id, $timeslot_id);
+
+		echo json_encode(['status' => 'success']);
 	}
 
 	public function scanUnified_timeout()
@@ -2764,6 +2967,22 @@ class OfficerController extends CI_Controller
 					'message' => 'No changes made or record not found.'
 				]));
 		}
+	}
+
+	public function impose_fines_timeout()
+	{
+		// Get raw JSON input and decode it
+		$inputJSON = file_get_contents('php://input');
+		$input = json_decode($inputJSON, true);
+
+		$activity_id = $input['activity_id'] ?? null;
+		$timeslot_id = $input['timeslot_id'] ?? null;
+
+		log_message('debug', "Received activity_id: $activity_id, timeslot_id: $timeslot_id");
+
+		$this->officer->imposeFinesIfAbsentOut($activity_id, $timeslot_id);
+
+		echo json_encode(['status' => 'success']);
 	}
 
 	// LISTING OF THE ATTENDEES - PAGE - FINAL LIST
@@ -4086,7 +4305,7 @@ class OfficerController extends CI_Controller
 		// $data['role'] = $users['role'];
 
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
-		$data['users'] = $this->admin->get_student($student_id);
+		$data['users'] = $this->officer->get_student($student_id);
 
 		// Get privilege (use student_id if needed)
 		$data['privilege'] = $this->officer->get_student_privilege($student_id);

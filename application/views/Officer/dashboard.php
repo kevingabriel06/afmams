@@ -22,10 +22,25 @@
            <span class="fs-7 fas fa-user-graduate text-primary"></span>
          </div>
          <h4 class="mb-1 font-sans-serif">
-           <span class="text-700 mx-2" data-countup='{"endValue":"4968"}'>0</span>
+           <span class="text-700 mx-2 countup" data-countup='{"endValue": <?= $student_count ?>}'>0</span>
            <span class="fw-normal text-600">Students</span>
          </h4>
        </div>
+
+       <script src="https://cdn.jsdelivr.net/npm/countup.js@2.0.8/dist/countUp.umd.js"></script>
+       <script>
+         window.addEventListener('DOMContentLoaded', () => {
+           document.querySelectorAll('.countup').forEach(el => {
+             const endValue = JSON.parse(el.getAttribute('data-countup')).endValue;
+             const countUp = new countUp.CountUp(el, endValue);
+             if (!countUp.error) {
+               countUp.start();
+             } else {
+               console.error(countUp.error);
+             }
+           });
+         });
+       </script>
 
        <!-- Officers Card -->
        <div class="col-xxl-3 col-md-6 px-3 text-center border-end-xxl pb-3 pt-4 pt-md-0 pe-md-0 p-xxl-0">
@@ -33,7 +48,7 @@
            <span class="fs-7 fas fa-chalkboard-teacher text-info"></span>
          </div>
          <h4 class="mb-1 font-sans-serif">
-           <span class="text-700 mx-2" data-countup='{"endValue":"324"}'>0</span>
+           <span class="text-700 mx-2" data-countup='{"endValue": <?= $officer_count ?>}'>0</span>
            <span class="fw-normal text-600">Officers</span>
          </h4>
        </div>

@@ -134,11 +134,7 @@
 												}
 
 												function timeAgo(date) {
-													// Convert current time to the same timezone
-													let now = new Date();
-
-													// Calculate difference in seconds
-													let seconds = Math.floor((now - date) / 1000);
+													let seconds = Math.floor((new Date() - date) / 1000);
 													let minutes = Math.floor(seconds / 60);
 													let hours = Math.floor(minutes / 60);
 													let days = Math.floor(hours / 24);
@@ -148,18 +144,15 @@
 													if (hours < 24) return hours === 1 ? "1 hour ago" : hours + " hours ago";
 													if (days < 7) return days === 1 ? "1 day ago" : days + " days ago";
 
-													// Format using specific timezone
-													return new Intl.DateTimeFormat('en-US', {
-														timeZone: 'Asia/Manila',
+													return date.toLocaleString('en-US', {
 														month: 'long',
 														day: 'numeric',
 														year: 'numeric',
 														hour: 'numeric',
 														minute: '2-digit',
 														hour12: true
-													}).format(date);
+													});
 												}
-
 												// Auto-update every minute
 												setInterval(updateTimeAgo, 60000);
 												updateTimeAgo();
@@ -220,7 +213,6 @@
 										<?= htmlspecialchars($item->comments_count); ?> Comments
 									</a>
 								</div>
-
 								<!-- Modal to Display Likes (Facebook Style) -->
 								<div class="modal fade" id="likesModal-<?= $item->post_id; ?>" tabindex="-1" role="dialog" aria-labelledby="likesModalLabel-<?= $item->post_id; ?>" aria-hidden="true">
 									<div class="modal-dialog modal-dialog-centered" role="document">
@@ -247,6 +239,7 @@
 										</div>
 									</div>
 								</div>
+
 
 								<div class="row g-0 fw-semi-bold text-center py-2 fs-10">
 									<div class="col-auto">
@@ -319,31 +312,19 @@
 						<!-- THIS IS THE EVENT TEMPLATE -->
 						<div class="card mb-3">
 							<div class="position-absolute top-0 end-0 p-2 z-1">
-								<?php
-								$dept_name = $this->session->userdata('dept_name');
-								$org_name = $this->session->userdata('org_name');
-								if (
-									$item->organizer == $dept_name ||
-									$item->organizer == $org_name
-								):
-								?>
-									<div class="dropdown">
-										<button class="btn p-0 border-0 bg-transparent" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-											<i class="fas fa-ellipsis-h"></i> <!-- horizontal ellipsis -->
-										</button>
-										<ul class="dropdown-menu dropdown-menu-end">
-
-											<li>
-												<a href="#" class="dropdown-item text-danger unshare-activity" data-id="<?= $item->activity_id ?>">
-													<i class="fas fa-share-slash me-1"></i> Unshare Activity
-												</a>
-											</li>
-
-										</ul>
-									</div>
-								<?php endif; ?>
+								<div class="dropdown">
+									<button class="btn p-0 border-0 bg-transparent" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+										<i class="fas fa-ellipsis-h"></i> <!-- horizontal ellipsis -->
+									</button>
+									<ul class="dropdown-menu dropdown-menu-end">
+										<li>
+											<a href="#" class="dropdown-item text-danger unshare-activity" data-id="<?= $item->activity_id ?>">
+												<i class="fas fa-share-slash me-1"></i> Unshare Activity
+											</a>
+										</li>
+									</ul>
+								</div>
 							</div>
-
 							<!-- SCRIPT FOR UNSHARING -->
 							<script>
 								$(document).on('click', '.unshare-activity', function(e) {
@@ -381,9 +362,11 @@
 							</script>
 
 
-							<img id="coverPhoto" class="card-img-top" src="<?php echo !empty($item->activity_image)
-																				? base_url('assets/coverEvent/' . $item->activity_image)
-																				: base_url('assets/image/OIP.jpg'); ?>" alt="Event Cover" />
+							<img id="coverPhoto" class="card-img-top"
+								src="<?php echo !empty($item->activity_image)
+											? base_url('assets/coverEvent/' . $item->activity_image)
+											: base_url('assets/image/OIP.jpg'); ?>"
+								alt="Event Cover" />
 							<div class="card-body overflow-hidden">
 								<div class="row justify-content-between align-items-center">
 									<div class="col">
@@ -408,7 +391,16 @@
 														<?php echo $item->activity_title; ?>
 													</a>
 												</h6>
-												<p class="mb-1"> Organized by <?php echo $item->organizer; ?></p>
+												<p class="mb-1"> Organized by
+													<?php
+													if (empty($item->dept_id) && empty($item->org_id)) {
+														echo htmlspecialchars("Institution");
+													} elseif (empty($item->dept_id)) {
+														echo htmlspecialchars($item->org_name);
+													} elseif (empty($item->org_id)) {
+														echo htmlspecialchars($item->dept_name);
+													}
+													?> </p>
 												<span class="fs-9 text-warning fw-semi-bold">
 													<?php echo ($item->registration_fee > 0) ? 'Php ' . $item->registration_fee : 'Free Event'; ?>
 												</span>
@@ -510,8 +502,7 @@
 					$has_activity = false; // Flag to track if at least one valid activity exists
 
 					foreach ($activities_upcoming as $activity):
-						if ($activity->is_shared == 'No' && $activity->organizer == ($this->session->userdata('dept_name') ?: $this->session->userdata('org_name'))):
-
+						if ($activity->is_shared == 'No' && $activity->organizer == 'Student Parliament'):
 							$has_activity = true; // Set flag to true if a valid activity is found
 					?>
 							<div class="col-md-6 mb-4">
@@ -586,13 +577,14 @@
 			$('#loading').show();
 
 			$.ajax({
-				url: '<?= site_url('officer/community') ?>',
+				url: '<?php echo site_url('officer/community'); ?>',
 				type: 'POST',
 				data: {
 					offset: offset,
 					limit: limit
 				},
 				success: function(response) {
+					console.log("AJAX Response:", response);
 					if ($.trim(response) === '') {
 						allPostsLoaded = true;
 						$('#loading').text('No more posts.');
@@ -626,7 +618,6 @@
 		};
 	});
 </script>
-
 
 <script>
 	$(document).ready(function() {
@@ -1033,6 +1024,7 @@
 		});
 	});
 
+
 	// DISPLAYING EXCERPT AND VIEWING OF POST
 	$(document).on('click', '.view-more', function() {
 		var container = $(this).closest('.card-body');
@@ -1040,12 +1032,34 @@
 		container.find('.post-preview').hide();
 		container.find('.full-content').removeClass('d-none');
 	});
+
 	$(document).on('click', '.view-less', function() {
 		var container = $(this).closest('.card-body');
 		// Hide full content and show preview
 		container.find('.full-content').addClass('d-none');
 		container.find('.post-preview').show();
 	});
+
+
+	$(document).ready(function() {
+		// Handle Privacy Selection inside .privacy-dropdown only
+		$(document).on('click', '.privacy-dropdown .dropdown-item', function(e) {
+			e.preventDefault();
+			const selectedPrivacy = $(this).data('privacy');
+			const privacyIcon = $('#privacy-icon');
+
+			// Change icon based on selected privacy
+			if (selectedPrivacy === 'Public') {
+				privacyIcon.removeClass('fa-users').addClass('fa-globe-americas');
+			} else if (selectedPrivacy === 'Private') {
+				privacyIcon.removeClass('fa-globe-americas').addClass('fa-users');
+			}
+
+			// Store selection in hidden input
+			$('#privacyStatus').val(selectedPrivacy);
+		});
+	});
+
 
 	// IMAGE HANDLING - PREVIEW AND REMOVE
 	$(document).ready(function() {
@@ -1080,30 +1094,12 @@
 			reader.readAsDataURL(file);
 		}
 	});
+
 	// Remove Image Functionality
 	document.querySelector(".remove-image").addEventListener("click", function(e) {
 		e.preventDefault();
 		document.getElementById("imagePreviewContainer").classList.add("d-none");
 		document.getElementById("imageInput").value = ""; // Clear file input
-	});
-
-	$(document).ready(function() {
-		// Handle Privacy Selection inside .privacy-dropdown only
-		$(document).on('click', '.privacy-dropdown .dropdown-item', function(e) {
-			e.preventDefault();
-			const selectedPrivacy = $(this).data('privacy');
-			const privacyIcon = $('#privacy-icon');
-
-			// Change icon based on selected privacy
-			if (selectedPrivacy === 'Public') {
-				privacyIcon.removeClass('fa-users').addClass('fa-globe-americas');
-			} else if (selectedPrivacy === 'Private') {
-				privacyIcon.removeClass('fa-globe-americas').addClass('fa-users');
-			}
-
-			// Store selection in hidden input
-			$('#privacyStatus').val(selectedPrivacy);
-		});
 	});
 </script>
 

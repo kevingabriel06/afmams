@@ -223,7 +223,7 @@
   let fieldCount = 0;
   let formFields = <?php echo json_encode($form_data['form_fields']); ?>; // Get existing fields
 
-  function addField(type, label = "", answer = "", required = false) {
+  function addField(type, label = "", answer = "", required = false, form_fields_id = "") {
     const formFieldsContainer = document.getElementById("form-fields");
     const fieldId = `field-${fieldCount}`;
     let checked = required ? 'checked' : '';
@@ -245,6 +245,7 @@
         <div class="input-group has-validation">
           <input class="form-control mb-2" id="label-${fieldCount}" type="text" name="labels[]" value="${label}" placeholder="Enter your question" required <?php echo ($forms['status_evaluation'] == 'Ongoing') ? 'readonly' : ''; ?>/>
         </div>
+        <input type="hidden" name="form_fields_id[]" value="${form_fields_id}" />
         <input class="form-control mb-2" id="answer-${fieldCount}" type="text" name="answers[]" placeholder="Short Answer" disabled/>
         <input type="hidden" name="type[]" id="type-${fieldCount}" value="short"/>
         <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')"  <?php echo ($forms['status_evaluation'] == 'Ongoing') ? 'disabled' : ''; ?>>Remove</button>
@@ -265,6 +266,7 @@
         <div class="input-group has-validation">
           <input class="form-control mb-2" id="label-${fieldCount}" type="text" name="labels[]" value="${label}" placeholder="Enter your question" required <?php echo ($forms['status_evaluation'] == 'Ongoing') ? 'readonly' : ''; ?>/>
         </div>
+        <input type="hidden" name="form_fields_id[]" value="${form_fields_id}" />
         <textarea class="form-control mb-2" id="answer-${fieldCount}" rows="3" name="answers[]" placeholder="Long Answer" disabled></textarea>
         <input type="hidden" name="type[]" id="type-${fieldCount}" value="textarea" />
         <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')"  <?php echo ($forms['status_evaluation'] == 'Ongoing') ? 'disabled' : ''; ?>>Remove</button>
@@ -294,6 +296,7 @@
         <div class="rating-stars mb-2" id="rating-${fieldCount}">
           ${stars}
         </div>
+        <input type="hidden" name="form_fields_id[]" value="${form_fields_id}" />
         <input type="hidden" name="answers[]" id="rating-value-${fieldCount}" value="${answer}" />
         <input type="hidden" name="type[]" id="type-${fieldCount}" value="rating" />
         <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')"  <?php echo ($forms['status_evaluation'] == 'Ongoing') ? 'disabled' : ''; ?>>Remove</button>
@@ -307,7 +310,7 @@
 
   function loadExistingFields() {
     formFields.forEach(field => {
-      addField(field.type, field.label, field.answer, field.required == 1);
+      addField(field.type, field.label, field.answer, field.required == 1, field.form_fields_id);
     });
   }
 
@@ -340,7 +343,223 @@
   }
 </script>
 
+<!-- 
 <script>
+  let fieldCount = 0;
+  let formFields = <?php echo json_encode(isset($form_data['form_fields']) ? $form_data['form_fields'] : []); ?>;
+
+  function addField(type, label = "", answer = "", required = false, form_fields_id = "") {
+    const formFieldsContainer = document.getElementById("form-fields");
+    const fieldId = `field-${fieldCount}`;
+    let checked = required ? 'checked' : '';
+
+    let newField = "";
+
+    if (type === "short") {
+      newField = `
+      <div class="form-group mb-3 border-bottom border-dashed" id="${fieldId}">
+        <div class="d-flex justify-content-between align-items-center">
+          <label for="label-${fieldCount}" class="form-label">Question</label>
+          <div class="form-check">
+            <input type="hidden" name="required[${fieldId}]" value="0">
+            <input class="form-check-input" type="checkbox" id="required-${fieldCount}" name="required[${fieldId}]" value="1" ${checked} onchange="toggleRequired('${fieldId}', this)" <?= $isOngoing ? 'disabled' : '' ?> />
+            <label class="form-check-label" for="required-${fieldCount}">Required</label>
+          </div>
+        </div>
+        <div class="input-group has-validation">
+          <input type="hidden" name="form_fields_id[]" value="${form_fields_id}" />
+          <input class="form-control mb-2" id="label-${fieldCount}" type="text" name="labels[]" value="${label}" placeholder="Enter your question" required <?= $isOngoing ? 'readonly' : '' ?> />
+        </div>
+        <input class="form-control mb-2" id="answer-${fieldCount}" type="text" name="answers[]" placeholder="Short Answer" disabled/>
+        <input type="hidden" name="type[]" id="type-${fieldCount}" value="short" />
+        <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')" <?= $isOngoing ? 'disabled' : '' ?>>Remove</button>
+      </div>`;
+    } else if (type === "textarea") {
+      newField = `
+      <div class="form-group mb-3 border-bottom border-dashed" id="${fieldId}">
+        <div class="d-flex justify-content-between align-items-center">
+          <label for="label-${fieldCount}" class="form-label">Question</label>
+          <div class="form-check">
+            <input type="hidden" name="required[${fieldId}]" value="0">
+            <input class="form-check-input" type="checkbox" id="required-${fieldCount}" name="required[${fieldId}]" value="1" ${checked} onchange="toggleRequired('${fieldId}', this)" <?= $isOngoing ? 'disabled' : '' ?> />
+            <label class="form-check-label" for="required-${fieldCount}">Required</label>
+          </div>
+        </div>
+        <div class="input-group has-validation">
+          <input type="hidden" name="form_fields_id[]" value="${form_fields_id}" />
+          <input class="form-control mb-2" id="label-${fieldCount}" type="text" name="labels[]" value="${label}" placeholder="Enter your question" required <?= $isOngoing ? 'readonly' : '' ?> />
+        </div>
+        <textarea class="form-control mb-2" id="answer-${fieldCount}" rows="3" name="answers[]" placeholder="Long Answer" disabled></textarea>
+        <input type="hidden" name="type[]" id="type-${fieldCount}" value="textarea" />
+        <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')" <?= $isOngoing ? 'disabled' : '' ?>>Remove</button>
+      </div>`;
+    } else if (type === "rating") {
+      let stars = [1, 2, 3, 4]
+        .map(
+          (i) => `<i class="far fa-star ${answer == i ? "fas" : ""}" onclick="setRating(this, ${i})" data-value="${i}"></i>`
+        ).join("");
+
+      newField = `
+      <div class="form-group mb-3 border-bottom border-dashed" id="${fieldId}">
+        <div class="d-flex justify-content-between align-items-center">
+          <label for="label-${fieldCount}" class="form-label">Question</label>
+          <div class="form-check">
+            <input type="hidden" name="required[${fieldId}]" value="0">
+            <input class="form-check-input" type="checkbox" id="required-${fieldCount}" name="required[${fieldId}]" value="1" ${checked} onchange="toggleRequired('${fieldId}', this)" <?= $isOngoing ? 'disabled' : '' ?> />
+            <label class="form-check-label" for="required-${fieldCount}">Required</label>
+          </div>
+        </div>
+        <div class="input-group has-validation">
+          <input type="hidden" name="form_fields_id[]" value="${form_fields_id}" />
+          <input class="form-control mb-2" id="label-${fieldCount}" type="text" name="labels[]" value="${label}" placeholder="Enter your question" required <?= $isOngoing ? 'readonly' : '' ?> />
+        </div>
+        <div class="rating-stars mb-2" id="rating-${fieldCount}">
+          ${stars}
+        </div>
+        <input type="hidden" name="answers[]" id="rating-value-${fieldCount}" value="${answer}" />
+        <input type="hidden" name="type[]" id="type-${fieldCount}" value="rating" />
+        <button class="btn btn-sm btn-danger mt-2" type="button" onclick="removeField('${fieldId}')" <?= $isOngoing ? 'disabled' : '' ?>>Remove</button>
+      </div>`;
+    }
+
+    formFieldsContainer.insertAdjacentHTML("beforeend", newField);
+    fieldCount++;
+  }
+
+  function loadExistingFields() {
+    if (Array.isArray(formFields)) {
+      formFields.forEach(field => {
+        //addField(field.type, field.label, field.answer, field.required == 1, field.id ?? "");
+        addField(field.type, field.label, field.answer, field.required == 1, field.form_fields_id);
+      });
+    }
+  }
+
+  window.onload = loadExistingFields;
+
+  function toggleRequired(fieldId, checkbox) {
+    const field = document.getElementById(fieldId);
+    const inputs = field.querySelectorAll("input, textarea");
+    inputs.forEach((input) => {
+      if (checkbox.checked) {
+        input.setAttribute("required", "required");
+      } else {
+        input.removeAttribute("required");
+      }
+    });
+  }
+
+  function removeField(fieldId) {
+    const field = document.getElementById(fieldId);
+    field?.remove();
+  }
+
+  function setRating(star, rating) {
+    const stars = star.parentElement.children;
+    for (let i = 0; i < stars.length; i++) {
+      stars[i].className = i < rating ? "fas fa-star" : "far fa-star";
+    }
+    const ratingInput = star.parentElement.nextElementSibling;
+    ratingInput.value = rating;
+  }
+</script> -->
+
+<script>
+  $("#editForm").on("submit", function(e) {
+    e.preventDefault();
+
+    let formId = $(this).find("button[type='submit']").data("form-id");
+    const formData = new FormData();
+
+    // Collect form fields dynamically
+    const fields = [];
+    $("#form-fields .form-group").each(function() {
+      fields.push({
+        field_id: $(this).data("field-id") || null, // Include field ID if updating existing fields
+        form_fields_id: $(this).find('input[name="form_fields_id[]"]').val(),
+        label: $(this).find('input[name="labels[]"]').val(),
+        type: $(this).find('input[name="type[]"]').val(),
+        placeholder: $(this).find('input[name="answers[]"]').val() || null,
+        required: $(this).find('input[type="checkbox"]').prop("checked") ? 1 : 0, // Ensure correct boolean value
+      });
+    });
+
+    // Append form fields
+    formData.append("form_id", formId);
+    formData.append("activity", $("#activity").val());
+    formData.append("formtitle", $("#formtitle").val());
+    formData.append("formdescription", $("#formdescription").val());
+    formData.append("startdate", $("#time_start").val());
+    formData.append("enddate", $("#time_end").val());
+
+    // Append file (if selected)
+    const coverFile = $("#coverUpload")[0].files[0]; // Get the selected file
+    if (coverFile) {
+      formData.append("coverUpload", coverFile);
+    }
+
+    // Append fields array as JSON string
+    formData.append("fields", JSON.stringify(fields));
+
+
+    Swal.fire({
+      title: 'Are you sure?',
+      text: 'Do you want to update the evaluation form?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, update it!',
+      cancelButtonText: 'No, cancel!',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // Proceed with AJAX request
+        $.ajax({
+          url: "<?php echo site_url('officer/edit-evaluation-form/update/'); ?>" + formId,
+          method: "POST",
+          data: formData,
+          processData: false, // Important for FormData
+          contentType: false, // Important for FormData
+          dataType: "json",
+          success: function(response) {
+            if (response.success) {
+              Swal.fire({
+                icon: "success",
+                title: "Form Updated!",
+                text: response.message,
+                showConfirmButton: true,
+              }).then(() => {
+                if (response.redirect) {
+                  window.location.href = response.redirect;
+                } else {
+                  location.reload();
+                }
+              });
+            } else {
+              Swal.fire({
+                icon: "error",
+                title: "Error!",
+                text: response.message || "Update failed.",
+                showConfirmButton: true,
+              });
+            }
+          },
+          error: function(xhr) {
+            Swal.fire({
+              icon: "error",
+              title: "Update Failed!",
+              text: "An error occurred while updating the form. Please try again.",
+              showConfirmButton: true,
+            });
+          },
+        });
+      }
+    });
+
+
+
+  });
+</script>
+
+<!-- <script>
   $("#editForm").on("submit", function(e) {
     e.preventDefault();
 
@@ -432,7 +651,7 @@
 
 
   });
-</script>
+</script> -->
 
 <!-- <script>
   $("#createForm").on("submit", function(e) {

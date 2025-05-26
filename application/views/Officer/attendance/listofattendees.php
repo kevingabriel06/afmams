@@ -35,7 +35,7 @@
 								</form>
 							</div>
 							<?php if (!empty($activities)): ?>
-								<a href="<?php echo base_url('AdminController/export_attendance_pdf/' . $activities['activity_id']); ?>"
+								<a href="<?php echo base_url('OfficerController/export_attendance_pdf/' . $activities['activity_id']); ?>"
 									target="_blank" title="Export to PDF">
 									<button class="btn btn-sm btn-falcon-default ms-2" type="button" id="exportPdfBtn" title="Export to PDF">
 										<span class="fas fa-download"></span>
@@ -127,24 +127,33 @@
 										</td>
 									<?php endforeach; ?>
 									<td class="status">
-										<?php if ($student['status'] == 'Present'): ?>
+										<?php if ($student['attendance_status'] == 'Present'): ?>
 											<span class="badge badge rounded-pill d-block p-2 badge-subtle-success">
-												<?php echo $student['status']; ?>
+												<?php echo $student['attendance_status']; ?>
 												<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span>
 											</span>
-										<?php elseif ($student['status'] == 'Absent'): ?>
+										<?php elseif ($student['attendance_status'] == 'Absent'): ?>
 											<span class="badge badge rounded-pill d-block p-2 badge-subtle-danger">
-												<?php echo $student['status']; ?>
+												<?php echo $student['attendance_status']; ?>
 												<span class="ms-1 fas fa-times" data-fa-transform="shrink-2"></span>
 											</span>
-										<?php elseif ($student['status'] == 'Incomplete'): ?>
+										<?php elseif ($student['attendance_status'] == 'No Status'): ?>
+											<span class="badge badge rounded-pill d-block p-2 badge-subtle-danger">
+												No Status
+												<span class="ms-1 fas fa-times" data-fa-transform="shrink-2"></span>
+											</span>
+										<?php elseif ($student['attendance_status'] == 'Incomplete'): ?>
 											<span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">
-												<?php echo $student['status']; ?>
+												<?php echo $student['attendance_status']; ?>
 												<span class="ms-1 fas fa-exclamation" data-fa-transform="shrink-2"></span>
 											</span>
-										<?php else: ?>
-											<span class="badge badge rounded-pill d-block p-2 badge-subtle-secondary">
-												No Status
+										<?php elseif ($student['attendance_status'] == 'Excused'): ?>
+											<span class="badge badge rounded-pill d-block p-2 badge-subtle-primary">
+												Excused
+											</span>
+										<?php elseif ($student['attendance_status'] == 'Exempted'): ?>
+											<span class="badge badge rounded-pill d-block p-2 badge-subtle-primary">
+												Exempted
 											</span>
 										<?php endif; ?>
 									</td>
@@ -196,19 +205,10 @@
 					<div class="mb-3">
 						<label for="department-filter" class="form-label">Department</label>
 						<select id="department-filter" class="form-select">
-							<?php if ($this->session->userdata('org_id')): ?>
-								<!-- If org_id exists, show all departments -->
-								<option value="" selected>Select Department</option>
-								<?php foreach ($departments as $department): ?>
-									<option value="<?php echo $department->dept_name; ?>"><?php echo $department->dept_name; ?></option>
-								<?php endforeach; ?>
-							<?php elseif ($this->session->userdata('dept_id')): ?>
-								<!-- If dept_id exists, show only the department in the session -->
-								<?php
-								$dept_name = $this->session->userdata('dept_name'); // Get the dept_name from session
-								?>
-								<option value="<?php echo $dept_name; ?>" selected><?php echo $dept_name; ?></option>
-							<?php endif; ?>
+							<option value="" selected>Select Department</option>
+							<?php foreach ($departments as $department): ?>
+								<option value="<?php echo $department->dept_name; ?>"><?php echo $department->dept_name; ?></option>
+							<?php endforeach; ?>
 						</select>
 					</div>
 				</div>

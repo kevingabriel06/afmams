@@ -32,6 +32,58 @@ class Officer_model extends CI_Model
 	// 	// hello it is the model of the hsjkdhkjhsjdhsj
 	// 	// Get the current semester count
 	// }
+
+	public function number_of_students()
+	{
+		$dept_id = $this->session->userdata('dept_id');
+		$org_id = $this->session->userdata('org_id');
+
+		if (!empty($org_id)) {
+			// Count from student_org table
+			$this->db->from('student_org');
+			$this->db->where('is_admin', 'No');
+			$this->db->where('is_officer', 'No');
+			$this->db->where('org_id', $org_id);
+			return $this->db->count_all_results();
+		} elseif (!empty($dept_id)) {
+			// Count from users table
+			$this->db->from('users');
+			$this->db->where('role', 'Student');
+			$this->db->where('is_admin', 'No');
+			$this->db->where('is_officer_dept', 'No');
+			$this->db->where('dept_id', $dept_id);
+			return $this->db->count_all_results();
+		}
+
+		return 0; // Fallback if neither org_id nor dept_id is present
+	}
+
+	public function number_of_officers()
+	{
+		$dept_id = $this->session->userdata('dept_id');
+		$org_id = $this->session->userdata('org_id');
+
+		if (!empty($org_id)) {
+			// Count from student_org table
+			$this->db->from('student_org');
+			$this->db->where('is_admin', 'No');
+			$this->db->where('is_officer', 'Yes');
+			$this->db->where('org_id', $org_id);
+			return $this->db->count_all_results();
+		} elseif (!empty($dept_id)) {
+			// Count from users table
+			$this->db->from('users');
+			$this->db->where('role', 'Officer');
+			$this->db->where('is_admin', 'No');
+			$this->db->where('is_officer_dept', 'Yes');
+			$this->db->where('dept_id', $dept_id);
+			return $this->db->count_all_results();
+		}
+
+		return 0; // Fallback if neither org_id nor dept_id is present
+	}
+
+
 	public function get_current_semester_count()
 	{
 		$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
@@ -481,10 +533,46 @@ class Officer_model extends CI_Model
 	// UPDATING ACTIVITY TO DATABASE *
 	public function update_activity($activity_id, $data)
 	{
-		$this->db->where('activity_id', $activity_id);
-		return $this->db->update('activity', $data);
-	}
+		// Step 1: Get original activity
+		$original = $this->db->get_where('activity', ['activity_id' => $activity_id])->row_array();
+		if (!$original) return false;
 
+		// Step 2: Compare changes
+		$changes = [];
+		foreach ($data as $key => $new_value) {
+			if (isset($original[$key]) && $original[$key] != $new_value) {
+				$changes[$key] = [
+					'old' => $original[$key],
+					'new' => $new_value
+				];
+			}
+		}
+
+		// Step 3: If changes exist, update and log
+		if (!empty($changes)) {
+			// (a) Update the activity
+			$this->db->where('activity_id', $activity_id);
+			$this->db->update('activity', $data);
+
+			// (b) Increment edit count
+			$this->db->set('edit_count', 'edit_count + 1', FALSE)
+				->where('activity_id', $activity_id)
+				->update('activity');
+
+			// (c) Insert edit log
+			$log_data = [
+				'activity_id' => $activity_id,
+				'student_id' => $this->session->userdata('student_id'),
+				'edit_time' => (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d H:i:s'),
+				'changes' => json_encode($changes)
+			];
+			$this->db->insert('activity_edit_logs', $log_data);
+
+			return true;
+		}
+
+		return false; // No changes to apply
+	}
 
 	// Log changes to activity_edit_logs table
 	public function log_activity_changes($log_data)
@@ -504,11 +592,42 @@ class Officer_model extends CI_Model
 			->result_array();
 	}
 
-	// UPDATING SCHEDULE TO DATABASE
+	// UPDATING SCHEDULE TO DATABASE WITH CHANGE LOGGING
 	public function update_schedule($schedule_id, $schedule_data)
 	{
-		$this->db->where('timeslot_id', $schedule_id);
-		return $this->db->update('activity_time_slots', $schedule_data);
+		// Fetch original schedule data
+		$original = $this->db->get_where('activity_time_slots', ['timeslot_id' => $schedule_id])->row_array();
+		if (!$original) return false;
+
+		$changes = [];
+		foreach ($schedule_data as $key => $new_value) {
+			if (isset($original[$key]) && $original[$key] != $new_value) {
+				$changes[$key] = [
+					'old' => $original[$key],
+					'new' => $new_value
+				];
+			}
+		}
+
+		if (!empty($changes)) {
+			// Proceed with update
+			$this->db->where('timeslot_id', $schedule_id);
+			$this->db->update('activity_time_slots', $schedule_data);
+
+			// Prepare and insert log
+			$log_data = [
+				'activity_id' => $original['activity_id'],
+				'student_id'  => $this->session->userdata('student_id'), // Or pass as a param if needed
+				'edit_time' => (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d H:i:s'),
+				'changes' => json_encode($changes)
+
+			];
+
+			$this->db->insert('activity_edit_logs', $log_data);
+			return true;
+		}
+
+		return false; // No changes
 	}
 
 	// SAVING THE SCHEDULE
@@ -541,6 +660,7 @@ class Officer_model extends CI_Model
 		$this->db->select('activity.*');  // Select all columns from the activity table
 		$this->db->from('activity');
 		$this->db->where('activity.organizer', $organizer);
+		$this->db->where('status', 'Completed');
 
 		// LEFT JOIN to match activities with forms (if they exist)
 		$this->db->join('forms', 'activity.activity_id = forms.activity_id', 'left');
@@ -733,7 +853,7 @@ class Officer_model extends CI_Model
 	// FETCHING EXCUSE LETTER PER STUDENT
 	public function review_letter($excuse_id)
 	{
-		$this->db->select('excuse_application.*, users.*, department.dept_name, activity.status AS act_status');
+		$this->db->select('excuse_application.*, users.*, department.dept_name, activity.status AS act_status, activity.end_date AS end_date');
 		$this->db->from('excuse_application');
 		$this->db->join('activity', 'activity.activity_id = excuse_application.activity_id');
 		$this->db->join('users', 'excuse_application.student_id = users.student_id');
@@ -983,6 +1103,88 @@ class Officer_model extends CI_Model
 		return $query->result_array();
 	}
 
+	public function imposeFinesIfAbsentIn($activity_id, $timeslot_id)
+	{
+		// 1. Get the activity details
+		$activity = $this->db->get_where('activity', ['activity_id' => $activity_id])->row();
+		if (!$activity) return;
+
+		$fine_amount = $activity->fines;
+		$start_date = $activity->start_date; // Format: YYYY-MM-DD
+		$organizer = $activity->organizer;
+
+		// 2. Determine semester and academic year
+		$month = (int)date('m', strtotime($start_date));
+		$year = (int)date('Y', strtotime($start_date));
+
+		if ($month >= 8 && $month <= 12) {
+			$semester = '1st Semester';
+			$academic_year = $year . '-' . ($year + 1);
+		} else {
+			$semester = '2nd Semester';
+			$academic_year = ($year - 1) . '-' . $year;
+		}
+
+		// 3. Get all students with NULL time_in for this activity and timeslot
+		$this->db->where('activity_id', $activity_id);
+		$this->db->where('timeslot_id', $timeslot_id);
+		$this->db->where('time_in IS NULL', null, false);
+		$students = $this->db->get('attendance')->result();
+
+		foreach ($students as $student) {
+			log_message('debug', 'Processing student ID: ' . $student->student_id);
+			log_message('debug', 'Activity ID: ' . $activity_id . ', Timeslot ID: ' . $timeslot_id);
+			log_message('debug', 'Fine Amount: ' . $fine_amount);
+
+			// Update fines
+			$this->db->where([
+				'student_id'  => $student->student_id,
+				'activity_id' => $activity_id,
+				'timeslot_id' => $timeslot_id
+			]);
+			$this->db->update('fines', [
+				'fines_amount' => $fine_amount,
+				'remarks'      => 'Late/Absent during attendance time window'
+			]);
+
+			// Get total fine
+			$this->db->select_sum('fines.fines_amount');
+			$this->db->from('fines');
+			$this->db->join('activity', 'activity.activity_id = fines.activity_id'); // Fix here
+			$this->db->where('activity.organizer', $organizer);
+			$this->db->where('fines.student_id', $student->student_id);
+			$total = $this->db->get()->row()->fines_amount ?? 0;
+
+			// Check existing summary
+			$summary = $this->db->get_where('fines_summary', [
+				'student_id'     => $student->student_id,
+				'organizer'      => $organizer,
+				'academic_year'  => $academic_year,
+				'semester'       => $semester
+			])->row();
+
+			if ($summary) {
+				log_message('debug', 'Updating summary for student ID ' . $student->student_id);
+				$this->db->where([
+					'student_id'    => $student->student_id,
+					'academic_year' => $academic_year,
+					'organizer'     => $organizer,
+					'semester'      => $semester
+				]);
+				$this->db->update('fines_summary', ['total_fines' => $total]);
+			} else {
+				log_message('debug', 'Inserting summary for student ID ' . $student->student_id);
+				$this->db->insert('fines_summary', [
+					'student_id'    => $student->student_id,
+					'total_fines'   => $total,
+					'organizer'     => $organizer,
+					'academic_year' => $academic_year,
+					'semester'      => $semester
+				]);
+			}
+		}
+	}
+
 	public function get_students_realtime_time_out($activity_id)
 	{
 		// Set timezone
@@ -999,6 +1201,7 @@ class Officer_model extends CI_Model
 		return $query->result_array();
 	}
 
+
 	// FUNCTIONALITY FOR SCANNING AND RECOGNITION
 	public function update_attendance_time_in($student_id, $activity_id, $timeslot_id, $update_data)
 	{
@@ -1012,6 +1215,127 @@ class Officer_model extends CI_Model
 		}
 		return false;
 	}
+
+	public function imposeFinesIfAbsentOut($activity_id, $timeslot_id)
+	{
+		// 1. Get the fine amount and start date from the activity
+		$activity = $this->db->get_where('activity', ['activity_id' => $activity_id])->row();
+		if (!$activity) return;
+
+		$fine_amount = $activity->fines;
+		$start_date = $activity->start_date;
+
+		// 2. Determine semester and academic year
+		$month = (int)date('m', strtotime($start_date));
+		$year = (int)date('Y', strtotime($start_date));
+
+		if ($month >= 8 && $month <= 12) {
+			$semester = '1st Semester';
+			$academic_year = $year . '-' . ($year + 1);
+		} else {
+			$semester = '2nd Semester';
+			$academic_year = ($year - 1) . '-' . $year;
+		}
+
+		// 3. Get all attendance records for this activity and timeslot
+		$this->db->where('activity_id', $activity_id);
+		$this->db->where('timeslot_id', $timeslot_id);
+		$attendance_records = $this->db->get('attendance')->result();
+
+		// 4. Get the organizer (from session)
+		$organizer = $activity->organizer;
+
+		foreach ($attendance_records as $record) {
+			$student_id = $record->student_id;
+			$is_time_in_null = is_null($record->time_in);
+			$is_time_out_null = is_null($record->time_out);
+
+			// Determine attendance status
+			if ($is_time_in_null && $is_time_out_null) {
+				$status = 'Absent';
+			} elseif ($is_time_in_null || $is_time_out_null) {
+				$status = 'Incomplete';
+			} else {
+				$status = 'Present';
+			}
+
+			// Only impose fine if time_out is NULL or status not present
+			if ($is_time_out_null || $status !== 'Present') {
+				// Get existing fine
+				$this->db->where([
+					'student_id'  => $student_id,
+					'activity_id' => $activity_id,
+					'timeslot_id' => $timeslot_id
+				]);
+				$existing_fine = $this->db->get('fines')->row();
+				$current_fine = $existing_fine ? $existing_fine->fines_amount : 0;
+				$new_fine = $current_fine + $fine_amount;
+
+				// Update or insert fine
+				if ($existing_fine) {
+					$this->db->where([
+						'student_id'  => $student_id,
+						'activity_id' => $activity_id,
+						'timeslot_id' => $timeslot_id
+					]);
+					$this->db->update('fines', [
+						'fines_amount' => $new_fine,
+						'remarks'      => 'Late/Absent during attendance time window'
+					]);
+				} else {
+					$this->db->insert('fines', [
+						'student_id'   => $student_id,
+						'activity_id'  => $activity_id,
+						'timeslot_id'  => $timeslot_id,
+						'fines_amount' => $fine_amount,
+						'remarks'      => 'Late/Absent during attendance time window'
+					]);
+				}
+
+				// 5. Update fines_summary
+				$this->db->select_sum('fines.fines_amount');
+				$this->db->from('fines');
+				$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+				$this->db->where('activity.organizer', $organizer);
+				$this->db->where('fines.student_id', $student_id);
+				$total = $this->db->get()->row()->fines_amount ?? 0;
+
+				$summary = $this->db->get_where('fines_summary', [
+					'student_id'    => $student_id,
+					'academic_year' => $academic_year,
+					'semester'      => $semester,
+					'organizer'     => $organizer
+				])->row();
+
+				if ($summary) {
+					$this->db->where([
+						'student_id'    => $student_id,
+						'academic_year' => $academic_year,
+						'semester'      => $semester,
+						'organizer'     => $organizer
+					]);
+					$this->db->update('fines_summary', ['total_fines' => $total]);
+				} else {
+					$this->db->insert('fines_summary', [
+						'student_id'    => $student_id,
+						'total_fines'   => $total,
+						'organizer'     => $organizer,
+						'academic_year' => $academic_year,
+						'semester'      => $semester
+					]);
+				}
+			}
+
+			// 6. Update attendance status
+			$this->db->where([
+				'student_id'  => $student_id,
+				'activity_id' => $activity_id,
+				'timeslot_id' => $timeslot_id
+			]);
+			$this->db->update('attendance', ['attendance_status' => $status]);
+		}
+	}
+
 
 	public function update_attendance_time_out($student_id, $activity_id, $timeslot_id, $update_data)
 	{
@@ -1071,10 +1395,92 @@ class Officer_model extends CI_Model
 		return $this->db->get()->result();
 	}
 
+	// public function get_all_students_attendance_by_activity($activity_id)
+	// {
+	// 	// Step 1: Get all students who have attendance records with department info
+	// 	$this->db->select('users.*, department.dept_name, attendance.*');
+	// 	$this->db->from('attendance');
+	// 	$this->db->join('users', 'attendance.student_id = users.student_id', 'inner'); // Only include students with attendance records
+	// 	$this->db->join('department', 'department.dept_id = users.dept_id', 'inner');
+	// 	$this->db->where('attendance.activity_id', $activity_id);
+	// 	$this->db->group_by('users.student_id');  // Ensure students appear once
+	// 	$students = $this->db->get()->result();
+
+	// 	// Step 2: Get all timeslots for the activity
+	// 	$timeslots = $this->db->get_where('activity_time_slots', ['activity_id' => $activity_id])->result();
+
+	// 	// Step 3: Build data
+	// 	$data = [];
+
+	// 	foreach ($students as $student) {
+	// 		$row = [
+	// 			'student_id' => $student->student_id,
+	// 			'name'       => $student->first_name . ' ' . $student->last_name,
+	// 			'dept_name'  => isset($student->dept_name) ? $student->dept_name : 'No Department',
+	// 			'attedance_status' => $student->attendance_status
+	// 		];
+
+	// 		$slot_statuses = [];
+
+	// 		foreach ($timeslots as $slot) {
+	// 			// Determine period (morning or afternoon)
+	// 			$period = strtolower($slot->slot_name) === 'morning' ? 'am' : 'pm';
+	// 			$row["in_$period"] = 'No Data';  // Default value for time_in
+	// 			$row["out_$period"] = 'No Data'; // Default value for time_out
+
+	// 			// Get attendance for the student and current slot
+	// 			$this->db->where([
+	// 				'student_id'  => $student->student_id,
+	// 				'timeslot_id' => $slot->timeslot_id
+	// 			]);
+	// 			$attendance = $this->db->get('attendance')->row();
+
+	// 			// Debugging log
+	// 			log_message('debug', "Attendance for student {$student->student_id}, {$slot->slot_name}: " . print_r($attendance, true));
+
+	// 			// Check if attendance exists
+	// 			if ($attendance) {
+	// 				$time_in = !empty($attendance->time_in) ? date('F j, Y | g:i a', strtotime($attendance->time_in)) : 'No Data';
+	// 				$time_out = !empty($attendance->time_out) ? date('F j, Y | g:i a', strtotime($attendance->time_out)) : 'No Data';
+
+	// 				// Set the correct period (AM/PM) for time_in and time_out
+	// 				$row["in_$period"] = $time_in;
+	// 				$row["out_$period"] = $time_out;
+
+	// 				// Determine slot status for AM/PM separately
+	// 				if ($time_in === 'No Data' && $time_out === 'No Data') {
+	// 					$slot_statuses[] = 'Absent';
+	// 				} elseif ($time_in === 'No Data' || $time_out === 'No Data') {
+	// 					$slot_statuses[] = 'Incomplete';
+	// 				} else {
+	// 					$slot_statuses[] = 'Present';
+	// 				}
+	// 			} else {
+	// 				// If no attendance record exists, mark as Absent
+	// 				$slot_statuses[] = 'Absent';
+	// 			}
+	// 		}
+
+	// 		// Determine overall status based on all timeslot statuses
+	// 		if (count(array_unique($slot_statuses)) === 1 && $slot_statuses[0] === 'Absent') {
+	// 			$row['status'] = 'Absent';
+	// 		} elseif (count(array_unique($slot_statuses)) === 1 && $slot_statuses[0] === 'Present') {
+	// 			$row['status'] = 'Present';
+	// 		} else {
+	// 			$row['status'] = 'Incomplete';
+	// 		}
+
+	// 		$data[] = $row;
+	// 	}
+
+	// 	return $data;
+	// }
+
+
 	public function get_all_students_attendance_by_activity($activity_id)
 	{
 		// Step 1: Get all students who have attendance records with department info
-		$this->db->select('users.*, department.dept_name');
+		$this->db->select('users.*, department.dept_name, attendance.*');
 		$this->db->from('attendance');
 		$this->db->join('users', 'attendance.student_id = users.student_id', 'inner'); // Only include students with attendance records
 		$this->db->join('department', 'department.dept_id = users.dept_id', 'left');
@@ -1093,6 +1499,7 @@ class Officer_model extends CI_Model
 				'student_id' => $student->student_id,
 				'name'       => $student->first_name . ' ' . $student->last_name,
 				'dept_name'  => isset($student->dept_name) ? $student->dept_name : 'No Department',
+				'attendance_status' => $student->attendance_status
 			];
 
 			$slot_statuses = [];
@@ -1587,7 +1994,7 @@ class Officer_model extends CI_Model
 		$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
 
 		// Start building the query
-		$this->db->select('users.student_id, users.first_name, users.last_name, department.dept_name, organization.org_name, fines_summary.*, fines.*, activity.activity_id, activity.activity_title');
+		$this->db->select('users.student_id, users.first_name, users.last_name, users.year_level, activity.start_date, fines_summary.reference_number_students, department.dept_name, organization.org_name, fines_summary.*, fines.*, activity.activity_id, activity.activity_title');
 		$this->db->from('fines_summary');
 
 		// Join with users to get student details

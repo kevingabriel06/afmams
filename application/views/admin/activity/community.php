@@ -97,7 +97,7 @@
 										<div class="d-flex">
 											<div class="avatar avatar-2xl status-online">
 												<!-- Display the profile picture based on the post -->
-												<img class="rounded-circle" src="<?php echo base_url('assets/profile/') . (!empty($item->profile_pic) ? $item->profile_pic : 'default-pic.jpg'); ?>" />
+												<img class="rounded-circle" src="<?php echo base_url('assets/profile/') . (!empty($item->profile_pic) ? $item->profile_pic : 'default.jpg'); ?>" />
 											</div>
 											<div class="flex-1 align-self-center ms-2">
 												<p class="mb-1 lh-1">

@@ -1323,12 +1323,8 @@ class StudentController extends CI_Controller
 			$pdf->Ln(5);
 		}
 
-		$pdf->Output('I', 'Summary_of_Fines.pdf');
+		$pdf->Output('I', 'Summary_of_Fines_' . $student_info['last_name'] . '.pdf');
 	}
-
-
-
-
 
 
 	// LIST OF ACTIVITY	- PAGE

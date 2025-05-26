@@ -1,3 +1,7 @@
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+
 <div class="card mb-3 mb-lg-0">
 	<div class="card-header bg-body-tertiary d-flex justify-content-between">
 		<h5 class="mb-0">Summary of Fines</h5>
@@ -49,7 +53,7 @@
 
 									const form = document.createElement('form');
 									form.method = 'POST';
-									form.action = '<?= base_url("OfficerController/export_fines_pdf") ?>'; // Replace with your actual controller name
+									form.action = '<?= base_url("AdminController/export_fines_pdf") ?>'; // Replace with your actual controller name
 									form.target = '_blank'; // This makes the form submit to a new tab
 
 
@@ -88,6 +92,7 @@
 							<tr>
 								<th scope="col" class="text-nowrap">Student ID</th>
 								<th scope="col">Name</th>
+								<th scope="col" class="text-nowrap">Year Level</th>
 								<th scope="col">Department</th>
 								<!-- Dynamic Event Columns will be added here -->
 								<th scope="col" class="text-nowrap">Total Fines</th>
@@ -136,9 +141,9 @@
 					<label for="status-filter" class="form-label">Status</label>
 					<select id="status-filter" class="form-select">
 						<option value="">All</option>
-						<option value="present">Present</option>
-						<option value="incomplete">Incomplete</option>
-						<option value="absent">Absent</option>
+						<option value="paid">Paid</option>
+						<option value="unpaid">Unpaid</option>
+						<option value="pending">Pending</option>
 					</select>
 				</div>
 
@@ -147,13 +152,21 @@
 					<label for="department-filter" class="form-label">Department</label>
 					<select id="department-filter" class="form-select">
 						<option value="">All</option>
-						<?php if (!empty($this->session->userdata('org_id'))) : ?>
-							<?php foreach ($departments as $department): ?>
-								<option value="<?= $department->dept_name ?>"><?= $department->dept_name ?></option>
-							<?php endforeach; ?>
-						<?php else : ?>
-							<option value="<?= $this->session->userdata('dept_name'); ?>"><?= $this->session->userdata('dept_name'); ?></option>
-						<?php endif; ?>
+						<?php foreach ($departments as $department): ?>
+							<option value="<?= $department->dept_name ?>"><?= $department->dept_name ?></option>
+						<?php endforeach; ?>
+					</select>
+				</div>
+
+				<!-- Status Filter -->
+				<div class="mb-3">
+					<label for="year-filter" class="form-label">Year Level</label>
+					<select id="year-filter" class="form-select">
+						<option value="">All</option>
+						<option value="1st year">First Year</option>
+						<option value="2nd year">Second Year</option>
+						<option value="3rd year">Third Year</option>
+						<option value="4th year">Fourth Year</option>
 					</select>
 				</div>
 			</div>
@@ -164,6 +177,39 @@
 		</div>
 	</div>
 </div>
+
+<!-- FILTER SCRIPT -->
+<script>
+	function applyFilters() {
+		console.log('Filters Applied');
+		var status = document.getElementById("status-filter").value.trim().toLowerCase();
+		var department = document.getElementById("department-filter").value.trim().toLowerCase();
+		var year = document.getElementById("year-filter").value.trim().toLowerCase();
+
+		// Get all the student rows in the table
+		const rows = document.querySelectorAll('#table-ticket-body tr');
+
+		rows.forEach(row => {
+			// Get the year (3rd column), department (4th), and status (6th span)
+			const studentYear = row.querySelector('td:nth-child(3)')?.textContent.trim().toLowerCase() || '';
+			const studentDepartment = row.querySelector('td:nth-child(4)')?.textContent.trim().toLowerCase() || '';
+			const studentStatus = row.querySelector('td:nth-child(6) span')?.textContent.trim().toLowerCase() || '';
+
+			// Check if row matches all selected filters
+			const yearMatches = (year === "" || studentYear === year);
+			const departmentMatches = (department === "" || studentDepartment === department);
+			const statusMatches = (status === "" || studentStatus === status);
+
+			// Show or hide the row based on filters
+			row.style.display = (yearMatches && departmentMatches && statusMatches) ? "" : "none";
+		});
+
+
+
+		// Manually hide the modal by toggling the class or with jQuery
+		$('#filterModal').modal('hide');
+	}
+</script>
 
 <div class="modal fade" id="editFinesModal" tabindex="-1" aria-labelledby="editFinesModalLabel" aria-hidden="true">
 	<div class="modal-dialog modal-lg modal-dialog-centered">
@@ -202,6 +248,124 @@
 	</div>
 </div>
 
+<script>
+	// Edit Fines Modal
+	document.addEventListener('DOMContentLoaded', () => {
+		const editFinesModal = document.getElementById('editFinesModal');
+		const editFinesTableBody = document.getElementById('editFinesTableBody');
+		const editFinesForm = document.getElementById('editFinesForm');
+
+		if (editFinesModal) {
+			editFinesModal.addEventListener('show.bs.modal', function(event) {
+				const trigger = event.relatedTarget;
+				if (!trigger) return;
+
+				const studentId = trigger.getAttribute('data-student-id');
+				const student = studentsData.find(s => s.id == studentId);
+
+				if (student) {
+					document.getElementById('editStudentId').value = student.id;
+					editFinesTableBody.innerHTML = '';
+
+					student.fines.forEach((fine, i) => {
+						const row = document.createElement('tr');
+
+
+						// Determine whether the slot is for IN or OUT based on the slot name
+						const slotName = fine.slot_name || 'No Slot Name';
+						const timeIn = fine.time_in || 'N/A';
+						const timeOut = fine.time_out || 'N/A';
+
+						row.innerHTML = `
+								<td>${i + 1}</td>
+								<td>
+									<strong>${fine.title}</strong><br>
+									<small class="text-muted">
+										${slotName}<br>
+										In: ${timeIn}<br>
+										Out: ${timeOut}
+									</small>
+								</td>
+								<td>
+									<select name="reason[]" class="form-control">
+										<option value="Absent" ${fine.reason === 'Absent' ? 'selected' : ''}>Absent</option>
+										<option value="Present" ${fine.reason === 'Present' ? 'selected' : ''}>Present</option>
+									</select>
+								</td>
+								<td><input type="number" step="0.01" name="amount[]" class="form-control" value="${fine.fine}"></td>
+								<td><input type="text" name="changes[]" class="form-control" value="${fine.changes}"></td>
+								
+								<input type="hidden" name="fines_id[]" value="${fine.fines_id}">
+							<input type="hidden" name="attendance_id[]" value="${fine.attendance_id}">
+
+							`;
+
+						editFinesTableBody.appendChild(row);
+					});
+				}
+			});
+		}
+
+		if (editFinesForm) {
+			editFinesForm.addEventListener('submit', function(e) {
+				e.preventDefault();
+
+				Swal.fire({
+					title: 'Are you sure?',
+					text: "Do you want to update the fines?",
+					icon: 'warning',
+					showCancelButton: true,
+					confirmButtonColor: '#3085d6',
+					cancelButtonColor: '#d33',
+					confirmButtonText: 'Yes, update it!',
+					cancelButtonText: 'Cancel'
+				}).then((result) => {
+					if (result.isConfirmed) {
+						const formData = new FormData(this);
+
+						fetch('<?= base_url("index.php/OfficerController/edit_fines") ?>', {
+								method: 'POST',
+								body: formData
+							})
+							.then(response => response.json())
+							.then(data => {
+								if (data.status === 'success') {
+									Swal.fire({
+										icon: 'success',
+										title: 'Success',
+										text: 'Fines successfully updated.',
+										timer: 1500,
+										showConfirmButton: false
+									}).then(() => {
+										const modalInstance = bootstrap.Modal.getInstance(editFinesModal);
+										if (modalInstance) modalInstance.hide();
+
+										location.reload();
+									});
+								} else {
+									Swal.fire({
+										icon: 'error',
+										title: 'Update Failed',
+										text: data.message || 'Failed to update fines.'
+									});
+								}
+							})
+							.catch(error => {
+								console.error('Error updating fines:', error);
+								Swal.fire({
+									icon: 'error',
+									title: 'Error',
+									text: 'An error occurred while updating.'
+								});
+							});
+					}
+					// else user cancelled, do nothing
+				});
+			});
+		}
+	});
+</script>
+
 <!-- View Details -->
 <div class="modal fade" id="viewDetailsModal" tabindex="-1" aria-labelledby="viewDetailsModalLabel" aria-hidden="true">
 	<div class="modal-dialog modal-lg">
@@ -219,7 +383,7 @@
 				<p><strong>Reference Number:</strong> <span id="viewReferenceNumber"></span></p>
 				<div id="viewReceiptImageContainer" class="mt-3 d-none">
 					<p><strong>Receipt:</strong></p>
-					<img id="viewReceiptImage" src="" alt="Receipt" class="img-fluid rounded border" style="max-height: 400px;">
+					<img id="viewReceiptImage" src="" alt="Receipt" class="img-fluid rounded border" style="max-height: 500px;">
 				</div>
 
 				<hr>
@@ -246,6 +410,55 @@
 	</div>
 </div>
 
+<!-- script for view details -->
+<script>
+	// // View Details Modal
+	document.addEventListener('DOMContentLoaded', () => {
+		const viewDetailsModal = document.getElementById('viewDetailsModal');
+		const viewBreakdownTable = document.querySelector("#viewFinesTableBody");
+		const viewReceiptContainer = viewDetailsModal.querySelector('#viewReceiptImageContainer');
+		const viewReceiptImage = viewDetailsModal.querySelector('#viewReceiptImage');
+		const baseImageUrl = "<?= base_url('uploads/fine_receipts/') ?>"; // adjust path as needed
+
+		viewDetailsModal.addEventListener('show.bs.modal', event => {
+			const studentId = event.relatedTarget.getAttribute('data-student-id');
+			const student = studentsData.find(s => s.id == studentId); // replace with finesData if needed
+
+			if (student) {
+				// Populate basic details
+				viewDetailsModal.querySelector('#viewName').textContent = student.name;
+				viewDetailsModal.querySelector('#viewDepartment').textContent = student.department;
+				viewDetailsModal.querySelector('#viewTotalFines').textContent = `${parseFloat(student.total_fines).toFixed(2)}`;
+				viewDetailsModal.querySelector('#viewReferenceNumber').textContent = student.reference || 'N/A';
+
+
+				// Receipt
+				if (student.receipt) {
+					viewReceiptImage.src = baseImageUrl + student.receipt;
+					viewReceiptContainer.classList.remove('d-none');
+				} else {
+					viewReceiptImage.src = '';
+					viewReceiptContainer.classList.add('d-none');
+				}
+
+				// Fines table
+				viewBreakdownTable.innerHTML = '';
+				student.fines.forEach((fine, i) => {
+					viewBreakdownTable.innerHTML += `
+					<tr>
+						<td>${i + 1}</td>
+						<td>${fine.reason}</td>
+						<td>₱${parseFloat(fine.fine).toFixed(2)}</td>
+						<td>${fine.title}</td>
+						<td>${fine.event_date}</td>
+					</tr>
+				`;
+				});
+			}
+		});
+	});
+</script>
+
 <!-- Payment Modal -->
 <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
 	<div class="modal-dialog modal-lg">
@@ -259,6 +472,7 @@
 				<input type="hidden" name="student_id" id="modalStudentId">
 				<input type="hidden" name="academic_year" id="modalAcademicYear" value="">
 				<input type="hidden" name="semester" id="modalSemester" value="">
+
 
 				<!-- Total Fines -->
 				<div class="mb-3">
@@ -291,9 +505,8 @@
 				<div class="mb-3">
 					<label for="modeOfPayment" class="form-label">Mode of Payment</label>
 					<select class="form-select" name="mode_of_payment" id="modeOfPayment" required>
-						<option value="" id="modalModePayment" selected disabled>Select Mode of Payment</option>
-						<option value="Online Payment">Online Payment</option>
-						<option value="Cash">Cash</option>
+						<option value="" id="modalModePayment">Select Mode of Payment</option>
+						<option value="Online Payment" selected>Online Payment</option>
 					</select>
 				</div>
 
@@ -306,7 +519,7 @@
 				<div class="mt-4" id="receiptSection">
 					<h6>Payment Receipt</h6>
 					<div class="mb-3">
-						<img id="receiptImage" src="" alt="Receipt" class="img-fluid mb-3" style="max-height: 150px; width: auto;">
+						<img id="receiptImage" src="" alt="Receipt" class="img-fluid mb-3" style="max-height: 500px; width: auto;">
 					</div>
 				</div>
 			</div>
@@ -319,6 +532,128 @@
 	</div>
 </div>
 
+<script>
+	document.addEventListener('DOMContentLoaded', () => {
+		const paymentModal = document.getElementById('paymentModal');
+		const breakdownTable = document.querySelector("#finesBreakdownTable tbody");
+		const receiptSection = paymentModal.querySelector('#receiptSection');
+		const receiptImage = paymentModal.querySelector('#receiptImage');
+		const baseImageUrl = "<?= base_url('uploads/fine_receipts/') ?>";
+
+		paymentModal.addEventListener('show.bs.modal', event => {
+			const studentId = event.relatedTarget.getAttribute('data-student-id');
+			const student = studentsData.find(s => s.id == studentId);
+
+			if (student) {
+				paymentModal.querySelector('#modalStudentId').value = student.id;
+				paymentModal.querySelector('#modalTotalFines').value = `₱${student.total_fines}`;
+				paymentModal.querySelector('#modalModePayment').value = student.mode_payment || '';
+				paymentModal.querySelector('#modeOfPayment').value = student.mode_payment || '';
+
+				// Add these two lines:
+				paymentModal.querySelector('#modalAcademicYear').value = student.academic_year || '';
+				paymentModal.querySelector('#modalSemester').value = student.semester || '';
+
+				if (student.receipt) {
+					receiptImage.src = baseImageUrl + student.receipt;
+					receiptSection.classList.remove('d-none');
+				} else {
+					receiptImage.src = "";
+					receiptSection.classList.add('d-none');
+				}
+
+				breakdownTable.innerHTML = '';
+				student.fines.forEach((fine, i) => {
+					breakdownTable.innerHTML += `
+                        <tr>
+                            <td>${i + 1}</td>
+                            <td>${fine.reason}</td>
+                            <td>₱${fine.fine}</td>
+                            <td>${fine.title}</td>
+                            <td>${fine.event_date}</td>
+                        </tr>`;
+				});
+			}
+		});
+
+		paymentModal.addEventListener('hidden.bs.modal', () => {
+			['#modalStudentId', '#modalTotalFines', '#modalModePayment', '#modeOfPayment', '#referenceNumber'].forEach(id => {
+				paymentModal.querySelector(id).value = '';
+			});
+			receiptImage.src = "";
+			receiptSection.classList.add('d-none');
+		});
+	});
+
+	$(document).ready(function() {
+		$('#paymentModal form').submit(function(e) {
+			e.preventDefault();
+
+			Swal.fire({
+				title: 'Are you sure?',
+				text: "Do you want to confirm this payment?",
+				icon: 'warning',
+				showCancelButton: true,
+				confirmButtonColor: '#3085d6',
+				cancelButtonColor: '#d33',
+				confirmButtonText: 'Yes, confirm it!',
+				cancelButtonText: 'Cancel'
+			}).then((result) => {
+				if (result.isConfirmed) {
+					let formData = $(this).serialize();
+
+					$.ajax({
+						url: "<?php echo site_url('officer/fines-payment/confirm'); ?>",
+						method: "POST",
+						data: formData,
+						dataType: "json",
+						success: function(response) {
+							if (response.status === 'success') {
+								Swal.fire({
+									icon: 'success',
+									title: 'Payment Confirmed',
+									text: response.message,
+									confirmButtonColor: '#3085d6',
+									confirmButtonText: 'OK'
+								}).then(() => {
+									$('#paymentModal').modal('hide');
+									location.reload();
+								});
+							} else if (response.status === 'processing') {
+								Swal.fire({
+									icon: 'info',
+									title: 'Under Review',
+									text: response.message,
+									confirmButtonColor: '#3085d6',
+									confirmButtonText: 'OK'
+								}).then(() => {
+									$('#paymentModal').modal('hide');
+									location.reload();
+								});
+							} else {
+								Swal.fire({
+									icon: 'error',
+									title: 'Error',
+									text: response.message || 'Something went wrong!',
+								});
+							}
+						},
+						error: function() {
+							Swal.fire({
+								icon: 'error',
+								title: 'Server Error',
+								text: 'An error occurred while processing the payment.',
+							});
+						}
+					});
+				}
+			});
+		});
+	});
+</script>
+
+
+<!-- supplying fines -->
 <script>
 	// Convert PHP fines data to JSON
 	const finesData = <?= json_encode($fines, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
@@ -338,14 +673,14 @@
 				id: fine.student_id,
 				name: `${fine.first_name} ${fine.last_name}`,
 				department: fine.dept_name,
+				year: fine.year_level,
 				fines: [],
 				status: fine.fines_status,
 				mode_payment: fine.mode_payment,
 				total_fines: fine.total_fines,
-				reference: fine.reference_number_admin,
+				reference: fine.reference_number_students,
 				receipt: fine.receipt,
 				changes: fine.remarks,
-
 
 				// Add these:
 				academic_year: fine.academic_year,
@@ -353,39 +688,22 @@
 			});
 		}
 
-		// Push fine for Time In if exists
-		if (fine.time_in) {
-			studentsMap.get(fine.student_id).fines.push({
-				eventId: fine.activity_id + '_in',
-				fine: fine.fines_amount,
-				reason: 'In',
-				event_date: fine.start_date,
-				title: fine.slot_name + ' In',
-				time: fine.time_in,
-				changes: fine.remarks
-
-			});
-		}
-
-		// Push fine for Time Out if exists
-		if (fine.time_out) {
-			studentsMap.get(fine.student_id).fines.push({
-				eventId: fine.activity_id + '_out',
-				fine: fine.fines_amount,
-				reason: 'Out',
-				event_date: fine.start_date,
-				title: fine.slot_name + ' Out',
-				time: fine.time_out,
-				changes: fine.remarks
-			});
-		}
-
 		studentsMap.get(fine.student_id).fines.push({
 			eventId: fine.activity_id,
+			fines_id: fine.fines_id, // ✅ For fines update
+			attendance_id: fine.attendance_id, // ✅ For attendance update
 			fine: fine.fines_amount,
 			reason: fine.fines_reason,
 			event_date: fine.start_date,
-			title: fine.activity_title
+			title: fine.activity_title,
+			reference: fine.reference_number_students,
+
+			// Add these:
+			slot_name: fine.slot_name || 'No Slot Name',
+			time_in: fine.date_time_in || 'N/A',
+			time_out: fine.date_time_out || 'N/A',
+			attendance_id: fine.attendance_id || null,
+			timeslot_id: fine.timeslot_id || null
 		});
 	});
 
@@ -418,6 +736,7 @@
 			row.innerHTML = `
             <td class="text-nowrap">${student.id}</td>
             <td class="text-nowrap">${student.name}</td>
+			<td class="text-nowrap">${student.year}</td>
             <td class="text-nowrap">${student.department}</td>
         `;
 
@@ -463,10 +782,10 @@
 			}
 
 			statusCell.innerHTML = `
-            <span class="${badgeClass}">
-                ${student.status} <i class="${iconClass}"></i>
-            </span>
-        `;
+				<span class="${badgeClass}">
+					${student.status} <i class="${iconClass}"></i>
+				</span>
+			`;
 			row.appendChild(statusCell);
 
 			// Action Dropdown
@@ -476,33 +795,38 @@
 
 			if (student.status === 'Unpaid') {
 				dropdownItems += `
+				<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#paymentModal" data-student-id="${student.id}">Confirm Payment</a>
+				<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" data-student-id="${student.id}">View Details</a>
 
-<a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#editFinesModal" data-student-id="${student.id}">Edit Fines</a>
-`;
+				<a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#editFinesModal" data-student-id="${student.id}">Edit Fines</a>
+			`;
 			} else if (student.status === 'Pending') {
 				dropdownItems += `
-<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#paymentModal" data-student-id="${student.id}">Confirm Payment</a>
-<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" data-student-id="${student.id}">View Details</a>
-`;
+				<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#paymentModal" data-student-id="${student.id}">Confirm Payment</a>
+				<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" data-student-id="${student.id}">View Details</a>
+			`;
 			} else if (student.status === 'Paid') {
 				dropdownItems += `
-<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" data-student-id="${student.id}">View Details</a>
-`;
+				<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" data-student-id="${student.id}">View Details</a>
+			`;
+			} else if (student.status === 'No Fines') {
+				dropdownItems += `
+				<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" data-student-id="${student.id}">View Details</a>
+			`;
 			}
 
 			actionCell.innerHTML = `
-<div class="dropdown font-sans-serif position-static">
-<button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button"
-data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-<span class="fas fa-ellipsis-h fs-10"></span>
-</button>
-<div class="dropdown-menu dropdown-menu-end border py-0">
-<div class="py-2">
-${dropdownItems}
-</div>
-</div>
-</div>
-`;
+			<div class="dropdown font-sans-serif position-static">
+				<button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+					<span class="fas fa-ellipsis-h fs-10"></span>
+				</button>
+				<div class="dropdown-menu dropdown-menu-end border py-0">
+					<div class="py-2">
+						${dropdownItems}
+					</div>
+				</div>
+			</div>
+			`;
 			row.appendChild(actionCell);
 			tableBody.appendChild(row);
 		});
@@ -560,6 +884,15 @@ ${dropdownItems}
 		const filteredStudents = studentsData.filter(student => student.name.toLowerCase().includes(searchTerm));
 		renderRows(filteredStudents, 1, itemsPerPage); // Reset to page 1 on search
 	});
+</script>
+
+
+
+
+<!-- <script>
+	
+
+	
 
 	// Payment Modal
 	document.addEventListener('DOMContentLoaded', () => {
@@ -578,10 +911,6 @@ ${dropdownItems}
 				paymentModal.querySelector('#modalTotalFines').value = `₱${student.total_fines}`;
 				paymentModal.querySelector('#modalModePayment').value = student.mode_payment || '';
 				paymentModal.querySelector('#modeOfPayment').value = student.mode_payment || '';
-
-				// Add these two lines:
-				paymentModal.querySelector('#modalAcademicYear').value = student.academic_year || '';
-				paymentModal.querySelector('#modalSemester').value = student.semester || '';
 
 				if (student.receipt) {
 					receiptImage.src = baseImageUrl + student.receipt;
@@ -606,6 +935,7 @@ ${dropdownItems}
 			}
 		});
 	});
+
 
 	// View Details Modal
 	document.addEventListener('DOMContentLoaded', () => {
@@ -654,73 +984,59 @@ ${dropdownItems}
 	});
 
 	// Edit Fines Modal
-	document.addEventListener('DOMContentLoaded', () => {
-		const editFinesModal = document.getElementById('editFinesModal');
-		const editFinesTableBody = document.getElementById('editFinesTableBody');
-		const editFinesForm = document.getElementById('editFinesForm');
+	const editFinesModal = document.getElementById('editFinesModal');
+	const editFinesTableBody = document.getElementById('editFinesTableBody');
+	const editStudentIdInput = document.getElementById('editStudentId');
 
-		if (editFinesModal) {
-			editFinesModal.addEventListener('show.bs.modal', function(event) {
-				const trigger = event.relatedTarget;
-				if (!trigger) return;
+	editFinesModal.addEventListener('show.bs.modal', event => {
+		const studentId = event.relatedTarget.getAttribute('data-student-id');
+		const student = studentsData.find(s => s.id == studentId);
 
-				const studentId = trigger.getAttribute('data-student-id');
-				const student = studentsData.find(s => s.id == studentId);
+		if (!student) return;
 
-				if (student) {
-					document.getElementById('editStudentId').value = student.id;
-					editFinesTableBody.innerHTML = '';
+		// Set the hidden input for student_id
+		editStudentIdInput.value = student.id;
 
-					student.fines.forEach((fine, i) => {
-						const row = document.createElement('tr');
-						row.innerHTML = `
-										<td>${i + 1}</td>
-										<td>${fine.title}</td>
-										<td>
-											<select name="reason[]" class="form-control">
-												<option value="Absent" ${fine.reason === 'Absent' ? 'selected' : ''}>Absent</option>
-												<option value="Incomplete" ${fine.reason === 'Incomplete' ? 'selected' : ''}>Incomplete</option>
-												<option value="Present" ${fine.reason === 'Present' ? 'selected' : ''}>Present</option>
-											</select>
-										</td>
-										<td><input type="number" step="0.01" name="amount[]" class="form-control" value="${fine.fine}"></td>
-										<td><input type="text" name="changes[]" class="form-control" value="${fine.changes}"></td>
-										<input type="hidden" name="event_id[]" value="${fine.eventId}">
-									`;
-						editFinesTableBody.appendChild(row);
-					});
-				}
-			});
-		}
+		// Clear existing rows
+		editFinesTableBody.innerHTML = '';
 
-		if (editFinesForm) {
-			editFinesForm.addEventListener('submit', function(e) {
-				e.preventDefault();
+		// Loop and add fines
+		student.fines.forEach((fine, index) => {
+			editFinesTableBody.innerHTML += `
+		<tr>
+			<td>${index + 1}</td>
+			<td>${fine.title || 'N/A'}</td>
+			<td>
+				<input type="text" name="reasons[]" class="form-control form-control-sm" 
+					value="${fine.reason || ''}" placeholder="Reason">
+			</td>
+			<td>
+				<input type="number" name="amounts[]" class="form-control form-control-sm" 
+					value="${fine.fine || 0}" min="0" step="0.01">
+			</td>
+			<td>
+				<input type="text" name="change_reasons[]" class="form-control form-control-sm" 
+					placeholder="Reason for change">
+			</td>
+		</tr>
+	`;
+		});
 
-				const formData = new FormData(this);
-				const studentId = formData.get("student_id");
-				const reasons = formData.getAll("reason[]");
-				const amounts = formData.getAll("amount[]");
-				const eventIds = formData.getAll("event_id[]");
-				const changes = formData.getAll("changes[]");
-
-				console.log('Edited Fines:', {
-					studentId,
-					reasons,
-					amounts,
-					eventIds
-				});
-
-				alert('Fines updated (dummy success). You can hook this to a real backend call.');
-
-				const modalInstance = bootstrap.Modal.getInstance(editFinesModal);
-				if (modalInstance) {
-					modalInstance.hide();
-				}
-			});
-		}
 	});
 </script>
+
+
+<script>
+	document.addEventListener('DOMContentLoaded', function() {
+		document.body.addEventListener('click', function(e) {
+			if (e.target.classList.contains('view-details-btn')) {
+				e.preventDefault();
+				const studentId = e.target.getAttribute('data-student-id');
+				openViewDetailsModal(studentId);
+			}
+		});
+	});
+</script> -->
 
 
 <!-- 
@@ -866,60 +1182,10 @@ ${dropdownItems}
 		renderPaginationNumbers(students.length, page, itemsPerPage);
 	};
 
-	// Pagination function
-	const renderPaginationNumbers = (totalItems, currentPage, itemsPerPage) => {
-		const totalPages = Math.ceil(totalItems / itemsPerPage);
-		const paginationList = document.querySelector('.pagination');
-		paginationList.innerHTML = ''; // Clear existing pagination numbers
-
-		for (let i = 1; i <= totalPages; i++) {
-			const li = document.createElement('li');
-			li.className = `page-item ${i === currentPage ? 'active' : ''}`;
-			li.innerHTML = `
-			<button class="page-link" type="button">${i}</button>
-		`;
-
-			li.querySelector('button').addEventListener('click', () => {
-				renderRows(studentsData, i, itemsPerPage);
-			});
-
-			paginationList.appendChild(li);
-		}
-	};
-
-	// Initialize pagination and search
-	let currentPage = 1;
-	const itemsPerPage = 10;
-
-	// Render the initial rows
-	renderRows(studentsData, currentPage, itemsPerPage);
-
-	// Pagination click handlers
-	document.querySelector('[data-list-pagination="prev"]').addEventListener('click', () => {
-		if (currentPage > 1) {
-			currentPage--;
-			renderRows(studentsData, currentPage, itemsPerPage);
-		}
-	});
-
-	document.querySelector('[data-list-pagination="next"]').addEventListener('click', () => {
-		const totalPages = Math.ceil(studentsData.length / itemsPerPage);
-		if (currentPage < totalPages) {
-			currentPage++;
-			renderRows(studentsData, currentPage, itemsPerPage);
-		}
-	});
-
-	// Search functionality
-	document.getElementById('searchInput').addEventListener('input', (e) => {
-		const searchTerm = e.target.value.toLowerCase();
-		const filteredStudents = studentsData.filter(student => student.name.toLowerCase().includes(searchTerm));
-		renderRows(filteredStudents, 1, itemsPerPage); // Reset to page 1 on search
-	});
 </script> -->
+<!-- 
 
-
-<!-- <script>
+<script>
 	// Convert PHP fines data to JSON
 	const finesData = <?= json_encode($fines, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 
@@ -944,16 +1210,31 @@ ${dropdownItems}
 				total_fines: fine.total_fines,
 				reference: fine.reference_number_admin,
 				receipt: fine.receipt,
-				changes: fine.remarks
+				changes: fine.remarks,
+
+				// Add these:
+				academic_year: fine.academic_year,
+				semester: fine.semester
 			});
 		}
 
 		studentsMap.get(fine.student_id).fines.push({
-			eventId: fine.activity_id,
+			eventId: fine.attendance_id, //use this to know which table to update
+			fines_id: fine.fines_id, // ✅ For fines update
+			attendance_id: fine.attendance_id, // ✅ For attendance update
 			fine: fine.fines_amount,
 			reason: fine.fines_reason,
 			event_date: fine.start_date,
-			title: fine.activity_title
+			title: fine.activity_title,
+			changes: fine.remarks,
+
+
+			// Add these:
+			slot_name: fine.slot_name || 'No Slot Name',
+			time_in: fine.date_time_in || 'N/A',
+			time_out: fine.date_time_out || 'N/A',
+			attendance_id: fine.attendance_id || null,
+			timeslot_id: fine.timeslot_id || null
 		});
 	});
 
@@ -1028,119 +1309,49 @@ ${dropdownItems}
 					`;
 		row.appendChild(statusCell);
 
+
 		// Action Dropdown
 		const actionCell = document.createElement('td');
+
+		let dropdownItems = '';
+
+		if (student.status === 'Unpaid') {
+			dropdownItems += `
+			<a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#editFinesModal" data-student-id="${student.id}">Edit Fines</a>
+			`;
+		} else if (student.status === 'Pending') {
+			dropdownItems += `
+			<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#paymentModal" data-student-id="${student.id}">Confirm Payment</a>
+			<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" data-student-id="${student.id}">View Details</a>
+			`;
+		} else if (student.status === 'Paid') {
+			dropdownItems += `
+			<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" data-student-id="${student.id}">View Details</a>
+			`;
+		}
+
 		actionCell.innerHTML = `
-						<div class="dropdown font-sans-serif position-static">
-							<button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button"
-								data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-								<span class="fas fa-ellipsis-h fs-10"></span>
-							</button>
-							<div class="dropdown-menu dropdown-menu-end border py-0">
-								<div class="py-2">
-									<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#paymentModal" data-student-id="${student.id}">Confirm Payment</a>
-									<a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" data-student-id="${student.id}">View Details</a>
-									<a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#editFinesModal" data-student-id="${student.id}">Edit Fines</a>
-								</div>
-							</div>
-						</div>
-					`;
+			<div class="dropdown font-sans-serif position-static">
+			<button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button"
+			data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+			<span class="fas fa-ellipsis-h fs-10"></span>
+			</button>
+			<div class="dropdown-menu dropdown-menu-end border py-0">
+			<div class="py-2">
+			${dropdownItems}
+			</div>
+			</div>
+			</div>
+		`;
+
 		row.appendChild(actionCell);
 		tableBody.appendChild(row);
 	});
 
 
-	document.addEventListener('DOMContentLoaded', () => {
-		const paymentModal = document.getElementById('paymentModal');
-		const breakdownTable = document.querySelector("#finesBreakdownTable tbody");
-		const receiptSection = paymentModal.querySelector('#receiptSection');
-		const receiptImage = paymentModal.querySelector('#receiptImage');
-		const baseImageUrl = "<?= base_url('assets/receipt/') ?>";
+	
 
-		paymentModal.addEventListener('show.bs.modal', event => {
-			const studentId = event.relatedTarget.getAttribute('data-student-id');
-			const student = studentsData.find(s => s.id == studentId);
-
-			if (student) {
-				paymentModal.querySelector('#modalStudentId').value = student.id;
-				paymentModal.querySelector('#modalTotalFines').value = `₱${student.total_fines}`;
-				paymentModal.querySelector('#modalModePayment').value = student.mode_payment || '';
-				paymentModal.querySelector('#modeOfPayment').value = student.mode_payment || '';
-
-				if (student.receipt) {
-					receiptImage.src = baseImageUrl + student.receipt;
-					receiptSection.classList.remove('d-none');
-				} else {
-					receiptImage.src = "";
-					receiptSection.classList.add('d-none');
-				}
-
-				breakdownTable.innerHTML = '';
-				student.fines.forEach((fine, i) => {
-					breakdownTable.innerHTML += `
-                        <tr>
-                            <td>${i + 1}</td>
-                            <td>${fine.reason}</td>
-                            <td>₱${fine.fine}</td>
-                            <td>${fine.title}</td>
-                            <td>${fine.event_date}</td>
-                        </tr>`;
-				});
-			}
-		});
-
-		paymentModal.addEventListener('hidden.bs.modal', () => {
-			['#modalStudentId', '#modalTotalFines', '#modalModePayment', '#modeOfPayment', '#referenceNumber'].forEach(id => {
-				paymentModal.querySelector(id).value = '';
-			});
-			receiptImage.src = "";
-			receiptSection.classList.add('d-none');
-		});
-
-		const viewDetailsModal = document.getElementById('viewDetailsModal');
-		const baseReceiptUrl = "<?= base_url('assets/receipt/') ?>";
-
-		viewDetailsModal.addEventListener('show.bs.modal', event => {
-			const studentId = event.relatedTarget.getAttribute('data-student-id');
-			const student = studentsData.find(s => s.id == studentId);
-
-			if (student) {
-				document.getElementById('viewName').textContent = student.name;
-				document.getElementById('viewDepartment').textContent = student.department;
-				document.getElementById('viewTotalFines').textContent = `${student.total_fines}`;
-				document.getElementById('viewReferenceNumber').textContent = student.reference;
-
-				const receiptImage = document.getElementById('viewReceiptImage');
-				const receiptContainer = document.getElementById('viewReceiptImageContainer');
-
-				if (student.receipt) {
-					receiptImage.src = baseReceiptUrl + student.receipt;
-					receiptImage.alt = `Receipt of ${student.name}`;
-					receiptImage.classList.remove('d-none');
-					receiptContainer.classList.remove('d-none');
-				} else {
-					receiptImage.src = "";
-					receiptImage.alt = "";
-					receiptImage.classList.add('d-none');
-					receiptContainer.classList.add('d-none');
-				}
-
-				const finesBody = document.getElementById('viewFinesTableBody');
-				finesBody.innerHTML = '';
-				student.fines.forEach((fine, i) => {
-					finesBody.innerHTML += `
-                        <tr>
-                            <td>${i + 1}</td>
-                            <td>${fine.reason}</td>
-                            <td>₱${fine.fine}</td>
-                            <td>${fine.title}</td>
-                            <td>${fine.event_date}</td>
-                        </tr>`;
-				});
-			}
-		});
-	});
-
+	// Edit Fines Modal
 	document.addEventListener('DOMContentLoaded', () => {
 		const editFinesModal = document.getElementById('editFinesModal');
 		const editFinesTableBody = document.getElementById('editFinesTableBody');
@@ -1160,20 +1371,37 @@ ${dropdownItems}
 
 					student.fines.forEach((fine, i) => {
 						const row = document.createElement('tr');
+
+
+						// Determine whether the slot is for IN or OUT based on the slot name
+						const slotName = fine.slot_name || 'No Slot Name';
+						const timeIn = fine.time_in || 'N/A';
+						const timeOut = fine.time_out || 'N/A';
+
 						row.innerHTML = `
-										<td>${i + 1}</td>
-										<td>${fine.title}</td>
-										<td>
-											<select name="reason[]" class="form-control">
-												<option value="Absent" ${fine.reason === 'Absent' ? 'selected' : ''}>Absent</option>
-												<option value="Incomplete" ${fine.reason === 'Incomplete' ? 'selected' : ''}>Incomplete</option>
-												<option value="Present" ${fine.reason === 'Present' ? 'selected' : ''}>Present</option>
-											</select>
-										</td>
-										<td><input type="number" step="0.01" name="amount[]" class="form-control" value="${fine.fine}"></td>
-										<td><input type="text" name="changes[]" class="form-control" value="${fine.changes}"></td>
-										<input type="hidden" name="event_id[]" value="${fine.eventId}">
-									`;
+								<td>${i + 1}</td>
+								<td>
+									<strong>${fine.title}</strong><br>
+									<small class="text-muted">
+										${slotName}<br>
+										In: ${timeIn}<br>
+										Out: ${timeOut}
+									</small>
+								</td>
+								<td>
+									<select name="reason[]" class="form-control">
+										<option value="Absent" ${fine.reason === 'Absent' ? 'selected' : ''}>Absent</option>
+										<option value="Present" ${fine.reason === 'Present' ? 'selected' : ''}>Present</option>
+									</select>
+								</td>
+								<td><input type="number" step="0.01" name="amount[]" class="form-control" value="${fine.fine}"></td>
+								<td><input type="text" name="changes[]" class="form-control" value="${fine.changes}"></td>
+								
+								<input type="hidden" name="fines_id[]" value="${fine.fines_id}">
+							<input type="hidden" name="attendance_id[]" value="${fine.attendance_id}">
+
+							`;
+
 						editFinesTableBody.appendChild(row);
 					});
 				}
@@ -1184,39 +1412,76 @@ ${dropdownItems}
 			editFinesForm.addEventListener('submit', function(e) {
 				e.preventDefault();
 
-				const formData = new FormData(this);
-				const studentId = formData.get("student_id");
-				const reasons = formData.getAll("reason[]");
-				const amounts = formData.getAll("amount[]");
-				const eventIds = formData.getAll("event_id[]");
-				const changes = formData.getAll("changes[]");
+				Swal.fire({
+					title: 'Are you sure?',
+					text: "Do you want to update the fines?",
+					icon: 'warning',
+					showCancelButton: true,
+					confirmButtonColor: '#3085d6',
+					cancelButtonColor: '#d33',
+					confirmButtonText: 'Yes, update it!',
+					cancelButtonText: 'Cancel'
+				}).then((result) => {
+					if (result.isConfirmed) {
+						const formData = new FormData(this);
 
-				console.log('Edited Fines:', {
-					studentId,
-					reasons,
-					amounts,
-					eventIds
+						fetch('<?= base_url("index.php/AdminController/edit_fines") ?>', {
+								method: 'POST',
+								body: formData
+							})
+							.then(response => response.json())
+							.then(data => {
+								if (data.status === 'success') {
+									Swal.fire({
+										icon: 'success',
+										title: 'Success',
+										text: 'Fines successfully updated.',
+										timer: 1500,
+										showConfirmButton: false
+									}).then(() => {
+										const modalInstance = bootstrap.Modal.getInstance(editFinesModal);
+										if (modalInstance) modalInstance.hide();
+
+										location.reload();
+									});
+								} else {
+									Swal.fire({
+										icon: 'error',
+										title: 'Update Failed',
+										text: data.message || 'Failed to update fines.'
+									});
+								}
+							})
+							.catch(error => {
+								console.error('Error updating fines:', error);
+								Swal.fire({
+									icon: 'error',
+									title: 'Error',
+									text: 'An error occurred while updating.'
+								});
+							});
+					}
+					// else user cancelled, do nothing
 				});
-
-				alert('Fines updated (dummy success). You can hook this to a real backend call.');
-
-				const modalInstance = bootstrap.Modal.getInstance(editFinesModal);
-				if (modalInstance) {
-					modalInstance.hide();
-				}
 			});
 		}
+
+
+
 	});
 </script> -->
 
-<script>
+<!-- <option value="Incomplete" ${fine.reason === 'Incomplete' ? 'selected' : ''}>Incomplete</option> -->
+<!-- <input type="hidden" name="event_id[]" value="${fine.eventId}"> -->
+
+<!-- <script>
 	$(document).ready(function() {
 		$('#paymentModal form').submit(function(e) {
 			e.preventDefault();
 			let formData = $(this).serialize();
 
 			$.ajax({
-				url: "<?php echo site_url('officer/fines-payment/confirm'); ?>",
+				url: "<?php echo site_url('admin/fines-payment/confirm'); ?>",
 				method: "POST",
 				data: formData,
 				dataType: "json",
@@ -1261,37 +1526,60 @@ ${dropdownItems}
 			});
 		});
 	});
-</script>
-
-<!-- FILTER SCRIPT -->
-<script>
-	function applyFilters() {
-		console.log('Filters Applied');
-		var status = document.getElementById("status-filter").value.trim().toLowerCase();
-		var department = document.getElementById("department-filter").value.trim().toLowerCase();
-
-		// Get all the student rows in the table
-		const rows = document.querySelectorAll('#table-ticket-body tr');
-
-		rows.forEach(row => {
-			// Get the department (3rd column) and status (6th column)
-			const studentDepartment = row.querySelector('td:nth-child(3)') ? row.querySelector('td:nth-child(3)').textContent.trim().toLowerCase() : '';
-			const studentStatus = row.querySelector('td:nth-child(6) span') ? row.querySelector('td:nth-child(6) span').textContent.trim().toLowerCase() : '';
-
-			// Determine if the row matches the selected filters
-			let departmentMatches = (department === "" || studentDepartment === department);
-			let statusMatches = (status === "" || studentStatus === status);
-
-			// Show or hide the row based on the filter conditions
-			if (departmentMatches && statusMatches) {
-				row.style.display = ""; // Show the row
-			} else {
-				row.style.display = "none"; // Hide the row
-			}
-		});
+</script> -->
 
 
-		// Manually hide the modal by toggling the class or with jQuery
-		$('#filterModal').modal('hide');
-	}
-</script>
+
+<!-- pagination fines -->
+<!-- <script>
+	// Pagination function
+	const renderPaginationNumbers = (totalItems, currentPage, itemsPerPage) => {
+		const totalPages = Math.ceil(totalItems / itemsPerPage);
+		const paginationList = document.querySelector('.pagination');
+		paginationList.innerHTML = ''; // Clear existing pagination numbers
+
+		for (let i = 1; i <= totalPages; i++) {
+			const li = document.createElement('li');
+			li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+			li.innerHTML = `
+			<button class="page-link" type="button">${i}</button>
+		`;
+
+			li.querySelector('button').addEventListener('click', () => {
+				renderRows(studentsData, i, itemsPerPage);
+			});
+
+			paginationList.appendChild(li);
+		}
+	};
+
+	// Initialize pagination and search
+	let currentPage = 1;
+	const itemsPerPage = 10;
+
+	// Render the initial rows
+	renderRows(studentsData, currentPage, itemsPerPage);
+
+	// Pagination click handlers
+	document.querySelector('[data-list-pagination="prev"]').addEventListener('click', () => {
+		if (currentPage > 1) {
+			currentPage--;
+			renderRows(studentsData, currentPage, itemsPerPage);
+		}
+	});
+
+	document.querySelector('[data-list-pagination="next"]').addEventListener('click', () => {
+		const totalPages = Math.ceil(studentsData.length / itemsPerPage);
+		if (currentPage < totalPages) {
+			currentPage++;
+			renderRows(studentsData, currentPage, itemsPerPage);
+		}
+	});
+
+	// Search functionality
+	document.getElementById('searchInput').addEventListener('input', (e) => {
+		const searchTerm = e.target.value.toLowerCase();
+		const filteredStudents = studentsData.filter(student => student.name.toLowerCase().includes(searchTerm));
+		renderRows(filteredStudents, 1, itemsPerPage); // Reset to page 1 on search
+	});
+</script> -->

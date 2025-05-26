@@ -30,7 +30,7 @@
                         <thead class="bg-200">
                             <tr>
                                 <th>Form Title</th>
-                                <th>Activity Name</th>
+                                <th class="text-nowrap">Activity Name</th>
                                 <th>Start Date</th>
                                 <th>End Date</th>
                                 <th>Status</th>

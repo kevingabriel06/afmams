@@ -307,6 +307,22 @@
                             $('#editLogsModal').on('show.bs.modal', function() {
                                 const activityId = <?= json_encode($activity['activity_id']) ?>;
 
+                                // Helper function to convert datetime string to 12-hour format
+                                function format12Hour(datetimeStr) {
+                                    if (!datetimeStr) return 'N/A';
+                                    const dt = new Date(datetimeStr);
+                                    if (isNaN(dt)) return datetimeStr; // fallback if invalid date
+                                    let hours = dt.getHours();
+                                    const minutes = dt.getMinutes().toString().padStart(2, '0');
+                                    const ampm = hours >= 12 ? 'PM' : 'AM';
+                                    hours = hours % 12;
+                                    hours = hours ? hours : 12; // the hour '0' should be '12'
+                                    const formattedDate = dt.getFullYear() + '-' +
+                                        (dt.getMonth() + 1).toString().padStart(2, '0') + '-' +
+                                        dt.getDate().toString().padStart(2, '0');
+                                    return `${formattedDate} ${hours}:${minutes} ${ampm}`;
+                                }
+
                                 $.ajax({
                                     url: '<?= site_url("officer/view-edit-logs") ?>/' + activityId,
                                     method: 'GET',
@@ -320,22 +336,50 @@
 
                                                 try {
                                                     const changes = JSON.parse(log.changes);
-                                                    for (const field in changes) {
-                                                        const change = changes[field];
-                                                        const oldVal = change.old ?? 'N/A';
-                                                        const newVal = change.new ?? 'N/A';
-                                                        changesHtml += `<div><strong>${field}</strong>: Old: ${oldVal} → New: ${newVal}</div>`;
-                                                    }
+
+                                                    const parseGroupedChanges = (obj, prefix = '') => {
+                                                        let html = '';
+                                                        for (const key in obj) {
+                                                            if (typeof obj[key] === 'object' && obj[key] !== null && !('old' in obj[key] || 'new' in obj[key])) {
+                                                                // key is a category like "24"
+                                                                html += `<div style="margin-bottom:8px;"><strong>${prefix}${key}</strong><br>`;
+                                                                for (const subKey in obj[key]) {
+                                                                    const change = obj[key][subKey];
+                                                                    let oldVal = change.old ?? 'N/A';
+                                                                    let newVal = change.new ?? 'N/A';
+
+                                                                    // Format if values look like dates
+                                                                    if (/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(oldVal)) oldVal = format12Hour(oldVal);
+                                                                    if (/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(newVal)) newVal = format12Hour(newVal);
+
+                                                                    html += `<div style="margin-left:15px;"><strong>${subKey}</strong>: Old: ${oldVal} → New: ${newVal}</div>`;
+                                                                }
+                                                                html += `</div>`;
+                                                            } else if (typeof obj[key] === 'object' && obj[key] !== null && ('old' in obj[key] || 'new' in obj[key])) {
+                                                                let oldVal = obj[key].old ?? 'N/A';
+                                                                let newVal = obj[key].new ?? 'N/A';
+
+                                                                if (/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(oldVal)) oldVal = format12Hour(oldVal);
+                                                                if (/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(newVal)) newVal = format12Hour(newVal);
+
+                                                                html += `<div><strong>${prefix}${key}</strong>: Old: ${oldVal} → New: ${newVal}</div>`;
+                                                            }
+                                                        }
+                                                        return html;
+                                                    };
+
+                                                    changesHtml = parseGroupedChanges(changes);
+
                                                 } catch (e) {
                                                     changesHtml = `<div>${log.changes}</div>`; // fallback if JSON parse fails
                                                 }
 
                                                 tbody += `<tr>
-                                                            <td>${i + 1}</td>
-                                                            <td class="text-nowrap">${fullName}</td>
-                                                            <td>${changesHtml}</td>
-                                                            <td class="text-nowrap">${log.formatted_time}</td>
-                                                        </tr>`;
+													<td>${i + 1}</td>
+													<td class="text-nowrap">${fullName}</td>
+													<td>${changesHtml}</td>
+													<td class="text-nowrap">${log.formatted_time}</td>
+												</tr>`;
                                             });
                                         } else {
                                             tbody = `<tr><td colspan="4" class="text-center">No logs found.</td></tr>`;
@@ -346,9 +390,9 @@
                                         $('#editLogsTable').html('<tr><td colspan="4" class="text-center text-danger">Failed to fetch logs.</td></tr>');
                                     }
                                 });
-
                             });
                         </script>
+
 
                         <button class="btn btn-danger btn-sm me-2" type="button" onclick="$('#activityCreate').get(0).reset()">Cancel</button>
                         <!-- Save Button -->
@@ -690,9 +734,9 @@
                                     timer: 2000
                                 });
 
-                                // setTimeout(function() {
-                                //     window.location.href = response.redirect;
-                                // }, 2000);
+                                setTimeout(function() {
+                                    window.location.href = response.redirect;
+                                }, 2000);
                             }
                         },
                         error: function() {

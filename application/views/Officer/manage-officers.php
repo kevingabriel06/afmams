@@ -11,6 +11,7 @@
                 <table class="table table-hover table-striped mb-0">
                     <thead class="table-light">
                         <tr>
+                            <th class="text-nowrap">Student ID</th>
                             <th class="text-nowrap">Name</th>
                             <th class="text-nowrap" scope="col">Manage Fines</th>
                             <th class="text-nowrap" scope="col">Manage Evaluation</th>
@@ -23,6 +24,9 @@
                     <tbody>
                         <?php foreach ($privileges as $privilege): ?>
                             <tr>
+                                <td class="text-nowrap align-middle">
+                                    <?= htmlspecialchars($privilege->student_id); ?>
+                                </td>
                                 <td class="text-nowrap align-middle">
                                     <?= htmlspecialchars($privilege->first_name . " " . $privilege->last_name); ?>
                                 </td>

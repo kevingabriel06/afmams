@@ -225,7 +225,9 @@ $route['officer/list-activities-attendance'] = 'OfficerController/list_activitie
 $route['officer/list-attendees/(:num)'] = 'OfficerController/list_attendees/$1';
 // ~ TAKING OF ATTENDANCE~
 $route['officer/activity/scan-qr/time-in/(:num)'] = 'OfficerController/time_in/$1';
+$route['officer/activity/update-fine/time-in'] = 'OfficerController/impose_fines_timein';
 $route['officer/activity/scan-qr/time-out/(:num)'] = 'OfficerController/time_out/$1';
+$route['officer/activity/update-fine/time-out'] = 'OfficerController/impose_fines_timeout';
 $route['officer/activity/face-recognition/(:num)'] = 'OfficerController/face_recognition/$1';
 $route['officer/attendance/get-faces'] = 'OfficerController/getFaces';
 $route['officer/attendance/detect_timein'] = 'OfficerController/scanUnified_timein';

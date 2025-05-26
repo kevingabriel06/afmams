@@ -7,7 +7,16 @@
 				</a>
 				<div class="d-flex">
 					<?php if ($excuse['status'] == 'Pending'): ?>
-						<!-- <php $isCompleted = ($excuse['act_status'] == 'Completed'); ?> -->
+						<?php
+						$isCompleted = false;
+
+						if ($excuse['act_status'] === 'Completed') {
+							$endDatePlus5 = date('Y-m-d', strtotime($excuse['end_date'] . ' +5 days'));
+							$today = date('Y-m-d');
+
+							$isCompleted = $today > $endDatePlus5;
+						}
+						?>
 
 						<!-- Approved Button -->
 						<button

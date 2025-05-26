@@ -381,7 +381,7 @@
 																					View Registration
 																				</a>
 																			<?php else: ?>
-																				<a class="dropdown-item text-danger validate-registration" href="#" data-student-id="<?php echo $registration->student_id; ?>" data-activity-id="<?php echo $registration->activity_id; ?>" data-bs-toggle="modal" data-bs-target="#validateModal">Validate Registration</a>
+																				<a class="dropdown-item text-danger validate-registration" href="#" data-student-id="<?php echo $registration->student_id; ?>" data-activity-id="<?php echo $registration->activity_id; ?>" data-receipt="<?php echo $registration->receipt; ?>" data-bs-toggle="modal" data-bs-target="#validateModal">Validate Registration</a>
 																			<?php endif; ?>
 																		</div>
 																	</div>
@@ -471,7 +471,7 @@
 							if (paymentType === 'Cash') {
 								$('#receiptContainer').html('<p class="mb-0 fw-semibold">Cash Payment – No Receipt Image</p>');
 							} else {
-								const imagePath = '<?= base_url("uploads/receipts/") ?>' + receipt;
+								const imagePath = '<?= base_url("assets/registration_receipt/") ?>' + receipt;
 								$('#receiptContainer').html(
 									`<img id="modalReceiptImage" src="${imagePath}" alt="Payment Receipt" class="img-fluid rounded" style="max-height: 300px;">`
 								);
@@ -521,9 +521,7 @@
 									<!-- Payment Receipt Section -->
 									<div class="mb-3">
 										<label class="form-label">Payment Receipt</label>
-										<div id="viewReceiptImageContainer" class="mt-3 d-none">
-											<img id="viewReceiptImage" src="" alt="Receipt" class="img-fluid rounded border" style="max-height: 400px;">
-										</div>
+										<div id="receiptContainer1" class="border rounded p-2 text-center"></div>
 									</div>
 
 									<div class="mb-3">
@@ -555,10 +553,19 @@
 						$('.validate-registration').on('click', function() {
 							const studentId = $(this).data('student-id');
 							const activityId = $(this).data('activity-id');
+							const receipt = $(this).data('receipt'); // Moved inside click handler
 
 							$('#student_id').val(studentId);
 							$('#activity_id').val(activityId);
+
+							const imagePath = '<?= base_url("assets/registration_receipt/") ?>' + receipt;
+
+							// Show receipt image
+							$('#receiptContainer1').html(
+								`<img id="modalReceiptImage" src="${imagePath}" alt="Payment Receipt" class="img-fluid rounded" style="max-height: 500px; max-width: auto;">`
+							);
 						});
+
 
 						$('#validateForm').on('submit', function(e) {
 							e.preventDefault();
