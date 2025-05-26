@@ -3,10 +3,155 @@
 
 
 <div class="card mb-3 mb-lg-0">
-	<div class="card-header bg-body-tertiary d-flex justify-content-between">
+	<div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center">
 		<h5 class="mb-0">Summary of Fines</h5>
+		<!-- Record Cash Payment Button -->
+		<button
+			class="btn btn-sm btn-outline-primary"
+			data-bs-toggle="modal"
+			data-bs-target="#cashPaymentModal">
+			<i class="fas fa-plus"></i> Record Cash Payment
+		</button>
 	</div>
 </div>
+
+
+<!-- Record Cash Payment Modal -->
+<div class="modal fade" id="cashPaymentModal" tabindex="-1" aria-labelledby="cashPaymentModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<form id="cashPaymentForm" method="POST" action="<?= base_url('AdminController/record_cash_payment') ?>">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title">Record Cash Payment</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div class="modal-body">
+					<!-- Student ID Input -->
+					<div class="mb-3">
+						<label for="student_id" class="form-label">Student ID</label>
+						<input type="text" name="student_id" id="student_id" class="form-control" placeholder="Type the student_id here..." required>
+					</div>
+
+					<!-- Add this hidden input to your modal form -->
+					<input type="hidden" id="summary_id" name="summary_id">
+
+
+					<!-- Amount (readonly) -->
+					<div class="mb-3">
+						<label for="total_fines" class="form-label">Total Fines</label>
+						<input type="text" name="total_fines" id="total_fines" class="form-control" readonly placeholder="Click to view student fines after typing the student_id">
+					</div>
+
+
+					<!-- Payment Mode -->
+					<div class="mb-3">
+						<label for="mode_payment" class="form-label">Mode of Payment</label>
+						<input type="text" name="mode_payment" id="mode_payment" class="form-control" value="Cash" readonly>
+					</div>
+				</div>
+
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-primary">Submit Payment</button>
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+				</div>
+			</div>
+		</form>
+	</div>
+</div>
+
+
+
+<script>
+	document.getElementById('cashPaymentForm').addEventListener('submit', function(e) {
+		e.preventDefault(); // prevent form submission
+
+		Swal.fire({
+			title: 'Confirm Payment',
+			text: "Are you sure you want to record this cash payment?",
+			icon: 'warning',
+			showCancelButton: true,
+			confirmButtonColor: '#3085d6',
+			cancelButtonColor: '#d33',
+			confirmButtonText: 'Yes, submit it!'
+		}).then((result) => {
+			if (result.isConfirmed) {
+				this.submit(); // submit form if confirmed
+			}
+		});
+	});
+</script>
+
+<!-- retrive total fines of the searched student -->
+<script>
+	document.getElementById('student_id').addEventListener('change', function() {
+		const studentId = this.value;
+		if (!studentId) return;
+
+		fetch('<?= base_url('AdminController/get_student_total_fines') ?>', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Requested-With': 'XMLHttpRequest'
+				},
+				body: JSON.stringify({
+					student_id: studentId
+				})
+			})
+			.then(response => response.json())
+			.then(data => {
+				if (data.success) {
+					document.getElementById('total_fines').value = data.total_fines;
+					document.getElementById('summary_id').value = data.summary_id;
+
+					Swal.fire({
+						icon: 'success',
+						title: 'Fines Found',
+						text: `Total unpaid fines: ₱${parseFloat(data.total_fines).toFixed(2)}`,
+						timer: 2500,
+						showConfirmButton: false
+					});
+				} else {
+					document.getElementById('total_fines').value = '';
+					document.getElementById('summary_id').value = '';
+
+					Swal.fire({
+						icon: 'warning',
+						title: 'Notice',
+						text: data.message || 'Unable to retrieve fines.',
+						timer: 3000,
+						showConfirmButton: false
+					});
+				}
+			})
+
+			.catch(error => {
+				console.error('Error fetching total fines:', error);
+				document.getElementById('total_fines').value = '';
+				document.getElementById('summary_id').value = '';
+
+				Swal.fire({
+					icon: 'error',
+					title: 'Error',
+					text: 'Something went wrong while retrieving fines.',
+					confirmButtonText: 'OK'
+				});
+			});
+	});
+</script>
+
+
+
+<?php if ($this->session->flashdata('swal_success')): ?>
+	<script>
+		Swal.fire({
+			icon: 'success',
+			title: 'Success!',
+			text: '<?= $this->session->flashdata('swal_success') ?>',
+			timer: 3000,
+			showConfirmButton: false
+		});
+	</script>
+<?php endif; ?>
 
 <!-- Space Between Sections -->
 <div class="space" style="height: 20px;"></div> <!-- Adds spacing between sections -->
@@ -211,6 +356,7 @@
 	}
 </script>
 
+<!-- EDIT FINES MODAL -->
 <div class="modal fade" id="editFinesModal" tabindex="-1" aria-labelledby="editFinesModalLabel" aria-hidden="true">
 	<div class="modal-dialog modal-lg modal-dialog-centered">
 		<div class="modal-content">
@@ -219,25 +365,39 @@
 				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 			</div>
 			<form id="editFinesForm">
-				<div class="modal-body">
+				<div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
 					<input type="hidden" id="editStudentId" name="student_id">
-					<div class="table-responsive">
-						<table class="table table-bordered table-sm">
+
+					<!-- Horizontal scrollable container -->
+					<div style="overflow-x: auto; width: 100%;">
+						<table class="table table-bordered table-sm" style="table-layout: auto; min-width: 1000px; white-space: nowrap;">
 							<thead class="table-light">
 								<tr>
-									<th class="text-nowrap">#</th>
-									<th class="text-nowrap">Event</th>
-									<th class="text-nowrap">Reason</th>
-									<th class="text-nowrap">Amount (₱)</th>
-									<th class="text-nowrap">Reason for Change</th>
+									<th>#</th>
+									<th>Event</th>
+									<th>Slot</th>
+									<th>Time In</th>
+									<th>Time Out</th>
+									<th>Fines Reason</th>
+									<th>Amount (₱)</th>
+									<th>Reason for Change</th>
 								</tr>
 							</thead>
 							<tbody id="editFinesTableBody">
 								<!-- JS fills this -->
 							</tbody>
+							<tfoot>
+								<tr>
+									<td colspan="2" class="fw-bold text-start text-primary bg-light border-top" id="totalFinesDisplay">
+										<!-- JS fills this -->
+									</td>
+									<td colspan="6"></td>
+								</tr>
+							</tfoot>
 						</table>
-
 					</div>
+
+
 				</div>
 				<div class="modal-footer">
 					<button type="submit" class="btn btn-primary">Save Changes</button>
@@ -247,6 +407,8 @@
 		</div>
 	</div>
 </div>
+
+
 
 <script>
 	// Edit Fines Modal
@@ -270,38 +432,50 @@
 					student.fines.forEach((fine, i) => {
 						const row = document.createElement('tr');
 
-
-						// Determine whether the slot is for IN or OUT based on the slot name
-						const slotName = fine.slot_name || 'No Slot Name';
-						const timeIn = fine.time_in || 'N/A';
-						const timeOut = fine.time_out || 'N/A';
-
 						row.innerHTML = `
-								<td>${i + 1}</td>
-								<td>
-									<strong>${fine.title}</strong><br>
-									<small class="text-muted">
-										${slotName}<br>
-										In: ${timeIn}<br>
-										Out: ${timeOut}
-									</small>
-								</td>
-								<td>
-									<select name="reason[]" class="form-control">
-										<option value="Absent" ${fine.reason === 'Absent' ? 'selected' : ''}>Absent</option>
-										<option value="Present" ${fine.reason === 'Present' ? 'selected' : ''}>Present</option>
-									</select>
-								</td>
-								<td><input type="number" step="0.01" name="amount[]" class="form-control" value="${fine.fine}"></td>
-								<td><input type="text" name="changes[]" class="form-control" value="${fine.changes}"></td>
-								
-								<input type="hidden" name="fines_id[]" value="${fine.fines_id}">
-							<input type="hidden" name="attendance_id[]" value="${fine.attendance_id}">
+  <td>${i + 1}</td>
+  <td>${fine.title}</td>
+  <td>${fine.slot_name}</td>
+  <td><input type="text" name="time_in[]" class="form-control time-in" value="${fine.time_in || ''}"></td>
+  <td><input type="text" name="time_out[]" class="form-control time-out" value="${fine.time_out || ''}"></td>
+  <td>
+    <select name="reason[]" class="form-control reason-select">
+      <option value="Absent" ${fine.reason === 'Absent' ? 'selected' : ''}>Absent</option>
+      <option value="Present" ${fine.reason === 'Present' ? 'selected' : ''}>Present</option>
+      <option value="Incomplete" ${fine.reason === 'Incomplete' ? 'selected' : ''}>Incomplete</option>
+    </select>
+  </td>
+  <td>
+    <input type="number" step="0.01" name="amount[]" class="form-control" value="${fine.fine}">
+  </td>
+  <td>
+    <input type="text" name="changes[]" class="form-control" value="${fine.changes || ''}">
+  </td>
+  <input type="hidden" name="fines_id[]" value="${fine.fines_id}">
+  <input type="hidden" name="attendance_id[]" value="${fine.attendance_id}">
+  <input type="hidden" name="time_status[]" class="time-status-field" value="${fine.time_status || ''}">
+`;
 
-							`;
 
 						editFinesTableBody.appendChild(row);
 					});
+
+					// Attach 'change' event listeners to each reason select
+					editFinesTableBody.querySelectorAll('.reason-select').forEach(select => {
+						select.addEventListener('change', function() {
+							const row = this.closest('tr');
+							updateTimeFields(row, this.value);
+						});
+					});
+
+					// Set initial readonly states of time inputs
+					updateTimeOutFields();
+
+					// Your existing setup function call
+					setupLiveTotalCalculation();
+
+					// Display total fines
+					document.getElementById('totalFinesDisplay').innerText = `Total Fines: ₱${parseFloat(student.total_fines).toFixed(2)}`;
 				}
 			});
 		}
@@ -364,6 +538,66 @@
 			});
 		}
 	});
+</script>
+
+
+<script>
+	function updateTimeFields(row, reason) {
+		const timeInInput = row.querySelector('.time-in');
+		const timeOutInput = row.querySelector('.time-out');
+		const timeStatusInput = row.querySelector('.time-status-field'); // <- get hidden input
+
+		if (reason === 'Incomplete') {
+			timeInInput.readOnly = false;
+			timeOutInput.value = '';
+			timeOutInput.readOnly = true;
+			timeStatusInput.value = 'Incomplete'; // update hidden input
+		} else if (reason === 'Absent') {
+			timeInInput.value = '';
+			timeOutInput.value = '';
+			timeInInput.readOnly = true;
+			timeOutInput.readOnly = true;
+			timeStatusInput.value = 'Absent';
+		} else {
+			timeInInput.readOnly = false;
+			timeOutInput.readOnly = false;
+			timeStatusInput.value = 'Present';
+		}
+	}
+
+
+
+	// Modify your existing updateTimeOutFields to handle time_in similarly:
+	function updateTimeOutFields() {
+		const rows = editFinesTableBody.querySelectorAll('tr');
+		rows.forEach(row => {
+			const reasonSelect = row.querySelector('.reason-select');
+			if (reasonSelect) {
+				updateTimeFields(row, reasonSelect.value);
+			}
+		});
+	}
+</script>
+
+<!-- SCRIPT FOR LIVE CALCULATION -->
+<script>
+	function updateTotalFines() {
+		const amountInputs = document.querySelectorAll('#editFinesTableBody input[name="amount[]"]');
+		let total = 0;
+		amountInputs.forEach(input => {
+			const value = parseFloat(input.value);
+			if (!isNaN(value)) total += value;
+		});
+		document.getElementById('totalFinesDisplay').innerText = `Total Fines: ₱${total.toFixed(2)}`;
+	}
+
+	function setupLiveTotalCalculation() {
+		const amountInputs = document.querySelectorAll('#editFinesTableBody input[name="amount[]"]');
+		amountInputs.forEach(input => {
+			input.addEventListener('input', updateTotalFines);
+		});
+		updateTotalFines(); // Initialize the display
+	}
 </script>
 
 <!-- View Details -->
@@ -700,8 +934,9 @@
 
 			// Add these:
 			slot_name: fine.slot_name || 'No Slot Name',
-			time_in: fine.date_time_in || 'N/A',
-			time_out: fine.date_time_out || 'N/A',
+			time_in: fine.time_in || 'N/A', // ✅ ACTUAL TIME FROM ATTENDANCE
+			time_out: fine.time_out || 'N/A', // ✅ ACTUAL TIME FROM ATTENDANCE
+			time_status: fine.attendance_status || 'N/A', // ✅ Add this line
 			attendance_id: fine.attendance_id || null,
 			timeslot_id: fine.timeslot_id || null
 		});

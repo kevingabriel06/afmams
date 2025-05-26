@@ -300,10 +300,10 @@
 							foreach ($fines as $f) {
 								if ($f['activity_id'] == $fine['activity_id'] && $f['student_id'] == $fine['student_id']) {
 									if (!isset($f['time_in']) || $f['time_in'] === null) {
-										$activity_total += $f['fines_amount'];
+										$activity_total += $f['activity_fine_amount'];
 									}
 									if (!isset($f['time_out']) || $f['time_out'] === null) {
-										$activity_total += $f['fines_amount'];
+										$activity_total += $f['activity_fine_amount'];
 									}
 								}
 							}
@@ -377,7 +377,6 @@
 
 
 							// Modal
-							// Modal
 							echo '<div class="modal fade" id="breakdownModal-' . $index . '" tabindex="-1" aria-labelledby="breakdownModalLabel-' . $index . '" aria-hidden="true">';
 							echo '<div class="modal-dialog modal-dialog-scrollable modal-md">';
 							echo '<div class="modal-content shadow-sm border-0 rounded-3">';
@@ -429,14 +428,15 @@
 
 									if (!isset($f['time_in']) || $f['time_in'] === null) {
 										$key = $slot . '_in';
-										$aggregated_fines[$key] += $f['fines_amount'];
+										$aggregated_fines[$key] += $f['activity_fine_amount'];
 									}
 									if (!isset($f['time_out']) || $f['time_out'] === null) {
 										$key = $slot . '_out';
-										$aggregated_fines[$key] += $f['fines_amount'];
+										$aggregated_fines[$key] += $f['activity_fine_amount'];
 									}
 								}
 							}
+
 
 							$activity_total_breakdown = 0;
 							$slot_order = ['Morning_in', 'Morning_out', 'Afternoon_in', 'Afternoon_out', 'Evening_in', 'Evening_out'];

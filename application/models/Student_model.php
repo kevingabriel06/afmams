@@ -1526,20 +1526,22 @@ class Student_model extends CI_Model
 	public function get_fines_by_student($student_id)
 	{
 		$this->db->select('
-        fines.*, 
-        activity.activity_title, 
-        activity.start_date, 
-        activity.organizer, 
-        activity_time_slots.slot_name, 
-        fines_summary.summary_id, 
-        fines_summary.fines_status, 
-		 fines_summary.total_fines, 
-        fines_summary.generated_receipt, 
-        attendance.time_in, 
-        attendance.time_out, 
-        attendance.attendance_status, 
-        attendance.photo_path
-    ');
+    fines.*, 
+    activity.activity_title, 
+    activity.start_date, 
+    activity.organizer, 
+    activity.fines AS activity_fine_amount, 
+    activity_time_slots.slot_name, 
+    fines_summary.summary_id, 
+    fines_summary.fines_status, 
+    fines_summary.total_fines, 
+    fines_summary.generated_receipt, 
+    attendance.time_in, 
+    attendance.time_out, 
+    attendance.attendance_status, 
+    attendance.photo_path
+');
+
 		$this->db->from('fines');
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id', 'left');
 		$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = fines.timeslot_id', 'left');
@@ -1690,6 +1692,21 @@ class Student_model extends CI_Model
 	// 	$query = $this->db->get();
 	// 	return $query->result_array();
 	// }
+
+
+
+	//For paying through cash in Admin
+	public function get_unpaid_summary_record($student_id)
+	{
+		return $this->db
+			->select('summary_id, total_fines')
+			->from('fines_summary')
+			->where('student_id', $student_id)
+			->where('fines_status', 'Unpaid')
+			->get()
+			->row();
+	}
+
 
 
 
