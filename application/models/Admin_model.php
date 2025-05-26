@@ -688,19 +688,23 @@ class Admin_model extends CI_Model
 		if ($activityQuery->num_rows() > 0) {
 			$activity_id = $activityQuery->row()->activity_id;
 
-			// Get distinct student IDs from attendance for the specific activity
+			// Count distinct student IDs with time_in or time_out not null
 			$this->db->distinct();
 			$this->db->select('student_id');
 			$this->db->from('attendance');
 			$this->db->where('activity_id', $activity_id);
-			$this->db->where('attendance_status', 'Present');
-			$query = $this->db->get();
+			$this->db->group_start(); // Open group for OR condition
+			$this->db->where('time_in IS NOT NULL', null, false);
+			$this->db->or_where('time_out IS NOT NULL', null, false);
+			$this->db->group_end(); // Close group
 
+			$query = $this->db->get();
 			return $query->num_rows();
 		}
 
 		return 0; // If no matching form/activity found
 	}
+
 
 	public function total_respondents($form_id)
 	{
@@ -1907,6 +1911,7 @@ class Admin_model extends CI_Model
 	{
 		$this->db->select('
         *,
+		users.year_level,
         activity_time_slots.slot_name,
         activity_time_slots.date_time_in,
         activity_time_slots.date_time_out,
@@ -1926,7 +1931,8 @@ class Admin_model extends CI_Model
 
 
 		$this->db->where('activity.organizer', 'Student Parliament');
-		$this->db->order_by('users.student_id, activity.activity_id');
+		// $this->db->order_by('users.student_id, activity.activity_id');
+		$this->db->order_by('department.dept_name, users.year_level, users.student_id, activity.activity_id');
 
 		$query = $this->db->get();
 		return $query->result_array();
@@ -1951,92 +1957,95 @@ class Admin_model extends CI_Model
 		$reasons = $this->input->post('reason');
 		$amounts = $this->input->post('amount');
 		$changes = $this->input->post('changes');
-		$event_ids = $this->input->post('event_id');
+		$fines_ids = $this->input->post('fines_id');
+		$attendance_ids = $this->input->post('attendance_id');
+		$time_ins = $this->input->post('time_in');
+		$time_outs = $this->input->post('time_out');
+		$time_statuses = $this->input->post('time_status'); // ✅ Add this
 
-		if (!$student_id || !$reasons || !$amounts || !$event_ids) {
+		if (!$student_id || !$reasons || !$amounts || !$fines_ids || !$attendance_ids) {
 			echo json_encode(['status' => 'error', 'message' => 'Missing data']);
 			return;
 		}
 
 		$success = true;
 
-		for ($i = 0; $i < count($event_ids); $i++) {
-			$fine_id = $event_ids[$i];
+		for ($i = 0; $i < count($fines_ids); $i++) {
+			$fine_id = $fines_ids[$i];
+			$attendance_id = $attendance_ids[$i];
 			$reason = $reasons[$i];
 			$amount = $amounts[$i];
-			$remark = $changes[$i];
+			$remark = isset($changes[$i]) ? $changes[$i] : null;
 
-			$data = [
+			$time_in = (!empty($time_ins[$i])) ? $time_ins[$i] : null;
+			$time_out = (!empty($time_outs[$i])) ? $time_outs[$i] : null;
+			$attendance_status = isset($time_statuses[$i]) ? $time_statuses[$i] : 'N/A'; // ✅ Use submitted status
+
+			// Update fines
+			$fine_data = [
 				'fines_reason' => $reason,
 				'fines_amount' => $amount,
 				'remarks' => $remark,
 			];
 
-			// Update fine record
-			$updatedFine = $this->Admin_model->update_fine($fine_id, $data);
+			$fineUpdated = $this->Admin_model->update_fine($fine_id, $fine_data);
 
-			// Now update attendance based on reason and slot_name
-			if ($updatedFine) {
-				// Fetch related attendance and slot info by fine_id (you may need to create this method)
-				$attendanceInfo = $this->Admin_model->get_attendance_and_slot_by_fine_id($fine_id);
+			if ($fineUpdated) {
+				$attendanceUpdate = [
+					'time_in' => $time_in,
+					'time_out' => $time_out,
+					'attendance_status' => $attendance_status, // ✅ Set this!
+				];
 
-				if ($attendanceInfo) {
-					$attendance_id = $attendanceInfo->attendance_id;
-					$slot_name = $attendanceInfo->slot_name;
-
-					$attendanceUpdate = [];
-
-					// Update attendance time_in/time_out based on reason and slot_name
-					if ($reason === 'Absent') {
-						// If Absent, clear the time_in or time_out accordingly
-						if (strpos(strtolower($slot_name), 'in') !== false) {
-							$attendanceUpdate['time_in'] = null;
-						} elseif (strpos(strtolower($slot_name), 'out') !== false) {
-							$attendanceUpdate['time_out'] = null;
-						}
-					} elseif ($reason === 'Present') {
-						// You can add logic here if you want to restore or update times for Present
-						// Example: set current datetime or a default time, or leave unchanged
-					} elseif ($reason === 'Incomplete') {
-						// Maybe clear only time_out or handle partial attendance
-						if (strpos(strtolower($slot_name), 'out') !== false) {
-							$attendanceUpdate['time_out'] = null;
-						}
-					}
-
-					if (!empty($attendanceUpdate)) {
-						$this->Admin_model->update_attendance($attendance_id, $attendanceUpdate);
-					}
-				}
+				$this->Admin_model->update_attendance($attendance_id, $attendanceUpdate);
 			} else {
 				$success = false;
 				break;
 			}
 		}
 
+
 		if ($success) {
 			echo json_encode(['status' => 'success']);
 		} else {
-			echo json_encode(['status' => 'error', 'message' => 'Update failed']);
+			echo json_encode(['status' => 'error', 'message' => 'Failed to update fines or attendance.']);
 		}
 	}
 
 
-	// public function get_attendance_and_slot_by_fine_id($fines_id)
-	// {
-	// 	$this->db->select('a.attendance_id, s.slot_name');
-	// 	$this->db->from('fines f');
-	// 	$this->db->join('activity_time_slots s', 's.timeslot_id = f.timeslot_id');
-	// 	$this->db->join('attendance a', 'a.attendance_id = f.attendance_id');
-	// 	$this->db->where('f.fines_id', $fines_id);
-	// 	$query = $this->db->get();
+	private function determine_attendance_status($time_in, $time_out)
+	{
+		if ($time_in && $time_out) {
+			return 'Present';
+		} elseif (!$time_in && !$time_out) {
+			return 'Absent';
+		} else {
+			return 'Incomplete';
+		}
+	}
 
-	// 	if ($query->num_rows() > 0) {
-	// 		return $query->row();
-	// 	} else {
-	// 		return null;
-	// 	}
-	// }
+
+	public function get_attendance_and_slot_by_fine_id($fines_id)
+	{
+		$this->db->select('a.attendance_id, s.slot_name');
+		$this->db->from('fines f');
+		$this->db->join('activity_time_slots s', 's.timeslot_id = f.timeslot_id', 'left');
+
+		// New join strategy — more reliable than depending on f.attendance_id
+		$this->db->join('attendance a', 'a.student_id = f.student_id AND a.activity_id = f.activity_id AND a.timeslot_id = f.timeslot_id', 'left');
+
+		$this->db->where('f.fines_id', $fines_id);
+		$query = $this->db->get();
+
+		if ($query->num_rows() > 0) {
+			log_message('debug', 'Attendance found for fine_id ' . $fines_id . ': ' . json_encode($query->row()));
+			return $query->row();
+		} else {
+			log_message('error', 'No attendance found for fine_id: ' . $fines_id);
+			return null;
+		}
+	}
+
 
 
 	// In Admin_model.php
@@ -2063,8 +2072,9 @@ class Admin_model extends CI_Model
 	public function update_attendance($attendance_id, $data)
 	{
 		$this->db->where('attendance_id', $attendance_id);
-		return $this->db->update('attendance', $data);
+		return $this->db->update('attendance', $data);  // Make sure 'attendance_status' is not excluded here
 	}
+
 
 
 

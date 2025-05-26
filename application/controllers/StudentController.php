@@ -1182,11 +1182,12 @@ class StudentController extends CI_Controller
 		$student_info = $this->Student_model->get_student_info($student_id);
 		$fines = $this->Student_model->get_fines_by_student($student_id);
 
-		// Group fines by organizer
+		// Group fines by organizer and activity title + date + slot_name
 		$grouped = [];
 		foreach ($fines as $fine) {
 			$organizer = $fine['organizer'] ?? 'Unknown Organizer';
-			$grouped[$organizer][] = $fine;
+			$key = $fine['activity_title'] . '|' . $fine['start_date'] . '|' . $fine['slot_name'];
+			$grouped[$organizer][$key][] = $fine;
 		}
 
 		$pdf = new PDF('P', 'mm', 'A4');
@@ -1201,68 +1202,60 @@ class StudentController extends CI_Controller
 
 		// Student Info Section
 		$pdf->SetFont('Arial', 'B', 12);
-		$pdf->SetFillColor(100, 149, 237);  // Cornflower Blue background for labels
-		$pdf->SetTextColor(0);  // White text for labels
-
-		// Student ID label
+		$pdf->SetFillColor(100, 149, 237);
+		$pdf->SetTextColor(0);
 		$pdf->Cell(40, 8, 'Student ID:', 1, 0, 'L', true);
 		$pdf->SetFont('Arial', '', 12);
-		$pdf->SetFillColor(255, 255, 255);  // White background for value
-		$pdf->SetTextColor(0);              // Black text for value
+		$pdf->SetFillColor(255, 255, 255);
 		$pdf->Cell(0, 8, $student_info['student_id'] ?? 'N/A', 1, 1, 'L', true);
 
-		// Name label
 		$pdf->SetFont('Arial', 'B', 12);
 		$pdf->SetFillColor(100, 149, 237);
-		$pdf->SetTextColor(0);
 		$pdf->Cell(40, 8, 'Name:', 1, 0, 'L', true);
 		$pdf->SetFont('Arial', '', 12);
-		$pdf->SetFillColor(255, 255, 255);
-		$pdf->SetTextColor(0);
 		$full_name = trim(($student_info['first_name'] ?? '') . ' ' . ($student_info['middle_name'] ?? '') . ' ' . ($student_info['last_name'] ?? ''));
+		$pdf->SetFillColor(255, 255, 255);
 		$pdf->Cell(0, 8, $full_name ?: 'N/A', 1, 1, 'L', true);
 
-		// Department label
 		$pdf->SetFont('Arial', 'B', 12);
 		$pdf->SetFillColor(100, 149, 237);
-		$pdf->SetTextColor(0);
 		$pdf->Cell(40, 8, 'Department:', 1, 0, 'L', true);
 		$pdf->SetFont('Arial', '', 12);
 		$pdf->SetFillColor(255, 255, 255);
-		$pdf->SetTextColor(0);
 		$pdf->Cell(0, 8, $student_info['dept_name'] ?? 'N/A', 1, 1, 'L', true);
 
 		$pdf->Ln(8);
 
-
-		// Define columns
-		$columns = ['Activity', 'Date', 'Amount', 'Reason', 'Status'];
-
+		$columns = ['Activity', 'Date', 'Slot', 'Amount', 'Status'];
 		$pdf->SetFont('Arial', 'B', 11);
 		$max_widths = [];
 		foreach ($columns as $col) {
 			$max_widths[] = $pdf->GetStringWidth($col) + 6;
 		}
 
-		foreach ($grouped as $organizer => $fines_list) {
-			foreach ($fines_list as $fine) {
-				$vals = [
-					$fine['activity_title'] ?? '',
-					!empty($fine['start_date']) ? date('Y-m-d', strtotime($fine['start_date'])) : 'N/A',
-					'Php ' . number_format($fine['fines_amount'], 2),
-					$fine['fines_reason'] ?? '',
-					$fine['status'] ?? ''
-				];
-				foreach ($vals as $i => $val) {
-					$w = $pdf->GetStringWidth($val) + 6;
-					if ($w > $max_widths[$i]) $max_widths[$i] = $w;
+		// Calculate max widths
+		foreach ($grouped as $organizer => $activities) {
+			foreach ($activities as $key => $fines_list) {
+				list($title, $date, $slot) = explode('|', $key);
+				foreach ($fines_list as $fine) {
+					$vals = [
+						$title,
+						!empty($date) ? date('Y-m-d', strtotime($date)) : 'N/A',
+						$slot,
+						'Php ' . number_format($fine['fines_amount'], 2),
+						ucfirst(strtolower($fine['attendance_status'] ?? 'Unknown'))
+					];
+					foreach ($vals as $i => $val) {
+						$w = $pdf->GetStringWidth($val) + 6;
+						if ($w > $max_widths[$i]) $max_widths[$i] = $w;
+					}
 				}
 			}
 		}
 
+		// Scale column widths to fit page
 		$total_width = array_sum($max_widths);
 		$page_width = 190;
-
 		if ($total_width < $page_width) {
 			$remaining = $page_width - $total_width;
 			$add_per_col = $remaining / count($max_widths);
@@ -1278,49 +1271,54 @@ class StudentController extends CI_Controller
 			unset($w);
 		}
 
-		// Output grouped fines
 		$pdf->SetFont('Arial', '', 11);
 
 		foreach ($grouped as $organizer => $activities) {
-			// Organizer row with your specified Cornflower Blue
-			$pdf->SetFont('Arial', 'B', 12);
-			$pdf->SetFillColor(100, 149, 237); // Cornflower Blue (darker blue)
-			$pdf->SetTextColor(0);
-			$pdf->Cell($page_width, 10, $organizer, 1, 1, 'L', true);
+			$pdf->Ln(3); // small spacing before new organizer section
 
-			// Column headers with lighter blue background
-			$pdf->SetFont('Arial', 'B', 11);
-			$pdf->SetFillColor(200, 230, 255); // Lighter blue for headers
+			// ORGANIZER label
+			$pdf->SetFont('Arial', 'B', 12);
+			$pdf->SetFillColor(100, 149, 237);
 			$pdf->SetTextColor(0);
+			$pdf->Cell($page_width, 10, 'ORGANIZER: ' . $organizer, 1, 1, 'L', true);
+
+			// Table headers
+			$pdf->SetFont('Arial', 'B', 11);
+			$pdf->SetFillColor(200, 230, 255);
 			foreach ($columns as $i => $col) {
 				$pdf->Cell($max_widths[$i], 8, $col, 1, 0, 'C', true);
 			}
 			$pdf->Ln();
 
-			// Data rows with white background
-			$pdf->SetFillColor(255, 255, 255); // White background for rows
 			$pdf->SetFont('Arial', '', 11);
+			$pdf->SetFillColor(255, 255, 255);
+			foreach ($activities as $key => $fines_list) {
+				list($title, $date, $slot) = explode('|', $key);
+				foreach ($fines_list as $fine) {
+					$pdf->SetTextColor(0);
+					$pdf->Cell($max_widths[0], 7, $title, 1, 0, 'L', true);
+					$pdf->Cell($max_widths[1], 7, !empty($date) ? date('Y-m-d', strtotime($date)) : 'N/A', 1, 0, 'L', true);
+					$pdf->Cell($max_widths[2], 7, $slot, 1, 0, 'L', true);
+					$pdf->Cell($max_widths[3], 7, 'Php ' . number_format($fine['fines_amount'], 2), 1, 0, 'R', true);
 
-			foreach ($activities as $fine) {
-				$pdf->SetTextColor(0);
-				$pdf->Cell($max_widths[0], 7, $fine['activity_title'], 1, 0, 'L', true);
-				$pdf->Cell($max_widths[1], 7, !empty($fine['start_date']) ? date('Y-m-d', strtotime($fine['start_date'])) : 'N/A', 1, 0, 'L', true);
-				$pdf->Cell($max_widths[2], 7, 'Php ' . number_format($fine['fines_amount'], 2), 1, 0, 'R', true);
-				$pdf->Cell($max_widths[3], 7, $fine['fines_reason'], 1, 0, 'L', true);
-
-				// Status with color
-				$status = strtolower($fine['status'] ?? '');
-				if ($status === 'paid') {
-					$pdf->SetTextColor(0, 128, 0);  // Green
-				} elseif ($status === 'unpaid') {
-					$pdf->SetTextColor(255, 0, 0);  // Red
-				} else {
-					$pdf->SetTextColor(0);           // Black
+					$attendance = strtolower($fine['attendance_status'] ?? 'unknown');
+					switch ($attendance) {
+						case 'present':
+							$pdf->SetTextColor(0, 128, 0);
+							break;
+						case 'absent':
+							$pdf->SetTextColor(255, 0, 0);
+							break;
+						case 'incomplete':
+							$pdf->SetTextColor(255, 165, 0);
+							break;
+						default:
+							$pdf->SetTextColor(0);
+							break;
+					}
+					$pdf->Cell($max_widths[4], 7, ucfirst($attendance), 1, 1, 'C', true);
 				}
-				$pdf->Cell($max_widths[4], 7, ucfirst($status), 1, 1, 'C', true);
 			}
-
-			$pdf->Ln(5);
 		}
 
 		$pdf->Output('I', 'Summary_of_Fines_' . $student_info['last_name'] . '.pdf');
