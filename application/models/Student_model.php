@@ -1696,15 +1696,32 @@ class Student_model extends CI_Model
 
 
 	//For paying through cash in Admin
+	// public function get_unpaid_summary_record($student_id)
+	// {
+	// 	return $this->db
+	// 		->select('summary_id, total_fines')
+	// 		->from('fines_summary')
+	// 		->where('student_id', $student_id)
+	// 		->where('fines_status', 'Unpaid')
+	// 		->get()
+	// 		->row();
+	// }
+
+
 	public function get_unpaid_summary_record($student_id)
 	{
-		return $this->db
-			->select('summary_id, total_fines')
-			->from('fines_summary')
-			->where('student_id', $student_id)
-			->where('fines_status', 'Unpaid')
-			->get()
-			->row();
+		$organizer_name = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+
+		$this->db->select('summary_id, total_fines');
+		$this->db->from('fines_summary');
+		$this->db->where('student_id', $student_id);
+		$this->db->where('fines_status', 'Unpaid');
+
+		if ($organizer_name) {
+			$this->db->where('organizer', $organizer_name);
+		}
+
+		return $this->db->get()->row();
 	}
 
 

@@ -5,8 +5,153 @@
 <div class="card mb-3 mb-lg-0">
 	<div class="card-header bg-body-tertiary d-flex justify-content-between">
 		<h5 class="mb-0">Summary of Fines</h5>
+		<!-- Record Cash Payment Button -->
+		<button
+			class="btn btn-sm btn-outline-primary"
+			data-bs-toggle="modal"
+			data-bs-target="#cashPaymentModal">
+			<i class="fas fa-plus"></i> Record Cash Payment
+		</button>
 	</div>
 </div>
+
+
+<!-- Record Cash Payment Modal -->
+<div class="modal fade" id="cashPaymentModal" tabindex="-1" aria-labelledby="cashPaymentModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<form id="cashPaymentForm" method="POST" action="<?= base_url('OfficerController/record_cash_payment') ?>">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title">Record Cash Payment</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div class="modal-body">
+					<!-- Student ID Input -->
+					<div class="mb-3">
+						<label for="student_id" class="form-label">Student ID</label>
+						<input type="text" name="student_id" id="student_id" class="form-control" placeholder="Type the student_id here..." required>
+					</div>
+
+					<!-- Add this hidden input to your modal form -->
+					<input type="hidden" id="summary_id" name="summary_id">
+
+
+					<!-- Amount (readonly) -->
+					<div class="mb-3">
+						<label for="total_fines" class="form-label">Total Fines</label>
+						<input type="text" name="total_fines" id="total_fines" class="form-control" readonly placeholder="Click to view student fines after typing the student_id">
+					</div>
+
+
+					<!-- Payment Mode -->
+					<div class="mb-3">
+						<label for="mode_payment" class="form-label">Mode of Payment</label>
+						<input type="text" name="mode_payment" id="mode_payment" class="form-control" value="Cash" readonly>
+					</div>
+				</div>
+
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-primary">Submit Payment</button>
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+				</div>
+			</div>
+		</form>
+	</div>
+</div>
+
+
+
+<script>
+	document.getElementById('cashPaymentForm').addEventListener('submit', function(e) {
+		e.preventDefault(); // prevent form submission
+
+		Swal.fire({
+			title: 'Confirm Payment',
+			text: "Are you sure you want to record this cash payment?",
+			icon: 'warning',
+			showCancelButton: true,
+			confirmButtonColor: '#3085d6',
+			cancelButtonColor: '#d33',
+			confirmButtonText: 'Yes, submit it!'
+		}).then((result) => {
+			if (result.isConfirmed) {
+				this.submit(); // submit form if confirmed
+			}
+		});
+	});
+</script>
+
+<!-- retrive total fines of the searched student -->
+<script>
+	document.getElementById('student_id').addEventListener('change', function() {
+		const studentId = this.value;
+		if (!studentId) return;
+
+		fetch('<?= base_url('OfficerController/get_student_total_fines') ?>', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Requested-With': 'XMLHttpRequest'
+				},
+				body: JSON.stringify({
+					student_id: studentId
+				})
+			})
+			.then(response => response.json())
+			.then(data => {
+				if (data.success) {
+					document.getElementById('total_fines').value = data.total_fines;
+					document.getElementById('summary_id').value = data.summary_id;
+
+					Swal.fire({
+						icon: 'success',
+						title: 'Fines Found',
+						text: `Total unpaid fines: ₱${parseFloat(data.total_fines).toFixed(2)}`,
+						timer: 2500,
+						showConfirmButton: false
+					});
+				} else {
+					document.getElementById('total_fines').value = '';
+					document.getElementById('summary_id').value = '';
+
+					Swal.fire({
+						icon: 'warning',
+						title: 'Notice',
+						text: data.message || 'Unable to retrieve fines.',
+						timer: 3000,
+						showConfirmButton: false
+					});
+				}
+			})
+
+			.catch(error => {
+				console.error('Error fetching total fines:', error);
+				document.getElementById('total_fines').value = '';
+				document.getElementById('summary_id').value = '';
+
+				Swal.fire({
+					icon: 'error',
+					title: 'Error',
+					text: 'Something went wrong while retrieving fines.',
+					confirmButtonText: 'OK'
+				});
+			});
+	});
+</script>
+
+
+
+<?php if ($this->session->flashdata('swal_success')): ?>
+	<script>
+		Swal.fire({
+			icon: 'success',
+			title: 'Success!',
+			text: '<?= $this->session->flashdata('swal_success') ?>',
+			timer: 3000,
+			showConfirmButton: false
+		});
+	</script>
+<?php endif; ?>
 
 <!-- Space Between Sections -->
 <div class="space" style="height: 20px;"></div> <!-- Adds spacing between sections -->
@@ -53,7 +198,7 @@
 
 									const form = document.createElement('form');
 									form.method = 'POST';
-									form.action = '<?= base_url("AdminController/export_fines_pdf") ?>'; // Replace with your actual controller name
+									form.action = '<?= base_url("OfficerController/export_fines_pdf") ?>'; // Replace with your actual controller name
 									form.target = '_blank'; // This makes the form submit to a new tab
 
 
