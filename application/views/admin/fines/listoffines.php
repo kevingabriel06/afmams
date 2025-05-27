@@ -625,11 +625,15 @@
 				<table class="table table-bordered table-sm">
 					<thead>
 						<tr>
+						<tr>
 							<th>#</th>
-							<th>Reason</th>
-							<th>Amount</th>
-							<th>Event</th>
+							<th>Remarks</th>
+							<th>Amount</th> <!-- this will now show the IN/OUT breakdown -->
+							<th>Slot</th>
+							<th>Activity</th>
 							<th>Date</th>
+						</tr>
+
 						</tr>
 					</thead>
 					<tbody id="viewFinesTableBody"></tbody>
@@ -684,14 +688,15 @@
 					const timeDisplay = `IN: ₱${fineIn} | OUT: ₱${fineOut}`;
 
 					viewBreakdownTable.innerHTML += `
-						<tr>
-							<td>${i + 1}</td>
-							<td>${fine.reason}</td>
-							<td>${timeDisplay}</td>
-							<td>${fine.title}</td>
-							<td>${fine.event_date}</td>
-						</tr>
-					`;
+        <tr>
+            <td>${i + 1}</td>
+            <td>${fine.reason}</td>
+            <td>${timeDisplay}</td>  <!-- Show both IN and OUT fines -->
+            <td>${fine.slot_name}</td> <!-- Add slot name -->
+            <td>${fine.title}</td>
+            <td>${fine.event_date}</td>
+        </tr>
+    `;
 				});
 
 			}
@@ -729,10 +734,12 @@
 								<tr>
 									<th>#</th>
 									<th>Remarks</th>
-									<th>Amount</th>
+									<th>Amount</th> <!-- this will now show the IN/OUT breakdown -->
+									<th>Slot</th>
 									<th>Activity</th>
 									<th>Date</th>
 								</tr>
+
 							</thead>
 							<tbody>
 								<!-- Rows will be inserted via JS -->
@@ -809,14 +816,16 @@
 					const timeDisplay = `IN: ₱${fineIn} | OUT: ₱${fineOut}`;
 
 					breakdownTable.innerHTML += `
-		<tr>
-			<td>${i + 1}</td>
-			<td>${fine.reason}</td>
-			<td>${timeDisplay}</td>
-			<td>${fine.title}</td>
-			<td>${fine.event_date}</td>
-		</tr>`;
+	<tr>
+		<td>${i + 1}</td>
+		<td>${fine.reason}</td>
+		<td>${timeDisplay}</td>
+		<td>${fine.slot_name}</td> <!-- Added slot here -->
+		<td>${fine.title}</td>
+		<td>${fine.event_date}</td>
+	</tr>`;
 				});
+
 
 			}
 		});

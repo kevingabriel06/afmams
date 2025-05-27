@@ -2039,42 +2039,56 @@ class Officer_model extends CI_Model
 	// 	return $query->result_array(); // Return the result as an array
 	// }
 
-
-
 	public function flash_fines()
 	{
+
 		// Get officer details from session
 		$dept_id = $this->session->userdata('dept_id');
 		$org_id = $this->session->userdata('org_id');
 		$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
 
 		$this->db->select('
-	    users.student_id,
-	    users.first_name,
-	    users.last_name,
-	    users.year_level,
-	    department.dept_name,
-	    organization.org_name,
-	    fines_summary.*,
-	    fines.fines_reason,
-	    fines.fines_amount,
-	    activity.activity_title,
-	    activity.activity_id,
-	    activity.start_date
-	');
-
+			*,
+			users.year_level,
+			activity_time_slots.slot_name,
+			activity_time_slots.date_time_in,
+			activity_time_slots.date_time_out,
+			activity.fines AS fines_scan,
+			attendance.time_in,
+			attendance.time_out,
+			attendance.attendance_status,
+			attendance.attendance_id
+		');
 		$this->db->from('fines_summary');
-		$this->db->join('users', 'users.student_id = fines_summary.student_id', 'left');
-		$this->db->join('department', 'department.dept_id = users.dept_id', 'left');
-		$this->db->join('student_org', 'student_org.student_id = users.student_id', 'left');
-		$this->db->join('organization', 'organization.org_id = student_org.org_id', 'left');
+		$this->db->join('users', 'users.student_id = fines_summary.student_id');
+		$this->db->join('department', 'department.dept_id = users.dept_id');
+		$this->db->join('fines', 'fines.student_id = fines_summary.student_id');
+		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+		$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = fines.timeslot_id', 'left');  // added this join
+		$this->db->join('attendance', 'attendance.student_id = fines_summary.student_id AND attendance.activity_id = fines.activity_id AND attendance.timeslot_id = fines.timeslot_id', 'left');
 
-		// Join fines and activity
-		$this->db->join('fines', 'fines.student_id = fines_summary.student_id', 'left');
-		$this->db->join('activity', 'activity.activity_id = fines.activity_id', 'left');
 
-		// Filter to only activities organized by the logged-in user
+
 		$this->db->where('activity.organizer', $organizer);
+		$this->db->where('activity.status', 'Completed');
+		// $this->db->order_by('users.student_id, activity.activity_id');
+		$this->db->group_by('
+		users.student_id,
+		users.first_name,
+		users.last_name,
+		users.year_level,
+		department.dept_name,
+		fines.fines_amount,
+		activity.activity_title,
+		activity_time_slots.slot_name,
+		activity_time_slots.date_time_in,
+		activity_time_slots.date_time_out,
+		activity_time_slots.timeslot_id,
+		activity.fines,
+		attendance.time_in,
+		attendance.time_out,
+		attendance.attendance_status,
+		attendance.attendance_id');
 
 		// Filter to only students under this dept/org
 		$this->db->group_start();
@@ -2086,11 +2100,66 @@ class Officer_model extends CI_Model
 		}
 		$this->db->group_end();
 
-		$this->db->order_by('users.student_id');
+		$this->db->order_by('department.dept_name, users.year_level, users.student_id, activity.activity_id');
 
 		$query = $this->db->get();
 		return $query->result_array();
 	}
+
+	// public function flash_fines()
+	// {
+	// 	// Get officer details from session
+	// 	$dept_id = $this->session->userdata('dept_id');
+	// 	$org_id = $this->session->userdata('org_id');
+	// 	$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+
+	// 	$this->db->select('
+	//     users.student_id,
+	//     users.first_name,
+	//     users.last_name,
+	//     users.year_level,
+	//     department.dept_name,
+	//     organization.org_name,
+	//     fines_summary.*,
+	//     fines.fines_reason,
+	//     fines.fines_amount,
+	//     activity.activity_title,
+	//     activity.activity_id,
+	//     activity.start_date,
+	// ');
+
+	// 	$this->db->from('fines_summary');
+	// 	$this->db->join('users', 'users.student_id = fines_summary.student_id', 'left');
+	// 	$this->db->join('department', 'department.dept_id = users.dept_id', 'left');
+	// 	$this->db->join('student_org', 'student_org.student_id = users.student_id', 'left');
+	// 	$this->db->join('organization', 'organization.org_id = student_org.org_id', 'left');
+
+	// 	// Join fines and activity
+	// 	$this->db->join('fines', 'fines.student_id = fines_summary.student_id', 'left');
+	// 	$this->db->join('activity', 'activity.activity_id = fines.activity_id', 'left');
+	// 	$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = fines.timeslot_id', 'left');
+
+
+	// 	// Filter to only activities organized by the logged-in user
+	// 	$this->db->where('activity.organizer', $organizer);
+
+	// 	// Filter to only students under this dept/org
+	// 	$this->db->group_start();
+	// 	if (!empty($dept_id)) {
+	// 		$this->db->where('users.dept_id', $dept_id);
+	// 	}
+	// 	if (!empty($org_id)) {
+	// 		$this->db->or_where('student_org.org_id', $org_id);
+	// 	}
+	// 	$this->db->group_end();
+
+
+
+	// 	$this->db->order_by('users.student_id');
+
+	// 	$query = $this->db->get();
+	// 	return $query->result_array();
+	// }
 
 
 

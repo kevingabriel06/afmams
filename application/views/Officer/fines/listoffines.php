@@ -537,11 +537,13 @@
 					<thead>
 						<tr>
 							<th>#</th>
-							<th>Reason</th>
-							<th>Amount</th>
-							<th>Event</th>
+							<th>Remarks</th>
+							<th>Amount</th> <!-- this will now show the IN/OUT breakdown -->
+							<th>Slot</th>
+							<th>Activity</th>
 							<th>Date</th>
 						</tr>
+
 					</thead>
 					<tbody id="viewFinesTableBody"></tbody>
 				</table>
@@ -589,16 +591,22 @@
 				// Fines table
 				viewBreakdownTable.innerHTML = '';
 				student.fines.forEach((fine, i) => {
+					const fineIn = fine.time_in === null ? parseFloat(fine.fines_scan || 0).toFixed(2) : '0.00';
+					const fineOut = fine.time_out === null ? parseFloat(fine.fines_scan || 0).toFixed(2) : '0.00';
+					const timeDisplay = `IN: ₱${fineIn} | OUT: ₱${fineOut}`;
+
 					viewBreakdownTable.innerHTML += `
-					<tr>
-						<td>${i + 1}</td>
-						<td>${fine.reason}</td>
-						<td>₱${parseFloat(fine.fine).toFixed(2)}</td>
-						<td>${fine.title}</td>
-						<td>${fine.event_date}</td>
-					</tr>
-				`;
+        <tr>
+            <td>${i + 1}</td>
+            <td>${fine.reason}</td>
+            <td>${timeDisplay}</td>  <!-- Show both IN and OUT fines -->
+            <td>${fine.slot_name || 'N/A'}</td> <!-- Add slot name -->
+            <td>${fine.title}</td>
+            <td>${fine.event_date}</td>
+        </tr>
+    `;
 				});
+
 			}
 		});
 	});
@@ -635,6 +643,7 @@
 									<th>#</th>
 									<th>Remarks</th>
 									<th>Amount</th>
+									<th>Slot</th> <!-- Added this -->
 									<th>Activity</th>
 									<th>Date</th>
 								</tr>
@@ -645,6 +654,7 @@
 						</table>
 					</div>
 				</div>
+
 
 				<!-- Payment Input Fields -->
 				<div class="mb-3">
@@ -709,15 +719,22 @@
 
 				breakdownTable.innerHTML = '';
 				student.fines.forEach((fine, i) => {
+					const fineIn = fine.time_in === null ? parseFloat(fine.fines_scan || 0).toFixed(2) : '0.00';
+					const fineOut = fine.time_out === null ? parseFloat(fine.fines_scan || 0).toFixed(2) : '0.00';
+					const timeDisplay = `IN: ₱${fineIn} | OUT: ₱${fineOut}`;
+
 					breakdownTable.innerHTML += `
-                        <tr>
-                            <td>${i + 1}</td>
-                            <td>${fine.reason}</td>
-                            <td>₱${fine.fine}</td>
-                            <td>${fine.title}</td>
-                            <td>${fine.event_date}</td>
-                        </tr>`;
+	<tr>
+		<td>${i + 1}</td>
+		<td>${fine.reason}</td>
+		<td>${timeDisplay}</td>
+		<td>${fine.slot_name}</td> <!-- Added slot here -->
+		<td>${fine.title}</td>
+		<td>${fine.event_date}</td>
+	</tr>`;
 				});
+
+
 			}
 		});
 
@@ -826,6 +843,7 @@
 				reference: fine.reference_number_students,
 				receipt: fine.receipt,
 				changes: fine.remarks,
+				fines_scan: fine.fines_scan,
 
 				// Add these:
 				academic_year: fine.academic_year,
@@ -844,13 +862,16 @@
 			reference: fine.reference_number_students,
 
 			// Add these:
-			slot_name: fine.slot_name || 'No Slot Name',
-			time_in: fine.date_time_in || 'N/A',
-			time_out: fine.date_time_out || 'N/A',
+			fines_scan: fine.fines_scan,
+			slot_name: fine.slot_name, // || 'No Slot Name'
+			time_in: fine.time_in, // || 'N/A' ✅ ACTUAL TIME FROM ATTENDANCE
+			time_out: fine.time_out, // || 'N/A' ✅ ACTUAL TIME FROM ATTENDANCE
+			time_status: fine.attendance_status, // || 'N/A' ✅ Add this line
 			attendance_id: fine.attendance_id || null,
 			timeslot_id: fine.timeslot_id || null
 		});
 	});
+
 
 	const studentsData = Array.from(studentsMap.values());
 

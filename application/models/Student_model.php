@@ -1470,32 +1470,44 @@ class Student_model extends CI_Model
         fines_summary.reference_number_students,
         fines_summary.last_updated,
         fines_summary.organizer,
-		fines_summary.approved_by, 
+        fines_summary.approved_by, 
         users.first_name,
         users.last_name,
+        users.year_level,
+        department.dept_name,
         fines.fines_id,
         fines.activity_id,
         fines.timeslot_id,
-        fines.attendance_id,
         fines.fines_reason,
         fines.fines_amount,
         fines.status,
         fines.remarks,
         activity.activity_title,
         activity.organizer,
-        activity.start_date
+        activity.start_date,
+        activity.fines AS fines_scan,
+        activity_time_slots.slot_name,
+        attendance.time_in,
+        attendance.time_out,
+        attendance.attendance_status,
+        attendance.attendance_id
     ');
 		$this->db->from('fines_summary');
 		$this->db->join('users', 'fines_summary.student_id = users.student_id');
+		$this->db->join('department', 'department.dept_id = users.dept_id');
 		$this->db->join('fines', 'fines.student_id = fines_summary.student_id');
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+		$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = fines.timeslot_id', 'left');
+		$this->db->join('attendance', 'attendance.student_id = fines_summary.student_id AND attendance.activity_id = fines.activity_id AND attendance.timeslot_id = fines.timeslot_id', 'left');
+
 		$this->db->where('fines_summary.summary_id', $summary_id);
-		$this->db->where('activity.organizer = fines_summary.organizer'); // 🛠 Only include fines for this organizer
+		$this->db->where('activity.organizer = fines_summary.organizer');
 		$this->db->order_by('fines.fines_id', 'DESC');
 
 		$query = $this->db->get();
 		return $query->result_array();
 	}
+
 
 
 

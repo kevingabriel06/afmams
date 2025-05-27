@@ -3720,17 +3720,22 @@ class AdminController extends CI_Controller
 		$this->load->model('Student_model');
 		require_once(APPPATH . 'third_party/fpdf.php');
 
-		// Get fines summary data
-		$fines_data = $this->Student_model->get_fine_summary_data($summary_id);
+		// Get student_id from fines_summary
+		$summary = $this->db->where('summary_id', $summary_id)->get('fines_summary')->row();
+		if (!$summary) return;
+		$student_id = $summary->student_id;
+
+		// Get fines data using get_fines_by_student
+		$fines_data = $this->Student_model->get_fines_by_student($student_id);
 		if (empty($fines_data)) return;
 
-		$receipt_data = $fines_data[0]; // general info from first fine entry
+		$receipt_data = $fines_data[0];
 
-		// Fetch approver name if approved_by exists
+		// Fetch approver name
 		$approver_name = 'N/A';
-		if (!empty($receipt_data['approved_by'])) {
+		if (!empty($summary->approved_by)) {
 			$approver = $this->db->select('first_name, middle_name, last_name')
-				->where('student_id', $receipt_data['approved_by'])
+				->where('student_id', $summary->approved_by)
 				->get('users')
 				->row();
 			if ($approver) {
@@ -3742,24 +3747,20 @@ class AdminController extends CI_Controller
 		$folder_path = FCPATH . 'uploads/fine_receipts/';
 		$filepath = $folder_path . $filename;
 
-		if (!is_dir($folder_path)) {
-			mkdir($folder_path, 0777, true);
-		}
+		if (!is_dir($folder_path)) mkdir($folder_path, 0777, true);
 
 		$verification_code = strtoupper(substr(md5($summary_id . time()), 0, 8));
 
-		// Get user session info for header/footer/logo
+		// Header/footer/logo logic
 		$user = [
-			'role'             => $this->session->userdata('role'),
-			'student_id'       => $this->session->userdata('student_id'),
-			'is_officer'       => $this->session->userdata('is_officer'),
-			'is_officer_dept'  => $this->session->userdata('is_officer_dept'),
-			'dept_id'          => $this->session->userdata('dept_id'),
+			'role' => $this->session->userdata('role'),
+			'student_id' => $this->session->userdata('student_id'),
+			'is_officer' => $this->session->userdata('is_officer'),
+			'is_officer_dept' => $this->session->userdata('is_officer_dept'),
+			'dept_id' => $this->session->userdata('dept_id'),
 		];
 
-		$headerImage = '';
-		$footerImage = '';
-		$watermarkPath = '';
+		$headerImage = $footerImage = $watermarkPath = '';
 
 		if ($user['role'] === 'Admin') {
 			$settings = $this->db->get('student_parliament_settings')->row();
@@ -3795,65 +3796,117 @@ class AdminController extends CI_Controller
 		$pdf->AddPage();
 		$pdf->SetAutoPageBreak(true, 10);
 
+		// Receipt Heading
 		$pdf->SetFont('Arial', 'B', 16);
 		$pdf->Cell(0, 10, 'FINE PAYMENT RECEIPT', 0, 1, 'C');
 		$pdf->Ln(5);
 
 		$pdf->SetFont('Arial', '', 10);
-		$pdf->Cell(50, 8, 'Receipt No:', 0, 0, 'L');
-		$pdf->Cell(0, 8, strtoupper($summary_id), 0, 1, 'L');
-		$pdf->Cell(50, 8, 'Date:', 0, 0, 'L');
-		$pdf->Cell(0, 8, date('F j, Y'), 0, 1, 'L');
+		$pdf->Cell(50, 8, 'Receipt No:', 0, 0);
+		$pdf->Cell(0, 8, strtoupper($summary_id), 0, 1);
+		$pdf->Cell(50, 8, 'Date:', 0, 0);
+		$pdf->Cell(0, 8, date('F j, Y'), 0, 1);
 		$pdf->Ln(5);
 
+		// Student info
 		$pdf->SetFont('Arial', 'B', 10);
-		$pdf->Cell(50, 8, 'Student ID:', 0, 0, 'L');
+		$pdf->Cell(50, 8, 'Student ID:', 0, 0);
 		$pdf->SetFont('Arial', '', 10);
-		$pdf->Cell(0, 8, $receipt_data['student_id'], 0, 1, 'L');
+		$pdf->Cell(0, 8, $receipt_data['student_id'], 0, 1);
+
+		$student = $this->db->select('first_name, last_name')->from('users')->where('student_id', $receipt_data['student_id'])->get()->row();
+		$student_name = $student ? $student->first_name . ' ' . $student->last_name : 'Unknown';
 
 		$pdf->SetFont('Arial', 'B', 10);
-		$pdf->Cell(50, 8, 'Student Name:', 0, 0, 'L');
+		$pdf->Cell(50, 8, 'Student Name:', 0, 0);
 		$pdf->SetFont('Arial', '', 10);
-		$pdf->Cell(0, 8, $receipt_data['first_name'] . ' ' . $receipt_data['last_name'], 0, 1, 'L');
+		$pdf->Cell(0, 8, $student_name, 0, 1);
 
-		// Organizer as source
+		// Organizer
 		$pdf->Ln(3);
 		$pdf->SetFont('Arial', 'B', 10);
-		$pdf->Cell(50, 8, 'Source of Fines:', 0, 0, 'L');
+		$pdf->Cell(50, 8, 'Source of Fines:', 0, 0);
 		$pdf->SetFont('Arial', '', 10);
-		$pdf->Cell(0, 8, $receipt_data['organizer'], 0, 1, 'L');
+		$pdf->Cell(0, 8, $receipt_data['organizer'], 0, 1);
 
+		// Table Header
 		$pdf->Ln(5);
 		$pdf->SetFont('Arial', 'B', 10);
-		$pdf->Cell(120, 8, 'Description (Activity Title)', 1, 0, 'C');
+		$pdf->Cell(120, 8, 'Description (Activity & Slot)', 1, 0, 'C');
 		$pdf->Cell(40, 8, 'Amount (PHP)', 1, 1, 'C');
 
 		$pdf->SetFont('Arial', '', 10);
-		$total = 0;
-		foreach ($fines_data as $fine) {
-			$desc = $fine['fines_reason'] . ' (' . $fine['activity_title'] . ')';
-			$amount = number_format($fine['fines_amount'], 2);
-			$pdf->Cell(120, 8, $desc, 1, 0, 'L');
-			$pdf->Cell(40, 8, $amount, 1, 1, 'R');
-			$total += $fine['fines_amount'];
+
+		// Group by activity_id
+		$activity_grouped = [];
+		foreach ($fines_data as $f) {
+			$aid = $f['activity_id'];
+			if (!isset($activity_grouped[$aid])) $activity_grouped[$aid] = [];
+			$activity_grouped[$aid][] = $f;
 		}
 
+		foreach ($activity_grouped as $activity_id => $entries) {
+			// Detect slots
+			$used_slots = [];
+			foreach ($entries as $f) {
+				$used_slots[$f['slot_name']] = true;
+			}
+
+			// Pre-fill breakdown
+			$slot_fines = [];
+			$slot_times = [];
+
+			foreach ($used_slots as $slot => $_) {
+				$slot_fines[$slot . '_in'] = 0.00;
+				$slot_fines[$slot . '_out'] = 0.00;
+			}
+
+			foreach ($entries as $f) {
+				$slot = $f['slot_name'];
+
+				if (!empty($f['time_in'])) $slot_times[$slot . '_in'] = $f['time_in'];
+				if (!empty($f['time_out'])) $slot_times[$slot . '_out'] = $f['time_out'];
+
+				if (empty($f['time_in'])) $slot_fines[$slot . '_in'] += $f['activity_fine_amount'];
+				if (empty($f['time_out'])) $slot_fines[$slot . '_out'] += $f['activity_fine_amount'];
+			}
+
+			$slot_order = ['Morning_in', 'Morning_out', 'Afternoon_in', 'Afternoon_out', 'Evening_in', 'Evening_out'];
+
+			foreach ($slot_order as $label) {
+				if (isset($slot_fines[$label])) {
+					$amount = $slot_fines[$label];
+
+					$time_label = isset($slot_times[$label]) ? ' (' . date('h:i A', strtotime($slot_times[$label])) . ')' : ' (No record)';
+					$desc = $label . $time_label . ' - ' . $entries[0]['activity_title'];
+
+					$pdf->Cell(120, 8, $desc, 1, 0);
+					$pdf->Cell(40, 8, 'Php ' . number_format($amount, 2), 1, 1, 'R');
+				}
+			}
+		}
+
+		// Total
+		$total_amount = $receipt_data['total_fines'] ?? 0;
 		$pdf->SetFont('Arial', 'B', 10);
 		$pdf->Cell(120, 8, 'Total Amount:', 1, 0, 'R');
-		$pdf->Cell(40, 8, 'P ' . number_format($total, 2), 1, 1, 'C');
+		$pdf->Cell(40, 8, 'Php ' . number_format($total_amount, 2), 1, 1, 'C');
 
+
+
+
+		// Payment & approver
 		$pdf->Ln(5);
 		$pdf->SetFont('Arial', '', 10);
-		$pdf->Cell(50, 8, 'Payment Type:', 0, 0, 'L');
-		$pdf->Cell(0, 8, $receipt_data['mode_payment'], 0, 1, 'L');
+		$pdf->Cell(50, 8, 'Payment Type:', 0, 0);
+		$pdf->Cell(0, 8, $summary->mode_payment, 0, 1);
 
-
-		// Add Approved By section here
 		$pdf->SetFont('Arial', 'B', 10);
-		$pdf->Cell(50, 8, 'Approved By:', 0, 0, 'L');
+		$pdf->Cell(50, 8, 'Approved By:', 0, 0);
 		$pdf->SetFont('Arial', '', 10);
-		$pdf->Cell(0, 8, $approver_name, 0, 1, 'L');
+		$pdf->Cell(0, 8, $approver_name, 0, 1);
 
+		// Verification
 		$pdf->Ln(15);
 		$pdf->SetFont('Arial', 'B', 12);
 		$pdf->Cell(0, 8, 'Verification Code:', 0, 1, 'C');
@@ -3866,14 +3919,15 @@ class AdminController extends CI_Controller
 
 		$pdf->Output($filepath, 'F');
 
-		// Update fines_summary table with receipt info
-		$this->db->where('summary_id', $summary_id);
-		$this->db->update('fines_summary', [
+		// Update DB
+		$this->db->where('summary_id', $summary_id)->update('fines_summary', [
 			'generated_receipt' => $filename,
 			'verification_code' => $verification_code,
 			'last_updated' => date('Y-m-d H:i:s')
 		]);
 	}
+
+
 
 
 	//Fines
