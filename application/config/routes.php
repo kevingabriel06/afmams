@@ -123,9 +123,9 @@ $route['admin/dashboard'] = 'AdminController/admin_dashboard';
 $route['admin/list-activities-attendance'] = 'AdminController/list_activities_attendance';
 $route['admin/list-attendees/(:num)'] = 'AdminController/list_attendees/$1';
 // ~ TAKING OF ATTENDANCE~
-$route['admin/activity/scan-qr/time-in/(:num)'] = 'AdminController/time_in/$1';
+$route['admin/activity/scan-qr/time-in/(:num)/(:num)'] = 'AdminController/time_in/$1/$2';
 $route['admin/activity/update-fine/time-in'] = 'AdminController/impose_fines_timein';
-$route['admin/activity/scan-qr/time-out/(:num)'] = 'AdminController/time_out/$1';
+$route['admin/activity/scan-qr/time-out/(:num)/(:num)'] = 'AdminController/time_out/$1/$2';
 $route['admin/activity/update-fine/time-out'] = 'AdminController/impose_fines_timeout';
 $route['admin/activity/face-recognition/(:num)'] = 'AdminController/face_recognition/$1';
 $route['admin/attendance/get-faces'] = 'AdminController/getFaces';
@@ -224,9 +224,9 @@ $route['officer/dashboard'] = 'OfficerController/officer_dashboard';
 $route['officer/list-activities-attendance'] = 'OfficerController/list_activities_attendance';
 $route['officer/list-attendees/(:num)'] = 'OfficerController/list_attendees/$1';
 // ~ TAKING OF ATTENDANCE~
-$route['officer/activity/scan-qr/time-in/(:num)'] = 'OfficerController/time_in/$1';
+$route['officer/activity/scan-qr/time-in/(:num)/(:num)'] = 'OfficerController/time_in/$1/$2';
 $route['officer/activity/update-fine/time-in'] = 'OfficerController/impose_fines_timein';
-$route['officer/activity/scan-qr/time-out/(:num)'] = 'OfficerController/time_out/$1';
+$route['officer/activity/scan-qr/time-out/(:num)/(:num)'] = 'OfficerController/time_out/$1/$2';
 $route['officer/activity/update-fine/time-out'] = 'OfficerController/impose_fines_timeout';
 $route['officer/activity/face-recognition/(:num)'] = 'OfficerController/face_recognition/$1';
 $route['officer/attendance/get-faces'] = 'OfficerController/getFaces';

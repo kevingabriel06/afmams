@@ -676,18 +676,24 @@
 				}
 
 				// Fines table
+				// Fines table
 				viewBreakdownTable.innerHTML = '';
 				student.fines.forEach((fine, i) => {
+					const fineIn = fine.time_in === null ? parseFloat(fine.fines_scan || 0).toFixed(2) : '0.00';
+					const fineOut = fine.time_out === null ? parseFloat(fine.fines_scan || 0).toFixed(2) : '0.00';
+					const timeDisplay = `IN: ₱${fineIn} | OUT: ₱${fineOut}`;
+
 					viewBreakdownTable.innerHTML += `
-					<tr>
-						<td>${i + 1}</td>
-						<td>${fine.reason}</td>
-						<td>₱${parseFloat(fine.fine).toFixed(2)}</td>
-						<td>${fine.title}</td>
-						<td>${fine.event_date}</td>
-					</tr>
-				`;
+						<tr>
+							<td>${i + 1}</td>
+							<td>${fine.reason}</td>
+							<td>${timeDisplay}</td>
+							<td>${fine.title}</td>
+							<td>${fine.event_date}</td>
+						</tr>
+					`;
 				});
+
 			}
 		});
 	});
@@ -886,7 +892,6 @@
 	});
 </script>
 
-
 <!-- supplying fines -->
 <script>
 	// Convert PHP fines data to JSON
@@ -915,6 +920,7 @@
 				reference: fine.reference_number_students,
 				receipt: fine.receipt,
 				changes: fine.remarks,
+				fines_scan: fine.fines_scan,
 
 				// Add these:
 				academic_year: fine.academic_year,
@@ -933,10 +939,11 @@
 			reference: fine.reference_number_students,
 
 			// Add these:
-			slot_name: fine.slot_name || 'No Slot Name',
-			time_in: fine.time_in || 'N/A', // ✅ ACTUAL TIME FROM ATTENDANCE
-			time_out: fine.time_out || 'N/A', // ✅ ACTUAL TIME FROM ATTENDANCE
-			time_status: fine.attendance_status || 'N/A', // ✅ Add this line
+			fines_scan: fine.fines_scan,
+			slot_name: fine.slot_name, // || 'No Slot Name'
+			time_in: fine.time_in, // || 'N/A' ✅ ACTUAL TIME FROM ATTENDANCE
+			time_out: fine.time_out, // || 'N/A' ✅ ACTUAL TIME FROM ATTENDANCE
+			time_status: fine.attendance_status, // || 'N/A' ✅ Add this line
 			attendance_id: fine.attendance_id || null,
 			timeslot_id: fine.timeslot_id || null
 		});
@@ -977,10 +984,13 @@
 
 			// Fill in fines per event
 			events.forEach(event => {
-				const fine = student.fines.find(f => f.eventId === event.id);
+				const totalFine = student.fines
+					.filter(f => f.eventId === event.id)
+					.reduce((sum, f) => sum + parseFloat(f.fine || 0), 0);
+
 				const cell = document.createElement('td');
 				cell.className = 'text-nowrap';
-				cell.innerHTML = fine ? `₱${fine.fine}` : "₱0";
+				cell.innerHTML = `₱${Math.round(totalFine)}`;
 				row.appendChild(cell);
 			});
 
@@ -1120,6 +1130,7 @@
 		renderRows(filteredStudents, 1, itemsPerPage); // Reset to page 1 on search
 	});
 </script>
+
 
 
 

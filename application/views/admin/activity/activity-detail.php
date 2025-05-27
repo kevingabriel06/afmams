@@ -878,7 +878,7 @@
 											</h6>
 										</div>
 										<a href="#" class="btn btn-falcon-success btn-sm px-4 px-sm-7 scan-btn"
-											data-url="<?= site_url('admin/activity/scan-qr/time-in/' . $schedule['activity_id']); ?>"
+											data-url="<?= site_url('admin/activity/scan-qr/time-in/' . $schedule['activity_id'] . '/' .  $schedule['timeslot_id']); ?>"
 											data-valid="<?= $isTimeInValid ? 'true' : 'false' ?>"
 											data-type="Time In">
 											Scan QR
@@ -894,7 +894,7 @@
 											</h6>
 										</div>
 										<a href="#" class="btn btn-falcon-danger btn-sm px-4 px-sm-7 scan-btn"
-											data-url="<?= site_url('admin/activity/scan-qr/time-out/' . $schedule['activity_id']); ?>"
+											data-url="<?= site_url('admin/activity/scan-qr/time-out/' . $schedule['activity_id'] . '/' .  $schedule['timeslot_id']); ?>"
 											data-valid="<?= $isTimeOutValid ? 'true' : 'false' ?>"
 											data-type="Time Out">
 											Scan QR

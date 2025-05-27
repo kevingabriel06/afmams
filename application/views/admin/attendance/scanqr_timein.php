@@ -54,7 +54,7 @@
                     <h5 class="card-title">Activity Details</h5>
 
                     <div class="mb-3">
-                        <h6 class="mb-1">Activity Name:</h6>
+                        <h6 class="mb-1">Activity Name: <?php echo $activity['activity_id'] . $activity['timeslot_id']; ?></h6>
                         <p class="mb-0"><?php echo $activity['activity_title']; ?></p>
                     </div>
 
@@ -69,11 +69,9 @@
                             <p class="mb-0" id="schedule_time_range"
                                 data-start="<?= $schedule[0]['date_time_in'] ?>"
                                 data-end="<?= $schedule[0]['date_cut_in'] ?>">
-                                <?php
-                                echo date('F j, Y | g:i a', strtotime($schedule[0]['date_time_out']));
-                                ?> to <?php
-                                        echo date('F j, Y | g:i a', strtotime($schedule[0]['date_cut_out']));
-                                        ?>
+                                <?= date('F j, Y | g:i a', strtotime($schedule[0]['date_time_in'])) ?>
+                                to
+                                <?= date('F j, Y | g:i a', strtotime($schedule[0]['date_cut_in'])) ?>
                             </p>
                         <?php else : ?>
                             <p class="mb-0">No scheduled time available</p>
@@ -205,9 +203,9 @@
                                     console.log('Fines imposed:', data);
                                     Swal.fire('Done!', 'Fines have been imposed.', 'success');
 
-                                    setTimeout(function() {
-                                        window.location.href = '<?php echo site_url('admin/activity-details/'); ?>' + activity_id;
-                                    }, 2000); // Delay for 2 seconds
+                                    // setTimeout(function() {
+                                    //     window.location.href = '<?php echo site_url('admin/activity-details/'); ?>' + activity_id;
+                                    // }, 2000); // Delay for 2 seconds
                                 })
                                 .catch(error => {
                                     console.error('Error imposing fines:', error);
@@ -269,9 +267,9 @@
 
             // Load face-api.js models
             Promise.all([
-                    faceapi.nets.ssdMobilenetv1.loadFromUri("../../../../assets/models"),
-                    faceapi.nets.faceRecognitionNet.loadFromUri("../../../../assets/models"),
-                    faceapi.nets.faceLandmark68Net.loadFromUri("../../../../assets/models"),
+                    faceapi.nets.ssdMobilenetv1.loadFromUri("../../../../../assets/models"),
+                    faceapi.nets.faceRecognitionNet.loadFromUri("../../../../../assets/models"),
+                    faceapi.nets.faceLandmark68Net.loadFromUri("../../../../../assets/models"),
                 ])
                 .then(() => {
                     modelsLoaded = true;
