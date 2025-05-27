@@ -2039,6 +2039,7 @@ class Officer_model extends CI_Model
 	// 	return $query->result_array(); // Return the result as an array
 	// }
 
+
 	public function flash_fines()
 	{
 
@@ -2067,10 +2068,20 @@ class Officer_model extends CI_Model
 		$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = fines.timeslot_id', 'left');  // added this join
 		$this->db->join('attendance', 'attendance.student_id = fines_summary.student_id AND attendance.activity_id = fines.activity_id AND attendance.timeslot_id = fines.timeslot_id', 'left');
 
-
-
 		$this->db->where('activity.organizer', $organizer);
 		$this->db->where('activity.status', 'Completed');
+
+		// Filter to only students under this dept/org
+		$this->db->group_start();
+		if (!empty($dept_id)) {
+			$this->db->where('users.dept_id', $dept_id); // Filter by department
+		}
+
+		// Check if org_id is available in session and apply the filter
+		if (!empty($org_id)) {
+			$this->db->or_where('student_org.org_id', $org_id); // Filter by organization
+		}
+
 		// $this->db->order_by('users.student_id, activity.activity_id');
 		$this->db->group_by('
 		users.student_id,
@@ -2089,27 +2100,83 @@ class Officer_model extends CI_Model
 		attendance.time_out,
 		attendance.attendance_status,
 		attendance.attendance_id');
-
-		// Filter to only students under this dept/org
-		$this->db->group_start();
-		if (!empty($dept_id)) {
-			$this->db->where('users.dept_id', $dept_id); // Filter by department
-		}
-
-		// Check if org_id is available in session and apply the filter
-		if (!empty($org_id)) {
-			$this->db->or_where('student_org.org_id', $org_id); // Filter by organization
-		}
-
 		$this->db->order_by('department.dept_name, users.year_level, users.student_id, activity.activity_id');
 
-		// Order by student_id and activity_id (or any other preference)
-		$this->db->order_by('users.student_id, activity.activity_id');
-
-		// Execute the query and return the result
 		$query = $this->db->get();
-		return $query->result_array(); // Return the result as an array
+		return $query->result_array();
 	}
+
+	// public function flash_fines()
+	// {
+
+	// 	// Get officer details from session
+	// 	$dept_id = $this->session->userdata('dept_id');
+	// 	$org_id = $this->session->userdata('org_id');
+	// 	$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+
+	// 	$this->db->select('
+	// 		*,
+	// 		users.year_level,
+	// 		activity_time_slots.slot_name,
+	// 		activity_time_slots.date_time_in,
+	// 		activity_time_slots.date_time_out,
+	// 		activity.fines AS fines_scan,
+	// 		attendance.time_in,
+	// 		attendance.time_out,
+	// 		attendance.attendance_status,
+	// 		attendance.attendance_id
+	// 	');
+	// 	$this->db->from('fines_summary');
+	// 	$this->db->join('users', 'users.student_id = fines_summary.student_id');
+	// 	$this->db->join('department', 'department.dept_id = users.dept_id');
+	// 	$this->db->join('fines', 'fines.student_id = fines_summary.student_id');
+	// 	$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+	// 	$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = fines.timeslot_id', 'left');  // added this join
+	// 	$this->db->join('attendance', 'attendance.student_id = fines_summary.student_id AND attendance.activity_id = fines.activity_id AND attendance.timeslot_id = fines.timeslot_id', 'left');
+
+
+
+	// 	$this->db->where('activity.organizer', $organizer);
+	// 	$this->db->where('activity.status', 'Completed');
+	// 	// $this->db->order_by('users.student_id, activity.activity_id');
+	// 	$this->db->group_by('
+	// 	users.student_id,
+	// 	users.first_name,
+	// 	users.last_name,
+	// 	users.year_level,
+	// 	department.dept_name,
+	// 	fines.fines_amount,
+	// 	activity.activity_title,
+	// 	activity_time_slots.slot_name,
+	// 	activity_time_slots.date_time_in,
+	// 	activity_time_slots.date_time_out,
+	// 	activity_time_slots.timeslot_id,
+	// 	activity.fines,
+	// 	attendance.time_in,
+	// 	attendance.time_out,
+	// 	attendance.attendance_status,
+	// 	attendance.attendance_id');
+
+	// 	// Filter to only students under this dept/org
+	// 	$this->db->group_start();
+	// 	if (!empty($dept_id)) {
+	// 		$this->db->where('users.dept_id', $dept_id); // Filter by department
+	// 	}
+
+	// 	// Check if org_id is available in session and apply the filter
+	// 	if (!empty($org_id)) {
+	// 		$this->db->or_where('student_org.org_id', $org_id); // Filter by organization
+	// 	}
+
+	// 	$this->db->order_by('department.dept_name, users.year_level, users.student_id, activity.activity_id');
+
+	// 	// Order by student_id and activity_id (or any other preference)
+	// 	$this->db->order_by('users.student_id, activity.activity_id');
+
+	// 	// Execute the query and return the result
+	// 	$query = $this->db->get();
+	// 	return $query->result_array(); // Return the result as an array
+	// }
 
 	// public function flash_fines()
 	// {
@@ -2259,12 +2326,12 @@ class Officer_model extends CI_Model
 		return $this->db->update('fines_summary', $data);
 	}
 
-	public function get_payment_id($student_id)
-	{
-		// Since you already have the `summary_id`, this might be unnecessary
-		$record = $this->get_fine_summary($student_id);
-		return $record ? $record->summary_id : null;
-	}
+	// public function get_payment_id($student_id)
+	// {
+	// 	// Since you already have the `summary_id`, this might be unnecessary
+	// 	$record = $this->get_fine_summary($student_id);
+	// 	return $record ? $record->summary_id : null;
+	// }
 
 
 
