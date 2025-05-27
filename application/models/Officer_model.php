@@ -2093,17 +2093,22 @@ class Officer_model extends CI_Model
 		// Filter to only students under this dept/org
 		$this->db->group_start();
 		if (!empty($dept_id)) {
-			$this->db->where('users.dept_id', $dept_id);
+			$this->db->where('users.dept_id', $dept_id); // Filter by department
 		}
+
+		// Check if org_id is available in session and apply the filter
 		if (!empty($org_id)) {
-			$this->db->or_where('student_org.org_id', $org_id);
+			$this->db->or_where('student_org.org_id', $org_id); // Filter by organization
 		}
-		$this->db->group_end();
 
 		$this->db->order_by('department.dept_name, users.year_level, users.student_id, activity.activity_id');
 
+		// Order by student_id and activity_id (or any other preference)
+		$this->db->order_by('users.student_id, activity.activity_id');
+
+		// Execute the query and return the result
 		$query = $this->db->get();
-		return $query->result_array();
+		return $query->result_array(); // Return the result as an array
 	}
 
 	// public function flash_fines()

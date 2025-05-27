@@ -1961,8 +1961,6 @@ class Admin_model extends CI_Model
 		$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = fines.timeslot_id', 'left');  // added this join
 		$this->db->join('attendance', 'attendance.student_id = fines_summary.student_id AND attendance.activity_id = fines.activity_id AND attendance.timeslot_id = fines.timeslot_id', 'left');
 
-
-
 		$this->db->where('activity.organizer', 'Student Parliament');
 		$this->db->where('activity.status', 'Completed');
 		// $this->db->order_by('users.student_id, activity.activity_id');

@@ -4,15 +4,51 @@
 
  <!-- this section is the for the right side panel which content is be seen -->
  <div class="card bg-100 shadow-none border mb-3">
-   <div class="row gx-0 flex-between-center">
-     <div class="col-sm-auto d-flex align-items-center"><img class="ms-n2" src="<?php echo base_url('assets/img/illustrations/crm-bar-chart.png'); ?>" alt="" width="90" />
+   <?php
+    // Get mocked current date
+    $currentDate = date('Y-m-d');
+
+    // Extract year and month from $currentDate
+    $currentYear = (int) date('Y', strtotime($currentDate));
+    $currentMonth = (int) date('n', strtotime($currentDate)); // 1-12
+
+    // Determine semester and academic year based on mocked date
+    if ($currentMonth >= 8 && $currentMonth <= 12) {
+      $semester = '1st Semester';
+      $academicYear = "$currentYear - " . ($currentYear + 1);
+    } elseif ($currentMonth >= 1 && $currentMonth <= 7) {
+      $semester = '2nd Semester';
+      $academicYear = ($currentYear - 1) . " - $currentYear";
+    } else {
+      $semester = 'Unknown';
+      $academicYear = 'Unknown';
+    }
+    ?>
+
+   <div class="d-flex justify-content-between align-items-center w-100">
+     <!-- Left Column -->
+     <div class="d-flex align-items-center">
+       <img class="me-3" src="<?= base_url('assets/img/illustrations/crm-bar-chart.png'); ?>" alt="" width="90" />
        <div>
-         <h6 class="text-primary fs-10 mb-0">Welcome <?php echo $users['first_name']; ?> to </h6>
+         <h6 class="text-primary fs-10 mb-1">Welcome <?= $users['first_name']; ?> to</h6>
          <h4 class="text-primary fw-bold mb-0">ADMIN <span class="text-info fw-medium">Account</span></h4>
-       </div><img class="ms-n4 d-md-none d-lg-block" src="<?php echo site_url('assets/img/illustrations/crm-line-chart.png'); ?>" alt="" width="150" />
+       </div>
+     </div>
+
+     <!-- Right Column -->
+     <div class="text-end d-flex align-items-center">
+       <div class="me-3 text-end">
+         <h4 class="text-primary fw-bold mb-0">
+           <span class="text-info fw-medium">A.Y.</span> <?= $academicYear; ?>
+         </h4>
+         <h6 class="text-primary fs-10 mb-0"><?= $semester; ?></h6>
+       </div>
+       <img class="d-none d-lg-block" src="<?= site_url('assets/img/illustrations/crm-line-chart.png'); ?>" alt="" width="150" />
      </div>
    </div>
+
  </div>
+
 
  <div class="row g-3 mb-4">
    <div class="col-md-6 col-xxl-4">
