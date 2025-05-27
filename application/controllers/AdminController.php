@@ -3894,7 +3894,7 @@ class AdminController extends CI_Controller
 				$receipt = $this->upload->data('file_name');
 			} else {
 				$this->session->set_flashdata('error', $this->upload->display_errors());
-				redirect('your_redirect_page_here');
+				redirect('admin/list-fines');
 				return;
 			}
 		}
@@ -3906,7 +3906,7 @@ class AdminController extends CI_Controller
 
 		if (!$summary || $summary->fines_status === 'Paid') {
 			$this->session->set_flashdata('error', 'No unpaid fines found or already paid.');
-			redirect('your_redirect_page_here');
+			redirect('admin/list-fines');
 			return;
 		}
 
@@ -3938,18 +3938,44 @@ class AdminController extends CI_Controller
 		$input = json_decode(file_get_contents('php://input'), true);
 		$student_id = $input['student_id'];
 
-		// Check if student exists in fines_summary
-		$summary = $this->db->where('student_id', $student_id)->get('fines_summary')->row();
+		// Get organizer info from session
+		$dept_id = $this->session->userdata('dept_id');
+		$org_id = $this->session->userdata('org_id');
+		$organizer_name = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+
+		// Start building query
+		$this->db->select('fines_summary.*');
+		$this->db->from('fines_summary');
+		$this->db->join('fines', 'fines_summary.student_id = fines.student_id', 'left');
+		$this->db->join('activity', 'fines.activity_id = activity.activity_id', 'left');
+
+		// Filter by student id
+		$this->db->where('fines_summary.student_id', $student_id);
+
+		// Filter by organizer
+		if ($organizer_name) {
+			$this->db->where('activity.organizer', $organizer_name);
+		}
+		if ($dept_id) {
+			$this->db->where('fines_summary.dept_id', $dept_id);
+		}
+		if ($org_id) {
+			$this->db->or_where('fines_summary.org_id', $org_id);
+		}
+
+		// Because multiple fines_summary records could appear due to joins, use group_by
+		$this->db->group_by('fines_summary.summary_id');
+
+		$summary = $this->db->get()->row();
 
 		if (!$summary) {
 			echo json_encode([
 				'success' => false,
-				'message' => 'Student not found in fines records.'
+				'message' => 'Student not found in fines records for this organizer.'
 			]);
 			return;
 		}
 
-		// Check if already paid
 		if ($summary->fines_status === 'Paid') {
 			echo json_encode([
 				'success' => false,
@@ -3958,7 +3984,6 @@ class AdminController extends CI_Controller
 			return;
 		}
 
-		// Return unpaid summary
 		echo json_encode([
 			'success' => true,
 			'summary_id' => $summary->summary_id,
@@ -4006,7 +4031,9 @@ class AdminController extends CI_Controller
 		$this->db->join('users', 'users.student_id = fines.student_id');
 		$this->db->join('department', 'department.dept_id = users.dept_id');
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+		$this->db->where('activity.organizer', 'Student Parliament');
 		$this->db->order_by('users.student_id, activity.activity_id');
+
 
 		$fines_data = $this->db->get()->result();
 

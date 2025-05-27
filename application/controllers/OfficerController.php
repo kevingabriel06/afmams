@@ -2117,27 +2117,45 @@ class OfficerController extends CI_Controller
 	{
 		$remarks = $this->input->post('remarks');
 		$approvalStatus = $this->input->post('approvalStatus');
-		$excuse_id = $this->input->post('excuse_id');  // Assuming the application ID is passed
+		$excuse_id = $this->input->post('excuse_id');
 		$activity_id = $this->input->post('activity_id');
 		$student_id = $this->input->post('student_id');
 
-		// Prepare the data for updating the excuse
 		$data = [
 			'excuse_id' => $excuse_id,
 			'status' => $approvalStatus,
 			'remarks' => $remarks
 		];
 
-		// Call the model to update the excuse status
 		$result = $this->officer->updateApprovalStatus($data);
 
 		if ($result) {
-			// If approved, also update the attendance status to 'excuse'
 			if ($approvalStatus === 'Approved') {
 				$this->db->where('student_id', $student_id);
 				$this->db->where('activity_id', $activity_id);
 				$this->db->update('attendance', ['attendance_status' => 'Excused']);
 			}
+
+			// =========================== [NOTIF] Add notification ===========================
+			$sender_id = $this->session->userdata('student_id') ?? 0;
+
+			// Optional: Get activity title to include in message
+			$activity = $this->db->select('activity_title')->from('activity')->where('activity_id', $activity_id)->get()->row();
+
+			$notification_data = [
+				'recipient_student_id' => $student_id,
+				'recipient_admin_id'   => null,
+				'sender_student_id'    => $sender_id,
+				'type'                 => 'excuse_approved',
+				'reference_id'         => $excuse_id,
+				'message'              => 'Your excuse application for the activity "' . ($activity->activity_title ?? 'Unknown') . '" has been ' . strtolower($approvalStatus) . '.',
+				'is_read'              => 0,
+				'created_at'           => date('Y-m-d H:i:s'),
+				'link'                 => base_url('student/excuses')  // Adjust as needed
+			];
+
+			$this->db->insert('notifications', $notification_data);
+			// =========================== [/NOTIF] End notification code =====================
 
 			echo json_encode(['success' => true, 'message' => 'Approval status updated successfully.']);
 		} else {
@@ -3453,6 +3471,108 @@ class OfficerController extends CI_Controller
 
 
 
+	//CASH PAYMENT START
+
+	//Fines
+	public function record_cash_payment()
+	{
+		$summary_id = $this->input->post('summary_id');
+		$reference_admin = $this->input->post('reference_number_admin');
+		$receipt = null;
+
+		// Optional: handle file upload
+		if (!empty($_FILES['receipt']['name'])) {
+			$config['upload_path'] = './uploads/receipts/';
+			$config['allowed_types'] = 'jpg|jpeg|png|pdf';
+			$config['file_name'] = uniqid('receipt_');
+			$this->load->library('upload', $config);
+
+			if ($this->upload->do_upload('receipt')) {
+				$receipt = $this->upload->data('file_name');
+			} else {
+				$this->session->set_flashdata('error', $this->upload->display_errors());
+				redirect('your_redirect_page_here');
+				return;
+			}
+		}
+
+		// Fetch the summary record using summary_id
+		$summary = $this->db->where('summary_id', $summary_id)
+			->get('fines_summary')
+			->row();
+
+		if (!$summary || $summary->fines_status === 'Paid') {
+			$this->session->set_flashdata('error', 'No unpaid fines found or already paid.');
+			redirect('your_redirect_page_here');
+			return;
+		}
+
+		// Update payment
+		$data = [
+			'fines_status' => 'Paid',
+			'mode_payment' => 'Cash',
+			'reference_number_admin' => $reference_admin,
+			'receipt' => $receipt,
+			'last_updated' => date('Y-m-d H:i:s'),
+			'approved_by' => $this->session->userdata('student_id') // Admin/officer ID
+		];
+
+		$this->db->where('summary_id', $summary_id);
+		$this->db->update('fines_summary', $data);
+
+		// Generate receipt PDF
+		$this->generate_and_store_fine_receipt($summary_id);
+
+		$this->session->set_flashdata('swal_success', 'Cash payment recorded and receipt generated successfully.');
+		redirect('admin/list-fines');
+	}
+
+
+
+	//To display student total fines
+	public function get_student_total_fines()
+	{
+		$input = json_decode(file_get_contents('php://input'), true);
+		$student_id = $input['student_id'];
+
+		$organizer_name = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+
+		$this->db->select('summary_id, total_fines, fines_status');
+		$this->db->from('fines_summary');
+		$this->db->where('student_id', $student_id);
+		$this->db->where('fines_status !=', 'Paid');
+
+		if ($organizer_name) {
+			$this->db->where('organizer', $organizer_name);
+		}
+
+		$summary = $this->db->get()->row();
+
+		if (!$summary) {
+			echo json_encode([
+				'success' => false,
+				'message' => 'No unpaid fines for this student under your organizer.'
+			]);
+			return;
+		}
+
+		echo json_encode([
+			'success' => true,
+			'summary_id' => $summary->summary_id,
+			'total_fines' => $summary->total_fines
+		]);
+	}
+
+
+
+
+
+
+	// CASH PAYMENT END
+
+
+
+
 
 
 	public function update_status()
@@ -3484,23 +3604,42 @@ class OfficerController extends CI_Controller
 		// Load FPDF
 		$this->load->library('fpdf');
 
-		// Query fines data
-		$this->db->select('users.student_id, users.first_name, users.last_name, department.dept_name, 
-                  activity.activity_title, fines.fines_amount');
-		$this->db->from('fines');
-		$this->db->join('users', 'users.student_id = fines.student_id', 'left');
+		// Get organizer and dept/org IDs from session
+		$dept_id = $this->session->userdata('dept_id');
+		$org_id = $this->session->userdata('org_id');
+		$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+
+		// Build the query like flash_fines()
+		$this->db->select('
+    users.student_id,
+    users.first_name,
+    users.last_name,
+    users.year_level,
+    department.dept_name,
+    organization.org_name,
+    fines_summary.*,
+    fines.fines_reason,
+    fines.fines_amount,
+    activity.activity_title,
+    activity.activity_id,
+    activity.start_date
+');
+
+		$this->db->from('fines_summary');
+		$this->db->join('users', 'users.student_id = fines_summary.student_id', 'left');
 		$this->db->join('department', 'department.dept_id = users.dept_id', 'left');
-		$this->db->join('activity', 'activity.activity_id = fines.activity_id', 'left');
 		$this->db->join('student_org', 'student_org.student_id = users.student_id', 'left');
 		$this->db->join('organization', 'organization.org_id = student_org.org_id', 'left');
 
-		// Determine organizer name
+		$this->db->join('fines', 'fines.student_id = fines_summary.student_id', 'left');
+		$this->db->join('activity', 'activity.activity_id = fines.activity_id', 'left');
+
 		$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
 		$dept_id = $this->session->userdata('dept_id');
 		$org_id = $this->session->userdata('org_id');
 
-		// Apply filters like in flash_fines()
 		$this->db->where('activity.organizer', $organizer);
+
 		$this->db->group_start();
 		if (!empty($dept_id)) {
 			$this->db->where('users.dept_id', $dept_id);
@@ -3510,8 +3649,7 @@ class OfficerController extends CI_Controller
 		}
 		$this->db->group_end();
 
-		$this->db->order_by('users.student_id, activity.activity_id');
-
+		$this->db->order_by('users.student_id');
 		$fines_data = $this->db->get()->result();
 
 
@@ -3562,144 +3700,160 @@ class OfficerController extends CI_Controller
 		}
 
 		// Initialize PDF
+		// Load your PDF library (make sure your PDF class is loaded correctly)
 		$pdf = new PDF();
 		$pdf->headerImage = $headerImage;
 		$pdf->footerImage = $footerImage;
-		$pdf->AddPage('L'); // Landscape orientation
-		$pdf->SetFont('Arial', 'B', 6); // Use smaller font size
-
-		// Title
+		$pdf->AddPage('L', 'Letter');
+		$pdf->SetFont('Arial', 'B', 6);
 		$pdf->Cell(0, 8, 'Student Parliament Fines Report', 0, 1, 'C');
 		$pdf->Ln(5);
 
-		// Create an array to store unique activities
+		// Collect unique activity titles
 		$activities = [];
+		foreach ($fines_data as $fine) {
+			$title = trim($fine->activity_title);
+			if (!in_array($title, $activities)) {
+				$activities[] = $title;
+			}
+		}
+
+		// Calculate dynamic column widths
+		$padding = 2;
+		$pdf->SetFont('Arial', '', 6);
+		$student_id_width = $pdf->GetStringWidth('Student ID') + $padding;
+		$name_width = $pdf->GetStringWidth('Name') + $padding;
+		$dept_name_width = $pdf->GetStringWidth('Department') + $padding;
 		$activity_widths = [];
 
-		// Loop through fines data to gather unique activity names
 		foreach ($fines_data as $fine) {
-			if (!in_array($fine->activity_title, $activities)) {
-				$activities[] = $fine->activity_title;
+			$student_id_width = max($student_id_width, $pdf->GetStringWidth($fine->student_id) + $padding);
+			$name_width = max($name_width, $pdf->GetStringWidth($fine->first_name . ' ' . $fine->last_name) + $padding);
+			$dept_name_width = max($dept_name_width, $pdf->GetStringWidth($fine->dept_name) + $padding);
+
+			$title = trim($fine->activity_title);
+			if (!isset($activity_widths[$title])) {
+				$activity_widths[$title] = $pdf->GetStringWidth($title) + $padding;
 			}
 		}
 
-		// Calculate dynamic column widths for Student ID, Name, Department
-		$max_student_id_width = $pdf->GetStringWidth('Student ID');
-		$max_name_width = $pdf->GetStringWidth('Name');
-		$max_dept_name_width = $pdf->GetStringWidth('Department');
+		$other_columns_width = 15 + 15; // Total Fines + Status
+		$total_width = $student_id_width + $name_width + $dept_name_width + array_sum($activity_widths) + $other_columns_width;
+		$page_width = $pdf->GetPageWidth() - $pdf->getLeftMargin() - $pdf->getRightMargin();
 
-		// Loop through fines data to calculate the maximum string width for each column
-		foreach ($fines_data as $fine) {
-			$max_student_id_width = max($max_student_id_width, $pdf->GetStringWidth($fine->student_id));
-			$max_name_width = max($max_name_width, $pdf->GetStringWidth($fine->first_name . ' ' . $fine->last_name));
-			$max_dept_name_width = max($max_dept_name_width, $pdf->GetStringWidth($fine->dept_name));
-
-			foreach ($activities as $activity) {
-				if (!isset($activity_widths[$activity])) {
-					$activity_widths[$activity] = 0;
-				}
-				$activity_widths[$activity] = max($activity_widths[$activity], $pdf->GetStringWidth(isset($fine->activity_title) ? $fine->activity_title : ''));
-			}
-		}
-
-		// Add padding to columns
-		$padding = 1;
-		$student_id_width = $max_student_id_width + $padding;
-		$name_width = $max_name_width + $padding;
-		$dept_name_width = $max_dept_name_width + $padding;
-
-		// Adjust activity column widths
-		foreach ($activities as $activity) {
-			$activity_widths[$activity] = max($activity_widths[$activity], $pdf->GetStringWidth($activity)) + $padding;
-		}
-
-		// Calculate the total width of the table
-		$total_width = $student_id_width + $name_width + $dept_name_width + array_sum($activity_widths) + 30; // 30 for the last two columns (Total Fines & Status)
-
-		// Define paper width in landscape mode (297mm)
-		$page_width = 297;
-
-		// If total table width exceeds the page width, scale down the columns proportionally
+		// Scale columns if too wide
 		if ($total_width > $page_width) {
-			$scale_factor = $page_width / $total_width;
-			$student_id_width *= $scale_factor;
-			$name_width *= $scale_factor;
-			$dept_name_width *= $scale_factor;
-
-			foreach ($activities as $activity) {
-				$activity_widths[$activity] *= $scale_factor;
+			$scale = $page_width / $total_width;
+			$student_id_width *= $scale;
+			$name_width *= $scale;
+			$dept_name_width *= $scale;
+			foreach ($activities as $act) {
+				$activity_widths[$act] *= $scale;
 			}
+			$total_width = $page_width; // recalc after scaling
 		}
 
-		// Table header
-		$pdf->Cell($student_id_width, 8, 'Student ID', 1, 0, 'C');
-		$pdf->Cell($name_width, 8, 'Name', 1, 0, 'C');
-		$pdf->Cell($dept_name_width, 8, 'Department', 1, 0, 'C');
+		// Sort fines data
+		usort($fines_data, function ($a, $b) {
+			return [$a->dept_name, $a->year_level, $a->student_id] <=> [$b->dept_name, $b->year_level, $b->student_id];
+		});
 
-		// Dynamic activity columns
-		foreach ($activities as $activity) {
-			$pdf->Cell($activity_widths[$activity], 8, $activity, 1, 0, 'C');
-		}
-
-		$pdf->Cell(15, 8, 'Total Fines', 1, 0, 'C');
-		$pdf->Cell(15, 8, 'Status', 1, 1, 'C');
-		$pdf->Ln();
-
-		// Table body
-		$pdf->SetFont('Arial', '', 6); // Smaller font for data rows
+		$current_dept = null;
+		$current_year = null;
 		$current_student_id = null;
 		$student_fines = [];
+		$prev_fine = null;
 
-		// Loop through fines data
 		foreach ($fines_data as $fine) {
-			$full_name = $fine->first_name . ' ' . $fine->last_name;
+			$title = trim($fine->activity_title);
 
-			if ($fine->student_id != $current_student_id) {
-				if ($current_student_id != null) {
-					foreach ($activities as $activity) {
-						$pdf->Cell($activity_widths[$activity], 8, isset($student_fines[$activity]) ? 'PHP ' . number_format($student_fines[$activity], 2) : 'PHP 0.00', 1);
-					}
+			// New Department
+			if ($fine->dept_name !== $current_dept) {
+				$current_dept = $fine->dept_name;
+				$current_year = null;
 
-					$total_fines = array_sum($student_fines);
-					$status = $total_fines > 0 ? 'Paid' : 'Unpaid';
+				$pdf->Ln(5);
+				$pdf->SetFillColor(173, 216, 230);
+				$pdf->SetFont('Arial', 'B', 7);
 
-					$pdf->Cell(15, 8, 'PHP ' . number_format($total_fines, 2), 1);  // Using 'PHP' as a prefix
-					$pdf->Cell(15, 8, $status, 1);
-					$pdf->Ln();
+				$pdf->SetX(($page_width - $total_width) / 2 + $pdf->getLeftMargin());
+				$pdf->MultiCell($total_width, 8, "Department: " . $current_dept, 1, 'L', true);
+
+				// Table Header
+				$pdf->SetFont('Arial', 'B', 6);
+				$pdf->SetX(($page_width - $total_width) / 2 + $pdf->getLeftMargin());
+
+				$pdf->Cell($student_id_width, 8, 'Student ID', 1, 0, 'C');
+				$pdf->Cell($name_width, 8, 'Name', 1, 0, 'C');
+				$pdf->Cell($dept_name_width, 8, 'Department', 1, 0, 'C');
+				foreach ($activities as $act) {
+					$pdf->Cell($activity_widths[$act], 8, $act, 1, 0, 'C');
 				}
-
-				// Reset for new student
-				$current_student_id = $fine->student_id;
-				$student_fines = [];
-
-				// Output the student details
-				$pdf->Cell($student_id_width, 8, $fine->student_id, 1);
-				$pdf->Cell($name_width, 8, $full_name, 1);
-				$pdf->Cell($dept_name_width, 8, $fine->dept_name, 1);
+				$pdf->Cell(15, 8, 'Total Fines', 1, 0, 'C');
+				$pdf->Cell(15, 8, 'Status', 1, 1, 'C');
 			}
 
-			// Store the fine amount for the corresponding activity
-			$student_fines[$fine->activity_title] = isset($student_fines[$fine->activity_title])
-				? $student_fines[$fine->activity_title] + $fine->fines_amount
+			// New Year Level
+			if ($fine->year_level !== $current_year) {
+				$current_year = $fine->year_level;
+				$pdf->SetFont('Arial', 'B', 6);
+				$pdf->SetFillColor(224, 235, 255);
+
+				$pdf->SetX(($page_width - $total_width) / 2 + $pdf->getLeftMargin());
+				$pdf->MultiCell($total_width, 6, "Year Level: " . $current_year, 1, 'L', true);
+			}
+
+			// New Student
+			if ($fine->student_id !== $current_student_id) {
+				if ($current_student_id !== null) {
+					$pdf->SetFont('Arial', '', 6);
+					$pdf->SetFillColor(255, 255, 255);
+					$pdf->SetX(($page_width - $total_width) / 2 + $pdf->getLeftMargin());
+
+					$pdf->Cell($student_id_width, 8, $prev_fine->student_id, 1, 0, 'L');
+					$pdf->Cell($name_width, 8, $prev_fine->first_name . ' ' . $prev_fine->last_name, 1, 0, 'L');
+					$pdf->Cell($dept_name_width, 8, $prev_fine->dept_name, 1, 0, 'L');
+					foreach ($activities as $act) {
+						$amount = isset($student_fines[$act]) ? 'PHP ' . number_format($student_fines[$act], 2) : 'PHP 0.00';
+						$pdf->Cell($activity_widths[$act], 8, $amount, 1, 0, 'R');
+					}
+					$total_fines = array_sum($student_fines);
+					$status = $total_fines > 0 ? 'Unpaid' : 'Paid';
+					$pdf->Cell(15, 8, 'PHP ' . number_format($total_fines, 2), 1, 0, 'R');
+					$pdf->Cell(15, 8, $status, 1, 1, 'C');
+				}
+
+				$current_student_id = $fine->student_id;
+				$student_fines = [];
+				$prev_fine = $fine;
+			}
+
+			// Accumulate fines per activity title
+			$student_fines[$title] = isset($student_fines[$title])
+				? $student_fines[$title] + $fine->fines_amount
 				: $fine->fines_amount;
 		}
 
-		// Output the last student's data
-		if ($current_student_id != null) {
-			foreach ($activities as $activity) {
-				$pdf->Cell($activity_widths[$activity], 8, isset($student_fines[$activity]) ? 'PHP ' . number_format($student_fines[$activity], 2) : 'PHP 0.00', 1);
+		// Output last student
+		if ($current_student_id !== null) {
+			$pdf->SetFont('Arial', '', 6);
+			$pdf->SetFillColor(255, 255, 255);
+			$pdf->SetX(($page_width - $total_width) / 2 + $pdf->getLeftMargin());
+
+			$pdf->Cell($student_id_width, 8, $prev_fine->student_id, 1, 0, 'L');
+			$pdf->Cell($name_width, 8, $prev_fine->first_name . ' ' . $prev_fine->last_name, 1, 0, 'L');
+			$pdf->Cell($dept_name_width, 8, $prev_fine->dept_name, 1, 0, 'L');
+			foreach ($activities as $act) {
+				$amount = isset($student_fines[$act]) ? 'PHP ' . number_format($student_fines[$act], 2) : 'PHP 0.00';
+				$pdf->Cell($activity_widths[$act], 8, $amount, 1, 0, 'R');
 			}
-
 			$total_fines = array_sum($student_fines);
-			$status = $total_fines > 0 ? 'Paid' : 'Unpaid';
-
-			$pdf->Cell(15, 8, 'PHP ' . number_format($total_fines, 2), 1);  // Using 'PHP' as a prefix
-			$pdf->Cell(15, 8, $status, 1);
-			$pdf->Ln();
+			$status = $total_fines > 0 ? 'Unpaid' : 'Paid';
+			$pdf->Cell(15, 8, 'PHP ' . number_format($total_fines, 2), 1, 0, 'R');
+			$pdf->Cell(15, 8, $status, 1, 1, 'C');
 		}
 
-		// Output the PDF
-		$pdf->Output('I', 'StudentParliament_fines_report.pdf');
+		$pdf->Output('I', 'Fines_Report_' . date('Ymd') . '.pdf');
 	}
 
 	// OTHER PAGES
