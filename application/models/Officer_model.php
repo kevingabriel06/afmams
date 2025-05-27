@@ -1986,58 +1986,111 @@ class Officer_model extends CI_Model
 		return $this->db->get('fines')->result_array(); // Fetch all fines
 	}
 
+
 	public function flash_fines()
 	{
-		// Get dept_id and org_id from session
-		$dept_id = $this->session->userdata('dept_id');
-		$org_id = $this->session->userdata('org_id');
+
 		$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
 
-		// Start building the query
-		$this->db->select('users.student_id, users.first_name, users.last_name, users.year_level, activity.start_date, fines_summary.reference_number_students, department.dept_name, organization.org_name, fines_summary.*, fines.*, activity.activity_id, activity.activity_title');
+		$this->db->select('
+			*,
+			users.year_level,
+			activity_time_slots.slot_name,
+			activity_time_slots.date_time_in,
+			activity_time_slots.date_time_out,
+			activity.fines AS fines_scan,
+			attendance.time_in,
+			attendance.time_out,
+			attendance.attendance_status,
+			attendance.attendance_id
+		');
 		$this->db->from('fines_summary');
+		$this->db->join('users', 'users.student_id = fines_summary.student_id');
+		$this->db->join('department', 'department.dept_id = users.dept_id');
+		$this->db->join('fines', 'fines.student_id = fines_summary.student_id');
+		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+		$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = fines.timeslot_id', 'left');  // added this join
+		$this->db->join('attendance', 'attendance.student_id = fines_summary.student_id AND attendance.activity_id = fines.activity_id AND attendance.timeslot_id = fines.timeslot_id', 'left');
 
-		// Join with users to get student details
-		$this->db->join('users', 'users.student_id = fines_summary.student_id', 'left');
+		$this->db->where('activity.organizer', $organizer);
+		$this->db->where('activity.status', 'Completed');
+		// $this->db->order_by('users.student_id, activity.activity_id');
+		$this->db->group_by('
+		users.student_id,
+		users.first_name,
+		users.last_name,
+		users.year_level,
+		department.dept_name,
+		fines.fines_amount,
+		activity.activity_title,
+		activity_time_slots.slot_name,
+		activity_time_slots.date_time_in,
+		activity_time_slots.date_time_out,
+		activity_time_slots.timeslot_id,
+		activity.fines,
+		attendance.time_in,
+		attendance.time_out,
+		attendance.attendance_status,
+		attendance.attendance_id');
+		$this->db->order_by('department.dept_name, users.year_level, users.student_id, activity.activity_id');
 
-		// Join with department table to get dept_name
-		$this->db->join('department', 'department.dept_id = users.dept_id', 'left');
-
-		// Join with student_org table to get org_name
-		$this->db->join('student_org', 'student_org.student_id = users.student_id', 'left');
-		$this->db->join('organization', 'organization.org_id = student_org.org_id', 'left');
-
-		// Join with fines table to get the fines details
-		$this->db->join('fines', 'fines.student_id = fines_summary.student_id', 'left'); // Ensure fines are matched by student_id
-
-		// Join with activity table to get the activity related to the fine
-		$this->db->join('activity', 'activity.activity_id = fines.activity_id', 'left'); // Get activity details
-
-		// Apply condition for activity organizer (check if it's "Student Parliament")
-		$this->db->where('activity.organizer', $organizer); // Apply correct where condition
-
-		// Apply conditions for either dept_id or org_id based on session
-		$this->db->group_start(); // Start grouping for OR conditions
-
-		// Check if dept_id is available in session and apply the filter
-		if (!empty($dept_id)) {
-			$this->db->where('users.dept_id', $dept_id); // Filter by department
-		}
-
-		// Check if org_id is available in session and apply the filter
-		if (!empty($org_id)) {
-			$this->db->or_where('student_org.org_id', $org_id); // Filter by organization
-		}
-
-		$this->db->group_end(); // End grouping for OR conditions
-
-		// Order by student_id and activity_id (or any other preference)
-		$this->db->order_by('users.student_id, activity.activity_id');
-
-		// Execute the query and return the result
 		$query = $this->db->get();
-		return $query->result_array(); // Return the result as an array
+		return $query->result_array();
 	}
+
+
+	// public function flash_fines()
+	// {
+	// 	// Get dept_id and org_id from session
+	// 	$dept_id = $this->session->userdata('dept_id');
+	// 	$org_id = $this->session->userdata('org_id');
+	// 	$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+
+	// 	// Start building the query
+	// 	$this->db->select('users.student_id, users.first_name, users.last_name, users.year_level, activity.start_date, fines_summary.reference_number_students, department.dept_name, organization.org_name, fines_summary.*, fines.*, activity.activity_id, activity.activity_title');
+	// 	$this->db->from('fines_summary');
+
+	// 	// Join with users to get student details
+	// 	$this->db->join('users', 'users.student_id = fines_summary.student_id', 'left');
+
+	// 	// Join with department table to get dept_name
+	// 	$this->db->join('department', 'department.dept_id = users.dept_id', 'left');
+
+	// 	// Join with student_org table to get org_name
+	// 	$this->db->join('student_org', 'student_org.student_id = users.student_id', 'left');
+	// 	$this->db->join('organization', 'organization.org_id = student_org.org_id', 'left');
+
+	// 	// Join with fines table to get the fines details
+	// 	$this->db->join('fines', 'fines.student_id = fines_summary.student_id', 'left'); // Ensure fines are matched by student_id
+
+	// 	// Join with activity table to get the activity related to the fine
+	// 	$this->db->join('activity', 'activity.activity_id = fines.activity_id', 'left'); // Get activity details
+
+	// 	// Apply condition for activity organizer (check if it's "Student Parliament")
+	// 	$this->db->where('activity.organizer', $organizer); // Apply correct where condition
+
+	// 	// Apply conditions for either dept_id or org_id based on session
+	// 	$this->db->group_start(); // Start grouping for OR conditions
+
+	// 	// Check if dept_id is available in session and apply the filter
+	// 	if (!empty($dept_id)) {
+	// 		$this->db->where('users.dept_id', $dept_id); // Filter by department
+	// 	}
+
+	// 	// Check if org_id is available in session and apply the filter
+	// 	if (!empty($org_id)) {
+	// 		$this->db->or_where('student_org.org_id', $org_id); // Filter by organization
+	// 	}
+
+	// 	$this->db->group_end(); // End grouping for OR conditions
+
+	// 	// Order by student_id and activity_id (or any other preference)
+	// 	$this->db->order_by('users.student_id, activity.activity_id');
+
+	// 	// Execute the query and return the result
+	// 	$query = $this->db->get();
+	// 	return $query->result_array(); // Return the result as an array
+	// }
 
 
 

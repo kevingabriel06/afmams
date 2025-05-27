@@ -688,6 +688,7 @@
 							<td>${i + 1}</td>
 							<td>${fine.reason}</td>
 							<td>${timeDisplay}</td>
+							<td>${fine.slot_name}</td>
 							<td>${fine.title}</td>
 							<td>${fine.event_date}</td>
 						</tr>
@@ -804,15 +805,35 @@
 
 				breakdownTable.innerHTML = '';
 				student.fines.forEach((fine, i) => {
+					const fineIn = fine.time_in === null ? parseFloat(fine.fines_scan || 0).toFixed(2) : '0.00';
+					const fineOut = fine.time_out === null ? parseFloat(fine.fines_scan || 0).toFixed(2) : '0.00';
+					const timeDisplay = `IN: ₱${fineIn} | OUT: ₱${fineOut}`;
+
 					breakdownTable.innerHTML += `
                         <tr>
                             <td>${i + 1}</td>
                             <td>${fine.reason}</td>
-                            <td>₱${fine.fine}</td>
+                            <td>${timeDisplay}</td>
+							<td>${fine.slot_name}</td>
                             <td>${fine.title}</td>
                             <td>${fine.event_date}</td>
                         </tr>`;
 				});
+
+				student.fines.forEach((fine, i) => {
+
+					viewBreakdownTable.innerHTML += `
+						<tr>
+							<td>${i + 1}</td>
+							<td>${fine.reason}</td>
+							<td>${timeDisplay}</td>
+							
+							<td>${fine.title}</td>
+							<td>${fine.event_date}</td>
+						</tr>
+					`;
+				});
+
 			}
 		});
 
