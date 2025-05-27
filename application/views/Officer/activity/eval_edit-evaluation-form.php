@@ -131,7 +131,7 @@
               dateFormat: "Y-m-d h:i K",
               time_24hr: false,
               disableMobile: true,
-              minDate: "today",
+              minDate: new Date(),
             });
 
             flatpickr("#time_end", {
@@ -140,7 +140,7 @@
               dateFormat: "Y-m-d h:i K",
               time_24hr: false,
               disableMobile: true,
-              minDate: "today",
+              minDate: new Date(),
             });
           });
         </script>

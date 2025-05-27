@@ -65,20 +65,19 @@
 
                     <div>
                         <h6 class="mb-1">Scheduled Time:</h6>
-                        <?php if (!empty($schedule) && isset($schedule[0]['date_time_in'])) : ?>
+                        <?php if (!empty($schedule) && isset($schedule[0]['date_time_out'])) : ?>
                             <p class="mb-0" id="schedule_time_range"
                                 data-start="<?= $schedule[0]['date_time_out'] ?>"
                                 data-end="<?= $schedule[0]['date_cut_out'] ?>">
-                                <?php
-                                echo date('F j, Y | g:i a', strtotime($schedule[0]['date_time_in']));
-                                ?> to <?php
-                                        echo date('F j, Y | g:i a', strtotime($schedule[0]['date_cut_in']));
-                                        ?>
+                                <?= date('F j, Y | g:i a', strtotime($schedule[0]['date_time_out'])) ?>
+                                to
+                                <?= date('F j, Y | g:i a', strtotime($schedule[0]['date_cut_out'])) ?>
                             </p>
                         <?php else : ?>
                             <p class="mb-0">No scheduled time available</p>
                         <?php endif; ?>
                     </div>
+
 
                     <!-- <script>
                         let promptShown = false; // Prevent multiple prompts
@@ -265,9 +264,9 @@
 
             // Load face-api.js models
             Promise.all([
-                    faceapi.nets.ssdMobilenetv1.loadFromUri("../../../../assets/models"),
-                    faceapi.nets.faceRecognitionNet.loadFromUri("../../../../assets/models"),
-                    faceapi.nets.faceLandmark68Net.loadFromUri("../../../../assets/models"),
+                    faceapi.nets.ssdMobilenetv1.loadFromUri("../../../../../assets/models"),
+                    faceapi.nets.faceRecognitionNet.loadFromUri("../../../../../assets/models"),
+                    faceapi.nets.faceLandmark68Net.loadFromUri("../../../../../assets/models"),
                 ])
                 .then(() => {
                     modelsLoaded = true;

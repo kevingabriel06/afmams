@@ -80,7 +80,7 @@
 									pattern="\d{4}-\d{2}-\d{2}" aria-describedby="calendarHelp"
 									data-options='{"dateFormat":"Y-m-d","disableMobile":true, "minDate": "today"}' required
 									value="<?php echo $activity['start_date']; ?>"
-									<?php echo $isOngoing ? 'readonly' : ''; ?> />
+									<?php echo $isOngoing ? 'disabled' : ''; ?> />
 								<span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
 								<div class="invalid-feedback">Enter a valid start date.</div>
 							</div>
@@ -97,7 +97,7 @@
 									pattern="\d{4}-\d{2}-\d{2}" aria-describedby="calendarHelp"
 									data-options='{"dateFormat":"Y-m-d","disableMobile":true}' required
 									value="<?php echo $activity['end_date']; ?>"
-									<?php echo $isOngoing ? 'readonly' : ''; ?> />
+									<?php echo $isOngoing ? 'disabled' : ''; ?> />
 								<span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
 								<div class="invalid-feedback" id="date-error">End date must be greater than or equal to the start date.</div>
 							</div>
@@ -164,6 +164,10 @@
 									data-options='{"dateFormat":"Y-m-d","disableMobile":true, "minDate": "today"}'
 									value="<?php echo $activity['registration_deadline']; ?>"
 									<?php echo $isOngoing ? 'disabled' : ''; ?> />
+
+								<!-- Hidden Input to Store Start Date Value -->
+								<input type="hidden" name="registration_deadline" value="<?php echo $activity['registration_deadline']; ?>" <?php echo $activity['status'] == 'Upcoming' ? 'disabled' : ''; ?> />
+
 								<span class="input-group-text" id="calendar-icon" title="Pick a date">
 									<i class="fas fa-calendar-alt"></i>
 								</span>
@@ -266,6 +270,35 @@
 								</ul>
 							</div>
 						</div>
+
+						<script>
+							document.addEventListener('DOMContentLoaded', () => {
+								const dropdownBtn = document.getElementById('audienceDropdown');
+								const checkboxes = document.querySelectorAll('.audience-checkbox, #selectAllAudience');
+
+								function updateDropdownButton() {
+									// Collect all checked checkboxes except "All"
+									const selected = Array.from(checkboxes)
+										.filter(cb => cb.checked && cb.value !== 'All')
+										.map(cb => cb.value);
+
+									if (selected.length === 0) {
+										dropdownBtn.textContent = 'Select Audience';
+									} else if (selected.length === 1) {
+										dropdownBtn.textContent = selected[0];
+									} else {
+										dropdownBtn.textContent = `${selected[0]} and others`;
+									}
+								}
+
+								// Initial update on page load
+								updateDropdownButton();
+
+								// Update on any checkbox change
+								checkboxes.forEach(cb => cb.addEventListener('change', updateDropdownButton));
+							});
+						</script>
+
 						<div class="form-text">
 							<i>* Note: Select the target audience of the activity.</i>
 						</div>
@@ -654,35 +687,44 @@
 
 			timeSlotsContainer.appendChild(div);
 
-			// Initialize Flatpickr for Date & Time fields
+
 			flatpickr(`#${startId}`, {
 				enableTime: true,
-				dateFormat: "Y-m-d h:i K",
+				minDate: new Date(),
+				dateFormat: "Y-m-d h:i K", // 12-hour format with AM/PM
 				time_24hr: false,
-				defaultDate: startTime || null,
+				minDate: new Date(), // min date is now
+				defaultDate: startTime ? new Date(startTime) : null,
 				disableMobile: true
 			});
+
 			flatpickr(`#${startCutId}`, {
 				enableTime: true,
 				dateFormat: "Y-m-d h:i K",
 				time_24hr: false,
-				defaultDate: startCut || null,
+				minDate: new Date(), // min date is now
+				defaultDate: startCut ? new Date(startCut) : null,
 				disableMobile: true
 			});
+
 			flatpickr(`#${endId}`, {
 				enableTime: true,
 				dateFormat: "Y-m-d h:i K",
 				time_24hr: false,
-				defaultDate: endTime || null,
+				minDate: new Date(), // min date is now
+				defaultDate: endTime ? new Date(endTime) : null,
 				disableMobile: true
 			});
+
 			flatpickr(`#${endCutId}`, {
 				enableTime: true,
 				dateFormat: "Y-m-d h:i K",
 				time_24hr: false,
-				defaultDate: endCut || null,
+				minDate: new Date(), // min date is now
+				defaultDate: endCut ? new Date(endCut) : null,
 				disableMobile: true
 			});
+
 		}
 
 		// Get schedules from PHP (JSON encoded)

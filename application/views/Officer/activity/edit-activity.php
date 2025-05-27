@@ -589,6 +589,7 @@
                 dateFormat: "Y-m-d h:i K",
                 time_24hr: false,
                 defaultDate: startTime || null,
+                minDate: new Date(),
                 disableMobile: true
             });
             flatpickr(`#${startCutId}`, {
@@ -596,6 +597,7 @@
                 dateFormat: "Y-m-d h:i K",
                 time_24hr: false,
                 defaultDate: startCut || null,
+                minDate: new Date(),
                 disableMobile: true
             });
             flatpickr(`#${endId}`, {
@@ -603,6 +605,7 @@
                 dateFormat: "Y-m-d h:i K",
                 time_24hr: false,
                 defaultDate: endTime || null,
+                minDate: new Date(),
                 disableMobile: true
             });
             flatpickr(`#${endCutId}`, {
@@ -610,6 +613,7 @@
                 dateFormat: "Y-m-d h:i K",
                 time_24hr: false,
                 defaultDate: endCut || null,
+                minDate: new Date(),
                 disableMobile: true
             });
         }

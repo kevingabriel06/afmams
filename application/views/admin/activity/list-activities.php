@@ -12,10 +12,12 @@
     <div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
+
                 <div class="modal-header">
                     <h5 class="modal-title" id="filterModalLabel">Filter Activities</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
+
                 <div class="modal-body">
                     <!-- Semester Filter -->
                     <div class="mb-3">
@@ -27,9 +29,9 @@
                         </select>
                     </div>
 
-                    <!-- Year Picker for Academic Year -->
+                    <!-- Academic Year Filter -->
                     <div class="mb-3">
-                        <label for="year-picker" class="form-label">Academic Year</label>
+                        <label class="form-label">Academic Year</label>
                         <div class="input-group">
                             <select id="start-year" class="form-select">
                                 <option value="" selected>Select Start Year</option>
@@ -43,18 +45,31 @@
                             Please select a valid academic year range with a 1-year difference.
                         </div>
                     </div>
+
+                    <!-- Status Filter -->
+                    <div class="mb-3">
+                        <label for="status-filter" class="form-label">Status</label>
+                        <select id="status-filter" class="form-select">
+                            <option value="" selected>Select Status</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Ongoing">Ongoing</option>
+                            <option value="Upcoming">Upcoming</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     <button type="button" class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
                 </div>
+
             </div>
         </div>
     </div>
 
 
-    <script>
+
+    <!-- <script>
         document.addEventListener("DOMContentLoaded", function() {
             const currentYear = new Date().getFullYear();
             const startYearDropdown = $('#start-year');
@@ -82,6 +97,7 @@
                 const selectedStartYear = parseInt($('#start-year').val());
                 const selectedEndYear = parseInt($('#end-year').val());
                 const selectedSemester = $('#semester-filter').val();
+                const selectedStatus = $('#status-filter').val();
                 let startDate, endDate;
 
                 // Validate year range (must be exactly a one-year difference)
@@ -145,16 +161,104 @@
                 }
             }
         });
+    </script> -->
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const currentYear = new Date().getFullYear();
+            const startYearDropdown = $('#start-year');
+            const endYearDropdown = $('#end-year');
+
+            // Populate Start Year dropdown from current year to 1900
+            for (let year = currentYear; year >= 1900; year--) {
+                startYearDropdown.append(new Option(year, year));
+            }
+
+            // Update End Year based on selected Start Year
+            startYearDropdown.on('change', function() {
+                const selectedStartYear = parseInt(this.value);
+                endYearDropdown.empty().append(new Option("Select End Year", "", true, true));
+
+                if (selectedStartYear) {
+                    endYearDropdown.append(new Option(selectedStartYear + 1, selectedStartYear + 1));
+                }
+            });
+
+            // Apply filters
+            window.applyFilters = function() {
+                const selectedStartYear = parseInt($('#start-year').val());
+                const selectedEndYear = parseInt($('#end-year').val());
+                const selectedSemester = $('#semester-filter').val();
+                const selectedStatus = $('#status-filter').val();
+                let startDate, endDate;
+
+                if (!selectedStartYear || !selectedEndYear || selectedEndYear - selectedStartYear !== 1) {
+                    $('#start-year, #end-year').addClass('is-invalid');
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Invalid Academic Year',
+                        text: 'Please select a valid academic year range with a one-year difference.',
+                        confirmButtonColor: '#3085d6'
+                    });
+                    return;
+                } else {
+                    $('#start-year, #end-year').removeClass('is-invalid');
+                }
+
+                // Set date range based on semester
+                if (selectedSemester === "1st-semester") {
+                    startDate = new Date(selectedStartYear, 7, 1); // Aug 1
+                    endDate = new Date(selectedStartYear, 11, 31); // Dec 31
+                } else if (selectedSemester === "2nd-semester") {
+                    startDate = new Date(selectedEndYear, 0, 1); // Jan 1
+                    endDate = new Date(selectedEndYear, 6, 31); // July 31
+                } else {
+                    startDate = new Date(selectedStartYear, 0, 1);
+                    endDate = new Date(selectedEndYear, 11, 31);
+                }
+
+                filterActivitiesByDateRange(startDate, endDate, selectedStatus);
+            };
+
+            function filterActivitiesByDateRange(startDate, endDate, selectedStatus) {
+                let activities = document.querySelectorAll('.activity');
+                let hasVisibleActivity = false;
+
+                activities.forEach(activity => {
+                    let activityDateStr = activity.getAttribute('data-start-date');
+                    let activityStatus = activity.getAttribute('data-status');
+
+                    if (!activityDateStr) return;
+                    let activityDate = new Date(activityDateStr);
+
+                    const isWithinDateRange = activityDate >= startDate && activityDate <= endDate;
+                    const statusMatches = selectedStatus === "" || activityStatus === selectedStatus;
+
+                    if (isWithinDateRange && statusMatches) {
+                        activity.style.display = 'block';
+                        hasVisibleActivity = true;
+                    } else {
+                        activity.style.display = 'none';
+                    }
+                });
+
+                toggleNoActivityMessage(hasVisibleActivity);
+
+                // Close modal
+                let filterModal = document.getElementById('filterModal');
+                if (filterModal) {
+                    let modalInstance = bootstrap.Modal.getInstance(filterModal);
+                    if (modalInstance) modalInstance.hide();
+                }
+            }
+        });
     </script>
-
-
-
 
 
     <div class="card-body fs-10">
         <div class="row">
             <?php foreach ($activities as $activity): ?>
-                <div class="col-md-6 h-100 activity" data-start-date="<?php echo $activity->start_date; ?>">
+                <div class="col-md-6 h-100 activity" data-start-date="<?php echo $activity->start_date; ?>" data-status="<?php echo $activity->status; ?>">
                     <div class="d-flex btn-reveal-trigger">
                         <div class="calendar">
                             <?php

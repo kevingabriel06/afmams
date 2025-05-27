@@ -434,7 +434,7 @@
             initializeFlatpickr(startId, endId);
         }
 
-        // Initialize flatpickr with min/max date constraints
+        // Initialize flatpickr with min/max date constraints, updating every 1 second
         function initializeFlatpickr(startId, endId) {
             const dateStartInput = document.getElementById("date_start");
             const dateEndInput = document.getElementById("date_end");
@@ -443,34 +443,42 @@
                 enableTime: true,
                 dateFormat: "Y-m-d h:i K",
                 disableMobile: true,
-                onOpen: applyDateLimits,
-                onChange: applyDateLimits
+                minDate: new Date(),
+                onChange: applyDateLimits,
+                onOpen: applyDateLimits
             });
 
             const timeEnd = flatpickr(`#${endId}`, {
                 enableTime: true,
                 dateFormat: "Y-m-d h:i K",
                 disableMobile: true,
-                onOpen: applyDateLimits,
-                onChange: applyDateLimits
+                minDate: new Date(),
+                onChange: applyDateLimits,
+                onOpen: applyDateLimits
             });
 
             function applyDateLimits() {
-                const minDate = dateStartInput.value || "today";
-                const maxDate = dateEndInput.value || null;
+                const now = new Date();
+                const startVal = dateStartInput.value ? new Date(dateStartInput.value) : now;
+                const endVal = dateEndInput.value ? new Date(dateEndInput.value) : null;
 
-                timeStart.set("minDate", minDate);
-                timeStart.set("maxDate", maxDate);
-                timeEnd.set("minDate", timeStart.input.value || minDate);
-                timeEnd.set("maxDate", maxDate);
+                timeStart.set("minDate", now);
+                timeEnd.set("minDate", startVal > now ? startVal : now);
+
+                if (endVal) {
+                    timeStart.set("maxDate", endVal);
+                    timeEnd.set("maxDate", endVal);
+                }
             }
 
-            // Apply constraints on page load
-            applyDateLimits();
+            // Run applyDateLimits every 1 second to enforce no past time selection
+            setInterval(applyDateLimits, 1000);
 
+            // Also bind on input in case of manual typing
             dateStartInput.addEventListener("input", applyDateLimits);
             dateEndInput.addEventListener("input", applyDateLimits);
         }
+
 
         function removeTimeSlot(event) {
             const button = event.target.closest(".remove-slot"); // More specific targeting
