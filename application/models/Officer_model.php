@@ -2082,6 +2082,8 @@ class Officer_model extends CI_Model
 			$this->db->or_where('student_org.org_id', $org_id); // Filter by organization
 		}
 
+		$this->db->group_end();
+
 		// $this->db->order_by('users.student_id, activity.activity_id');
 		$this->db->group_by('
 		users.student_id,
@@ -2100,6 +2102,7 @@ class Officer_model extends CI_Model
 		attendance.time_out,
 		attendance.attendance_status,
 		attendance.attendance_id');
+
 		$this->db->order_by('department.dept_name, users.year_level, users.student_id, activity.activity_id');
 
 		$query = $this->db->get();
