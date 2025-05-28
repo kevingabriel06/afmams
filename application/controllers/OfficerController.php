@@ -2655,7 +2655,7 @@ class OfficerController extends CI_Controller
 	}
 
 	// SCANNING AND FACIAL RECOGNITION - PAGE
-	public function time_in($activity_id)
+	public function time_in($activity_id, $timeslot_id)
 	{
 		$data['title'] = 'Taking Attendance - Time in';
 
@@ -2667,11 +2667,11 @@ class OfficerController extends CI_Controller
 		$data['users'] = $this->officer->get_student($student_id);
 		$data['privilege'] = $this->officer->get_student_privilege();
 
-		$data['activity'] = $this->officer->get_activity($activity_id);
-		$data['schedule'] = $this->officer->get_schedule($activity_id);
+		$data['activity'] = $this->officer->get_activity_scan($activity_id, $timeslot_id);
+		$data['schedule'] = $this->officer->get_schedule_scan($activity_id, $timeslot_id);
 
 		// Fetching students that belong to activity
-		$data['students'] = $this->officer->get_students_realtime_time_in($activity_id);
+		$data['students'] = $this->officer->get_students_realtime_time_in($activity_id, $timeslot_id);
 
 		$this->load->view('layout/header', $data);
 		$this->load->view('officer/attendance/scanqr_timein', $data);
@@ -2679,7 +2679,7 @@ class OfficerController extends CI_Controller
 	}
 
 	// SCANNING AND FACIAL RECOGNITION - PAGE
-	public function time_out($activity_id)
+	public function time_out($activity_id, $timeslot_id)
 	{
 		$data['title'] = 'Taking Attendance - Time out';
 
@@ -2691,11 +2691,11 @@ class OfficerController extends CI_Controller
 		$data['users'] = $this->officer->get_student($student_id);
 		$data['privilege'] = $this->officer->get_student_privilege();
 
-		$data['activity'] = $this->officer->get_activity($activity_id);
-		$data['schedule'] = $this->officer->get_schedule($activity_id);
+		$data['activity'] = $this->officer->get_activity_scan($activity_id, $timeslot_id);
+		$data['schedule'] = $this->officer->get_schedule_scan($activity_id, $timeslot_id);
 
 		// Fetching students that belong to activity
-		$data['students'] = $this->officer->get_students_realtime_time_out($activity_id);
+		$data['students'] = $this->officer->get_students_realtime_time_out($activity_id, $timeslot_id);
 
 		$this->load->view('layout/header', $data);
 		$this->load->view('officer/attendance/scanqr_timeout', $data);

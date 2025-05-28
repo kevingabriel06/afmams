@@ -428,12 +428,42 @@ class Officer_model extends CI_Model
 		return $query->result(); // Fetch multiple records
 	}
 
+	// FETCHING SPECIFIC ACTIVITY USING ACTIVITY ID 
+	public function get_activity_scan($activity_id, $timeslot_id)
+	{
+		$this->db->select('a.*, ats.*, MIN(ats.date_time_in) as first_schedule, MAX(ats.date_time_out) as last_schedule');
+		$this->db->from('activity a');
+		$this->db->join('activity_time_slots ats', 'ats.activity_id = a.activity_id', 'left');
+		$this->db->where('ats.timeslot_id', $timeslot_id);
+		$this->db->group_by('a.activity_id');
+
+		if ($activity_id !== null) {
+			$this->db->where('a.activity_id', $activity_id);
+			return $this->db->get()->row_array(); // Fetch single record
+		}
+
+		$query = $this->db->get();
+		return $query->result(); // Fetch multiple records
+	}
+
 	// GETTING SCHEDULE PER ACTIVITY
 	public function get_schedule($activity_id)
 	{
 		$this->db->select('ats.*');
 		$this->db->from('activity_time_slots ats');
 		$this->db->where('ats.activity_id', $activity_id);
+
+		$query = $this->db->get();
+		return $query->result_array(); // Fetch all schedules
+	}
+
+	// GETTING SCHEDULE PER ACTIVITY
+	public function get_schedule_scan($activity_id, $timeslot_id)
+	{
+		$this->db->select('ats.*');
+		$this->db->from('activity_time_slots ats');
+		$this->db->where('ats.activity_id', $activity_id);
+		$this->db->where('ats.timeslot_id', $timeslot_id);
 
 		$query = $this->db->get();
 		return $query->result_array(); // Fetch all schedules
@@ -1087,7 +1117,7 @@ class Officer_model extends CI_Model
 	// ATTENDANCE MONITORING
 
 	// START FACIAL RECOGNITION AND SCANNING QR CODES
-	public function get_students_realtime_time_in($activity_id)
+	public function get_students_realtime_time_in($activity_id, $timeslot_id)
 	{
 		// Set timezone
 		date_default_timezone_set('Asia/Manila');
@@ -1097,6 +1127,7 @@ class Officer_model extends CI_Model
 		$this->db->from('attendance a');
 		$this->db->join('users s', 's.student_id = a.student_id');
 		$this->db->where('a.activity_id', $activity_id);
+		$this->db->where('a.timeslot_id', $timeslot_id);
 		$this->db->order_by('a.time_in', 'DESC');
 
 		$query = $this->db->get();
@@ -1185,7 +1216,7 @@ class Officer_model extends CI_Model
 		}
 	}
 
-	public function get_students_realtime_time_out($activity_id)
+	public function get_students_realtime_time_out($activity_id, $timeslot_id)
 	{
 		// Set timezone
 		date_default_timezone_set('Asia/Manila');
@@ -1195,6 +1226,7 @@ class Officer_model extends CI_Model
 		$this->db->from('attendance a');
 		$this->db->join('users s', 's.student_id = a.student_id');
 		$this->db->where('a.activity_id', $activity_id);
+		$this->db->where('a.timeslot_id', $timeslot_id);
 		$this->db->order_by('a.time_out', 'DESC');
 
 		$query = $this->db->get();

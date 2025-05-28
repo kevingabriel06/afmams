@@ -31,6 +31,288 @@
 						<button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModal">
 							Open
 						</button>
+						<!-- View Students Button -->
+						<button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#mainModal">
+							View
+						</button>
+
+
+						<!-- Registered Participants Modal -->
+						<div class="modal fade" id="mainModal" tabindex="-1" aria-labelledby="mainModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+
+							<div class="modal-dialog modal-xl modal-dialog-scrollable">
+								<div class="modal-content">
+									<div class="modal-header">
+										<h5 class="modal-title" id="registeredModalLabel">List of Students</h5>
+										<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+									</div>
+
+									<div class="modal-body">
+										<div class="card" id="registeredTable"
+											data-list='{"valueNames":["id", "name"], "page": 11, "pagination": true, "fallback": "attendance-table-fallback"}'>
+
+											<div class="card-header border-bottom border-200 px-0">
+												<div class="d-flex justify-content-end px-3">
+													<div class="d-flex align-items-center" id="table-ticket-replace-element">
+														<form>
+															<div class="input-group input-search-width">
+																<input id="searchInput" class="form-control form-control-sm shadow-none search"
+																	type="search" placeholder="Search" aria-label="search" />
+																<button class="btn btn-sm btn-outline-secondary border-300 hover-border-secondary" type="button">
+																	<span class="fa fa-search fs-10"></span>
+																</button>
+															</div>
+														</form>
+													</div>
+												</div>
+											</div>
+
+
+											<div class="card-body p-0">
+												<div class="table-responsive scrollbar">
+													<table class="table table-hover table-striped overflow-hidden">
+														<thead class="bg-200">
+															<tr>
+																<th class="text-nowrap">Student ID</th>
+																<th class="text-nowrap">Name</th>
+																<th class="text-nowrap">Department</th>
+																<th class="text-nowrap">Year Level</th>
+																<th class="text-nowrap">Sex</th>
+																<th class="text-nowrap">Email Address</th>
+																<th class="text-nowrap">Action</th>
+															</tr>
+														</thead>
+														<tbody class="list">
+															<?php foreach ($students as $student) : ?>
+																<tr class="attendance-row">
+																	<td class="text-nowrap id"><?php echo $student->student_id; ?></td>
+																	<td class="text-nowrap name"><?php echo $student->first_name . " " . $student->middle_name . " " . $student->last_name; ?></td>
+																	<td class="text-nowrap department"><?php echo $student->dept_name; ?></td>
+																	<td class="text-nowrap"><?php echo $student->year_level; ?></td>
+																	<td class="text-nowrap"><?php echo $student->sex; ?></td>
+																	<td class="text-nowrap"><?php echo $student->email; ?></td>
+
+																	<!-- Optional Dropdown Actions -->
+																	<td class="text-nowrap">
+																		<div class="dropdown font-sans-serif position-static">
+																			<button class="btn btn-link text-600 btn-sm dropdown-toggle btn-reveal" type="button"
+																				data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+																				<span class="fas fa-ellipsis-h fs-10"></span>
+																			</button>
+																			<div class="dropdown-menu dropdown-menu-end border py-0">
+																				<div class="py-2">
+																					<a class="dropdown-item text-danger validate-registration" href="#"
+																						data-userid="<?= $student->user_id ?>"
+																						data-id="<?= $student->student_id ?>"
+																						data-firstname="<?= $student->first_name ?>"
+																						data-middlename="<?= $student->middle_name ?>"
+																						data-lastname="<?= $student->last_name ?>"
+																						data-dept-id="<?= $student->department_id ?>"
+																						data-year="<?= $student->year_level ?>"
+																						data-sex="<?= $student->sex ?>"
+																						data-email="<?= $student->email ?>">
+																						Edit Student
+																					</a>
+																				</div>
+																			</div>
+																		</div>
+																	</td>
+																</tr>
+															<?php endforeach; ?>
+														</tbody>
+													</table>
+													<!-- Edit Student Modal -->
+													<div class="modal fade" id="editStudentModal" tabindex="-1" aria-labelledby="editStudentModalLabel" aria-hidden="true">
+														<div class="modal-dialog modal-dialog-centered modal-lg"> <!-- make modal wider -->
+															<div class="modal-content">
+																<div class="modal-header">
+																	<h5 class="modal-title" id="editStudentModalLabel">Edit Student</h5>
+																	<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+																</div>
+																<div class="modal-body">
+																	<form id="editStudentForm">
+																		<input type="hidden" name="user_id" id="edit-user-id">
+
+																		<div class="row">
+																			<div class="col-md-6">
+																				<div class="mb-3">
+																					<label for="edit-student-id" class="form-label">Student ID</label>
+																					<input type="text" class="form-control" name="student_id" id="edit-student-id" required>
+																				</div>
+																				<div class="mb-3">
+																					<label for="edit-first-name" class="form-label">First Name</label>
+																					<input type="text" class="form-control" id="edit-first-name" name="first_name" required>
+																				</div>
+																				<div class="mb-3">
+																					<label for="edit-middle-name" class="form-label">Middle Name</label>
+																					<input type="text" class="form-control" id="edit-middle-name" name="middle_name" required>
+																				</div>
+																				<div class="mb-3">
+																					<label for="edit-last-name" class="form-label">Last Name</label>
+																					<input type="text" class="form-control" id="edit-last-name" name="last_name" required>
+																				</div>
+																			</div>
+
+																			<div class="col-md-6">
+																				<div class="mb-3">
+																					<label for="edit-department" class="form-label">Department</label>
+																					<select class="form-control" id="edit-department" name="department" required>
+																						<option value="" disabled>Select Department</option>
+																						<?php foreach ($departments as $dept): ?>
+																							<option value="<?= htmlspecialchars($dept->dept_id) ?>">
+																								<?= htmlspecialchars($dept->dept_name) ?>
+																							</option>
+																						<?php endforeach; ?>
+																					</select>
+																				</div>
+																				<div class="mb-3">
+																					<label for="edit-year" class="form-label">Year Level</label>
+																					<select class="form-control" id="edit-year" name="year_level" required>
+																						<option value="" disabled selected>Select Year Level</option>
+																						<option value="1st Year">1st Year</option>
+																						<option value="2nd Year">2nd Year</option>
+																						<option value="3rd Year">3rd Year</option>
+																						<option value="4th Year">4th Year</option>
+																					</select>
+																				</div>
+																				<div class="mb-3">
+																					<label for="edit-sex" class="form-label">Sex</label>
+																					<input type="text" class="form-control" id="edit-sex" name="sex" required>
+																				</div>
+																				<div class="mb-3">
+																					<label for="edit-email" class="form-label">Email</label>
+																					<input type="email" class="form-control" id="edit-email" name="email" required>
+																				</div>
+																			</div>
+																		</div>
+
+																		<button type="submit" class="btn btn-primary w-100">Update Student</button>
+																	</form>
+																</div>
+															</div>
+														</div>
+													</div>
+
+													<script>
+														document.getElementById('editStudentForm').addEventListener('submit', function(e) {
+															e.preventDefault();
+
+															Swal.fire({
+																title: 'Confirm update?',
+																icon: 'question',
+																showCancelButton: true,
+																confirmButtonText: 'Yes, update it!',
+																cancelButtonText: 'Cancel'
+															}).then((result) => {
+																if (result.isConfirmed) {
+																	const form = e.target;
+																	const formData = new FormData(form);
+
+																	fetch('<?php echo site_url("admin/update-student-data"); ?>', {
+																			method: 'POST',
+																			body: formData,
+																			headers: {
+																				'X-Requested-With': 'XMLHttpRequest' // for CI ajax detection if needed
+																			}
+																		})
+																		.then(response => response.json())
+																		.then(data => {
+																			if (data.success) {
+																				Swal.fire('Updated!', 'Student info has been updated.', 'success');
+																				// Optionally close modal or refresh page/list here:
+																				const modalEl = document.getElementById('editStudentModal');
+																				const modal = bootstrap.Modal.getInstance(modalEl);
+																				modal.hide();
+
+																				// Reload the page
+																				location.reload();
+																			} else {
+																				Swal.fire('Error!', data.message || 'Failed to update.', 'error');
+																			}
+																		})
+																		.catch(() => {
+																			Swal.fire('Error!', 'Something went wrong.', 'error');
+																		});
+																}
+															});
+														});
+													</script>
+
+													<script>
+														document.querySelectorAll('.validate-registration').forEach(link => {
+															link.addEventListener('click', function(e) {
+																e.preventDefault();
+
+																// Populate modal fields from data attributes
+																document.getElementById('edit-user-id').value = this.dataset.userid;
+																document.getElementById('edit-student-id').value = this.dataset.id;
+																document.getElementById('edit-first-name').value = this.dataset.firstname;
+																document.getElementById('edit-middle-name').value = this.dataset.middlename;
+																document.getElementById('edit-last-name').value = this.dataset.lastname;
+																document.getElementById('edit-department').value = this.dataset.deptId;
+																document.getElementById('edit-year').value = this.dataset.year;
+																document.getElementById('edit-sex').value = this.dataset.sex;
+																document.getElementById('edit-email').value = this.dataset.email;
+
+																// Show the modal
+																const editModal = new bootstrap.Modal(document.getElementById('editStudentModal'));
+																editModal.show();
+															});
+														});
+													</script>
+
+
+													<script>
+														document.querySelectorAll('.validate-registration').forEach(button => {
+															button.addEventListener('click', function(e) {
+																e.preventDefault();
+
+																// Get modal element
+																const modalEl = document.getElementById('editStudentModal');
+
+																// Populate fields here as you need
+																// ...
+
+																// Create modal instance (default options, including backdrop)
+																const editModal = new bootstrap.Modal(modalEl);
+
+																// Show the modal
+																editModal.show();
+
+																// Optional: When modal closes, dispose to clean up properly
+																modalEl.addEventListener('hidden.bs.modal', () => {
+																	editModal.dispose();
+																}, {
+																	once: true
+																});
+															});
+														});
+													</script>
+
+													<div class="text-center d-none" id="attendance-table-fallback">
+														<span class="fa fa-user-slash fa-2x text-muted"></span>
+														<p class="fw-bold fs-8 mt-3">No Student Found</p>
+													</div>
+												</div>
+											</div>
+
+											<div class="card-footer">
+												<div class="d-flex justify-content-center">
+													<button class="btn btn-sm btn-falcon-default me-1" type="button" title="Previous" data-list-pagination="prev">
+														<span class="fas fa-chevron-left"></span>
+													</button>
+													<ul class="pagination mb-0"></ul>
+													<button class="btn btn-sm btn-falcon-default ms-1" type="button" title="Next" data-list-pagination="next">
+														<span class="fas fa-chevron-right"></span>
+													</button>
+												</div>
+											</div>
+
+										</div> <!-- end card -->
+									</div> <!-- end modal-body -->
+								</div> <!-- end modal-content -->
+							</div> <!-- end modal-dialog -->
+						</div> <!-- end modal -->
 					</div>
 				</div>
 			</div>

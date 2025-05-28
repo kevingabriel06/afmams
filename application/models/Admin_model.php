@@ -17,6 +17,24 @@ class Admin_model extends CI_Model
 		return $this->db->get_where('users', ['student_id' => $student_id])->row_array();
 	}
 
+	public function get_import_students()
+	{
+		$this->db->select('users.*, department.dept_name, department.dept_id AS department_id');
+		$this->db->from('users');
+		$this->db->join('department', 'department.dept_id = users.dept_id'); // Use a single '='
+		$this->db->where('users.role', 'Student');
+
+		$query = $this->db->get();
+		return $query->result(); // return the result
+	}
+
+
+	public function update_student_data($user_id, $data)
+	{
+		$this->db->where('user_id', $user_id);
+		return $this->db->update('users', $data);
+	}
+
 	// DASHBOARD 
 
 	// Get the current semester count

@@ -4705,6 +4705,9 @@ class AdminController extends CI_Controller
 		$data['users'] = $this->admin->get_student($student_id);
 		$data['exempted'] = $this->admin->get_exempted_students();
 
+		$data['students'] = $this->admin->get_import_students();
+		$data['departments'] = $this->admin->get_department();
+
 		// DYNAMIC DROPDOWN OPTIONS
 		$logo_targets = [];
 
@@ -4736,6 +4739,55 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
+	public function update_student()
+	{
+		if (!$this->input->is_ajax_request()) {
+			show_error('No direct script access allowed');
+		}
+
+		$this->load->library('form_validation');
+		$this->form_validation->set_rules('user_id', 'User ID', 'required|integer');
+		$this->form_validation->set_rules('student_id', 'Student ID', 'required');
+		$this->form_validation->set_rules('first_name', 'First Name', 'required');
+		$this->form_validation->set_rules('middle_name', 'Middle Name', 'required');
+		$this->form_validation->set_rules('last_name', 'Last Name', 'required');
+		$this->form_validation->set_rules('department', 'Department', 'required');
+		$this->form_validation->set_rules('year_level', 'Year Level', 'required');
+		$this->form_validation->set_rules('sex', 'Sex', 'required');
+		$this->form_validation->set_rules('email', 'Email', 'required|valid_email');
+
+		if ($this->form_validation->run() == FALSE) {
+			echo json_encode([
+				'success' => false,
+				'message' => validation_errors()
+			]);
+			return;
+		}
+
+		$data = [
+			'student_id' => $this->input->post('student_id', true),
+			'first_name' => $this->input->post('first_name', true),
+			'middle_name' => $this->input->post('middle_name', true),
+			'last_name' => $this->input->post('last_name', true),
+			'dept_id' => $this->input->post('department', true),
+			'year_level' => $this->input->post('year_level', true),
+			'sex' => $this->input->post('sex', true),
+			'email' => $this->input->post('email', true),
+		];
+
+		$user_id = $this->input->post('user_id', true);
+
+		$updated = $this->admin->update_student_data($user_id, $data);
+
+		if ($updated) {
+			echo json_encode(['success' => true]);
+		} else {
+			echo json_encode([
+				'success' => false,
+				'message' => 'Failed to update student info.'
+			]);
+		}
+	}
 
 	// IMPORTING LIST STUDENT
 	public function import_list()

@@ -76,11 +76,9 @@
                                     <p class="mb-0" id="schedule_time_range"
                                         data-start="<?= $schedule[0]['date_time_in'] ?>"
                                         data-end="<?= $schedule[0]['date_cut_in'] ?>">
-                                        <?php
-                                        echo date('F j, Y | g:i a', strtotime($schedule[0]['date_time_in']));
-                                        ?> to <?php
-                                                echo date('F j, Y | g:i a', strtotime($schedule[0]['date_cut_in']));
-                                                ?>
+                                        <?= date('F j, Y | g:i a', strtotime($schedule[0]['date_time_in'])) ?>
+                                        to
+                                        <?= date('F j, Y | g:i a', strtotime($schedule[0]['date_cut_in'])) ?>
                                     </p>
                                 <?php else : ?>
                                     <p class="mb-0">No scheduled time available</p>
