@@ -3668,7 +3668,7 @@ class AdminController extends CI_Controller
 				'fines_status' => 'Pending',
 				'mode_payment' => $mode_of_payment,
 				'last_updated' => date('Y-m-d H:i:s')
-			], $academic_year, $semester); // ADDED: pass academic_year and semester to update method
+			], $academic_year, $semester, $organizer); // ADDED: pass academic_year and semester to update method
 
 			// ❌ Send rejection notification
 			$this->Notification_model->add_notification(
@@ -3690,7 +3690,7 @@ class AdminController extends CI_Controller
 			'mode_payment' => $mode_of_payment,
 			'approved_by' => $admin_student_id, // ✅ Add this line
 			'last_updated' => date('Y-m-d H:i:s')
-		], $academic_year, $semester); // ADDED: pass academic_year and semester to update method
+		], $academic_year, $semester, $organizer); // ADDED: pass academic_year and semester to update method
 
 		if ($updated) {
 			$summary_id = $record->summary_id;

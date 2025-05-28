@@ -2296,11 +2296,15 @@ class Admin_model extends CI_Model
 	// }
 
 
-	public function update_fines_summary_receipt($student_id, $data, $academic_year, $semester)
+	public function update_fines_summary_receipt($student_id, $data, $academic_year, $semester, $organizer)
 	{
+		// $academic_year = '2024-2025';
+		// $semester = '2nd Semester';
+
 		$this->db->where('student_id', $student_id);
 		$this->db->where('academic_year', $academic_year);
 		$this->db->where('semester', $semester);
+		$this->db->where('organizer', $organizer);
 		return $this->db->update('fines_summary', $data);
 	}
 

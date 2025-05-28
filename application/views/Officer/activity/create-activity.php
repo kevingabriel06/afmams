@@ -465,10 +465,10 @@
                 timeStart.set("minDate", now);
                 timeEnd.set("minDate", startVal > now ? startVal : now);
 
-                if (endVal) {
-                    timeStart.set("maxDate", endVal);
-                    timeEnd.set("maxDate", endVal);
-                }
+                // if (endVal) {
+                //     timeStart.set("maxDate", endVal);
+                //     timeEnd.set("maxDate", endVal);
+                // }
             }
 
             // Run applyDateLimits every 1 second to enforce no past time selection

@@ -3326,7 +3326,7 @@ class OfficerController extends CI_Controller
 		}
 
 		// CASE: REFERENCE MATCH - APPROVED
-		$updated = $this->admin->update_fines_summary_receipt($student_id, [
+		$updated = $this->officer->update_fines_summary_receipt($student_id, [
 			'reference_number_admin' => $reference_number,
 			'fines_status' => 'Paid',
 			'mode_payment' => $mode_of_payment,
