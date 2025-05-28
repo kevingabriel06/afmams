@@ -1529,7 +1529,8 @@ class Admin_model extends CI_Model
 
 
 
-	public function get_all_students_attendance_by_activity($activity_id)
+	public function get_all_students_attendance_by_activity($activity_id, $department = null, $status = null)
+
 	{
 		// Step 1: Get all students who have attendance records with department info
 		$this->db->select('users.*, department.dept_name, attendance.*');
@@ -1537,6 +1538,15 @@ class Admin_model extends CI_Model
 		$this->db->join('users', 'attendance.student_id = users.student_id', 'inner'); // Only include students with attendance records
 		$this->db->join('department', 'department.dept_id = users.dept_id', 'left');
 		$this->db->where('attendance.activity_id', $activity_id);
+
+		// Add this:
+		if ($department) {
+			// Assuming $department is the department name; change to 'dept_id' if you have ID
+			$this->db->where('department.dept_name', $department);
+		}
+
+
+
 		$this->db->group_by('users.student_id');  // Ensure students appear once
 		$students = $this->db->get()->result();
 
@@ -1606,6 +1616,14 @@ class Admin_model extends CI_Model
 
 			$data[] = $row;
 		}
+
+		// Filter by status after building data
+		if ($status) {
+			$data = array_filter($data, function ($row) use ($status) {
+				return strtolower($row['status']) === strtolower($status);
+			});
+		}
+
 
 		return $data;
 	}
@@ -1986,6 +2004,35 @@ class Admin_model extends CI_Model
 		$query = $this->db->get();
 		return $query->result_array();
 	}
+
+
+
+	//EXPORT FINES USING FILTER 
+	public function get_fines_by_filter($department = null, $year_level = null)
+	{
+		$this->db->select('users.student_id, users.first_name, users.last_name, users.year_level, 
+        department.dept_name, activity.activity_title, fines.fines_amount');
+		$this->db->from('fines');
+		$this->db->join('users', 'users.student_id = fines.student_id');
+		$this->db->join('department', 'department.dept_id = users.dept_id');
+		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+		$this->db->where('activity.organizer', 'Student Parliament');
+
+		if (!empty($department)) {
+			$this->db->where('department.dept_name', $department);  // filtering by department name if your input is name
+		}
+
+		if (!empty($year_level)) {
+			$this->db->where('users.year_level', $year_level);
+		}
+
+		$this->db->order_by('users.student_id, activity.activity_id');
+
+		return $this->db->get()->result();
+	}
+
+
+
 
 	// public function flash_fines()
 	// {

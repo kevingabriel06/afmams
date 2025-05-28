@@ -3364,9 +3364,12 @@ class OfficerController extends CI_Controller
 		$summary = $this->db->where('summary_id', $summary_id)->get('fines_summary')->row();
 		if (!$summary) return;
 		$student_id = $summary->student_id;
+		$organizer = $summary->organizer;
+		$academic_year = $summary->academic_year;
+		$semester = $summary->semester;
 
-		// Get fines data using get_fines_by_student
-		$fines_data = $this->Student_model->get_fines_by_student($student_id);
+		// Get fines data using the new filtered method
+		$fines_data = $this->Student_model->get_fines_for_receipt($student_id, $organizer, $academic_year, $semester);
 		if (empty($fines_data)) return;
 
 		$receipt_data = $fines_data[0];
@@ -3383,7 +3386,7 @@ class OfficerController extends CI_Controller
 		}
 
 		// Determine organizer
-		$organizer = 'Unknown Organizer';
+
 		if (!empty($summary->approved_by)) {
 			$officer_student_id = $summary->approved_by;
 

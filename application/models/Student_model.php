@@ -1574,6 +1574,45 @@ class Student_model extends CI_Model
 	}
 
 
+	// For generating student's fine receipt
+	public function get_fines_for_receipt($student_id, $organizer, $academic_year, $semester)
+	{
+		$this->db->select('
+        fines.*, 
+        activity.activity_title, 
+        activity.start_date, 
+        activity.organizer, 
+        activity.fines AS activity_fine_amount, 
+        activity_time_slots.slot_name, 
+        fines_summary.summary_id, 
+        fines_summary.fines_status, 
+        fines_summary.total_fines, 
+        fines_summary.generated_receipt, 
+        attendance.time_in, 
+        attendance.time_out, 
+        attendance.attendance_status, 
+        attendance.photo_path
+    ');
+		$this->db->from('fines');
+		$this->db->join('activity', 'activity.activity_id = fines.activity_id', 'left');
+		$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = fines.timeslot_id', 'left');
+		$this->db->join('fines_summary', 'fines_summary.student_id = fines.student_id AND fines_summary.organizer = activity.organizer', 'left');
+		$this->db->join('attendance', 'attendance.attendance_id = fines.attendance_id', 'left');
+
+		$this->db->where('fines.student_id', $student_id);
+		$this->db->where('activity.organizer', $organizer);
+		$this->db->where('fines_summary.academic_year', $academic_year);
+		$this->db->where('fines_summary.semester', $semester);
+
+		$this->db->order_by('activity.activity_title', 'ASC');
+		$this->db->order_by('activity_time_slots.slot_name', 'ASC');
+
+		$query = $this->db->get();
+		return $query->result_array();
+	}
+
+
+
 	//FOR EXPORTING
 
 	public function get_fines_by_student_with_organizer($student_id)

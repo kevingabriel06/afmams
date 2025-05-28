@@ -35,13 +35,11 @@
 								</form>
 							</div>
 							<?php if (!empty($activities)): ?>
-								<a href="<?php echo base_url('AdminController/export_attendance_pdf/' . $activities['activity_id']); ?>"
-									target="_blank" title="Export to PDF">
-									<button class="btn btn-sm btn-falcon-default ms-2" type="button" id="exportPdfBtn" title="Export to PDF">
-										<span class="fas fa-download"></span>
-									</button>
-								</a>
+								<button class="btn btn-sm btn-falcon-default ms-2" type="button" id="exportPdfBtn" title="Export to PDF">
+									<span class="fas fa-download"></span>
+								</button>
 							<?php endif; ?>
+
 
 							<!-- script for filtered tables -->
 
@@ -49,13 +47,48 @@
 								document.getElementById('exportPdfBtn').addEventListener('click', function() {
 									const status = document.getElementById("status-filter").value;
 									const department = document.getElementById("department-filter").value;
-									const baseUrl = "<?php echo base_url('AdminController/export_attendance_pdf/' . $activities['activity_id']); ?>";
+									const activityId = <?= json_encode($activities['activity_id']); ?>;
 
-									const url = new URL(baseUrl);
-									if (status) url.searchParams.append("status", status);
-									if (department) url.searchParams.append("department", department);
+									// Build URL to your controller method that checks for data
+									const checkUrl = "<?= base_url('AdminController/check_attendance_data') ?>";
 
-									window.open(url.toString(), '_blank');
+									// Make AJAX request to check if data exists with the filters
+									fetch(checkUrl, {
+											method: 'POST',
+											headers: {
+												'Content-Type': 'application/json'
+											},
+											body: JSON.stringify({
+												activity_id: activityId,
+												status: status,
+												department: department
+											})
+										})
+										.then(response => response.json())
+										.then(data => {
+											if (data.success && data.hasData) {
+												// Data found, open the PDF in new tab with filters applied
+												const pdfUrl = new URL("<?= base_url('AdminController/export_attendance_pdf/') ?>" + activityId, window.location.origin);
+												if (status) pdfUrl.searchParams.append('status', status);
+												if (department) pdfUrl.searchParams.append('department', department);
+												window.open(pdfUrl.toString(), '_blank');
+											} else {
+												// No data found, show SweetAlert warning
+												Swal.fire({
+													icon: 'warning',
+													title: 'No Data',
+													text: 'No attendance data available with the selected filters.'
+												});
+											}
+										})
+										.catch(error => {
+											Swal.fire({
+												icon: 'error',
+												title: 'Error',
+												text: 'An error occurred while checking data.'
+											});
+											console.error('Error:', error);
+										});
 								});
 							</script>
 

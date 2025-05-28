@@ -2046,7 +2046,13 @@ class Officer_model extends CI_Model
 		// Get officer details from session
 		$dept_id = $this->session->userdata('dept_id');
 		$org_id = $this->session->userdata('org_id');
-		$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+		if ($this->session->userdata('is_officer_dept') === 'Yes') {
+			$organizer = $this->session->userdata('dept_name');
+		} else {
+			$organizer = $this->session->userdata('org_name');
+		}
+
+
 
 		$this->db->select('
 			*,
@@ -2064,12 +2070,15 @@ class Officer_model extends CI_Model
 		$this->db->join('users', 'users.student_id = fines_summary.student_id');
 		$this->db->join('department', 'department.dept_id = users.dept_id');
 		$this->db->join('fines', 'fines.student_id = fines_summary.student_id');
-		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
-		$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = fines.timeslot_id', 'left');  // added this join
+		$this->db->join('activity', 'activity.activity_id = fines.activity_id'); // Join to get activity details (for fines)
+		$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = fines.timeslot_id', 'left');
 		$this->db->join('attendance', 'attendance.student_id = fines_summary.student_id AND attendance.activity_id = fines.activity_id AND attendance.timeslot_id = fines.timeslot_id', 'left');
 
-		$this->db->where('activity.organizer', $organizer);
+		// Filter organizer directly from fines_summary table:
+		$this->db->where('fines_summary.organizer', $organizer);
 		$this->db->where('activity.status', 'Completed');
+
+
 
 		// Filter to only students under this dept/org
 		$this->db->group_start();

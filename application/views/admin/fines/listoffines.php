@@ -193,31 +193,39 @@
 
 							<script>
 								function exportFinesPDF() {
-									const status = document.getElementById('status-filter').value;
-									const department = document.getElementById('department-filter').value;
+									const status = document.getElementById('status-filter').value.trim();
+									const department = document.getElementById('department-filter').value.trim();
+									const year = document.getElementById('year-filter').value.trim();
 
-									const form = document.createElement('form');
-									form.method = 'POST';
-									form.action = '<?= base_url("AdminController/export_fines_pdf") ?>'; // Replace with your actual controller name
-									form.target = '_blank'; // This makes the form submit to a new tab
+									// Prepare data to send
+									const data = {
+										status: status,
+										department: department,
+										year_level: year
+									};
 
+									// AJAX POST to check data availability first
+									$.post('<?= base_url("AdminController/check_fines_data") ?>', data, function(response) {
+										if (response.hasData) {
+											// If data exists, open PDF in new tab with filters
+											const url = new URL("<?= base_url('AdminController/export_fines_pdf') ?>");
+											if (department) url.searchParams.append('department', department);
+											if (year) url.searchParams.append('year_level', year);
 
-									const statusInput = document.createElement('input');
-									statusInput.type = 'hidden';
-									statusInput.name = 'status';
-									statusInput.value = status;
-
-									const deptInput = document.createElement('input');
-									deptInput.type = 'hidden';
-									deptInput.name = 'department';
-									deptInput.value = department;
-
-									form.appendChild(statusInput);
-									form.appendChild(deptInput);
-									document.body.appendChild(form);
-									form.submit();
+											window.open(url.toString(), '_blank');
+										} else {
+											// Show SweetAlert if no data
+											Swal.fire({
+												icon: 'info',
+												title: 'No data found',
+												text: 'No fine data available to export.',
+												confirmButtonText: 'OK'
+											});
+										}
+									}, 'json');
 								}
 							</script>
+
 
 
 

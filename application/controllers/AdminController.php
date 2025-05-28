@@ -3436,14 +3436,43 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/footer', $data);
 	}
 
+
+	// For exporting attendance with filters
+	public function check_attendance_data()
+	{
+		$input = json_decode($this->input->raw_input_stream, true);
+
+		$activity_id = $input['activity_id'] ?? null;
+		$status = $input['status'] ?? null;
+		$department = $input['department'] ?? null;
+
+		$this->load->model('Admin_model');
+
+		// Use your model to check if filtered attendance exists
+		$results = $this->Admin_model->get_all_students_attendance_by_activity($activity_id, $department, $status);
+
+		$hasData = !empty($results);
+
+		echo json_encode([
+			'success' => true,
+			'hasData' => $hasData
+		]);
+	}
+
 	public function export_attendance_pdf($activity_id)
 	{
 		ob_clean();
 
 		$this->load->model('Admin_model');
 
+
+		// Get filters from GET parameters (sent via query string)
+		$department = $this->input->get('department') ?? null;
+		$status = $this->input->get('status') ?? null;
+
 		// Use the same model function for consistency
-		$students = $this->Admin_model->get_all_students_attendance_by_activity($activity_id);
+		$students = $this->Admin_model->get_all_students_attendance_by_activity($activity_id, $department, $status);
+
 		$timeslots = $this->Admin_model->get_timeslots_by_activity($activity_id);
 		$activity = $this->Admin_model->get_activity_specific($activity_id);
 
@@ -3724,10 +3753,14 @@ class AdminController extends CI_Controller
 		$summary = $this->db->where('summary_id', $summary_id)->get('fines_summary')->row();
 		if (!$summary) return;
 		$student_id = $summary->student_id;
+		$organizer = $summary->organizer;
+		$academic_year = $summary->academic_year;
+		$semester = $summary->semester;
 
-		// Get fines data using get_fines_by_student
-		$fines_data = $this->Student_model->get_fines_by_student($student_id);
+		// Get fines data using the new filtered method
+		$fines_data = $this->Student_model->get_fines_for_receipt($student_id, $organizer, $academic_year, $semester);
 		if (empty($fines_data)) return;
+
 
 		$receipt_data = $fines_data[0];
 
@@ -3995,29 +4028,34 @@ class AdminController extends CI_Controller
 		// Get organizer info from session
 		$dept_id = $this->session->userdata('dept_id');
 		$org_id = $this->session->userdata('org_id');
-		$organizer_name = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+		$is_dept = $this->session->userdata('is_officer_dept') === 'Yes';
+		$organizer_name = $is_dept ? $this->session->userdata('dept_name') : $this->session->userdata('org_name');
 
 		// Start building query
 		$this->db->select('fines_summary.*');
 		$this->db->from('fines_summary');
 		$this->db->join('fines', 'fines_summary.student_id = fines.student_id', 'left');
 		$this->db->join('activity', 'fines.activity_id = activity.activity_id', 'left');
+		$this->db->join('users', 'users.student_id = fines_summary.student_id', 'left'); // ✅ Join users
 
-		// Filter by student id
+		// Filter by student
 		$this->db->where('fines_summary.student_id', $student_id);
 
 		// Filter by organizer
 		if ($organizer_name) {
 			$this->db->where('activity.organizer', $organizer_name);
 		}
-		if ($dept_id) {
-			$this->db->where('fines_summary.dept_id', $dept_id);
-		}
-		if ($org_id) {
-			$this->db->or_where('fines_summary.org_id', $org_id);
+
+		// Optional: enforce dept/org scope if necessary
+		if ($is_dept && $dept_id) {
+			$this->db->where('users.dept_id', $dept_id); // ✅ correct column
+		} elseif (!$is_dept && $org_id) {
+			$this->db->join('student_org', 'student_org.student_id = users.student_id', 'left');
+			$this->db->where('student_org.org_id', $org_id);
+			$this->db->where('student_org.is_officer', 'Yes');
 		}
 
-		// Because multiple fines_summary records could appear due to joins, use group_by
+		// Prevent duplicates
 		$this->db->group_by('fines_summary.summary_id');
 
 		$summary = $this->db->get()->row();
@@ -4050,6 +4088,7 @@ class AdminController extends CI_Controller
 
 
 
+
 	public function update_status()
 	{
 		$input = json_decode(file_get_contents("php://input"), true);
@@ -4074,22 +4113,32 @@ class AdminController extends CI_Controller
 
 
 
+	//FOR EXPORT FINES WITH FILTER
+	public function check_fines_data()
+	{
+		$department = $this->input->post('department') ?: null;
+		$year_level = $this->input->post('year_level') ?: null;
+		$status = $this->input->post('status') ?: null;
+
+		$this->load->model('Admin_model');
+		$data = $this->Admin_model->get_fines_by_filter($department, $year_level, $status);
+
+		echo json_encode(['hasData' => !empty($data)]);
+	}
+
 	public function export_fines_pdf()
 	{
 		$this->load->library('fpdf');
 
-		// Fetch fines data
-		$this->db->select('users.student_id, users.first_name, users.last_name, users.year_level, 
-		department.dept_name, activity.activity_title, fines.fines_amount');
-		$this->db->from('fines');
-		$this->db->join('users', 'users.student_id = fines.student_id');
-		$this->db->join('department', 'department.dept_id = users.dept_id');
-		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
-		$this->db->where('activity.organizer', 'Student Parliament');
-		$this->db->order_by('users.student_id, activity.activity_id');
+		$this->load->model('Admin_model');
+
+		$department = $this->input->get('department');
+		$year_level = $this->input->get('year_level');
 
 
-		$fines_data = $this->db->get()->result();
+		// ✅ Use the Admin model function instead of raw DB query
+		$this->load->model('Admin_model');
+		$fines_data = $this->Admin_model->get_fines_by_filter($department, $year_level);
 
 		if (empty($fines_data)) {
 			echo "No fine data available to export.";
