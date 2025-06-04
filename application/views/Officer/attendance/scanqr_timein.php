@@ -502,6 +502,10 @@
                                                 icon: 'success',
                                                 title: 'Attendance Marked',
                                                 text: `Student ID ${student.student_id} - ${student.first_name} ${student.last_name} successfully detected and recorded.`,
+                                                imageUrl: student.profile_pic, // this should be part of your AJAX response
+                                                imageAlt: 'Profile Picture',
+                                                imageWidth: 300,
+                                                imageHeight: 250,
                                                 timer: 5000,
                                                 showConfirmButton: true
                                             });
@@ -510,6 +514,10 @@
                                                 icon: 'info',
                                                 title: 'Info',
                                                 text: `Student ID ${student.student_id} - ${student.first_name} ${student.last_name} has already been recorded.`,
+                                                imageUrl: student.profile_pic, // this should be part of your AJAX response
+                                                imageAlt: 'Profile Picture',
+                                                imageWidth: 300,
+                                                imageHeight: 250,
                                                 timer: 5000,
                                                 showConfirmButton: true
                                             });

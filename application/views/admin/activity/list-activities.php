@@ -205,13 +205,20 @@
                     $('#start-year, #end-year').removeClass('is-invalid');
                 }
 
-                // Set date range based on semester
+                const semesterRange = {
+                    first_start: <?= (int)$semester_range->first_start ?>,
+                    first_end: <?= (int)$semester_range->first_end ?>,
+                    second_start: <?= (int)$semester_range->second_start ?>,
+                    second_end: <?= (int)$semester_range->second_end ?>
+                };
+
+                // Set date range based on semester using dynamic semester range
                 if (selectedSemester === "1st-semester") {
-                    startDate = new Date(selectedStartYear, 7, 1); // Aug 1
-                    endDate = new Date(selectedStartYear, 11, 31); // Dec 31
+                    startDate = new Date(selectedStartYear, semesterRange.first_start - 1, 1); // JS months are 0-based
+                    endDate = new Date(selectedStartYear, semesterRange.first_end, 0); // 0 gets the last day of the previous month
                 } else if (selectedSemester === "2nd-semester") {
-                    startDate = new Date(selectedEndYear, 0, 1); // Jan 1
-                    endDate = new Date(selectedEndYear, 6, 31); // July 31
+                    startDate = new Date(selectedEndYear, semesterRange.second_start - 1, 1);
+                    endDate = new Date(selectedEndYear, semesterRange.second_end, 0);
                 } else {
                     startDate = new Date(selectedStartYear, 0, 1);
                     endDate = new Date(selectedEndYear, 11, 31);

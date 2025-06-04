@@ -333,7 +333,22 @@ class Admin_model extends CI_Model
 		return $timeslot_ids;
 	}
 
-	// LISTING AND VIEWING OF ACTIVITY
+	// LISTING AND VIEWING OF ACTIVITY - NEW ACTIVE
+	public function get_activities_active()
+	{
+		$this->db->select('a.*, MIN(ats.date_time_in) as first_schedule'); // Pick the earliest schedule
+		$this->db->from('activity a');
+		$this->db->join('activity_time_slots ats', 'a.activity_id = ats.activity_id', 'LEFT');
+		$this->db->join('semester_ay sy', 'a.semester = sy.semester AND a.academic_year = sy.academic_year');
+		$this->db->group_by('a.activity_id'); // Ensure only one row per activity
+		$this->db->where('organizer', 'Student Parliament');
+		$this->db->where('is_active', '1');
+
+		$query = $this->db->get();
+		return $query->result();
+	}
+
+	// OLD
 	public function get_activities()
 	{
 		$this->db->select('a.*, MIN(ats.date_time_in) as first_schedule'); // Pick the earliest schedule

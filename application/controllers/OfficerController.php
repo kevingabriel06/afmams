@@ -2817,6 +2817,8 @@ class OfficerController extends CI_Controller
 		// Get student details
 		$student = $this->officer->get_student_by_id($student_id);
 		$full_name = $student ? $student->first_name . ' ' . $student->last_name : 'Student';
+		$profile = $student ? $student->profile_pic : 'default.jpg';
+		$img_url = base_url('assets/profile/' . $profile);
 
 		// Check if student already has time_in
 		$existing_attendance = $this->officer->get_attendance_record_time_in($student_id, $activity_id, $timeslot_id);
@@ -2826,7 +2828,8 @@ class OfficerController extends CI_Controller
 				->set_status_header(200)
 				->set_output(json_encode([
 					'status' => 'info',
-					'message' => "Student ID - $student_id - $full_name has already been recorded."
+					'message' => "Student ID - $student_id - $full_name has already been recorded.",
+					'profile_pic' => $img_url
 				]));
 		}
 
@@ -2883,7 +2886,8 @@ class OfficerController extends CI_Controller
 				->set_status_header(200)
 				->set_output(json_encode([
 					'status' => 'success',
-					'message' => "$student_id - $full_name successfully recorded."
+					'message' => "$student_id - $full_name successfully recorded.",
+					'profile_pic' => $img_url
 				]));
 		} else {
 			return $this->output
@@ -2951,6 +2955,8 @@ class OfficerController extends CI_Controller
 		// Get student details
 		$student = $this->officer->get_student_by_id($student_id);
 		$full_name = $student ? $student->first_name . ' ' . $student->last_name : 'Student';
+		$profile = $student ? $student->profile_pic : 'default.jpg';
+		$img_url = base_url('assets/profile/' . $profile);
 
 		// Check if student already has time_in
 		$existing_attendance = $this->officer->get_attendance_record_time_out($student_id, $activity_id, $timeslot_id);
@@ -2960,7 +2966,8 @@ class OfficerController extends CI_Controller
 				->set_status_header(200)
 				->set_output(json_encode([
 					'status' => 'info',
-					'message' => "Student ID - $student_id - $full_name has already been recorded."
+					'message' => "Student ID - $student_id - $full_name has already been recorded.",
+					'profile_pic' => $img_url
 				]));
 		}
 
@@ -2974,7 +2981,8 @@ class OfficerController extends CI_Controller
 				->set_status_header(200)
 				->set_output(json_encode([
 					'status' => 'success',
-					'message' => "$full_name successfully recorded."
+					'message' => "$full_name successfully recorded.",
+					'profile_pic' => $img_url
 				]));
 		} else {
 			return $this->output

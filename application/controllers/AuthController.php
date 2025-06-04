@@ -88,6 +88,7 @@ class AuthController extends CI_Controller
             'user_type' => $user_type
         ]);
     }
+
     public function logout()
     {
         $this->session->sess_destroy();

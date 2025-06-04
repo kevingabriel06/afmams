@@ -1,5 +1,6 @@
 <?php
 
+use PhpOffice\PhpSpreadsheet\Calculation\Statistical\Distributions\StudentT;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 
@@ -225,19 +226,78 @@ class AdminController extends CI_Controller
 				return;
 			}
 
-			// Prepare Activity Data
+			// Extract activity start date and month
+			$startDate = $this->input->post('date_start');
+			$startMonth = (int)date('n', strtotime($startDate)); // 1 to 12
+
+			// Get semester range (assuming single row)
+			$range = $this->db->get_where('semester_range', ['id' => '1'])->row();
+
+			if (!$range) {
+				return $this->output
+					->set_content_type('application/json')
+					->set_output(json_encode([
+						'status' => 'error',
+						'message' => 'Semester range not found.'
+					]));
+			}
+
+			$validSemester = false;
+			$semester = '';
+			$academicYear = $range->academic_year;
+
+			// Check if start month falls within the 1st semester
+			if ($startMonth >= (int)$range->first_start && $startMonth <= (int)$range->first_end) {
+				$validSemester = true;
+				$semester = '1st Semester';
+			}
+
+			// Check if start month falls within the 2nd semester
+			if ($startMonth >= (int)$range->second_start && $startMonth <= (int)$range->second_end) {
+				$validSemester = true;
+				$semester = '2nd Semester';
+			}
+
+			if (!$validSemester) {
+				return $this->output
+					->set_content_type('application/json')
+					->set_output(json_encode([
+						'status' => 'error',
+						'message' => 'The activity start date does not fall within the semester range.'
+					]));
+			}
+
+			// Prepare Activity Data if valid
 			$data = [
 				'activity_title'        => $this->input->post('title'),
-				'start_date'            => $this->input->post('date_start'),
+				'start_date'            => $startDate,
 				'end_date'              => $this->input->post('date_end'),
 				'description'           => $this->input->post('description'),
 				'registration_deadline' => $this->input->post('registration_deadline'),
 				'registration_fee'      => str_replace(",", "", $this->input->post('registration_fee')),
 				'organizer'             => 'Student Parliament',
 				'fines'                 => str_replace(",", "", $this->input->post('fines')),
-				'audience'             => implode(',', $this->input->post('audience')),
-				'created_at'            => date('Y-m-d H:i:s')
+				'audience'              => implode(',', $this->input->post('audience')),
+				'created_at'            => date('Y-m-d H:i:s'),
+				'academic_year'         => $academicYear,
+				'semester'              => $semester
 			];
+
+
+
+			// // Prepare Activity Data
+			// $data = [
+			// 	'activity_title'        => $this->input->post('title'),
+			// 	'start_date'            => $this->input->post('date_start'),
+			// 	'end_date'              => $this->input->post('date_end'),
+			// 	'description'           => $this->input->post('description'),
+			// 	'registration_deadline' => $this->input->post('registration_deadline'),
+			// 	'registration_fee'      => str_replace(",", "", $this->input->post('registration_fee')),
+			// 	'organizer'             => 'Student Parliament',
+			// 	'fines'                 => str_replace(",", "", $this->input->post('fines')),
+			// 	'audience'             => implode(',', $this->input->post('audience')),
+			// 	'created_at'            => date('Y-m-d H:i:s')
+			// ];
 
 			// Handle Cover Image Upload
 			if (!empty($_FILES['coverUpload']['name'])) {
@@ -510,7 +570,9 @@ class AdminController extends CI_Controller
 		$data['users'] = $this->admin->get_student($student_id);
 
 		// GETTING OF THE ACTIVITY FROM THE DATABASE
-		$data['activities'] = $this->admin->get_activities(); // FOR STUDENT PARLIAMENT
+		$data['activities'] = $this->admin->get_activities_active(); // FOR STUDENT PARLIAMENT
+
+		$data['semester_range'] = $this->db->get_where('semester_range', ['id' => 1])->row();
 
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/activity/list-activities', $data);
@@ -2923,6 +2985,128 @@ class AdminController extends CI_Controller
 		echo json_encode(['status' => 'success']);
 	}
 
+	// MAIN
+	// public function scanUnified_timein()
+	// {
+	// 	date_default_timezone_set('Asia/Manila');
+
+	// 	// Get JSON input or fallback to POST
+	// 	$raw_input = json_decode(trim(file_get_contents("php://input")), true);
+
+	// 	$student_id = $raw_input['student_id'] ?? $this->input->post('student_id');
+	// 	$activity_id = $raw_input['activity_id'] ?? $this->input->post('activity_id');
+	// 	$timeslot_id = $raw_input['timeslot_id'] ?? $this->input->post('timeslot_id');
+
+	// 	if (!$student_id || !$activity_id || !$timeslot_id) {
+	// 		return $this->output
+	// 			->set_content_type('application/json')
+	// 			->set_status_header(400)
+	// 			->set_output(json_encode([
+	// 				'status' => 'error',
+	// 				'message' => 'Student ID and Activity ID are required.'
+	// 			]));
+	// 	}
+
+	// 	// Get current datetime
+	// 	$current_datetime = date('Y-m-d H:i:s');
+
+	// 	// Check if activity exists
+	// 	$activity = $this->admin->get_activity_schedule($activity_id);
+	// 	if (!$activity) {
+	// 		return $this->output
+	// 			->set_content_type('application/json')
+	// 			->set_status_header(404)
+	// 			->set_output(json_encode([
+	// 				'status' => 'error',
+	// 				'message' => 'Activity not found.'
+	// 			]));
+	// 	}
+
+	// 	// Get student details
+	// 	$student = $this->admin->get_student_by_id($student_id);
+	// 	$full_name = $student ? $student->first_name . ' ' . $student->last_name : 'Student';
+	// 	//$profile = $student ? $student->profile_pic : 'default.jpg';
+
+	// 	// Check if student already has time_in
+	// 	$existing_attendance = $this->admin->get_attendance_record_time_in($student_id, $activity_id, $timeslot_id);
+	// 	if ($existing_attendance && !empty($existing_attendance->time_in)) {
+	// 		return $this->output
+	// 			->set_content_type('application/json')
+	// 			->set_status_header(200)
+	// 			->set_output(json_encode([
+	// 				'status' => 'info',
+	// 				'message' => "Student ID - $student_id - $full_name has already been recorded."
+	// 			]));
+	// 	}
+
+	// 	// // Get the timeslot cut-off for fines calculation
+	// 	// $timeslot = $this->db->get_where('activity_time_slots', [
+	// 	// 	'timeslot_id' => $timeslot_id
+	// 	// ])->row();
+
+	// 	// if ($timeslot && strtotime($timeslot->date_cut_in) < strtotime($current_datetime)) {
+	// 	// 	// Apply fines logic: Check if student hasn't time-in and is past the cut-off
+	// 	// 	$activity = $this->db->get_where('activity', [
+	// 	// 		'activity_id' => $activity_id
+	// 	// 	])->row();
+
+	// 	// 	$fine_amount = $activity->fines ?? 0;
+
+	// 	// 	// Check if the student is eligible for fines
+	// 	// 	$existing_fine = $this->db->get_where('fines', [
+	// 	// 		'student_id' => $student_id,
+	// 	// 		'activity_id' => $activity_id,
+	// 	// 		'timeslot_id' => $timeslot_id
+	// 	// 	])->row();
+
+	// 	// 	if (!$existing_fine) {
+	// 	// 		// Insert fine record if no fine exists
+	// 	// 		$this->db->insert('fines', [
+	// 	// 			'student_id' => $student_id,
+	// 	// 			'activity_id' => $activity_id,
+	// 	// 			'timeslot_id' => $timeslot_id,
+	// 	// 			'fines_amount' => $fine_amount,
+	// 	// 			//'created_at' => date('Y-m-d H:i:s')
+	// 	// 		]);
+	// 	// 	} else {
+	// 	// 		// Update the fine record if one already exists
+	// 	// 		$this->db->where([
+	// 	// 			'student_id' => $student_id,
+	// 	// 			'activity_id' => $activity_id,
+	// 	// 			'timeslot_id' => $timeslot_id
+	// 	// 		]);
+	// 	// 		$this->db->update('fines', [
+	// 	// 			'fines_amount' => $existing_fine->fines_amount + $fine_amount, // Accumulate fine if necessary
+	// 	// 		]);
+	// 	// 	}
+	// 	// }
+
+	// 	// Update attendance
+	// 	$update_data = ['time_in' => $current_datetime];
+	// 	$updated = $this->admin->update_attendance_time_in($student_id, $activity_id, $timeslot_id, $update_data);
+
+	// 	if ($updated) {
+	// 		// Update or Insert fines summary after attendance update
+	// 		//$this->update_fines_summary_for_student($student_id);
+
+	// 		return $this->output
+	// 			->set_content_type('application/json')
+	// 			->set_status_header(200)
+	// 			->set_output(json_encode([
+	// 				'status' => 'success',
+	// 				'message' => "$student_id - $full_name successfully recorded."
+	// 			]));
+	// 	} else {
+	// 		return $this->output
+	// 			->set_content_type('application/json')
+	// 			->set_status_header(200)
+	// 			->set_output(json_encode([
+	// 				'status' => 'error',
+	// 				'message' => 'No changes made or record not found.'
+	// 			]));
+	// 	}
+	// }
+
 	public function scanUnified_timein()
 	{
 		date_default_timezone_set('Asia/Manila');
@@ -2962,6 +3146,8 @@ class AdminController extends CI_Controller
 		// Get student details
 		$student = $this->admin->get_student_by_id($student_id);
 		$full_name = $student ? $student->first_name . ' ' . $student->last_name : 'Student';
+		$profile = $student ? $student->profile_pic : 'default.jpg';
+		$img_url = base_url('assets/profile/' . $profile);
 
 		// Check if student already has time_in
 		$existing_attendance = $this->admin->get_attendance_record_time_in($student_id, $activity_id, $timeslot_id);
@@ -2971,7 +3157,8 @@ class AdminController extends CI_Controller
 				->set_status_header(200)
 				->set_output(json_encode([
 					'status' => 'info',
-					'message' => "Student ID - $student_id - $full_name has already been recorded."
+					'message' => "Student ID - $student_id - $full_name has already been recorded.",
+					'profile_pic' => $img_url
 				]));
 		}
 
@@ -3030,7 +3217,8 @@ class AdminController extends CI_Controller
 				->set_status_header(200)
 				->set_output(json_encode([
 					'status' => 'success',
-					'message' => "$student_id - $full_name successfully recorded."
+					'message' => "$student_id - $full_name successfully recorded.",
+					'profile_pic' => $img_url
 				]));
 		} else {
 			return $this->output
@@ -3042,7 +3230,6 @@ class AdminController extends CI_Controller
 				]));
 		}
 	}
-
 	// private function update_fines_summary_for_student($student_id)
 	// {
 	// 	// Get total fines for the student and activity
@@ -3316,6 +3503,8 @@ class AdminController extends CI_Controller
 		// Get student details
 		$student = $this->admin->get_student_by_id($student_id);
 		$full_name = $student ? $student->first_name . ' ' . $student->last_name : 'Student';
+		$profile = $student ? $student->profile_pic : 'default.jpg';
+		$img_url = base_url('assets/profile/' . $profile);
 
 		// Check if student already has time_out
 		$existing_attendance = $this->admin->get_attendance_record_time_out($student_id, $activity_id, $timeslot_id);
@@ -3325,7 +3514,8 @@ class AdminController extends CI_Controller
 				->set_status_header(200)
 				->set_output(json_encode([
 					'status' => 'info',
-					'message' => "Student ID - $student_id - $full_name has already been recorded."
+					'message' => "Student ID - $student_id - $full_name has already been recorded.",
+					'profile_pic' => $img_url
 				]));
 		}
 
@@ -3384,7 +3574,8 @@ class AdminController extends CI_Controller
 				->set_status_header(200)
 				->set_output(json_encode([
 					'status' => 'success',
-					'message' => "$student_id - $full_name successfully recorded."
+					'message' => "$student_id - $full_name successfully recorded.",
+					'profile_pic' => $img_url
 				]));
 		} else {
 			return $this->output
@@ -4786,6 +4977,48 @@ class AdminController extends CI_Controller
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/general_settings', $data);
 		$this->load->view('layout/footer', $data);
+	}
+
+	public function save_active_semester()
+	{
+		$semester = $this->input->post('semester');
+		$start_year = $this->input->post('start_year');
+		$end_year = $this->input->post('end_year');
+
+		if (!$semester || !$start_year || !$end_year || ((int)$end_year - (int)$start_year !== 1)) {
+			return $this->output
+				->set_content_type('application/json')
+				->set_output(json_encode([
+					'status' => 'error',
+					'message' => 'Invalid input. Please provide a semester and valid academic year range.'
+				]));
+		}
+
+
+		// Check if 'active_semester' setting already exists
+		$exists = $this->db->get_where('semester_ay', ['is_active' => '1'])->row();
+		$data = [
+			'semester' => $semester,
+			'academic_year' => $start_year . '-' . $end_year,
+			'is_active' => '1'
+		];
+
+		if ($exists) {
+			// Update existing active record
+			$this->db->where('is_active', '1');
+			$this->db->update('semester_ay', $data);
+		} else {
+			// Insert new active record
+			$this->db->insert('semester_ay', $data);
+		}
+
+		return $this->output
+			->set_content_type('application/json')
+			->set_output(json_encode([
+				'status' => 'success',
+				'message' => 'Active semester saved successfully.',
+				'value' => $semester . ' AY ' . $start_year . '-' . $end_year,
+			]));
 	}
 
 	public function update_student()

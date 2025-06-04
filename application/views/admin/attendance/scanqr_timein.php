@@ -203,9 +203,9 @@
                                     console.log('Fines imposed:', data);
                                     Swal.fire('Done!', 'Fines have been imposed.', 'success');
 
-                                    // setTimeout(function() {
-                                    //     window.location.href = '<?php echo site_url('admin/activity-details/'); ?>' + activity_id;
-                                    // }, 2000); // Delay for 2 seconds
+                                    setTimeout(function() {
+                                        window.location.href = '<?php echo site_url('admin/activity-details/'); ?>' + activity_id;
+                                    }, 2000); // Delay for 2 seconds
                                 })
                                 .catch(error => {
                                     console.error('Error imposing fines:', error);
@@ -493,10 +493,21 @@
                                 const responseJson = await result.json();
 
                                 if (responseJson.status === "success") {
+                                    // Swal.fire({
+                                    //     icon: 'success',
+                                    //     title: 'Attendance Marked',
+                                    //     text: `Student ID ${student.student_id} - ${student.first_name} ${student.last_name} successfully detected and recorded.`,
+                                    //     timer: 5000,
+                                    //     showConfirmButton: true
+                                    // });
                                     Swal.fire({
                                         icon: 'success',
                                         title: 'Attendance Marked',
                                         text: `Student ID ${student.student_id} - ${student.first_name} ${student.last_name} successfully detected and recorded.`,
+                                        imageUrl: student.profile_pic, // this should be part of your AJAX response
+                                        imageAlt: 'Profile Picture',
+                                        imageWidth: 300,
+                                        imageHeight: 250,
                                         timer: 5000,
                                         showConfirmButton: true
                                     });
@@ -505,6 +516,10 @@
                                         icon: 'info',
                                         title: 'Info',
                                         text: `Student ID ${student.student_id} - ${student.first_name} ${student.last_name} has already been recorded.`,
+                                        imageUrl: student.profile_pic, // this should be part of your AJAX response
+                                        imageAlt: 'Profile Picture',
+                                        imageWidth: 300,
+                                        imageHeight: 250,
                                         timer: 5000,
                                         showConfirmButton: true
                                     });

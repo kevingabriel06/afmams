@@ -216,6 +216,9 @@ $route['admin/update-organization'] = 'AdminController/update_organization';
 $route['admin/verify-receipt-page'] = 'AdminController/verify_receipt_page';
 $route['admin/verify-receipt'] = 'AdminController/verify_receipt';
 
+
+$route['admin/active-semester'] = 'AdminController/save_active_semester';
+
 $route['admin/about'] = 'AdminController/about';
 
 // OFFICER ROUTES
