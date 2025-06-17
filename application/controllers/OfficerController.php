@@ -181,6 +181,46 @@ class OfficerController extends CI_Controller
 		$data['student_count'] = $this->officer->number_of_students();
 		$data['officer_count'] = $this->officer->number_of_officers();
 
+		//to determine active semester start
+		$student_id = $this->session->userdata('student_id');
+		$role = $this->session->userdata('role');
+		$user = $this->officer->get_student($student_id);
+
+
+		$semester_ay = null;
+
+		if ($role === 'Admin') {
+			$settings = $this->db->get('student_parliament_settings')->row();
+			if ($settings) {
+				$semester_ay = (object)[
+					'semester' => $settings->semester,
+					'academic_year' => $settings->academic_year
+				];
+			}
+		} elseif (!empty($user['is_officer']) && $user['is_officer'] === 'Yes') {
+			$this->officer->get_organization_by_student($student_id);
+			if ($org && $org->is_active == 1) {
+				$semester_ay = (object)[
+					'semester' => $org->semester,
+					'academic_year' => $org->academic_year
+				];
+			}
+		} elseif (!empty($user['is_officer_dept']) && $user['is_officer_dept'] === 'Yes') {
+			$dept = $this->officer->get_department_by_id($user['dept_id']);
+			if ($dept && $dept->is_active == 1) {
+				$semester_ay = (object)[
+					'semester' => $dept->semester,
+					'academic_year' => $dept->academic_year
+				];
+			}
+		}
+
+		// Assign to data
+		$data['semester_ay'] = $semester_ay;
+
+		//to determine active semester end
+
+
 		$this->load->view('layout/header', $data);
 		$this->load->view('officer/dashboard', $data);
 		$this->load->view('layout/footer', $data);
@@ -208,6 +248,103 @@ class OfficerController extends CI_Controller
 	}
 
 	// INSERTING THE ACTIVITY
+	// public function save_activity()
+	// {
+	// 	if ($this->input->post()) {
+	// 		// Set Validation Rules
+	// 		$this->form_validation->set_rules('title', 'Activity Title', 'required|is_unique[activity.activity_title]', [
+	// 			'required'   => 'The {field} is required.',
+	// 			'is_unique'  => 'The {field} must be unique. This title is already taken.'
+	// 		]);
+	// 		$this->form_validation->set_rules('date_start', 'Start Date', 'required');
+	// 		$this->form_validation->set_rules('date_end', 'End Date', 'required');
+	// 		$this->form_validation->set_rules('start_datetime[]', 'Start Date & Time', 'required');
+	// 		$this->form_validation->set_rules('end_datetime[]', 'End Date & Time', 'required');
+	// 		$this->form_validation->set_rules('session_type[]', 'Session Type', 'required');
+
+	// 		// Run Validation
+	// 		if ($this->form_validation->run() == FALSE) {
+	// 			echo json_encode(['status' => 'error', 'errors' => validation_errors()]);
+	// 			return;
+	// 		}
+
+	// 		$dept_or_org_name = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+
+	// 		// Prepare Activity Data
+	// 		$data = [
+	// 			'activity_title'        => $this->input->post('title'),
+	// 			'start_date'            => $this->input->post('date_start'),
+	// 			'end_date'              => $this->input->post('date_end'),
+	// 			'description'           => $this->input->post('description'),
+	// 			'registration_deadline' => $this->input->post('registration_deadline'),
+	// 			'registration_fee'      => str_replace(",", "", $this->input->post('registration_fee')),
+	// 			'organizer'             => $dept_or_org_name,
+	// 			'fines'                 => str_replace(",", "", $this->input->post('fines')),
+	// 			'audience'              => $dept_or_org_name,
+	// 			'created_at'            => date('Y-m-d H:i:s')
+	// 		];
+
+	// 		// Handle Cover Image Upload
+	// 		if (!empty($_FILES['coverUpload']['name'])) {
+	// 			$coverImage = $this->upload_file('coverUpload', './assets/coverEvent');
+	// 			if (!$coverImage['status']) {
+	// 				echo json_encode(['status' => 'error', 'errors' => $coverImage['error']]);
+	// 				return;
+	// 			}
+	// 			$data['activity_image'] = $coverImage['file_name'];
+	// 		}
+
+	// 		// Handle QR Code Upload
+	// 		if (!empty($_FILES['qrcode']['name'])) {
+	// 			$qrCode = $this->upload_file('qrcode', './assets/qrcodeRegistration');
+	// 			if (!$qrCode['status']) {
+	// 				echo json_encode(['status' => 'error', 'errors' => $qrCode['error']]);
+	// 				return;
+	// 			}
+	// 			$data['qr_code'] = $qrCode['file_name'];
+	// 		}
+
+	// 		// Insert Activity and Get ID
+	// 		$activity_id = $this->officer->save_activity($data);
+	// 		if (!$activity_id) {
+	// 			echo json_encode(['status' => 'error', 'errors' => 'Failed to Save Activity']);
+	// 			return;
+	// 		}
+
+	// 		// Fetch Input Data
+	// 		$start_datetimes = $this->input->post('start_datetime') ?? [];
+	// 		$end_datetimes = $this->input->post('end_datetime') ?? [];
+	// 		$session_types = $this->input->post('session_type') ?? [];
+
+	// 		// Prepare Schedule Data
+	// 		$schedules = [];
+	// 		foreach ($start_datetimes as $i => $start_datetime) {
+	// 			$schedules[] = [
+	// 				'activity_id'  => $activity_id,
+	// 				'date_time_in' => date('Y-m-d H:i:s', strtotime($start_datetime)),
+	// 				'date_time_out' => date('Y-m-d H:i:s', strtotime($end_datetimes[$i])),
+	// 				'slot_name'    => $session_types[$i],
+	// 				'created_at'   => date('Y-m-d H:i:s')
+	// 			];
+	// 		}
+
+
+	// 		// Save Schedules and get inserted timeslot IDs
+	// 		$timeslot_ids = $this->officer->save_schedules($schedules);
+
+	// 		// Assign Students to Activity
+	// 		$this->assign_students_to_activity($activity_id, $data, $timeslot_ids);
+
+	// 		// Return Success Response
+	// 		echo json_encode([
+	// 			'status'   => 'success',
+	// 			'message'  => 'Activity Saved Successfully',
+	// 			'redirect' => site_url('officer/list-of-activity')
+	// 		]);
+	// 	}
+	// }
+
+
 	public function save_activity()
 	{
 		if ($this->input->post()) {
@@ -228,12 +365,53 @@ class OfficerController extends CI_Controller
 				return;
 			}
 
+			// Extract activity start date and month
+			$startDate = $this->input->post('date_start');
+			$startMonth = (int)date('n', strtotime($startDate)); // 1 to 12
+
+			// Get semester range (assuming single row)
+			$range = $this->db->get_where('semester_range', ['id' => '1'])->row();
+
+			if (!$range) {
+				return $this->output
+					->set_content_type('application/json')
+					->set_output(json_encode([
+						'status' => 'error',
+						'message' => 'Semester range not found.'
+					]));
+			}
+
+			$validSemester = false;
+			$semester = '';
+			$academicYear = $range->academic_year;
+
+			// Check if start month falls within the 1st semester
+			if ($startMonth >= (int)$range->first_start && $startMonth <= (int)$range->first_end) {
+				$validSemester = true;
+				$semester = '1st Semester';
+			}
+
+			// Check if start month falls within the 2nd semester
+			if ($startMonth >= (int)$range->second_start && $startMonth <= (int)$range->second_end) {
+				$validSemester = true;
+				$semester = '2nd Semester';
+			}
+
+			if (!$validSemester) {
+				return $this->output
+					->set_content_type('application/json')
+					->set_output(json_encode([
+						'status' => 'error',
+						'message' => 'The activity start date does not fall within the semester range.'
+					]));
+			}
+
 			$dept_or_org_name = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
 
-			// Prepare Activity Data
+			// Prepare Activity Data with semester and academic year
 			$data = [
 				'activity_title'        => $this->input->post('title'),
-				'start_date'            => $this->input->post('date_start'),
+				'start_date'            => $startDate,
 				'end_date'              => $this->input->post('date_end'),
 				'description'           => $this->input->post('description'),
 				'registration_deadline' => $this->input->post('registration_deadline'),
@@ -241,6 +419,8 @@ class OfficerController extends CI_Controller
 				'organizer'             => $dept_or_org_name,
 				'fines'                 => str_replace(",", "", $this->input->post('fines')),
 				'audience'              => $dept_or_org_name,
+				'academic_year'         => $academicYear,
+				'semester'              => $semester,
 				'created_at'            => date('Y-m-d H:i:s')
 			];
 
@@ -288,7 +468,6 @@ class OfficerController extends CI_Controller
 				];
 			}
 
-
 			// Save Schedules and get inserted timeslot IDs
 			$timeslot_ids = $this->officer->save_schedules($schedules);
 
@@ -303,6 +482,7 @@ class OfficerController extends CI_Controller
 			]);
 		}
 	}
+
 
 	private function upload_file($field_name, $upload_path)
 	{
@@ -459,25 +639,77 @@ class OfficerController extends CI_Controller
 	}
 
 	// FETCHING ACTIVITY - PAGE (FINAL CHECK)
+	// public function list_activity()
+	// {
+	// 	$data['title'] = 'List of Activities';
+
+	// 	$student_id = $this->session->userdata('student_id');
+
+	// 	// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+	// 	$data['users'] = $this->officer->get_student($student_id);
+	// 	// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+	// 	$data['users'] = $this->officer->get_student($student_id);
+	// 	$data['privilege'] = $this->officer->get_student_privilege();
+
+	// 	// GETTING OF THE ACTIVITY FROM THE DATABASE
+	// 	$data['activities'] = $this->officer->get_activities(); // FOR STUDENT PARLIAMENT
+
+	// 	$this->load->view('layout/header', $data);
+	// 	$this->load->view('officer/activity/list-activities', $data);
+	// 	$this->load->view('layout/footer', $data);
+	// }
+
 	public function list_activity()
 	{
 		$data['title'] = 'List of Activities';
 
 		$student_id = $this->session->userdata('student_id');
+		$role       = $this->session->userdata('role');
+		$user       = $this->officer->get_student($student_id);
 
-		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
-		$data['users'] = $this->officer->get_student($student_id);
-		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
-		$data['users'] = $this->officer->get_student($student_id);
+		// Determine active organizer, semester, and academic year
+		$organizer = null;
+		$semester = null;
+		$academicYear = null;
+
+		if ($role === 'Admin') {
+			$organizer = 'Student Parliament';
+			$settings = $this->db->get('student_parliament_settings')->row();
+			if ($settings) {
+				$semester = $settings->semester;
+				$academicYear = $settings->academic_year;
+			}
+		} elseif (isset($user['is_officer']) && $user['is_officer'] === 'Yes') {
+			$org = $this->officer->get_organization_by_student($student_id);
+			if ($org && $org->is_active == 1) {
+				$organizer = $org->org_name;
+				$semester = $org->semester;
+				$academicYear = $org->academic_year;
+			}
+		} elseif (isset($user['is_officer_dept']) && $user['is_officer_dept'] === 'Yes' && !empty($user['dept_id'])) {
+			$dept = $this->officer->get_department_by_id($user['dept_id']);
+			if ($dept && $dept->is_active == 1) {
+				$organizer = $dept->dept_name;
+				$semester = $dept->semester;
+				$academicYear = $dept->academic_year;
+			}
+		}
+
+		// Pass semester and academic year to the view
+		$data['active_semester'] = $semester ?? '';
+		$data['active_academic_year'] = $academicYear ?? '';
+
+		$data['users'] = $user;
 		$data['privilege'] = $this->officer->get_student_privilege();
 
-		// GETTING OF THE ACTIVITY FROM THE DATABASE
-		$data['activities'] = $this->officer->get_activities(); // FOR STUDENT PARLIAMENT
+		// Use get_activities() or a filtered version if needed
+		$data['activities'] = $this->officer->get_activities();
 
 		$this->load->view('layout/header', $data);
 		$this->load->view('officer/activity/list-activities', $data);
 		$this->load->view('layout/footer', $data);
 	}
+
 
 	// FETCHING DETAILS OF THE ACTIVITY - PAGE
 	public function activity_details($activity_id)
@@ -589,8 +821,22 @@ class OfficerController extends CI_Controller
 		$this->load->model('Student_model');
 		require_once(APPPATH . 'third_party/fpdf.php');
 
+
+		// ✅ Get the current approver's student_id directly from session
+		$approver_student_id = $this->session->userdata('student_id');
+
+		// Step 1: Fetch current receipt data first
 		$receipt_data = $this->Student_model->get_receipt_by_id($registration_id);
 		if (!$receipt_data) return;
+
+		// Step 2: Only update approved_by if it is empty and we have a valid approver_student_id
+		if (empty($receipt_data['approved_by']) && !empty($approver_student_id)) {
+			$this->db->where('registration_id', $registration_id);
+			$this->db->update('registrations', ['approved_by' => $approver_student_id]);
+
+			// Refresh receipt_data after update to get the latest approved_by value
+			$receipt_data = $this->Student_model->get_receipt_by_id($registration_id);
+		}
 
 		$filename = 'receipt_' . $registration_id . '.pdf';
 		$folder_path = FCPATH . 'uploads/generated_receipts/';
@@ -601,6 +847,20 @@ class OfficerController extends CI_Controller
 		}
 
 		$verification_code = strtoupper(substr(md5($registration_id . time()), 0, 8));
+
+		// Fetch approver name
+		$approver_name = 'N/A';
+		if (!empty($receipt_data['approved_by'])) {
+			$approver = $this->db->select('first_name, middle_name, last_name')
+				->where('student_id', $receipt_data['approved_by'])
+				->get('users')
+				->row();
+
+			if ($approver) {
+				$approver_name = strtoupper(trim($approver->first_name . ' ' . $approver->middle_name . ' ' . $approver->last_name));
+			}
+		}
+
 
 		$pdf = new PDF();
 		$pdf->AddPage();
@@ -615,12 +875,41 @@ class OfficerController extends CI_Controller
 		$pdf->Cell(0, 10, 'OFFICIAL RECEIPT', 0, 1, 'C');
 		$pdf->Ln(5);
 
+		// Define tighter layout sizes
+		$label_w_left  = 28;   // Left-side label width
+		$value_w_left  = 37;   // Left-side value width
+		$label_w_right = 28;   // Right-side label width
+		$value_w_right = 37;   // Right-side value width
+		$gap_w         = 30;   // Space between left/right pairs
+
+		// Row 1: Receipt No and Semester
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell($label_w_left, 8, 'Receipt No:', 0, 0);
 		$pdf->SetFont('Arial', '', 10);
-		$pdf->Cell(50, 8, 'Receipt No:', 0, 0, 'L');
-		$pdf->Cell(0, 8, strtoupper($registration_id), 0, 1, 'L');
-		$pdf->Cell(50, 8, 'Date:', 0, 0, 'L');
-		$pdf->Cell(0, 8, date('F j, Y', strtotime($receipt_data['registered_at'])), 0, 1, 'L');
+		$pdf->Cell($value_w_left, 8, strtoupper($registration_id), 0, 0);
+
+		$pdf->Cell($gap_w); // spacer
+
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell($label_w_right, 8, 'Semester:', 0, 0);
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell($value_w_right, 8, isset($receipt_data['semester']) ? $receipt_data['semester'] : 'N/A', 0, 1);
+
+		// Row 2: Date and Academic Year
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell($label_w_left, 8, 'Date:', 0, 0);
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell($value_w_left, 8, date('F j, Y', strtotime($receipt_data['registered_at'])), 0, 0);
+
+		$pdf->Cell($gap_w); // spacer
+
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell($label_w_right, 8, 'Academic Year:', 0, 0);
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell($value_w_right, 8, isset($receipt_data['academic_year']) ? $receipt_data['academic_year'] : 'N/A', 0, 1);
+
 		$pdf->Ln(5);
+
 
 		$pdf->SetFont('Arial', 'B', 10);
 		$pdf->Cell(50, 8, 'From:', 0, 0, 'L');
@@ -634,22 +923,30 @@ class OfficerController extends CI_Controller
 
 		$pdf->Ln(5);
 		$pdf->SetFont('Arial', 'B', 10);
-		$pdf->Cell(120, 8, 'Description', 1, 0, 'C');
+		$pdf->Cell(150, 8, 'Description', 1, 0, 'C');
 		$pdf->Cell(40, 8, 'Amount (PHP)', 1, 1, 'C');
 
 		$pdf->SetFont('Arial', '', 10);
 		$description = 'Payment for ' . $receipt_data['activity_title'] . ' Registration';
-		$pdf->Cell(120, 8, $description, 1, 0, 'C');
+		$pdf->Cell(150, 8, $description, 1, 0, 'C');
 		$pdf->Cell(40, 8, number_format($receipt_data['amount_paid'], 2), 1, 1, 'C');
 
 		$pdf->SetFont('Arial', 'B', 10);
-		$pdf->Cell(120, 8, 'Total Amount:', 1, 0, 'R');
+		$pdf->Cell(150, 8, 'Total Amount:', 1, 0, 'R');
 		$pdf->Cell(40, 8, 'P ' . number_format($receipt_data['amount_paid'], 2), 1, 1, 'C');
 
 		$pdf->Ln(5);
 		$pdf->SetFont('Arial', '', 10);
-		$pdf->Cell(50, 8, 'Payment Type:', 0, 0, 'L');
+		$pdf->Cell(50, 8, 'Payment Type:',  0, 0, 'L');
 		$pdf->Cell(0, 8, $receipt_data['reference_number'] ? 'E-Payment (GCash)' : 'Cash', 0, 1, 'L');
+
+		//APPROVED BY
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell(50, 8, 'Approved By:', 0, 0, 'L');
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell(0, 8, $approver_name, 0, 1, 'L');
+
+
 
 		$pdf->Ln(15);
 		$pdf->SetFont('Arial', 'B', 12);
@@ -669,6 +966,7 @@ class OfficerController extends CI_Controller
 			'generated_receipt' => $filename,
 			'remark' => 'Receipt generated.',
 			'verification_code' => $verification_code,
+			// 'approved_by' => $approver_student_id,
 		]);
 	}
 
@@ -1332,26 +1630,79 @@ class OfficerController extends CI_Controller
 
 
 	// EVALUATION LIST - PAGE - FINAL CHECK
+	// public function list_activity_evaluation()
+	// {
+	// 	$data['title'] = 'List of Evaluation';
+
+	// 	$student_id = $this->session->userdata('student_id');
+
+	// 	// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+	// 	$data['users'] = $this->officer->get_student($student_id);
+	// 	// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+	// 	$data['users'] = $this->officer->get_student($student_id);
+	// 	$data['privilege'] = $this->officer->get_student_privilege();
+
+	// 	// GET THE EVALUATION FOR STUDENT PARLIAMENT
+	// 	$data['evaluation'] = $this->officer->evaluation_form();
+
+	// 	// Pass data to the view
+	// 	$this->load->view('layout/header', $data);
+	// 	$this->load->view('officer/activity/eval_list-activity-evaluation', $data);
+	// 	$this->load->view('layout/footer', $data);
+	// }
+
+
 	public function list_activity_evaluation()
 	{
 		$data['title'] = 'List of Evaluation';
 
 		$student_id = $this->session->userdata('student_id');
+		$role       = $this->session->userdata('role');
+		$user       = $this->officer->get_student($student_id);
 
-		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
-		$data['users'] = $this->officer->get_student($student_id);
-		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
-		$data['users'] = $this->officer->get_student($student_id);
+		// Determine active organizer, semester, and academic year
+		$organizer = null;
+		$semester = null;
+		$academicYear = null;
+
+		if ($role === 'Admin') {
+			$organizer = 'Student Parliament';
+			$settings = $this->db->get('student_parliament_settings')->row();
+			if ($settings) {
+				$semester = $settings->semester;
+				$academicYear = $settings->academic_year;
+			}
+		} elseif (isset($user['is_officer']) && $user['is_officer'] === 'Yes') {
+			$org = $this->officer->get_organization_by_student($student_id);
+			if ($org && $org->is_active == 1) {
+				$organizer = $org->org_name;
+				$semester = $org->semester;
+				$academicYear = $org->academic_year;
+			}
+		} elseif (isset($user['is_officer_dept']) && $user['is_officer_dept'] === 'Yes' && !empty($user['dept_id'])) {
+			$dept = $this->officer->get_department_by_id($user['dept_id']);
+			if ($dept && $dept->is_active == 1) {
+				$organizer = $dept->dept_name;
+				$semester = $dept->semester;
+				$academicYear = $dept->academic_year;
+			}
+		}
+
+		// Add active semester and academic year to data
+		$data['active_semester'] = $semester ?? '';
+		$data['active_academic_year'] = $academicYear ?? '';
+
+		$data['users'] = $user;
 		$data['privilege'] = $this->officer->get_student_privilege();
 
-		// GET THE EVALUATION FOR STUDENT PARLIAMENT
+		// Get evaluations (you can filter this in your model too, if needed)
 		$data['evaluation'] = $this->officer->evaluation_form();
 
-		// Pass data to the view
 		$this->load->view('layout/header', $data);
 		$this->load->view('officer/activity/eval_list-activity-evaluation', $data);
 		$this->load->view('layout/footer', $data);
 	}
+
 
 	// CREATE EVALUATION - PAGE - FINAL CHECK
 	public function create_evaluationform()
@@ -2040,7 +2391,12 @@ class OfficerController extends CI_Controller
 			'rating_summary' => $rating_summary,
 			'overall_rating' => $overall_rating,
 			'answer_summary' => $answer_summary,
-			'respondent_percentage' => $percentage
+			'respondent_percentage' => $percentage,
+
+			//for graphs
+			'rating_distribution' => $this->officer->get_rating_distribution($form_id),
+			'respondent_departments' => $this->officer->respondent_departments($form_id),
+			'respondent_year_levels' => $this->officer->respondent_year_levels($form_id)
 		];
 
 		// Load the views
@@ -2052,16 +2408,67 @@ class OfficerController extends CI_Controller
 	//  EXCUSE APPLICATION
 
 	// FETCHING ACTIVITY - PAGE - FINAL CHECK
+	// public function list_activity_excuse()
+	// {
+	// 	$data['title'] = 'List of Activity for Excuse Letter';
+
+	// 	$student_id = $this->session->userdata('student_id');
+
+	// 	// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+	// 	$data['users'] = $this->officer->get_student($student_id);
+	// 	// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+	// 	$data['users'] = $this->officer->get_student($student_id);
+	// 	$data['privilege'] = $this->officer->get_student_privilege();
+
+	// 	$data['activities'] = $this->officer->get_activities();
+
+	// 	$this->load->view('layout/header', $data);
+	// 	$this->load->view('officer/activity/exc_list-activities-excuseletter', $data);
+	// 	$this->load->view('layout/footer', $data);
+	// }
+
+
 	public function list_activity_excuse()
 	{
 		$data['title'] = 'List of Activity for Excuse Letter';
 
 		$student_id = $this->session->userdata('student_id');
+		$role       = $this->session->userdata('role');
+		$user       = $this->officer->get_student($student_id);
 
-		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
-		$data['users'] = $this->officer->get_student($student_id);
-		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
-		$data['users'] = $this->officer->get_student($student_id);
+		// Determine active organizer, semester, and academic year
+		$organizer = null;
+		$semester = null;
+		$academicYear = null;
+
+		if ($role === 'Admin') {
+			$organizer = 'Student Parliament';
+			$settings = $this->db->get('student_parliament_settings')->row();
+			if ($settings) {
+				$semester = $settings->semester;
+				$academicYear = $settings->academic_year;
+			}
+		} elseif (isset($user['is_officer']) && $user['is_officer'] === 'Yes') {
+			$org = $this->officer->get_organization_by_student($student_id);
+			if ($org && $org->is_active == 1) {
+				$organizer = $org->org_name;
+				$semester = $org->semester;
+				$academicYear = $org->academic_year;
+			}
+		} elseif (isset($user['is_officer_dept']) && $user['is_officer_dept'] === 'Yes' && !empty($user['dept_id'])) {
+			$dept = $this->officer->get_department_by_id($user['dept_id']);
+			if ($dept && $dept->is_active == 1) {
+				$organizer = $dept->dept_name;
+				$semester = $dept->semester;
+				$academicYear = $dept->academic_year;
+			}
+		}
+
+		// Add active semester and academic year to data
+		$data['active_semester'] = $semester ?? '';
+		$data['active_academic_year'] = $academicYear ?? '';
+
+		$data['users'] = $user;
 		$data['privilege'] = $this->officer->get_student_privilege();
 
 		$data['activities'] = $this->officer->get_activities();
@@ -2553,13 +2960,27 @@ class OfficerController extends CI_Controller
 			$date = new DateTime('now', $timezone);
 			$formatted_time = $date->format('Y-m-d H:i:s');
 
+
+			// Get active semester and academic year from semester_range or semester_ay table
+			$semester_ay = $this->db->get('semester_ay')->row();
+			if (!$semester_ay) {
+				echo json_encode(['status' => 'error', 'errors' => 'Active semester and academic year not set.']);
+				return;
+			}
+			$active_semester = $semester_ay->semester;
+			$active_ay = $semester_ay->academic_year;
+
 			$data = [
 				'student_id' => $student_id,
 				'content' => $this->input->post('content'),
 				'privacy' => $this->input->post('privacyStatus'),
 				'dept_id' => $this->session->userdata('dept_id') !== null ? $this->session->userdata('dept_id') : null,
 				'org_id' => !empty($this->session->userdata('org_id')) ? $this->session->userdata('org_id') : null,
-				'created_at' => $formatted_time // Add this line
+				'created_at' => $formatted_time, // Add this line
+
+				//added for ay and semester
+				'semester' => $active_semester,
+				'academic_year' => $active_ay,
 			];
 
 			if (!empty($_FILES['image']['name'])) {
@@ -3012,20 +3433,76 @@ class OfficerController extends CI_Controller
 	}
 
 	// LISTING OF THE ATTENDEES - PAGE - FINAL LIST
+	// public function list_activities_attendance()
+	// {
+	// 	$data['title'] = 'List of Activities';
+
+	// 	$student_id = $this->session->userdata('student_id');
+
+	// 	// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+	// 	$data['users'] = $this->officer->get_student($student_id);
+	// 	// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+	// 	$data['users'] = $this->officer->get_student($student_id);
+	// 	$data['privilege'] = $this->officer->get_student_privilege();
+
+	// 	$data['activities'] = $this->officer->get_activities_by_sp();
+
+	// 	$this->load->view('layout/header', $data);
+	// 	$this->load->view('officer/attendance/list-activities-attendance', $data);
+	// 	$this->load->view('layout/footer', $data);
+	// }
+
+
 	public function list_activities_attendance()
 	{
 		$data['title'] = 'List of Activities';
 
 		$student_id = $this->session->userdata('student_id');
+		$role       = $this->session->userdata('role');
+		$user       = $this->officer->get_student($student_id);
 
-		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
-		$data['users'] = $this->officer->get_student($student_id);
-		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
-		$data['users'] = $this->officer->get_student($student_id);
-		$data['privilege'] = $this->officer->get_student_privilege();
+		// Determine active organizer, semester, and academic year based on role and user
+		$organizer = null;
+		$semester = null;
+		$academicYear = null;
 
+		if ($role === 'Admin') {
+			$organizer = 'Student Parliament';
+			$settings = $this->db->get('student_parliament_settings')->row();
+			if ($settings) {
+				$semester = $settings->semester;
+				$academicYear = $settings->academic_year;
+			}
+		} elseif (isset($user['is_officer']) && $user['is_officer'] === 'Yes') {
+			$org = $this->officer->get_organization_by_student($student_id);
+			if ($org && $org->is_active == 1) {
+				$organizer = $org->org_name;
+				$semester = $org->semester;
+				$academicYear = $org->academic_year;
+			}
+		} elseif (isset($user['is_officer_dept']) && $user['is_officer_dept'] === 'Yes' && !empty($user['dept_id'])) {
+			$dept = $this->officer->get_department_by_id($user['dept_id']);
+			if ($dept && $dept->is_active == 1) {
+				$organizer = $dept->dept_name;
+				$semester = $dept->semester;
+				$academicYear = $dept->academic_year;
+			}
+		}
+
+		// Pass semester and academic year to data for the view
+		$data['active_semester'] = $semester ?? '';
+		$data['active_academic_year'] = $academicYear ?? '';
+
+		// Fetch activities filtered by current organizer, semester, and academic year
+		// Note: your existing get_activities_by_sp() uses session data for filtering
+		// You can modify your model to accept params or keep it like this if it works
 		$data['activities'] = $this->officer->get_activities_by_sp();
 
+		// Other data
+		$data['users'] = $user;
+		$data['privilege'] = $this->officer->get_student_privilege();
+
+		// Load views
 		$this->load->view('layout/header', $data);
 		$this->load->view('officer/attendance/list-activities-attendance', $data);
 		$this->load->view('layout/footer', $data);
@@ -3068,6 +3545,7 @@ class OfficerController extends CI_Controller
 		$status = $this->input->get('status');
 		$department = $this->input->get('department');
 
+
 		// Fetch filtered data
 		$students = $this->Admin_model->get_filtered_attendance_by_activity($activity_id, $status, $department);
 
@@ -3076,6 +3554,8 @@ class OfficerController extends CI_Controller
 		$timeslots = $this->Admin_model->get_timeslots_by_activity($activity_id);
 		$activity = $this->Admin_model->get_activity_specific($activity_id);
 
+		$semester = $activity['semester'] ?? 'N/A';
+		$academic_year = $activity['academic_year'] ?? 'N/A';
 
 
 		// Manually build the user array from session data
@@ -3124,107 +3604,141 @@ class OfficerController extends CI_Controller
 		}
 
 
-		// Setup PDF
+		// Generate PDF
 		$pdf = new PDF('P', 'mm', 'Legal');
 		$pdf->headerImage = $headerImage;
 		$pdf->footerImage = $footerImage;
-		$pdf->SetMargins(10, 10, 10); // standard margins
+		$pdf->SetMargins(10, 10, 10);
 		$pdf->AddPage();
 		$pdf->SetFont('Arial', 'B', 14);
 		$pdf->Cell(0, 10, 'Attendance Report - Activity: ' . ($activity ? $activity['activity_title'] : 'N/A'), 0, 1, 'C');
-		$pdf->Ln(5);
 
-		// Base font for measurements
+		// ✅ Add Semester and Academic Year
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell(0, 7, "$semester - A.Y. $academic_year", 0, 1, 'C');
+
+		$pdf->Ln(5);
 		$pdf->SetFont('Arial', '', 8);
 
-		// Headers for the table
-		$header = ['Student ID', 'Name', 'Department'];
+		// Build table headers
+		$header = ['#', 'Student ID', 'Name', 'Department'];
 		foreach ($timeslots as $slot) {
-			$period = strtolower($slot->slot_name);
-			$label = $period === 'morning' ? 'AM' : ($period === 'afternoon' ? 'PM' : strtoupper($period));
-			$header[] = "$label In";
-			$header[] = "$label Out";
+			$period = strtolower($slot->slot_name) === 'morning' ? 'AM' : 'PM';
+			$header[] = "$period In";
+			$header[] = "$period Out";
 		}
 		$header[] = 'Status';
 
-		// Measure max content width
+		// Measure max widths based on header initially
 		$max_widths = [];
 		foreach ($header as $col) {
 			$max_widths[] = $pdf->GetStringWidth($col);
 		}
 
-		// Measure content for each row dynamically
+		// Measure each student row
+		$counter = 1;
 		foreach ($students as $student) {
-			$dataRow = [
+			$row = [
+				$counter,
 				$student['student_id'],
 				$student['name'],
 				$student['dept_name']
 			];
 
 			foreach ($timeslots as $slot) {
-				$period = strtolower($slot->slot_name);
-				$dataRow[] = $student['in_' . $period] ?? 'No Data';
-				$dataRow[] = $student['out_' . $period] ?? 'No Data';
+				$period = strtolower($slot->slot_name) === 'morning' ? 'am' : 'pm';
+				$row[] = $student["in_$period"] ?? 'No Data';
+				$row[] = $student["out_$period"] ?? 'No Data';
 			}
 
-			$dataRow[] = $student['status'];
+			$row[] = $student['status'];
 
-			// Update column widths dynamically based on content
-			foreach ($dataRow as $i => $cell) {
+			// Compare and store max string widths
+			foreach ($row as $i => $cell) {
 				$max_widths[$i] = max($max_widths[$i], $pdf->GetStringWidth($cell));
 			}
+
+			$counter++;
 		}
 
-		// Add padding to widths
+		// Add padding to each column
 		$padding = 6;
-		foreach ($max_widths as &$width) {
-			$width += $padding;
+		foreach ($max_widths as &$w) {
+			$w += $padding;
 		}
 
-		// Scale total width to fit the Letter page width (usable width = 196mm)
-		$total_content_width = array_sum($max_widths);
-		$usable_page_width = 196;
-		$scaling_factor = $usable_page_width / $total_content_width;
+		// Calculate total width and center position
+		$table_width = array_sum($max_widths);
+		$page_width = $pdf->GetPageWidth();
+		$margin_left = ($page_width - $table_width) / 2;
 
-		// Scale column widths
-		foreach ($max_widths as &$width) {
-			$width = round($width * $scaling_factor, 2);
-		}
-
-		// Output table header
+		// Output headers
 		$pdf->SetFont('Arial', 'B', 9);
-		foreach ($header as $i => $colName) {
-			$pdf->Cell($max_widths[$i], 8, $colName, 1, 0, 'C');
+		$pdf->SetX($margin_left);
+		foreach ($header as $i => $col) {
+			$pdf->Cell($max_widths[$i], 8, $col, 1, 0, 'C');
 		}
 		$pdf->Ln();
 
-		// Output table rows
+		// Output data rows
 		$pdf->SetFont('Arial', '', 8);
+		$counter = 1;
 		foreach ($students as $student) {
-			$dataRow = [
+			$row = [
+				$counter,
 				$student['student_id'],
 				$student['name'],
 				$student['dept_name']
 			];
 
 			foreach ($timeslots as $slot) {
-				$period = strtolower($slot->slot_name);
-				$dataRow[] = $student['in_' . $period] ?? 'No Data';
-				$dataRow[] = $student['out_' . $period] ?? 'No Data';
+				$period = strtolower($slot->slot_name) === 'morning' ? 'am' : 'pm';
+				$row[] = $student["in_$period"] ?? 'No Data';
+				$row[] = $student["out_$period"] ?? 'No Data';
 			}
 
-			$dataRow[] = $student['status'];
+			$row[] = $student['status'];
 
-			// Output each row
-			foreach ($dataRow as $i => $cell) {
+			$pdf->SetX($margin_left);
+			foreach ($row as $i => $cell) {
 				$pdf->Cell($max_widths[$i], 8, $cell, 1, 0, 'L');
 			}
 			$pdf->Ln();
+			$counter++;
 		}
 
-		// Output PDF
+		// Output the file
 		$filename = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $activity['activity_title']) . '_attendance_report.pdf';
 		$pdf->Output('I', $filename);
+	}
+
+
+	public function view_attendance_reports($activity_id)
+	{
+
+		$data['title'] = 'Attendance Reports';
+
+		$student_id = $this->session->userdata('student_id');
+
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		$data['users'] = $this->admin->get_student($student_id);
+		$data['privilege'] = $this->officer->get_student_privilege();
+
+		$this->load->model('Officer_model');
+		$this->load->model('Admin_model');
+
+
+
+		$data['activity_id'] = $activity_id;
+		$data['by_department'] = $this->Admin_model->get_departments_with_attendees($activity_id);
+		$data['total_attendees'] = $this->Admin_model->get_total_attendees($activity_id);
+		$data['status_comparison'] = $this->Admin_model->get_attendance_status_counts($activity_id);
+
+
+
+		$this->load->view('layout/header', $data);
+		$this->load->view('admin/attendance/attendance-reports', $data);
+		$this->load->view('layout/footer', $data);
 	}
 
 
@@ -3382,19 +3896,42 @@ class OfficerController extends CI_Controller
 
 		$receipt_data = $fines_data[0];
 
-		// Fetch approver name
+		// Fetch approver name with role/org/dept label
 		$approver_name = 'N/A';
 		if (!empty($summary->approved_by)) {
-			$approver = $this->db->select('first_name, middle_name, last_name')
-				->where('student_id', $summary->approved_by)
-				->get('users')->row();
-			if ($approver) {
-				$approver_name = strtoupper(trim($approver->first_name . ' ' . $approver->middle_name . ' ' . $approver->last_name));
+			$this->db->select('first_name, middle_name, last_name, role, is_officer_dept, dept_id');
+			$this->db->from('users');
+			$this->db->where('student_id', $summary->approved_by);
+			$user_info = $this->db->get()->row();
+
+			if ($user_info) {
+				$name = strtoupper(trim($user_info->first_name . ' ' . $user_info->middle_name . ' ' . $user_info->last_name));
+				$role = ucfirst(strtolower($user_info->role));
+
+				if ($role === 'Officer' && $user_info->is_officer_dept === 'Yes') {
+					// Department Officer: get department name
+					$dept = $this->db->select('dept_name')->from('department')->where('dept_id', $user_info->dept_id)->get()->row();
+					$dept_name = $dept ? $dept->dept_name : 'Department Officer';
+					$role_label = "Officer - $dept_name";
+				} elseif ($role === 'Officer') {
+					// Regular officer: get org name
+					$org = $this->db->select('organization.name')
+						->from('student_org')
+						->join('organization', 'student_org.org_id = organization.org_id')
+						->where('student_org.student_id', $summary->approved_by)
+						->where('student_org.is_officer', 'Yes')
+						->get()->row();
+					$org_name = $org ? $org->name : 'Organization Officer';
+					$role_label = "Officer - $org_name";
+				} else {
+					$role_label = $role; // e.g., Admin
+				}
+
+				$approver_name = "$name ($role_label)";
 			}
 		}
 
-		// Determine organizer
-
+		// Determine organizer (your existing logic)
 		if (!empty($summary->approved_by)) {
 			$officer_student_id = $summary->approved_by;
 
@@ -3421,7 +3958,6 @@ class OfficerController extends CI_Controller
 				}
 			}
 		}
-
 		$filename = 'fine_receipt_' . $summary_id . '.pdf';
 		$folder_path = FCPATH . 'uploads/fine_receipts/';
 		$filepath = $folder_path . $filename;
@@ -3478,12 +4014,43 @@ class OfficerController extends CI_Controller
 		$pdf->Cell(0, 10, 'FINE PAYMENT RECEIPT', 0, 1, 'C');
 		$pdf->Ln(5);
 
+		// Define tighter layout sizes
+		$label_w_left  = 28;   // Left-side label width
+		$value_w_left  = 37;   // Left-side value width
+		$label_w_right = 28;   // Right-side label width (same as left for pantay)
+		$value_w_right = 37;   // Right-side value width
+		$gap_w         = 30;    // Space between left/right pairs
+
+		// Row 1: Receipt No and Semester
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell($label_w_left, 8, 'Receipt No:', 0, 0);
 		$pdf->SetFont('Arial', '', 10);
-		$pdf->Cell(50, 8, 'Receipt No:', 0, 0);
-		$pdf->Cell(0, 8, strtoupper($summary_id), 0, 1);
-		$pdf->Cell(50, 8, 'Date:', 0, 0);
-		$pdf->Cell(0, 8, date('F j, Y'), 0, 1);
+		$pdf->Cell($value_w_left, 8, strtoupper($summary_id), 0, 0);
+
+		$pdf->Cell($gap_w); // spacer between two sets
+
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell($label_w_right, 8, 'Semester:', 0, 0);
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell($value_w_right, 8, $semester, 0, 1);
+
+		// Row 2: Date and Academic Year (pantay with above)
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell($label_w_left, 8, 'Date:', 0, 0);
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell($value_w_left, 8, date('F j, Y'), 0, 0);
+
+		$pdf->Cell($gap_w);
+
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell($label_w_right, 8, 'Academic Year:', 0, 0);
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell($value_w_right, 8, $academic_year, 0, 1);
+
 		$pdf->Ln(5);
+
+
+		//Student Info
 
 		$pdf->SetFont('Arial', 'B', 10);
 		$pdf->Cell(50, 8, 'Student ID:', 0, 0);
@@ -3504,9 +4071,11 @@ class OfficerController extends CI_Controller
 		$pdf->SetFont('Arial', '', 10);
 		$pdf->Cell(0, 8, $organizer, 0, 1);
 
+
+		//Table Header
 		$pdf->Ln(5);
 		$pdf->SetFont('Arial', 'B', 10);
-		$pdf->Cell(120, 8, 'Description (Activity & Slot)', 1, 0, 'C');
+		$pdf->Cell(150, 8, 'Description (Activity & Slot)', 1, 0, 'C');
 		$pdf->Cell(40, 8, 'Amount (PHP)', 1, 1, 'C');
 		$pdf->SetFont('Arial', '', 10);
 
@@ -3544,7 +4113,7 @@ class OfficerController extends CI_Controller
 
 					$time_label = isset($slot_times[$label]) ? ' (' . date('h:i A', strtotime($slot_times[$label])) . ')' : ' (No record)';
 					$desc = $label . $time_label . ' - ' . $entries[0]['activity_title'];
-					$pdf->Cell(120, 8, $desc, 1, 0);
+					$pdf->Cell(150, 8, $desc, 1, 0);
 					$pdf->Cell(40, 8, 'Php ' . number_format($amount, 2), 1, 1, 'R');
 				}
 			}
@@ -3552,7 +4121,7 @@ class OfficerController extends CI_Controller
 
 		$total_amount = $receipt_data['total_fines'] ?? 0;
 		$pdf->SetFont('Arial', 'B', 10);
-		$pdf->Cell(120, 8, 'Total Amount:', 1, 0, 'R');
+		$pdf->Cell(150, 8, 'Total Amount:', 1, 0, 'R');
 		$pdf->Cell(40, 8, 'Php ' . number_format($total_amount, 2), 1, 1, 'C');
 
 		$pdf->Ln(5);
@@ -3577,6 +4146,7 @@ class OfficerController extends CI_Controller
 		$pdf->Output($filepath, 'F');
 
 		$this->db->where('summary_id', $summary_id)->update('fines_summary', [
+			'approved_by' => $this->session->userdata('student_id'), // or however you store logged-in user's ID
 			'generated_receipt' => $filename,
 			'verification_code' => $verification_code,
 			'last_updated' => date('Y-m-d H:i:s')
@@ -3646,28 +4216,101 @@ class OfficerController extends CI_Controller
 
 
 	//To display student total fines
+	// public function get_student_total_fines()
+	// {
+	// 	$input = json_decode(file_get_contents('php://input'), true);
+	// 	$student_id = $input['student_id'];
+
+	// 	$organizer_name = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+
+	// 	$this->db->select('summary_id, total_fines, fines_status');
+	// 	$this->db->from('fines_summary');
+	// 	$this->db->where('student_id', $student_id);
+	// 	$this->db->where('fines_status !=', 'Paid');
+
+	// 	if ($organizer_name) {
+	// 		$this->db->where('organizer', $organizer_name);
+	// 	}
+
+	// 	$summary = $this->db->get()->row();
+
+	// 	if (!$summary) {
+	// 		echo json_encode([
+	// 			'success' => false,
+	// 			'message' => 'No unpaid fines for this student under your organizer.'
+	// 		]);
+	// 		return;
+	// 	}
+
+	// 	echo json_encode([
+	// 		'success' => true,
+	// 		'summary_id' => $summary->summary_id,
+	// 		'total_fines' => $summary->total_fines
+	// 	]);
+	// }
+
+
+
 	public function get_student_total_fines()
 	{
 		$input = json_decode(file_get_contents('php://input'), true);
 		$student_id = $input['student_id'];
 
-		$organizer_name = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
+		// Get organizer info from session
+		$dept_id = $this->session->userdata('dept_id');
+		$org_id = $this->session->userdata('org_id');
+		$is_dept = $this->session->userdata('is_officer_dept') === 'Yes';
+		$organizer_name = $is_dept ? $this->session->userdata('dept_name') : $this->session->userdata('org_name');
 
-		$this->db->select('summary_id, total_fines, fines_status');
+		// Start building query
+		$this->db->select('
+        fines_summary.*,
+        users.first_name,
+        users.middle_name,
+        users.last_name,
+        users.profile_pic,
+        users.year_level,
+        department.dept_name
+    ');
+
 		$this->db->from('fines_summary');
-		$this->db->where('student_id', $student_id);
-		$this->db->where('fines_status !=', 'Paid');
+		$this->db->join('users', 'users.student_id = fines_summary.student_id', 'left');
+		$this->db->join('department', 'department.dept_id = users.dept_id', 'left');
 
+		// Filter by student
+		$this->db->where('fines_summary.student_id', $student_id);
+
+		// Filter by organizer directly on fines_summary
 		if ($organizer_name) {
-			$this->db->where('organizer', $organizer_name);
+			$this->db->where('fines_summary.organizer', $organizer_name);
 		}
+
+		// Optional: enforce dept/org scope
+		if ($is_dept && $dept_id) {
+			$this->db->where('users.dept_id', $dept_id);
+		} elseif (!$is_dept && $org_id) {
+			$this->db->join('student_org', 'student_org.student_id = users.student_id', 'left');
+			$this->db->where('student_org.org_id', $org_id);
+			$this->db->where('student_org.is_officer', 'Yes');
+		}
+
+		// Prevent duplicates
+		$this->db->group_by('fines_summary.summary_id');
 
 		$summary = $this->db->get()->row();
 
 		if (!$summary) {
 			echo json_encode([
 				'success' => false,
-				'message' => 'No unpaid fines for this student under your organizer.'
+				'message' => 'Student not found in fines records for this organizer.'
+			]);
+			return;
+		}
+
+		if ($summary->fines_status === 'Paid') {
+			echo json_encode([
+				'success' => false,
+				'message' => 'This student has already paid the fines.'
 			]);
 			return;
 		}
@@ -3675,7 +4318,13 @@ class OfficerController extends CI_Controller
 		echo json_encode([
 			'success' => true,
 			'summary_id' => $summary->summary_id,
-			'total_fines' => $summary->total_fines
+			'total_fines' => $summary->total_fines,
+			'first_name' => $summary->first_name,
+			'middle_name' => $summary->middle_name,
+			'last_name' => $summary->last_name,
+			'profile_pic' => $summary->profile_pic,
+			'dept_name' => $summary->dept_name,
+			'year_level' => $summary->year_level
 		]);
 	}
 
@@ -3738,7 +4387,9 @@ class OfficerController extends CI_Controller
     fines.fines_amount,
     activity.activity_title,
     activity.activity_id,
-    activity.start_date
+    activity.start_date,
+	activity.semester,           
+    activity.academic_year       
 ');
 
 		$this->db->from('fines_summary');
@@ -3767,6 +4418,15 @@ class OfficerController extends CI_Controller
 
 		$this->db->order_by('users.student_id');
 		$fines_data = $this->db->get()->result();
+
+
+		$semester = 'N/A';
+		$academic_year = 'N/A';
+
+		if (!empty($fines_data)) {
+			$semester = !empty($fines_data[0]->semester) ? $fines_data[0]->semester : 'N/A';
+			$academic_year = !empty($fines_data[0]->academic_year) ? $fines_data[0]->academic_year : 'N/A';
+		}
 
 
 
@@ -3823,6 +4483,11 @@ class OfficerController extends CI_Controller
 		$pdf->AddPage('L', 'Letter');
 		$pdf->SetFont('Arial', 'B', 6);
 		$pdf->Cell(0, 8, 'Student Parliament Fines Report', 0, 1, 'C');
+
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell(0, 7, "$semester - A.Y. $academic_year", 0, 1, 'C');
+		$pdf->Ln(5);
+
 		$pdf->Ln(5);
 
 		// Collect unique activity titles
@@ -4230,6 +4895,64 @@ class OfficerController extends CI_Controller
 		$this->load->view('officer/general_settings', $data);
 		$this->load->view('layout/footer', $data);
 	}
+
+
+
+	//setting the active semester
+	public function save_active_semester()
+	{
+		$semester   = $this->input->post('semester');
+		$start_year = $this->input->post('start_year');
+		$end_year   = $this->input->post('end_year');
+
+		if (!$semester || !$start_year || !$end_year || ((int)$end_year - (int)$start_year !== 1)) {
+			return $this->output
+				->set_content_type('application/json')
+				->set_output(json_encode([
+					'status' => 'error',
+					'message' => 'Invalid input. Please provide a semester and valid academic year range.'
+				]));
+		}
+
+		$academic_year = "{$start_year}-{$end_year}";
+		$student_id = $this->session->userdata('student_id');
+		$role       = $this->session->userdata('role');
+
+		$user = $this->officer->get_student($student_id);
+
+		if ($role === 'Admin') {
+			// Optional: update central table if needed
+			$this->officer->update_student_parliament_settings([
+				'semester' => $semester,
+				'academic_year' => $academic_year
+			]);
+		} elseif (isset($user['is_officer']) && $user['is_officer'] === 'Yes') {
+			$org = $this->officer->get_organization_by_student($student_id);
+			if ($org) {
+				$this->officer->update_organization_semester($org->org_id, [
+					'semester' => $semester,
+					'academic_year' => $academic_year,
+					'is_active' => 1
+				]);
+			}
+		} elseif (isset($user['is_officer_dept']) && $user['is_officer_dept'] === 'Yes' && !empty($user['dept_id'])) {
+			$this->officer->update_department_semester($user['dept_id'], [
+				'semester' => $semester,
+				'academic_year' => $academic_year,
+				'is_active' => 1
+			]);
+		}
+
+		return $this->output
+			->set_content_type('application/json')
+			->set_output(json_encode([
+				'status' => 'success',
+				'message' => 'Active semester and academic year updated successfully.',
+				'value' => "$semester AY $academic_year"
+			]));
+	}
+
+
 
 
 

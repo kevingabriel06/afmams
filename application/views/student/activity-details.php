@@ -19,9 +19,8 @@
 
 <div class="card mb-3">
 	<img id="coverPhoto" class="card-img-top"
-		src="<?php echo !empty($item->activity_image)
-					? base_url('assets/coverEvent/' . $item->activity_image)
-					: base_url('assets/image/OIP.jpg'); ?>" alt="Event Cover" />
+		src="<?php echo base_url('assets/coverEvent/') . (!empty($activity['activity_image']) ? htmlspecialchars($activity['activity_image']) : 'default.jpg'); ?>"
+		alt="Event Cover" />
 	<div class="card-body">
 		<div class="row justify-content-between align-items-center">
 			<div class="col">

@@ -84,6 +84,12 @@ class Student_model extends CI_Model
 			return $org->org_id;
 		}, $orgs);
 
+
+		// Get active semester and academic year
+		$semester_ay = $this->db->get('semester_ay')->row();
+		$active_semester = $semester_ay->semester ?? null;
+		$active_ay = $semester_ay->academic_year ?? null;
+
 		// 4. Main query
 		$this->db->select('*');
 		$this->db->from('post');
@@ -111,6 +117,13 @@ class Student_model extends CI_Model
 		}
 
 		$this->db->group_end();
+
+
+		// Add active semester and academic year filtering
+		if ($active_semester && $active_ay) {
+			$this->db->where('post.semester', $active_semester);
+			$this->db->where('post.academic_year', $active_ay);
+		}
 
 		$this->db->order_by('post.post_id', 'DESC');
 		$this->db->limit($limit, $offset);
@@ -188,6 +201,7 @@ class Student_model extends CI_Model
 			->get()
 			->result();
 
+
 		$org_ids = array_map(function ($org) {
 			return $org->org_id;
 		}, $orgs);
@@ -196,33 +210,121 @@ class Student_model extends CI_Model
 			return $org->org_name;
 		}, $orgs);
 
-		// Start the query for activities
+		// ✅ Get active semester and academic year
+		$semester_ay = $this->db
+			->where('is_active', 1)
+			->get('semester_ay')
+			->row();
+
+		if (!$semester_ay) {
+			return []; // No active semester/year set
+		}
+
+		$academicYear = $semester_ay->academic_year;
+		$semester = $semester_ay->semester;
+
+		// Start the activity query
 		$this->db->select('*');
 		$this->db->from('activity');
-		$this->db->where('is_shared', 'Yes');  // Ensure the activity is shared
+		$this->db->where('is_shared', 'Yes');
+		$this->db->where('academic_year', $academicYear);
+		$this->db->where('semester', $semester);
 
-		// Filter for public activities: organizer = "Student Parliament" and audience = "All"
+		// Group audience filtering logic
+		$this->db->group_start();
+
+		// Public: Student Parliament shared to all
 		$this->db->group_start();
 		$this->db->where('organizer', 'Student Parliament');
 		$this->db->where('audience', 'All');
 		$this->db->group_end();
 
-		// Filter for private activities: audience matches the student's department or organization
+		// OR: Department or organization-based audience
 		$this->db->or_group_start();
-		$this->db->or_where("FIND_IN_SET(" . $this->db->escape($user_dept_name) . ", audience) >", 0);  // Check if audience matches the department 
+		if (!empty($user_dept_name)) {
+			$this->db->or_where("FIND_IN_SET(" . $this->db->escape($user_dept_name) . ", audience) >", 0);
+		}
 		if (!empty($org_names)) {
 			foreach ($org_names as $org_name) {
 				$this->db->or_where("FIND_IN_SET(" . $this->db->escape($org_name) . ", audience) >", 0);
-			}			  // Check if audience matches the organizations the student belongs to
+			}
 		}
 		$this->db->group_end();
 
-		// Add pagination (LIMIT and OFFSET)
+		$this->db->group_end(); // 🔚 End of audience filters
+
+		// Add pagination
 		$this->db->limit($limit, $offset);
 
+		// Run and return result
 		$query = $this->db->get();
 		return $query->result();
 	}
+
+
+
+	//old
+
+	// public function get_shared_activities($limit, $offset)
+	// {
+	// 	// Get logged-in student ID
+	// 	$student_id = $this->session->userdata('student_id');
+
+	// 	// Get the student's department and name
+	// 	$user = $this->db->select('users.dept_id, department.dept_name')
+	// 		->from('users')
+	// 		->join('department', 'users.dept_id = department.dept_id')
+	// 		->where('student_id', $student_id)
+	// 		->get()
+	// 		->row();
+
+	// 	$user_dept_id = $user ? $user->dept_id : null;
+	// 	$user_dept_name = $user ? $user->dept_name : null;
+
+	// 	// Get all orgs the student belongs to
+	// 	$orgs = $this->db->select('student_org.org_id, organization.org_name')
+	// 		->from('student_org')
+	// 		->join('organization', 'student_org.org_id = organization.org_id')
+	// 		->where('student_id', $student_id)
+	// 		->get()
+	// 		->result();
+
+	// 	$org_ids = array_map(function ($org) {
+	// 		return $org->org_id;
+	// 	}, $orgs);
+
+	// 	$org_names = array_map(function ($org) {
+	// 		return $org->org_name;
+	// 	}, $orgs);
+
+	// 	// Start the query for activities
+	// 	$this->db->select('*');
+	// 	$this->db->from('activity');
+	// 	$this->db->where('is_shared', 'Yes');  // Ensure the activity is shared
+
+	// 	// Filter for public activities: organizer = "Student Parliament" and audience = "All"
+	// 	$this->db->group_start();
+	// 	$this->db->where('organizer', 'Student Parliament');
+	// 	$this->db->where('audience', 'All');
+	// 	$this->db->group_end();
+
+	// 	// Filter for private activities: audience matches the student's department or organization
+	// 	$this->db->or_group_start();
+	// 	$this->db->or_where("FIND_IN_SET(" . $this->db->escape($user_dept_name) . ", audience) >", 0);  // Check if audience matches the department 
+	// 	if (!empty($org_names)) {
+	// 		foreach ($org_names as $org_name) {
+	// 			$this->db->or_where("FIND_IN_SET(" . $this->db->escape($org_name) . ", audience) >", 0);
+	// 		}			  // Check if audience matches the organizations the student belongs to
+	// 	}
+	// 	$this->db->group_end();
+
+	// 	// Add pagination (LIMIT and OFFSET)
+	// 	$this->db->limit($limit, $offset);
+
+	// 	$query = $this->db->get();
+	// 	return $query->result();
+	// }
+
 
 	// UPCOMING ACTIVITY
 	public function get_activities_upcoming()
@@ -252,10 +354,24 @@ class Student_model extends CI_Model
 			return $org->org_name;
 		}, $orgs);
 
+
+		// ✅ Get active semester and academic year
+		$semester_ay = $this->db->get('semester_ay')->row();
+		$active_semester = $semester_ay->semester ?? null;
+		$active_ay = $semester_ay->academic_year ?? null;
+
 		// Fetch upcoming activities
 		$this->db->select('*');
 		$this->db->from('activity');
 		$this->db->where('status', 'Upcoming');
+
+
+		//Added this to fetch activities only based on active ay and semester 
+		if ($active_semester && $active_ay) {
+			$this->db->where('semester', $active_semester);
+			$this->db->where('academic_year', $active_ay);
+		}
+
 
 		// Check if the audience is the student's department or if the student belongs to the organization of the activity
 		$this->db->group_start();
@@ -494,6 +610,24 @@ class Student_model extends CI_Model
 
 	public function get_attendance($student_id)
 	{
+
+		// 🔹 Get the active semester and academic year
+		$semester_ay = $this->db
+			->where('is_active', 1)
+			->get('semester_ay')
+			->row();
+
+		if (!$semester_ay) {
+			return [
+				'attendance' => [],
+				'semester' => null,
+				'academic_year' => null
+			];
+		}
+
+		$academicYear = $semester_ay->academic_year;
+		$semester = $semester_ay->semester;
+
 		$this->db->select('
         GROUP_CONCAT(attendance.attendance_id ORDER BY activity_time_slots.slot_name) AS attendance_ids,
         GROUP_CONCAT(attendance.time_in ORDER BY activity_time_slots.slot_name) AS all_time_in,
@@ -508,6 +642,9 @@ class Student_model extends CI_Model
 		$this->db->join('activity', 'activity.activity_id = attendance.activity_id');
 		$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = attendance.timeslot_id');
 		$this->db->where('attendance.student_id', $student_id);
+		$this->db->where('activity.academic_year', $academicYear); // ✅ Filter by active AY
+		$this->db->where('activity.semester', $semester);          // ✅ Filter by active semester
+
 		$this->db->group_by('attendance.activity_id');
 
 		$query = $this->db->get();
@@ -545,7 +682,11 @@ class Student_model extends CI_Model
 			}
 		}
 
-		return $results;
+		return [
+			'attendance' => $results,
+			'semester' => $semester,
+			'academic_year' => $academicYear
+		];
 	}
 
 
@@ -558,6 +699,14 @@ class Student_model extends CI_Model
 	{
 		// Get logged-in student ID
 		$student_id = $this->session->userdata('student_id');
+
+		// --- ADD HERE: get active semester and academic year ---
+		$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+		if (!$semester_ay) {
+			return []; // no active semester/year set
+		}
+		$academicYear = $semester_ay->academic_year;
+		$semester = $semester_ay->semester;
 
 		// Get the student's department and name
 		$user = $this->db->select('users.dept_id, department.dept_name')
@@ -584,6 +733,9 @@ class Student_model extends CI_Model
 		// Fetch upcoming activities
 		$this->db->select('activity.*, MIN(ats.date_time_in) as first_schedule');
 		$this->db->from('activity');
+		$this->db->where('activity.academic_year', $academicYear);
+		$this->db->where('activity.semester', $semester);
+
 		$this->db->join('activity_time_slots ats', 'activity.activity_id = ats.activity_id', 'LEFT');
 
 		// Filter by audience
@@ -678,10 +830,24 @@ class Student_model extends CI_Model
 	{
 		$student_id = $this->session->userdata('student_id');
 
+		// --- Get active academic year and semester ---
+		$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+		if (!$semester_ay) {
+			return []; // No active semester/year set
+		}
+		$academicYear = $semester_ay->academic_year;
+		$semester = $semester_ay->semester;
+
 		$this->db->select('activity.*, ea.*, ea.status AS exStatus, ea.document, ea.remarks');
 		$this->db->from('excuse_application ea');
 		$this->db->join('activity', 'activity.activity_id = ea.activity_id', 'inner');
 		$this->db->where('ea.student_id', $student_id);
+
+
+		// --- Filter by student and active semester/year ---
+		$this->db->where('activity.academic_year', $academicYear);
+		$this->db->where('activity.semester', $semester);
+
 
 		$query = $this->db->get();
 		return $query->result();
@@ -757,6 +923,13 @@ class Student_model extends CI_Model
 	{
 		$student_id = $this->session->userdata('student_id');
 
+		// --- Get active academic year and semester ---
+		$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+		if (!$semester_ay) return [];
+
+		$academicYear = $semester_ay->academic_year;
+		$semester = $semester_ay->semester;
+
 		// Get the student's department and name
 		$user = $this->db->select('users.dept_id, department.dept_name')
 			->from('users')
@@ -793,6 +966,12 @@ class Student_model extends CI_Model
 		// Fetch eligible activities
 		$this->db->select('activity.*');
 		$this->db->from('activity');
+
+		//For active sem and academic year
+
+		$this->db->where('activity.academic_year', $academicYear);
+		$this->db->where('activity.semester', $semester);
+
 
 		// WHERE clause for status
 		$this->db->group_start();
@@ -952,6 +1131,14 @@ class Student_model extends CI_Model
 		// Get logged-in student ID
 		$student_id = $this->session->userdata('student_id');
 
+		// --- ADD HERE: get active semester and academic year ---
+		$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+		if (!$semester_ay) {
+			return []; // no active semester/year set
+		}
+		$academicYear = $semester_ay->academic_year;
+		$semester = $semester_ay->semester;
+
 		// Get the student's department and name
 		$user = $this->db->select('users.dept_id, department.dept_name')
 			->from('users')
@@ -998,6 +1185,11 @@ class Student_model extends CI_Model
 
 
 		$this->db->from('activity');
+
+		// --- ADD HERE: filter by active academic year and semester ---
+		$this->db->where('activity.academic_year', $academicYear);
+		$this->db->where('activity.semester', $semester);
+
 		$this->db->join('forms', 'forms.activity_id = activity.activity_id', 'inner');
 		$this->db->join('evaluation_responses', 'evaluation_responses.form_id = forms.form_id AND evaluation_responses.student_id = ' . $this->db->escape($student_id), 'left');
 		$this->db->join(
@@ -1537,6 +1729,16 @@ class Student_model extends CI_Model
 
 	public function get_fines_by_student($student_id)
 	{
+
+		// Get active semester and academic year
+		$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+		if (!$semester_ay) {
+			return []; // No active semester/year
+		}
+
+		$academicYear = $semester_ay->academic_year;
+		$semester = $semester_ay->semester;
+
 		$this->db->select('
     fines.*, 
     activity.activity_title, 
@@ -1560,23 +1762,87 @@ class Student_model extends CI_Model
 		$this->db->join('fines_summary', 'fines_summary.student_id = fines.student_id AND fines_summary.organizer = activity.organizer', 'left');
 		$this->db->join('attendance', 'attendance.attendance_id = fines.attendance_id', 'left');
 		$this->db->where('fines.student_id', $student_id);
+
+		// Filter by active academic year and semester
+		$this->db->where('activity.academic_year', $academicYear);
+		$this->db->where('activity.semester', $semester);
+
 		$this->db->order_by('activity.organizer', 'ASC');
 		$this->db->order_by('activity.activity_title', 'ASC');
 		$query = $this->db->get();
-		return $query->result_array();
+		return [
+			'fines' => $query->result_array(),
+			'semester' => $semester,
+			'academic_year' => $academicYear,
+		];
 	}
 
 
-	//For Displaying Fines Table
+	//For Displaying Fines Table || OLD
+	// public function get_fines_summary_by_student($student_id)
+	// {
+	// 	return $this->db->get_where('fines_summary', ['student_id' => $student_id])->result_array();
+	// }
+
+	//1st Choice
+	// public function get_fines_summary_by_student($student_id)
+	// {
+	// 	// Get active semester and academic year
+	// 	$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+	// 	if (!$semester_ay) {
+	// 		return [];
+	// 	}
+
+	// 	$academicYear = $semester_ay->academic_year;
+	// 	$semester = $semester_ay->semester;
+
+	// 	$this->db->where('student_id', $student_id);
+
+	// 	// If fines_summary has academic_year and semester columns, filter here:
+	// 	$this->db->where('academic_year', $academicYear);
+	// 	$this->db->where('semester', $semester);
+
+	// 	return $this->db->get('fines_summary')->result_array();
+	// }
+
+
 	public function get_fines_summary_by_student($student_id)
 	{
-		return $this->db->get_where('fines_summary', ['student_id' => $student_id])->result_array();
+		$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+		if (!$semester_ay) {
+			return [];
+		}
+
+		$academicYear = $semester_ay->academic_year;
+		$semester = $semester_ay->semester;
+
+		$this->db->select('fines_summary.*');
+		$this->db->from('fines_summary');
+		$this->db->join('activity', 'activity.organizer = fines_summary.organizer', 'left');
+		$this->db->where('fines_summary.student_id', $student_id);
+		$this->db->where('activity.academic_year', $academicYear);
+		$this->db->where('activity.semester', $semester);
+
+		return $this->db->get()->result_array();
 	}
+
+
+
+
 
 
 	// For generating student's fine receipt
 	public function get_fines_for_receipt($student_id, $organizer, $academic_year, $semester)
 	{
+
+		// Get the active semester and academic year
+		$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+		if (!$semester_ay) {
+			return []; // No active semester/year set
+		}
+		$academic_year = $semester_ay->academic_year;
+		$semester = $semester_ay->semester;
+
 		$this->db->select('
         fines.*, 
         activity.activity_title, 
@@ -1601,8 +1867,10 @@ class Student_model extends CI_Model
 
 		$this->db->where('fines.student_id', $student_id);
 		$this->db->where('activity.organizer', $organizer);
-		$this->db->where('fines_summary.academic_year', $academic_year);
-		$this->db->where('fines_summary.semester', $semester);
+
+		// Filter only for active academic year and semester
+		$this->db->where('activity.academic_year', $academic_year);
+		$this->db->where('activity.semester', $semester);
 
 		$this->db->order_by('activity.activity_title', 'ASC');
 		$this->db->order_by('activity_time_slots.slot_name', 'ASC');
@@ -1800,7 +2068,7 @@ class Student_model extends CI_Model
 	// Get details of a specific receipt
 	public function get_receipt_by_id($registration_id)
 	{
-		$this->db->select('r.*, a.activity_title, r.generated_receipt, u.student_id, 
+		$this->db->select('r.*, a.activity_title, a.semester, a.academic_year, r.generated_receipt, r.approved_by, u.student_id, 
                        u.first_name, u.last_name, u.middle_name'); // ✅ Include student details
 		$this->db->from('registrations r');
 		$this->db->join('activity a', 'r.activity_id = a.activity_id', 'left');

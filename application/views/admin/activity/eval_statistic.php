@@ -1,3 +1,7 @@
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+
 <!-- Hidden Header and Footer -->
 <div id="pdf-header" style="display: none;">
 	<img src="<?= base_url('uploads/headerandfooter/' . $headerImage) ?>" style="width: 100%; max-height: 100px;">
@@ -186,8 +190,198 @@
 
 
 
+	<!-- NEW second container for graphs -->
+	<div id="graphs-container" class="mt-5 p-4 border rounded bg-white shadow-sm">
+		<h3 class="mb-4 text-primary" style="border-bottom: 2px solid #007bff; padding-bottom: 6px;">
+			Graphs Visualization
+		</h3>
 
+		<h4 class="mb-4 text-center">Rating Distribution Per Question</h4>
+		<div class="container">
+			<div class="row">
+				<?php foreach ($rating_distribution as $q): ?>
+					<div class="col-md-6 mb-5 text-center">
+						<strong><?= $q['question'] ?></strong>
+						<canvas id="chart-question-<?= $q['form_fields_id'] ?>" height="200" style="max-width: 100%; margin: 0 auto;"></canvas>
+					</div>
+				<?php endforeach; ?>
+			</div>
+		</div>
+
+		<hr style="border: 2px solid #007bff; margin: 2rem 0;">
+
+
+
+		<div class="container">
+			<div class="mb-4 text-center">
+				<h4>Respondents by Department</h4>
+				<canvas id="departmentChart" height="300" style="width: 100%; max-width: 100%; margin: 0 auto;"></canvas>
+			</div>
+
+			<hr style="border: 2px solid #007bff; margin: 2rem 0;">
+
+			<div class="mb-4 text-center">
+				<h4>Respondents by Year Level</h4>
+				<canvas id="yearLevelChart" height="300" style="width: 100%; max-width: 100%; margin: 0 auto;"></canvas>
+			</div>
+		</div>
+	</div>
 </div>
+
+<script>
+	const ratingDistribution = <?= json_encode($rating_distribution) ?>;
+	const deptData = <?= json_encode($respondent_departments) ?>;
+	const yearData = <?= json_encode($respondent_year_levels) ?>;
+</script>
+
+
+<script>
+	document.addEventListener("DOMContentLoaded", function() {
+		// Rating Distribution Charts
+		ratingDistribution.forEach(q => {
+			const ctx = document.getElementById(`chart-question-${q.form_fields_id}`);
+			if (ctx) {
+				new Chart(ctx, {
+					type: 'pie',
+					data: {
+						labels: ["4★", "3★", "2★", "1★"],
+						datasets: [{
+							data: [q.four_star, q.three_star, q.two_star, q.one_star],
+							backgroundColor: ['#007bff', '#00b894', '#fdcb6e', '#d63031']
+
+						}]
+					},
+					options: {
+						responsive: true,
+						plugins: {
+							legend: {
+								position: 'bottom'
+							}
+						}
+					}
+				});
+			}
+		});
+
+		// Department Chart
+		const deptLabels = deptData.map(d => d.department);
+		const deptCounts = deptData.map(d => d.count);
+
+		new Chart(document.getElementById("departmentChart"), {
+			type: 'bar',
+			data: {
+				labels: deptLabels,
+				datasets: [{
+					label: 'Respondents',
+					data: deptCounts,
+					backgroundColor: '#007bff'
+				}]
+			},
+			options: {
+				indexAxis: 'y',
+				responsive: true,
+				scales: {
+					x: {
+						beginAtZero: true,
+						ticks: {
+							color: '#0056b3',
+							font: {
+								weight: 'bold'
+							}
+						},
+						grid: {
+							color: '#e3f2fd'
+						}
+					},
+					y: {
+						ticks: {
+							color: '#0056b3',
+							font: {
+								weight: 'bold'
+							}
+						},
+						grid: {
+							display: false
+						}
+					}
+				},
+				plugins: {
+					legend: {
+						display: false
+					},
+					tooltip: {
+						backgroundColor: '#0056b3',
+						titleColor: '#fff',
+						bodyColor: '#eee'
+					}
+				}
+			}
+		});
+
+		// Year Level Chart
+		const yearLabels = yearData.map(y => `${y.year_level} Year`);
+		const yearCounts = yearData.map(y => y.count);
+
+		new Chart(document.getElementById("yearLevelChart"), {
+			type: 'bar',
+			data: {
+				labels: yearLabels,
+				datasets: [{
+					label: 'Number of Respondents',
+					data: yearCounts,
+					backgroundColor: ['#17a2b8', '#ffc107', '#fd7e14', '#28a745'],
+					borderColor: ['#117a8b', '#d39e00', '#e8590c', '#1e7e34'],
+					borderWidth: 1
+				}]
+			},
+			options: {
+				responsive: true,
+				scales: {
+					y: {
+						beginAtZero: true,
+						ticks: {
+							color: '#17a2b8',
+							font: {
+								weight: 'bold'
+							}
+						},
+						grid: {
+							color: '#e3f2fd'
+						}
+					},
+					x: {
+						ticks: {
+							color: '#17a2b8',
+							font: {
+								weight: 'bold'
+							}
+						},
+						grid: {
+							display: false
+						}
+					}
+				},
+				plugins: {
+					legend: {
+						display: true,
+						labels: {
+							color: '#17a2b8',
+							font: {
+								weight: 'bold'
+							}
+						}
+					},
+					tooltip: {
+						backgroundColor: '#17a2b8',
+						titleColor: '#fff',
+						bodyColor: '#eee'
+					}
+				}
+			}
+		});
+	});
+</script>
+
 
 
 <!-- html2pdf Library -->

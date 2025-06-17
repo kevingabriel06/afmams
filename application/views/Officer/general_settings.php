@@ -311,6 +311,126 @@
 			</div>
 
 
+			<!-- Active Semester -->
+			<div class="col-md-6">
+				<div class="border rounded p-3 h-100 d-flex justify-content-between align-items-start">
+					<div class="d-flex">
+						<div class="me-3">
+							<span class="fs-4 text-warning"><i class="fas fa-calendar-alt"></i></span>
+						</div>
+						<div>
+							<h6 class="mb-1">Active Semester</h6>
+							<p class="mb-0 text-muted small">Set your active semester and academic year for filtering and reporting.</p>
+						</div>
+					</div>
+					<button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#semesterModal">Open</button>
+				</div>
+			</div>
+
+			<!-- Modal for Setting Active Semester -->
+			<div class="modal fade" id="semesterModal" tabindex="-1" aria-labelledby="semesterModalLabel" aria-hidden="true">
+				<div class="modal-dialog">
+					<div class="modal-content">
+
+						<div class="modal-header">
+							<h5 class="modal-title" id="semesterModalLabel">Set Active Semester</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						</div>
+
+						<div class="modal-body">
+							<!-- Semester Select -->
+							<div class="mb-3">
+								<label for="active-semester" class="form-label">Semester</label>
+								<select id="active-semester" class="form-select">
+									<option value="">Select Semester</option>
+									<option value="1st Semester">1st Semester</option>
+									<option value="2nd Semester">2nd Semester</option>
+								</select>
+							</div>
+
+							<!-- Academic Year Select -->
+							<div class="mb-3">
+								<label for="academic-year" class="form-label">Academic Year</label>
+								<div class="input-group">
+									<select id="active-start-year" class="form-select">
+										<option value="">Start Year</option>
+									</select>
+									<span class="input-group-text">-</span>
+									<select id="active-end-year" class="form-select">
+										<option value="">End Year</option>
+									</select>
+								</div>
+								<div id="year-feedback" class="invalid-feedback d-none">
+									Please select a valid year range with a 1-year difference.
+								</div>
+							</div>
+						</div>
+
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+							<button type="button" class="btn btn-primary" onclick="saveActiveSemester()">Set</button>
+						</div>
+
+					</div>
+				</div>
+			</div>
+
+			<script>
+				document.addEventListener("DOMContentLoaded", function() {
+					const currentYear = new Date().getFullYear();
+					const startYear = $('#active-start-year');
+					const endYear = $('#active-end-year');
+
+					// Populate start year dropdown
+					for (let y = currentYear; y >= 2000; y--) {
+						startYear.append(new Option(y, y));
+					}
+
+					// On change of start year, populate end year
+					startYear.on('change', function() {
+						const start = parseInt(this.value);
+						endYear.empty().append(new Option("End Year", "", true, true));
+
+						if (start) {
+							endYear.append(new Option(start + 1, start + 1));
+						}
+					});
+				});
+
+				function saveActiveSemester() {
+					const semester = $('#active-semester').val();
+					const startYear = $('#active-start-year').val();
+					const endYear = $('#active-end-year').val();
+
+					if (!semester || !startYear || !endYear || parseInt(endYear) - parseInt(startYear) !== 1) {
+						$('#year-feedback').removeClass('d-none');
+						return;
+					}
+
+					$('#year-feedback').addClass('d-none');
+
+					const activeLabel = `${semester} AY ${startYear}-${endYear}`;
+
+					// ✅ AJAX request to insert into database
+					$.post("<?= site_url('OfficerController/save_active_semester') ?>", {
+						semester: semester,
+						start_year: startYear,
+						end_year: endYear
+					}, function(response) {
+						if (response.status === 'success') {
+							alert(response.message);
+							$('#activeSemesterLabel').text(response.value); // update the label (optional)
+							$('#semesterModal').modal('hide'); // hide modal
+						} else {
+							alert(response.message);
+						}
+					}, 'json');
+				}
+			</script>
+
+			<!-- Active Semester End -->
+
+
 		</div>
 	</div>
 </div>

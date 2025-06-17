@@ -129,6 +129,10 @@ class StudentController extends CI_Controller
 		$data['feed'] = array_slice($merged_feed, 0, $limit);
 
 
+		//To get which semester and academic year is currently active
+		$data['semester_ay'] = $this->db->get('semester_ay')->row(); // fetch the only row
+
+
 		// Activity to post and show to the upcoming section
 		$data['activities_upcoming'] = $this->student->get_activities_upcoming();
 
@@ -831,7 +835,12 @@ class StudentController extends CI_Controller
 		$data['users'] = $this->student->get_student($student_id);
 
 		// Fetch attendance of this student across all activities
-		$data['attendances'] = $this->student->get_attendance($student_id);
+		// $data['attendances'] = $this->student->get_attendance($student_id);
+		$attendanceData = $this->student->get_attendance($student_id);
+		$data['attendances'] = $attendanceData['attendance']; // ✅ only the list
+		$data['semester'] = $attendanceData['semester'];      // optional
+		$data['academic_year'] = $attendanceData['academic_year']; // optional
+
 
 		$this->load->view('layout/header', $data);
 		$this->load->view('student/attendance_history', $data);  // change view to match your new setup
@@ -844,7 +853,13 @@ class StudentController extends CI_Controller
 		$this->load->library('pdf');
 
 		$student_id = $this->session->userdata('student_id');
-		$attendances = $this->student->get_attendance($student_id);
+		$data = $this->student->get_attendance($student_id); // 🔄 store result
+		$attendances = $data['attendance'];                 // ✅ extract values
+		$semester = $data['semester'];
+		$academic_year = $data['academic_year'];
+
+
+
 
 		// Get student info including dept_name
 		$student_info = $this->student->get_student_info($student_id);
@@ -896,6 +911,27 @@ class StudentController extends CI_Controller
 		$pdf->SetFillColor(255, 255, 255);
 		$pdf->SetTextColor(0);
 		$pdf->Cell(0, 8, $student_info['dept_name'] ?? 'N/A', 1, 1, 'L', true);
+
+
+		// Academic Year label
+		$pdf->SetFont('Arial', 'B', 12);
+		$pdf->SetFillColor(100, 149, 237);
+		$pdf->SetTextColor(0);
+		$pdf->Cell(40, 8, 'Academic Year:', 1, 0, 'L', true);
+		$pdf->SetFont('Arial', '', 12);
+		$pdf->SetFillColor(255, 255, 255);
+		$pdf->SetTextColor(0);
+		$pdf->Cell(0, 8, $academic_year ?? 'N/A', 1, 1, 'L', true);
+
+		// Semester label
+		$pdf->SetFont('Arial', 'B', 12);
+		$pdf->SetFillColor(100, 149, 237);
+		$pdf->SetTextColor(0);
+		$pdf->Cell(40, 8, 'Semester:', 1, 0, 'L', true);
+		$pdf->SetFont('Arial', '', 12);
+		$pdf->SetFillColor(255, 255, 255);
+		$pdf->SetTextColor(0);
+		$pdf->Cell(0, 8, $semester ?? 'N/A', 1, 1, 'L', true);
 
 		$pdf->Ln(8);
 
@@ -1041,7 +1077,11 @@ class StudentController extends CI_Controller
 
 		// Get student's fines summary and individual fines
 		$data['fines_summary'] = $this->Student_model->get_fines_summary_by_student($student_id);
-		$data['fines'] = $this->Student_model->get_fines_by_student($student_id);
+		// $data['fines'] = $this->Student_model->get_fines_by_student($student_id);
+		$fines_data = $this->Student_model->get_fines_by_student($student_id);
+		$data['fines'] = $fines_data['fines']; // <-- pass only the fines array
+		// $data['semester'] = $fines_data['semester'];
+		// $data['academic_year'] = $fines_data['academic_year'];
 
 
 		// Pass student_id to the view
@@ -1180,7 +1220,11 @@ class StudentController extends CI_Controller
 		$this->load->library('pdf');
 
 		$student_info = $this->Student_model->get_student_info($student_id);
-		$fines = $this->Student_model->get_fines_by_student($student_id);
+		$data = $this->student->get_fines_by_student($student_id);
+		$fines = $data['fines'];
+		$semester = $data['semester'];
+		$academic_year = $data['academic_year'];
+
 
 		// Group fines by organizer and activity title + date + slot_name
 		$grouped = [];
@@ -1223,6 +1267,24 @@ class StudentController extends CI_Controller
 		$pdf->SetFont('Arial', '', 12);
 		$pdf->SetFillColor(255, 255, 255);
 		$pdf->Cell(0, 8, $student_info['dept_name'] ?? 'N/A', 1, 1, 'L', true);
+
+		//Academic Year
+		$pdf->SetFont('Arial', 'B', 12);
+		$pdf->SetFillColor(100, 149, 237);
+		$pdf->Cell(40, 8, 'Academic Year:', 1, 0, 'L', true);
+		$pdf->SetFont('Arial', '', 12);
+		$pdf->SetFillColor(255, 255, 255);
+		$pdf->Cell(0, 8, $academic_year ?? 'N/A', 1, 1, 'L', true);
+
+		//Semester
+		$pdf->SetFont('Arial', 'B', 12);
+		$pdf->SetFillColor(100, 149, 237);
+		$pdf->Cell(40, 8, 'Semester:', 1, 0, 'L', true);
+		$pdf->SetFont('Arial', '', 12);
+		$pdf->SetFillColor(255, 255, 255);
+		$pdf->Cell(0, 8, $semester ?? 'N/A', 1, 1, 'L', true);
+
+
 
 		$pdf->Ln(8);
 

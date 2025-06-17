@@ -1,7 +1,39 @@
+<!-- Welcome Card -->
+<div class="card bg-100 shadow-none border mb-3">
+	<?php
+	// REPLACEMENT: use the active semester/AY from DB instead of computing via date
+	$semester = $semester_ay->semester ?? 'Unknown';
+	$academicYear = $semester_ay->academic_year ?? 'Unknown';
+	?>
+	<div class="d-flex justify-content-between align-items-center w-100">
+		<!-- Left Column -->
+		<div class="d-flex align-items-center">
+			<img class="me-3" src="<?= base_url('assets/img/illustrations/crm-bar-chart.png'); ?>" alt="" width="90" />
+			<div>
+				<h6 class="text-primary fs-10 mb-1">Welcome <?= $users['first_name']; ?> to</h6>
+				<h4 class="text-primary fw-bold mb-0">STUDENT <span class="text-info fw-medium">Account</span></h4>
+			</div>
+		</div>
+
+		<!-- Right Column -->
+		<div class="text-end d-flex align-items-center">
+			<div class="me-3 text-end">
+				<h4 class="text-primary fw-bold mb-0">
+					<span class="text-info fw-medium">A.Y.</span> <?= $academicYear; ?>
+				</h4>
+				<h6 class="text-primary fs-10 mb-0"><?= $semester; ?></h6>
+			</div>
+			<img class="d-none d-lg-block" src="<?= site_url('assets/img/illustrations/crm-line-chart.png'); ?>" alt="" width="150" />
+		</div>
+	</div>
+</div>
+
+
 <div class="row g-3">
 	<!-- FEED -->
 	<div class="col-lg-8">
 		<div id="feed-container">
+
 			<?php foreach ($feed as $item): ?>
 				<div class="feed-item">
 					<?php if (isset($item->post_id)): ?>

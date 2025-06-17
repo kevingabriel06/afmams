@@ -270,6 +270,7 @@
 									data-activity-id="<?= $item->activity_id; ?>"
 									data-registration-fee="<?= $item->registration_fee; ?>"
 									data-status="<?= $item->registration_status; ?>"
+									data-qr-code="<?= $item->qr_code; ?>"
 									data-student-id="<?= $this->session->userdata('student_id') ?>">
 									Register
 								</button>
@@ -395,6 +396,108 @@
 		});
 	});
 </script>
+
+
+<!-- <script>
+	// SCRIPT FOR THE RECEIPT REGISTRATION
+	document.addEventListener("DOMContentLoaded", function() {
+		const uploadContainer = document.getElementById("receipt-upload-container");
+		const uploadInput = document.getElementById("receipt-upload");
+		const receiptPreview = document.getElementById("receipt-preview");
+		const receiptPlaceholder = document.getElementById("receipt-placeholder");
+
+		// Trigger file upload when clicking on the preview area
+		uploadContainer.addEventListener("click", function() {
+			uploadInput.click();
+		});
+
+		// Preview the uploaded receipt image
+		uploadInput.addEventListener("change", function(event) {
+			const file = event.target.files[0];
+			if (file) {
+				const reader = new FileReader();
+				reader.onload = function(e) {
+					receiptPreview.src = e.target.result;
+					receiptPreview.classList.remove("d-none");
+					receiptPlaceholder.classList.add("d-none");
+				};
+				reader.readAsDataURL(file);
+			}
+		});
+
+		const registrationModal = document.getElementById("registrationModal");
+		const modalActivityIdInput = document.getElementById("modal_activity_id");
+		const modalRegistrationInput = document.getElementById("modal_amount");
+		const modalStatusInput = document.getElementById("modal_status");
+		const registrationForm = document.getElementById("registrationForm");
+		const statusMessage = document.getElementById("status-message");
+
+		const modalBody = registrationModal.querySelector(".modal-body");
+
+		// === Register Button Click Handler ===
+		$(document).on("click", ".open-registration-modal", function() {
+			const activityId = $(this).data("activity-id");
+			const registration = $(this).data("registration-fee");
+			const status = $(this).data("status");
+			const actstatus = $(this).data("act-status");
+			const qrCode = $(this).data("qr-code");
+
+			const qrCodeImagePath = "<?= base_url('assets/qrcodeRegistration/'); ?>" + qrCode;
+
+			// Populate modal fields
+			$("#modal_activity_id").val(activityId);
+			$("#modal_amount").val(registration);
+			$("#modal_status").val(status);
+
+			const qrCodeImage = document.getElementById("qrCodeImage");
+
+			// Show proper content based on status
+			if (status === "Pending") {
+				$("#registrationForm").addClass("d-none");
+				$("#status-message")
+					.removeClass("d-none alert-success")
+					.addClass("alert alert-warning")
+					.text("Your registration is pending. Please wait for the admin to verify.");
+				qrCodeImage.classList.add("d-none"); // Hide QR code
+			} else if (status === "Verified") {
+				$("#registrationForm").addClass("d-none");
+				$("#status-message")
+					.removeClass("d-none alert-warning")
+					.addClass("alert alert-success")
+					.text("You are registered to this activity.");
+				qrCodeImage.classList.add("d-none"); // Hide QR code
+			} else if (actstatus === "Completed" || actstatus === "Ongoing") {
+				$("#registrationForm").addClass("d-none");
+				$("#status-message")
+					.removeClass("d-none alert-success")
+					.addClass("alert alert-danger")
+					.text("This activity is not accepting registration. Contact the organizer.");
+				qrCodeImage.classList.add("d-none"); // Hide QR code
+			} else {
+				// Show registration form
+				$("#registrationForm").removeClass("d-none");
+				$("#status-message").addClass("d-none").text("");
+				qrCodeImage.src = qrCodeImagePath;
+				qrCodeImage.classList.remove("d-none"); // Show QR code
+			}
+		});
+
+
+		registrationModal.addEventListener('hidden.bs.modal', function() {
+			registrationForm.reset();
+			receiptPreview.src = "";
+			receiptPreview.classList.add("d-none");
+			receiptPlaceholder.classList.remove("d-none");
+			registrationForm.classList.remove('d-none');
+			statusMessage.classList.add('d-none');
+			statusMessage.innerText = "";
+
+			const qrCodeImage = document.getElementById("qrCodeImage");
+			qrCodeImage.src = "";
+			qrCodeImage.classList.add("d-none");
+		});
+	});
+</script> -->
 
 
 <!-- // SCRIPT FOR THE RECEIPT REGISTRATION

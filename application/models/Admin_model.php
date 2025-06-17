@@ -642,10 +642,21 @@ class Admin_model extends CI_Model
 	// LIST OF EVALUATION FORM
 	public function evaluation_form()
 	{
+		// Get the active semester and academic year
+		$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+		if (!$semester_ay) {
+			return []; // No active semester/year set
+		}
+		$academicYear = $semester_ay->academic_year;
+		$semester = $semester_ay->semester;
+
 		$this->db->select('*');
 		$this->db->from('forms');
 		$this->db->join('activity', 'activity.activity_id = forms.activity_id');  // Fixed JOIN condition
 		$this->db->where('activity.organizer', 'Student Parliament');
+
+		$this->db->where('activity.academic_year', $academicYear); // Active academic year
+		$this->db->where('activity.semester', $semester); // Active semester
 
 		return $this->db->get()->result();
 	}
@@ -830,6 +841,57 @@ class Admin_model extends CI_Model
 		return $query->result_array();
 	}
 
+
+	//Evaluation Statistic Graphs Start
+	public function get_rating_distribution($form_id)
+	{
+		$this->db->select("
+        ff.form_fields_id,
+        ff.label AS question,
+        ROUND(SUM(CASE WHEN ra.answer = '4' THEN 1 ELSE 0 END) * 100.0 / COUNT(ra.answer), 2) AS four_star,
+        ROUND(SUM(CASE WHEN ra.answer = '3' THEN 1 ELSE 0 END) * 100.0 / COUNT(ra.answer), 2) AS three_star,
+        ROUND(SUM(CASE WHEN ra.answer = '2' THEN 1 ELSE 0 END) * 100.0 / COUNT(ra.answer), 2) AS two_star,
+        ROUND(SUM(CASE WHEN ra.answer = '1' THEN 1 ELSE 0 END) * 100.0 / COUNT(ra.answer), 2) AS one_star
+    ");
+		$this->db->from('response_answer ra');
+		$this->db->join('formfields ff', 'ra.form_fields_id = ff.form_fields_id');
+		$this->db->where('ff.form_id', $form_id);
+		$this->db->where('ff.type', 'rating'); // Only rating questions
+		$this->db->group_by('ff.form_fields_id');
+
+		return $this->db->get()->result_array();
+	}
+
+
+
+	public function respondent_departments($form_id)
+	{
+		$this->db->select('d.dept_name AS department, COUNT(DISTINCT er.student_id) AS count');
+		$this->db->from('evaluation_responses er');
+		$this->db->join('users u', 'u.student_id = er.student_id');
+		$this->db->join('department d', 'd.dept_id = u.dept_id');
+		$this->db->where('er.form_id', $form_id);
+		$this->db->group_by('d.dept_id');
+
+		return $this->db->get()->result_array();
+	}
+
+
+
+	public function respondent_year_levels($form_id)
+	{
+		$this->db->select('u.year_level, COUNT(DISTINCT er.student_id) AS count');
+		$this->db->from('evaluation_responses er');
+		$this->db->join('users u', 'u.student_id = er.student_id');
+		$this->db->where('er.form_id', $form_id);
+		$this->db->group_by('u.year_level');
+
+		return $this->db->get()->result_array();
+	}
+
+
+	//Eval Statistic Graphs end
+
 	// EXCUSE APPLICATION (FINAL CHECK)
 
 	// FETCHING EXCUSE APPLICATION PER EVENT
@@ -904,12 +966,26 @@ class Admin_model extends CI_Model
 
 	public function get_all_posts()
 	{
+
+		// Get the active semester and academic year
+		$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+		if (!$semester_ay) {
+			return []; // No active semester/year set
+		}
+		$academicYear = $semester_ay->academic_year;
+		$semester = $semester_ay->semester;
+
 		$this->db->select('*');
 		$this->db->from('post');
 		$this->db->join('users', 'post.student_id = users.student_id', 'left');
 		$this->db->join('department', 'department.dept_id = post.dept_id', 'left');
 		$this->db->join('organization', 'organization.org_id = post.org_id', 'left');
+
+		$this->db->where('post.academic_year', $academicYear);
+		$this->db->where('post.semester', $semester);
+
 		$this->db->order_by('post.post_id', 'DESC');
+
 
 		$query = $this->db->get();
 		return $query->result();
@@ -917,9 +993,20 @@ class Admin_model extends CI_Model
 
 	public function get_activities_upcoming()
 	{
+		// Get the active semester and academic year
+		$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+		if (!$semester_ay) {
+			return []; // No active semester/year set
+		}
+		$academicYear = $semester_ay->academic_year;
+		$semester = $semester_ay->semester;
+
 		$this->db->select('*');
 		$this->db->from('activity');
 		$this->db->where('status', 'Upcoming');
+
+		$this->db->where('academic_year', $academicYear);
+		$this->db->where('semester', $semester);
 
 		$query = $this->db->get();
 		return $query->result();
@@ -927,9 +1014,22 @@ class Admin_model extends CI_Model
 
 	public function get_shared_activities()
 	{
+
+		// Get the active semester and academic year
+		$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+		if (!$semester_ay) {
+			return []; // No active semester/year set
+		}
+		$academicYear = $semester_ay->academic_year;
+		$semester = $semester_ay->semester;
+
 		$this->db->select('*');
 		$this->db->from('activity');
 		$this->db->where('is_shared', 'Yes');
+
+		$this->db->where('academic_year', $academicYear);
+		$this->db->where('semester', $semester);
+
 		$this->db->order_by('updated_at', 'DESC'); // Sort by newest activity first
 		// $this->db->limit($limit, $offset); // Apply pagination
 
@@ -1459,9 +1559,22 @@ class Admin_model extends CI_Model
 
 	public function get_activities_by_sp()
 	{
+
+		// Get the active semester and academic year
+		$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+		if (!$semester_ay) {
+			return []; // No active semester/year set
+		}
+
+		$academicYear = $semester_ay->academic_year;
+		$semester = $semester_ay->semester;
+
+
 		$this->db->select('activity.*');
 		$this->db->from('activity');
 		$this->db->where('organizer', 'Student Parliament');
+		$this->db->where('academic_year', $academicYear);
+		$this->db->where('semester', $semester);
 
 		$query = $this->db->get();
 		return $query->result();
@@ -1581,6 +1694,7 @@ class Admin_model extends CI_Model
 
 
 		$this->db->group_by('users.student_id');  // Ensure students appear once
+		$this->db->order_by('users.last_name', 'ASC'); // Sort A to Z by last name
 		$students = $this->db->get()->result();
 
 		// Step 2: Get all timeslots for the activity
@@ -1992,6 +2106,15 @@ class Admin_model extends CI_Model
 
 	public function flash_fines()
 	{
+
+		// Get the active semester and academic year
+		$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+		if (!$semester_ay) {
+			return []; // No active semester/year set
+		}
+		$academicYear = $semester_ay->academic_year;
+		$semester = $semester_ay->semester;
+
 		$this->db->select('
 			*,
 			users.year_level,
@@ -2014,6 +2137,10 @@ class Admin_model extends CI_Model
 
 		$this->db->where('activity.organizer', 'Student Parliament');
 		$this->db->where('activity.status', 'Completed');
+
+		$this->db->where('activity.academic_year', $academicYear); // Active academic year
+		$this->db->where('activity.semester', $semester); // Active semester
+
 		// $this->db->order_by('users.student_id, activity.activity_id');
 		$this->db->group_by('
 		users.student_id,

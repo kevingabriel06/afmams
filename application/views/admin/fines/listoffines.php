@@ -36,6 +36,62 @@
 					<input type="hidden" id="summary_id" name="summary_id">
 
 
+					<!-- Student Info Preview -->
+					<div class="mb-3 d-flex align-items-start" id="studentInfo" style="display: none;">
+						<!-- Left side: Image only -->
+						<div style="min-width: 90px;">
+							<img
+								id="studentProfilePic"
+								src="<?= base_url('assets/profile/default.jpg') ?>"
+								alt="Profile"
+								class="rounded"
+								style="width: 90px; height: 90px; object-fit: cover; display: block;" />
+						</div>
+
+						<!-- Right side: Inputs stacked vertically -->
+						<div style="flex-grow: 1; margin-left: 8px;">
+							<!-- Student Name input with placeholder -->
+							<div class="mb-2" style="margin-bottom: 8px;">
+								<input
+									type="text"
+									id="studentFullNameInput"
+									class="form-control"
+									readonly
+									placeholder="Student Name"
+									style="padding: 4px 8px; font-size: 0.9rem; width: 100%;" />
+							</div>
+
+							<!-- Year Level input with placeholder -->
+							<div class="mb-2" style="margin-bottom: 8px;">
+								<input
+									type="text"
+									id="studentYearLevelInput"
+									class="form-control"
+									readonly
+									placeholder="Year Level"
+									style="padding: 4px 8px; font-size: 0.9rem; width: 100%;" />
+							</div>
+						</div>
+					</div>
+
+					<!-- Department below the student info container, full width with label -->
+					<div class="mb-3">
+						<label for="studentDeptNameInput" class="form-label" style="font-size: 0.9rem;">Department</label>
+						<input
+							type="text"
+							id="studentDeptNameInput"
+							class="form-control"
+							readonly
+							placeholder="Department"
+							style="padding: 4px 8px; font-size: 0.9rem; width: 100%;" />
+					</div>
+
+
+
+
+
+
+
 					<!-- Amount (readonly) -->
 					<div class="mb-3">
 						<label for="total_fines" class="form-label">Total Fines</label>
@@ -82,7 +138,7 @@
 </script>
 
 <!-- retrive total fines of the searched student -->
-<script>
+<!-- <script>
 	document.getElementById('student_id').addEventListener('change', function() {
 		const studentId = this.value;
 		if (!studentId) return;
@@ -137,7 +193,84 @@
 				});
 			});
 	});
+</script> -->
+
+
+<script>
+	document.getElementById('student_id').addEventListener('change', function() {
+		const studentId = this.value;
+		if (!studentId) return;
+
+		fetch('<?= base_url('AdminController/get_student_total_fines') ?>', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Requested-With': 'XMLHttpRequest'
+				},
+				body: JSON.stringify({
+					student_id: studentId
+				})
+			})
+			.then(response => response.json())
+			.then(data => {
+				if (data.success) {
+					document.getElementById('total_fines').value = data.total_fines;
+					document.getElementById('summary_id').value = data.summary_id;
+
+					// Show student details
+					const fullName = `${data.last_name}, ${data.first_name} ${data.middle_name ?? ''}`.trim();
+					document.getElementById('studentFullNameInput').value = fullName;
+					document.getElementById('studentDeptNameInput').value = data.dept_name ?? 'No department';
+
+					document.getElementById('studentYearLevelInput').value = data.year_level ?? 'N/A'; // <-- here
+
+					const profilePic = data.profile_pic ?
+						`<?= base_url('assets/profile/') ?>${data.profile_pic}` :
+						`<?= base_url('assets/profile/default.jpg') ?>`;
+
+					document.getElementById('studentProfilePic').src = profilePic;
+
+					document.getElementById('studentInfo').style.display = 'flex';
+
+					Swal.fire({
+						icon: 'success',
+						title: 'Fines Found',
+						text: `Total unpaid fines: ₱${parseFloat(data.total_fines).toFixed(2)}`,
+						timer: 2500,
+						showConfirmButton: false
+					});
+				} else {
+					// Clear and hide
+					document.getElementById('total_fines').value = '';
+					document.getElementById('summary_id').value = '';
+					document.getElementById('studentInfo').style.display = 'none';
+
+					Swal.fire({
+						icon: 'warning',
+						title: 'Notice',
+						text: data.message || 'Unable to retrieve fines.',
+						timer: 3000,
+						showConfirmButton: false
+					});
+				}
+			})
+
+			.catch(error => {
+				console.error('Error fetching total fines:', error);
+				document.getElementById('total_fines').value = '';
+				document.getElementById('summary_id').value = '';
+				document.getElementById('studentInfo').style.display = 'none';
+
+				Swal.fire({
+					icon: 'error',
+					title: 'Error',
+					text: 'Something went wrong while retrieving fines.',
+					confirmButtonText: 'OK'
+				});
+			});
+	});
 </script>
+
 
 
 

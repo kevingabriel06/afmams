@@ -181,6 +181,9 @@ class AdminController extends CI_Controller
 
 		$data['dept_attendance_data'] = $this->admin->get_department_attendance_data();
 
+		//To get which semester and academic year is currently active
+		$data['semester_ay'] = $this->db->get('semester_ay')->row(); // fetch the only row
+
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/dashboard', $data);
 		$this->load->view('layout/footer', $data);
@@ -572,7 +575,18 @@ class AdminController extends CI_Controller
 		// GETTING OF THE ACTIVITY FROM THE DATABASE
 		$data['activities'] = $this->admin->get_activities_active(); // FOR STUDENT PARLIAMENT
 
-		$data['semester_range'] = $this->db->get_where('semester_range', ['id' => 1])->row();
+		// $data['semester_range'] = $this->db->get_where('semester_range', ['id' => 1])->row();
+
+		// Get active semester and academic year || used for read only in filters
+		$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+		if ($semester_ay) {
+			$data['active_semester'] = $semester_ay->semester;
+			$data['active_academic_year'] = $semester_ay->academic_year;
+		} else {
+			$data['active_semester'] = 'N/A';
+			$data['active_academic_year'] = 'N/A';
+		}
+
 
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/activity/list-activities', $data);
@@ -781,12 +795,46 @@ class AdminController extends CI_Controller
 		$pdf->Cell(0, 10, 'OFFICIAL RECEIPT', 0, 1, 'C');
 		$pdf->Ln(5);
 
+
+
+		// Define tighter layout sizes
+		$label_w_left  = 28;   // Left-side label width
+		$value_w_left  = 37;   // Left-side value width
+		$label_w_right = 28;   // Right-side label width
+		$value_w_right = 37;   // Right-side value width
+		$gap_w         = 30;   // Space between left/right pairs
+
+		// Row 1: Receipt No and Semester
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell($label_w_left, 8, 'Receipt No:', 0, 0);
 		$pdf->SetFont('Arial', '', 10);
-		$pdf->Cell(50, 8, 'Receipt No:', 0, 0, 'L');
-		$pdf->Cell(0, 8, strtoupper($registration_id), 0, 1, 'L');
-		$pdf->Cell(50, 8, 'Date:', 0, 0, 'L');
-		$pdf->Cell(0, 8, date('F j, Y', strtotime($receipt_data['registered_at'])), 0, 1, 'L');
+		$pdf->Cell($value_w_left, 8, strtoupper($registration_id), 0, 0);
+
+		$pdf->Cell($gap_w); // spacer
+
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell($label_w_right, 8, 'Semester:', 0, 0);
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell($value_w_right, 8, isset($receipt_data['semester']) ? $receipt_data['semester'] : 'N/A', 0, 1);
+
+		// Row 2: Date and Academic Year
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell($label_w_left, 8, 'Date:', 0, 0);
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell($value_w_left, 8, date('F j, Y', strtotime($receipt_data['registered_at'])), 0, 0);
+
+		$pdf->Cell($gap_w); // spacer
+
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell($label_w_right, 8, 'Academic Year:', 0, 0);
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell($value_w_right, 8, isset($receipt_data['academic_year']) ? $receipt_data['academic_year'] : 'N/A', 0, 1);
+
 		$pdf->Ln(5);
+
+
+
+
 
 		$pdf->SetFont('Arial', 'B', 10);
 		$pdf->Cell(50, 8, 'From:', 0, 0, 'L');
@@ -801,20 +849,20 @@ class AdminController extends CI_Controller
 
 		$pdf->Ln(5);
 		$pdf->SetFont('Arial', 'B', 10);
-		$pdf->Cell(120, 8, 'Description', 1, 0, 'C');
+		$pdf->Cell(150, 8, 'Description', 1, 0, 'C');
 		$pdf->Cell(40, 8, 'Amount (PHP)', 1, 1, 'C');
 
 		$pdf->SetFont('Arial', '', 10);
 		$description = 'Payment for ' . $receipt_data['activity_title'] . ' Registration';
-		$pdf->Cell(120, 8, $description, 1, 0, 'C');
+		$pdf->Cell(150, 8, $description, 1, 0, 'C');
 		$pdf->Cell(40, 8, number_format($receipt_data['amount_paid'], 2), 1, 1, 'C');
 
 		$pdf->SetFont('Arial', 'B', 10);
-		$pdf->Cell(120, 8, 'Total Amount:', 1, 0, 'R');
+		$pdf->Cell(150, 8, 'Total Amount:', 1, 0, 'R');
 		$pdf->Cell(40, 8, 'P ' . number_format($receipt_data['amount_paid'], 2), 1, 1, 'C');
 
 		$pdf->Ln(5);
-		$pdf->SetFont('Arial', '', 10);
+		$pdf->SetFont('Arial', 'B', 10);
 		$pdf->Cell(50, 8, 'Payment Type:', 0, 0, 'L');
 		$pdf->Cell(0, 8, $receipt_data['reference_number'] ? 'E-Payment (GCash)' : 'Cash', 0, 1, 'L');
 
@@ -1680,6 +1728,16 @@ class AdminController extends CI_Controller
 		// GET THE EVALUATION FOR STUDENT PARLIAMENT
 		$data['evaluation'] = $this->admin->evaluation_form();
 
+		// Get active semester and academic year || used for read only in filters
+		$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+		if ($semester_ay) {
+			$data['active_semester'] = $semester_ay->semester;
+			$data['active_academic_year'] = $semester_ay->academic_year;
+		} else {
+			$data['active_semester'] = 'N/A';
+			$data['active_academic_year'] = 'N/A';
+		}
+
 		// Pass data to the view
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/activity/eval_list-activity-evaluation', $data);
@@ -1989,6 +2047,8 @@ class AdminController extends CI_Controller
 		$form_data = $this->admin->get_evaluation_by_id($form_id);
 		$data['form_data'] = $form_data;
 
+
+
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/activity/eval_view-evaluation-form', $data);
 		$this->load->view('layout/footer', $data);
@@ -2066,20 +2126,17 @@ class AdminController extends CI_Controller
 		$form = $this->admin->forms($form_id);
 		$responses = $this->admin->get_student_evaluation_responses($form_id);
 
-		// Reorganize responses by question
+		// Group responses by question
 		$grouped_by_question = [];
 		foreach ($responses as $r) {
 			$question = $r->question;
 			if (!isset($grouped_by_question[$question])) {
 				$grouped_by_question[$question] = [];
 			}
-			$grouped_by_question[$question][] = [
-				'student_id' => $r->student_id,
-				'department' => $r->dept_name,
-				'response'   => $r->answer
-			];
+			$grouped_by_question[$question][] = $r->answer;
 		}
 
+		// Load header/footer based on user
 		$user = [
 			'role'             => $this->session->userdata('role'),
 			'student_id'       => $this->session->userdata('student_id'),
@@ -2126,109 +2183,60 @@ class AdminController extends CI_Controller
 		$pdf->AddFont('DejaVuSans', '', 'DejaVuSans.php');
 		$pdf->AddFont('DejaVuSans', 'B', 'DejaVuSans-Bold.php');
 
-		$pdf->SetFont('DejaVuSans', '', 12);
+		$pdf->SetFont('DejaVuSans', 'B', 14);
 		$pdf->Cell(0, 10, 'Evaluation Responses: ' . $form->title, 0, 1, 'C');
 		$pdf->Ln(5);
 
-		foreach ($grouped_by_question as $question => $entries) {
-			// Remove duplicates
-			$uniqueEntries = [];
-			$seen = [];
+		foreach ($grouped_by_question as $question => $responses) {
+			$uniqueResponses = array_unique($responses);
 
-			foreach ($entries as $entry) {
-				$uniqueKey = $entry['student_id'] . '|' . $entry['department'] . '|' . $entry['response'];
-				if (!isset($seen[$uniqueKey])) {
-					$seen[$uniqueKey] = true;
-					$uniqueEntries[] = $entry;
-				}
-			}
-
-			// Print question header
+			// Question header
 			$pdf->SetFont('DejaVuSans', 'B', 12);
-			$pdf->MultiCell(0, 10, "Question: " . $question, 0, 'L');
+			$pdf->MultiCell(0, 8, "Question: " . $question, 0, 'L');
 			$pdf->Ln(2);
 
-			// Define headers and calculate widths
-			$headers = ['Student ID', 'Department', 'Response'];
-			$maxWidths = [];
-			foreach ($headers as $header) {
-				$maxWidths[$header] = $pdf->GetStringWidth($header) + 4;
-			}
-			$pdf->SetFont('DejaVuSans', '', 12);
 
-			foreach ($uniqueEntries as $entry) {
-				$maxWidths['Student ID'] = max($maxWidths['Student ID'], $pdf->GetStringWidth($entry['student_id']) + 4);
-				$maxWidths['Department'] = max($maxWidths['Department'], $pdf->GetStringWidth($entry['department']) + 4);
 
-				$responseLines = explode("\n", $entry['response']);
-				foreach ($responseLines as $line) {
-					$maxWidths['Response'] = isset($maxWidths['Response'])
-						? max($maxWidths['Response'], $pdf->GetStringWidth($line) + 4)
-						: $pdf->GetStringWidth($line) + 4;
-				}
-			}
+			// Table header
+			$pdf->SetFillColor(204, 229, 255); // Light blue
+			$pdf->SetTextColor(0); // Black text
+			$pdf->SetFont('DejaVuSans', 'B', 11);
+			$pdf->Cell(10, 8, '#', 1, 0, 'C', true);
+			$pdf->Cell(180, 8, 'Response', 1, 1, 'C', true);
 
-			// Adjust widths to fit page width nicely
-			$pageWidth = $pdf->GetPageWidth();
-			$leftMargin = $pdf->getLeftMargin();
-			$rightMargin = $pdf->getRightMargin();
-			$usableWidth = $pageWidth - $leftMargin - $rightMargin;
-			$totalWidth = array_sum($maxWidths);
 
-			if ($totalWidth > $usableWidth) {
-				$scale = $usableWidth / $totalWidth;
-				foreach ($maxWidths as $key => $width) {
-					$maxWidths[$key] = $width * $scale;
-				}
-			} else if ($totalWidth < $usableWidth) {
-				$extra = $usableWidth - $totalWidth;
-				$colsCount = count($maxWidths);
-				$extraPerCol = $extra / $colsCount;
-				foreach ($maxWidths as $key => $width) {
-					$maxWidths[$key] += $extraPerCol;
-				}
+
+			// Responses
+			$pdf->SetFont('DejaVuSans', '', 11);
+			$row = 1;
+			$fill = false;
+			$row = 1;
+			$pdf->SetFont('DejaVuSans', '', 11);
+			foreach ($uniqueResponses as $response) {
+				$pdf->SetFillColor(230, 240, 255); // Softer light blue
+				$pdf->Cell(10, 8, $row++, 1, 0, 'C', $fill);
+				$pdf->MultiCell(180, 8, $response, 1, 'L', $fill);
+				$fill = !$fill;
 			}
 
-			// Print headers
-			$pdf->SetFont('DejaVuSans', 'B', 12);
-			$pdf->Cell($maxWidths['Student ID'], 7, 'Student ID', 1, 0, 'C');
-			$pdf->Cell($maxWidths['Department'], 7, 'Department', 1, 0, 'C');
-			$pdf->Cell($maxWidths['Response'], 7, 'Response', 1, 1, 'C');
 
-			// Print data rows
-			$pdf->SetFont('DejaVuSans', '', 12);
-			foreach ($uniqueEntries as $entry) {
-				$responseLinesCount = $pdf->NbLines($maxWidths['Response'], $entry['response']);
-				$rowHeight = $responseLinesCount * 7;
 
-				$x = $pdf->GetX();
-				$y = $pdf->GetY();
-
-				$pdf->Cell($maxWidths['Student ID'], $rowHeight, $entry['student_id'], 1, 0);
-				$pdf->Cell($maxWidths['Department'], $rowHeight, $entry['department'], 1, 0);
-				$pdf->MultiCell($maxWidths['Response'], 7, $entry['response'], 1);
-
-				$pdf->SetXY($x, $y + $rowHeight);
-			}
-
-			// Calculate average rating
+			// Average rating (if numeric)
 			$sum = 0;
 			$count = 0;
-			foreach ($uniqueEntries as $entry) {
-				if (is_numeric($entry['response'])) {
-					$sum += floatval($entry['response']);
+			foreach ($uniqueResponses as $response) {
+				if (is_numeric($response)) {
+					$sum += floatval($response);
 					$count++;
 				}
 			}
 
-			// Add average row if numeric responses exist
 			if ($count > 0) {
 				$average = $sum / $count;
-				$pdf->SetFont('DejaVuSans', 'B', 12);
-
-				$totalWidth = $maxWidths['Student ID'] + $maxWidths['Department'] + $maxWidths['Response'];
-				$pdf->SetFont('DejaVuSans', 'B', 12);
-				$pdf->Cell($totalWidth, 7, 'Average Rating: ' . number_format($average, 2), 1, 1, 'C');
+				$pdf->Ln(2);
+				$pdf->SetFont('DejaVuSans', 'B', 11);
+				$pdf->SetFillColor(220, 235, 255); // Light blue
+				$pdf->Cell(190, 10, 'Average Rating: ' . number_format($average, 2), 1, 1, 'C', true);
 			}
 
 
@@ -2240,6 +2248,7 @@ class AdminController extends CI_Controller
 		$filename = 'Evaluation_Responses_' . date('Ymd_His') . '.pdf';
 		$pdf->Output('D', $filename);
 	}
+
 
 
 
@@ -2273,7 +2282,12 @@ class AdminController extends CI_Controller
 			'overall_rating' => $overall_rating,
 			'answer_summary' => $answer_summary,
 			'respondent_percentage' => $percentage,
-			'forms' => $this->admin->forms($form_id)
+			'forms' => $this->admin->forms($form_id),
+
+			//for graphs
+			'rating_distribution' => $this->admin->get_rating_distribution($form_id),
+			'respondent_departments' => $this->admin->respondent_departments($form_id),
+			'respondent_year_levels' => $this->admin->respondent_year_levels($form_id)
 		];
 
 		$this->load->view('layout/header', $data);
@@ -2299,7 +2313,17 @@ class AdminController extends CI_Controller
 		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
 		$data['users'] = $this->admin->get_student($student_id);
 
-		$data['activities'] = $this->admin->get_activities();
+		$data['activities'] = $this->admin->get_activities_active();
+
+		// Get active semester and academic year || used for read only in filters
+		$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+		if ($semester_ay) {
+			$data['active_semester'] = $semester_ay->semester;
+			$data['active_academic_year'] = $semester_ay->academic_year;
+		} else {
+			$data['active_semester'] = 'N/A';
+			$data['active_academic_year'] = 'N/A';
+		}
 
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/activity/exc_list-activities-excuseletter', $data);
@@ -2807,6 +2831,19 @@ class AdminController extends CI_Controller
 				return;
 			}
 
+
+			// Get active semester and academic year from semester_range or semester_ay table
+			$semester_ay = $this->db->get('semester_ay')->row();
+			if (!$semester_ay) {
+				echo json_encode(['status' => 'error', 'errors' => 'Active semester and academic year not set.']);
+				return;
+			}
+			$active_semester = $semester_ay->semester;
+			$active_ay = $semester_ay->academic_year;
+
+
+
+
 			// Prepare data for insertion
 			$data = [
 				'student_id' => $student_id,
@@ -2814,6 +2851,11 @@ class AdminController extends CI_Controller
 				'privacy' => $this->input->post('privacyStatus'),
 				'dept_id' => NULL,
 				'org_id' => NULL,
+
+				//added for ay and semester
+				'semester' => $active_semester,
+				'academic_year' => $active_ay,
+				'created_at' => date('Y-m-d H:i:s')
 			];
 
 			// Handle file upload if an image is provided
@@ -3600,6 +3642,17 @@ class AdminController extends CI_Controller
 
 		$data['activities'] = $this->admin->get_activities_by_sp();
 
+
+		// Get active semester and academic year || used for read only in filters
+		$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+		if ($semester_ay) {
+			$data['active_semester'] = $semester_ay->semester;
+			$data['active_academic_year'] = $semester_ay->academic_year;
+		} else {
+			$data['active_semester'] = 'N/A';
+			$data['active_academic_year'] = 'N/A';
+		}
+
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/attendance/list-activities-attendance', $data);
 		$this->load->view('layout/footer', $data);
@@ -3664,8 +3717,16 @@ class AdminController extends CI_Controller
 		// Use the same model function for consistency
 		$students = $this->Admin_model->get_all_students_attendance_by_activity($activity_id, $department, $status);
 
+		usort($students, function ($a, $b) {
+			return strcmp($a['name'], $b['name']);
+		});
+
+
 		$timeslots = $this->Admin_model->get_timeslots_by_activity($activity_id);
 		$activity = $this->Admin_model->get_activity_specific($activity_id);
+
+		$semester = $activity['semester'] ?? 'N/A';
+		$academic_year = $activity['academic_year'] ?? 'N/A';
 
 		$user = [
 			'role'             => $this->session->userdata('role'),
@@ -3709,6 +3770,7 @@ class AdminController extends CI_Controller
 			}
 		}
 
+
 		// Generate PDF
 		$pdf = new PDF('P', 'mm', 'Legal');
 		$pdf->headerImage = $headerImage;
@@ -3717,11 +3779,16 @@ class AdminController extends CI_Controller
 		$pdf->AddPage();
 		$pdf->SetFont('Arial', 'B', 14);
 		$pdf->Cell(0, 10, 'Attendance Report - Activity: ' . ($activity ? $activity['activity_title'] : 'N/A'), 0, 1, 'C');
+
+		// ✅ Add Semester and Academic Year
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell(0, 7, "$semester - A.Y. $academic_year", 0, 1, 'C');
+
 		$pdf->Ln(5);
 		$pdf->SetFont('Arial', '', 8);
 
 		// Build table headers
-		$header = ['Student ID', 'Name', 'Department'];
+		$header = ['#', 'Student ID', 'Name', 'Department'];
 		foreach ($timeslots as $slot) {
 			$period = strtolower($slot->slot_name) === 'morning' ? 'AM' : 'PM';
 			$header[] = "$period In";
@@ -3729,15 +3796,17 @@ class AdminController extends CI_Controller
 		}
 		$header[] = 'Status';
 
-		// Measure max widths
+		// Measure max widths based on header initially
 		$max_widths = [];
 		foreach ($header as $col) {
 			$max_widths[] = $pdf->GetStringWidth($col);
 		}
 
-		// Measure rows
+		// Measure each student row
+		$counter = 1;
 		foreach ($students as $student) {
 			$row = [
+				$counter,
 				$student['student_id'],
 				$student['name'],
 				$student['dept_name']
@@ -3751,26 +3820,28 @@ class AdminController extends CI_Controller
 
 			$row[] = $student['status'];
 
+			// Compare and store max string widths
 			foreach ($row as $i => $cell) {
 				$max_widths[$i] = max($max_widths[$i], $pdf->GetStringWidth($cell));
 			}
+
+			$counter++;
 		}
 
-		// Padding and scaling
+		// Add padding to each column
 		$padding = 6;
 		foreach ($max_widths as &$w) {
 			$w += $padding;
 		}
-		$total_width = array_sum($max_widths);
-		$usable_width = 196;
-		$scale = $usable_width / $total_width;
 
-		foreach ($max_widths as &$w) {
-			$w = round($w * $scale, 2);
-		}
+		// Calculate total width and center position
+		$table_width = array_sum($max_widths);
+		$page_width = $pdf->GetPageWidth();
+		$margin_left = ($page_width - $table_width) / 2;
 
 		// Output headers
 		$pdf->SetFont('Arial', 'B', 9);
+		$pdf->SetX($margin_left);
 		foreach ($header as $i => $col) {
 			$pdf->Cell($max_widths[$i], 8, $col, 1, 0, 'C');
 		}
@@ -3778,8 +3849,10 @@ class AdminController extends CI_Controller
 
 		// Output data rows
 		$pdf->SetFont('Arial', '', 8);
+		$counter = 1;
 		foreach ($students as $student) {
 			$row = [
+				$counter,
 				$student['student_id'],
 				$student['name'],
 				$student['dept_name']
@@ -3793,12 +3866,15 @@ class AdminController extends CI_Controller
 
 			$row[] = $student['status'];
 
+			$pdf->SetX($margin_left);
 			foreach ($row as $i => $cell) {
 				$pdf->Cell($max_widths[$i], 8, $cell, 1, 0, 'L');
 			}
 			$pdf->Ln();
+			$counter++;
 		}
 
+		// Output the file
 		$filename = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $activity['activity_title']) . '_attendance_report.pdf';
 		$pdf->Output('I', $filename);
 	}
@@ -4025,39 +4101,77 @@ class AdminController extends CI_Controller
 		$pdf->Cell(0, 10, 'FINE PAYMENT RECEIPT', 0, 1, 'C');
 		$pdf->Ln(5);
 
+		// Define tighter layout sizes
+		$label_w_left  = 28;   // Left-side label width
+		$value_w_left  = 37;   // Left-side value width
+		$label_w_right = 28;   // Right-side label width (same as left for pantay)
+		$value_w_right = 37;   // Right-side value width
+		$gap_w         = 30;    // Space between left/right pairs
+
+		// Row 1: Receipt No and Semester
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell($label_w_left, 8, 'Receipt No:', 0, 0);
 		$pdf->SetFont('Arial', '', 10);
-		$pdf->Cell(50, 8, 'Receipt No:', 0, 0);
-		$pdf->Cell(0, 8, strtoupper($summary_id), 0, 1);
-		$pdf->Cell(50, 8, 'Date:', 0, 0);
-		$pdf->Cell(0, 8, date('F j, Y'), 0, 1);
+		$pdf->Cell($value_w_left, 8, strtoupper($summary_id), 0, 0);
+
+		$pdf->Cell($gap_w); // spacer between two sets
+
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell($label_w_right, 8, 'Semester:', 0, 0);
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell($value_w_right, 8, $semester, 0, 1);
+
+		// Row 2: Date and Academic Year (pantay with above)
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell($label_w_left, 8, 'Date:', 0, 0);
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell($value_w_left, 8, date('F j, Y'), 0, 0);
+
+		$pdf->Cell($gap_w);
+
+		$pdf->SetFont('Arial', 'B', 10);
+		$pdf->Cell($label_w_right, 8, 'Academic Year:', 0, 0);
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell($value_w_right, 8, $academic_year, 0, 1);
+
 		$pdf->Ln(5);
 
+
+
+
 		// Student info
+		// Student ID
 		$pdf->SetFont('Arial', 'B', 10);
-		$pdf->Cell(50, 8, 'Student ID:', 0, 0);
+		$pdf->Cell(35, 8, 'Student ID:', 0, 0);
 		$pdf->SetFont('Arial', '', 10);
 		$pdf->Cell(0, 8, $receipt_data['student_id'], 0, 1);
 
-		$student = $this->db->select('first_name, last_name')->from('users')->where('student_id', $receipt_data['student_id'])->get()->row();
+		// Student Name
+		$student = $this->db->select('first_name, last_name')
+			->from('users')
+			->where('student_id', $receipt_data['student_id'])
+			->get()->row();
 		$student_name = $student ? $student->first_name . ' ' . $student->last_name : 'Unknown';
 
 		$pdf->SetFont('Arial', 'B', 10);
-		$pdf->Cell(50, 8, 'Student Name:', 0, 0);
+		$pdf->Cell(35, 8, 'Student Name:', 0, 0);
 		$pdf->SetFont('Arial', '', 10);
 		$pdf->Cell(0, 8, $student_name, 0, 1);
 
-		// Organizer
+		// Source of Fines
 		$pdf->Ln(3);
 		$pdf->SetFont('Arial', 'B', 10);
-		$pdf->Cell(50, 8, 'Source of Fines:', 0, 0);
+		$pdf->Cell(35, 8, 'Source of Fines:', 0, 0);
 		$pdf->SetFont('Arial', '', 10);
 		$pdf->Cell(0, 8, $receipt_data['organizer'], 0, 1);
+
 
 		// Table Header
 		$pdf->Ln(5);
 		$pdf->SetFont('Arial', 'B', 10);
-		$pdf->Cell(120, 8, 'Description (Activity & Slot)', 1, 0, 'C');
+		$pdf->Cell(150, 8, 'Description (Activity & Slot)', 1, 0, 'C');
 		$pdf->Cell(40, 8, 'Amount (PHP)', 1, 1, 'C');
+
 
 		$pdf->SetFont('Arial', '', 10);
 
@@ -4104,7 +4218,7 @@ class AdminController extends CI_Controller
 					$time_label = isset($slot_times[$label]) ? ' (' . date('h:i A', strtotime($slot_times[$label])) . ')' : ' (No record)';
 					$desc = $label . $time_label . ' - ' . $entries[0]['activity_title'];
 
-					$pdf->Cell(120, 8, $desc, 1, 0);
+					$pdf->Cell(150, 8, $desc, 1, 0); // wider description column
 					$pdf->Cell(40, 8, 'Php ' . number_format($amount, 2), 1, 1, 'R');
 				}
 			}
@@ -4113,9 +4227,8 @@ class AdminController extends CI_Controller
 		// Total
 		$total_amount = $receipt_data['total_fines'] ?? 0;
 		$pdf->SetFont('Arial', 'B', 10);
-		$pdf->Cell(120, 8, 'Total Amount:', 1, 0, 'R');
+		$pdf->Cell(150, 8, 'Total Amount:', 1, 0, 'R');
 		$pdf->Cell(40, 8, 'Php ' . number_format($total_amount, 2), 1, 1, 'C');
-
 
 
 
@@ -4223,11 +4336,22 @@ class AdminController extends CI_Controller
 		$organizer_name = $is_dept ? $this->session->userdata('dept_name') : $this->session->userdata('org_name');
 
 		// Start building query
-		$this->db->select('fines_summary.*');
+		$this->db->select('
+			fines_summary.*,
+			users.first_name,
+			users.middle_name,
+			users.last_name,
+			users.profile_pic,
+			users.year_level,
+			department.dept_name
+		');
+
 		$this->db->from('fines_summary');
 		$this->db->join('fines', 'fines_summary.student_id = fines.student_id', 'left');
 		$this->db->join('activity', 'fines.activity_id = activity.activity_id', 'left');
 		$this->db->join('users', 'users.student_id = fines_summary.student_id', 'left'); // ✅ Join users
+		$this->db->join('department', 'department.dept_id = users.dept_id', 'left');
+
 
 		// Filter by student
 		$this->db->where('fines_summary.student_id', $student_id);
@@ -4270,7 +4394,13 @@ class AdminController extends CI_Controller
 		echo json_encode([
 			'success' => true,
 			'summary_id' => $summary->summary_id,
-			'total_fines' => $summary->total_fines
+			'total_fines' => $summary->total_fines,
+			'first_name' => $summary->first_name,
+			'middle_name' => $summary->middle_name,
+			'last_name' => $summary->last_name,
+			'profile_pic' => $summary->profile_pic,
+			'dept_name' => $summary->dept_name,
+			'year_level' => $summary->year_level   // <-- added year_level here
 		]);
 	}
 

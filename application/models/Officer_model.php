@@ -399,11 +399,50 @@ class Officer_model extends CI_Model
 	{
 		$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
 
+		$student_id = $this->session->userdata('student_id');
+		$role       = $this->session->userdata('role');
+		$user       = $this->get_student($student_id);
+
+		$organizer = null;
+		$semester = null;
+		$academicYear = null;
+
+		// Determine organizer and get active semester/AY
+		if ($role === 'Admin') {
+			$organizer = 'Student Parliament';
+			$settings = $this->db->get('student_parliament_settings')->row();
+			if ($settings) {
+				$semester = $settings->semester;
+				$academicYear = $settings->academic_year;
+			}
+		} elseif (isset($user['is_officer']) && $user['is_officer'] === 'Yes') {
+			$org = $this->get_organization_by_student($student_id);
+			if ($org && $org->is_active == 1) {
+				$organizer = $org->org_name;
+				$semester = $org->semester;
+				$academicYear = $org->academic_year;
+			}
+		} elseif (isset($user['is_officer_dept']) && $user['is_officer_dept'] === 'Yes' && !empty($user['dept_id'])) {
+			$dept = $this->get_department_by_id($user['dept_id']);
+			if ($dept && $dept->is_active == 1) {
+				$organizer = $dept->dept_name;
+				$semester = $dept->semester;
+				$academicYear = $dept->academic_year;
+			}
+		}
+
+		if (!$organizer || !$semester || !$academicYear) {
+			return []; // No valid semester/AY or organizer context
+		}
+
 		$this->db->select('a.*, MIN(ats.date_time_in) as first_schedule'); // Pick the earliest schedule
 		$this->db->from('activity a');
 		$this->db->join('activity_time_slots ats', 'a.activity_id = ats.activity_id', 'LEFT');
 		$this->db->group_by('a.activity_id'); // Ensure only one row per activity
 		$this->db->where('organizer', $organizer);
+
+		$this->db->where('academic_year', $academicYear);
+		$this->db->where('semester', $semester);
 
 		$query = $this->db->get();
 		return $query->result();
@@ -674,10 +713,51 @@ class Officer_model extends CI_Model
 	{
 		$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
 
+
+		// Get the active semester and academic year
+		$student_id = $this->session->userdata('student_id');
+		$role       = $this->session->userdata('role');
+		$user       = $this->get_student($student_id);
+
+		$organizer = null;
+		$semester = null;
+		$academicYear = null;
+
+		// Determine organizer and get active semester/AY
+		if ($role === 'Admin') {
+			$organizer = 'Student Parliament';
+			$settings = $this->db->get('student_parliament_settings')->row();
+			if ($settings) {
+				$semester = $settings->semester;
+				$academicYear = $settings->academic_year;
+			}
+		} elseif (isset($user['is_officer']) && $user['is_officer'] === 'Yes') {
+			$org = $this->get_organization_by_student($student_id);
+			if ($org && $org->is_active == 1) {
+				$organizer = $org->org_name;
+				$semester = $org->semester;
+				$academicYear = $org->academic_year;
+			}
+		} elseif (isset($user['is_officer_dept']) && $user['is_officer_dept'] === 'Yes' && !empty($user['dept_id'])) {
+			$dept = $this->get_department_by_id($user['dept_id']);
+			if ($dept && $dept->is_active == 1) {
+				$organizer = $dept->dept_name;
+				$semester = $dept->semester;
+				$academicYear = $dept->academic_year;
+			}
+		}
+
+		if (!$organizer || !$semester || !$academicYear) {
+			return []; // No valid semester/AY or organizer context
+		}
+
 		$this->db->select('*');
 		$this->db->from('forms');
 		$this->db->join('activity', 'activity.activity_id = forms.activity_id');  // Fixed JOIN condition
 		$this->db->where('activity.organizer', $organizer);
+
+		$this->db->where('academic_year', $academicYear);
+		$this->db->where('semester', $semester);
 
 		return $this->db->get()->result();
 	}
@@ -860,6 +940,57 @@ class Officer_model extends CI_Model
 		return $query->result_array();
 	}
 
+
+	//Evaluation Statistic Graphs Start
+	public function get_rating_distribution($form_id)
+	{
+		$this->db->select("
+        ff.form_fields_id,
+        ff.label AS question,
+        ROUND(SUM(CASE WHEN ra.answer = '4' THEN 1 ELSE 0 END) * 100.0 / COUNT(ra.answer), 2) AS four_star,
+        ROUND(SUM(CASE WHEN ra.answer = '3' THEN 1 ELSE 0 END) * 100.0 / COUNT(ra.answer), 2) AS three_star,
+        ROUND(SUM(CASE WHEN ra.answer = '2' THEN 1 ELSE 0 END) * 100.0 / COUNT(ra.answer), 2) AS two_star,
+        ROUND(SUM(CASE WHEN ra.answer = '1' THEN 1 ELSE 0 END) * 100.0 / COUNT(ra.answer), 2) AS one_star
+    ");
+		$this->db->from('response_answer ra');
+		$this->db->join('formfields ff', 'ra.form_fields_id = ff.form_fields_id');
+		$this->db->where('ff.form_id', $form_id);
+		$this->db->where('ff.type', 'rating'); // Only rating questions
+		$this->db->group_by('ff.form_fields_id');
+
+		return $this->db->get()->result_array();
+	}
+
+
+
+	public function respondent_departments($form_id)
+	{
+		$this->db->select('d.dept_name AS department, COUNT(DISTINCT er.student_id) AS count');
+		$this->db->from('evaluation_responses er');
+		$this->db->join('users u', 'u.student_id = er.student_id');
+		$this->db->join('department d', 'd.dept_id = u.dept_id');
+		$this->db->where('er.form_id', $form_id);
+		$this->db->group_by('d.dept_id');
+
+		return $this->db->get()->result_array();
+	}
+
+
+
+	public function respondent_year_levels($form_id)
+	{
+		$this->db->select('u.year_level, COUNT(DISTINCT er.student_id) AS count');
+		$this->db->from('evaluation_responses er');
+		$this->db->join('users u', 'u.student_id = er.student_id');
+		$this->db->where('er.form_id', $form_id);
+		$this->db->group_by('u.year_level');
+
+		return $this->db->get()->result_array();
+	}
+
+
+	//Eval Statistic Graphs end
+
 	// EXCUSE APPLICATION
 
 	// FETCHING EXCUSE APPLICATION PER EVENT
@@ -937,12 +1068,49 @@ class Officer_model extends CI_Model
 	{
 		$user_dept_id = $this->session->userdata('dept_id');
 		$user_org_id = $this->session->userdata('org_id');
+		$student_id = $this->session->userdata('student_id');
+		$role = $this->session->userdata('role');
+		$user = $this->get_student($student_id);
+
+		$semester = null;
+		$academicYear = null;
+
+		// Get correct semester and AY based on role
+		if ($role === 'Admin') {
+			$settings = $this->db->get('student_parliament_settings')->row();
+			if ($settings) {
+				$semester = $settings->semester;
+				$academicYear = $settings->academic_year;
+			}
+		} elseif (!empty($user['is_officer']) && $user['is_officer'] === 'Yes') {
+			$org = $this->get_organization_by_student($student_id);
+			if ($org && $org->is_active == 1) {
+				$semester = $org->semester;
+				$academicYear = $org->academic_year;
+			}
+		} elseif (!empty($user['is_officer_dept']) && $user['is_officer_dept'] === 'Yes') {
+			$dept = $this->get_department_by_id($user['dept_id']);
+			if ($dept && $dept->is_active == 1) {
+				$semester = $dept->semester;
+				$academicYear = $dept->academic_year;
+			}
+		}
+
+		// Fallback if no semester/AY
+		if (!$semester || !$academicYear) {
+			return [];
+		}
 
 		$this->db->select('*');
 		$this->db->from('post');
 		$this->db->join('users', 'post.student_id = users.student_id', 'left');
 		$this->db->join('department', 'department.dept_id = post.dept_id', 'left');
 		$this->db->join('organization', 'organization.org_id = post.org_id', 'left');
+
+
+		// Semester and A.Y. condition
+		$this->db->where('post.semester', $semester);
+		$this->db->where('post.academic_year', $academicYear);
 
 		// WHERE condition to show:
 		// - Public posts
@@ -968,10 +1136,49 @@ class Officer_model extends CI_Model
 	{
 		$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
 
+		$student_id = $this->session->userdata('student_id');
+		$role       = $this->session->userdata('role');
+		$user       = $this->get_student($student_id);
+
+		$organizer = null;
+		$semester = null;
+		$academicYear = null;
+
+		// Determine organizer and get active semester/AY
+		if ($role === 'Admin') {
+			$organizer = 'Student Parliament';
+			$settings = $this->db->get('student_parliament_settings')->row();
+			if ($settings) {
+				$semester = $settings->semester;
+				$academicYear = $settings->academic_year;
+			}
+		} elseif (isset($user['is_officer']) && $user['is_officer'] === 'Yes') {
+			$org = $this->get_organization_by_student($student_id);
+			if ($org && $org->is_active == 1) {
+				$organizer = $org->org_name;
+				$semester = $org->semester;
+				$academicYear = $org->academic_year;
+			}
+		} elseif (isset($user['is_officer_dept']) && $user['is_officer_dept'] === 'Yes' && !empty($user['dept_id'])) {
+			$dept = $this->get_department_by_id($user['dept_id']);
+			if ($dept && $dept->is_active == 1) {
+				$organizer = $dept->dept_name;
+				$semester = $dept->semester;
+				$academicYear = $dept->academic_year;
+			}
+		}
+
+		if (!$organizer || !$semester || !$academicYear) {
+			return []; // No valid semester/AY or organizer context
+		}
+
 		$this->db->select('*');
 		$this->db->from('activity');
 		$this->db->where('status', 'Upcoming');
 		$this->db->where('organizer', $organizer);
+
+		$this->db->where('academic_year', $academicYear);
+		$this->db->where('semester', $semester);
 
 		$query = $this->db->get();
 		return $query->result();
@@ -981,12 +1188,59 @@ class Officer_model extends CI_Model
 	{
 		$organizer = $this->session->userdata('dept_name') ?: $this->session->userdata('org_name');
 
+
+		$student_id = $this->session->userdata('student_id');
+		$role       = $this->session->userdata('role');
+		$user       = $this->get_student($student_id);
+
+		$organizer = null;
+		$semester = null;
+		$academicYear = null;
+
+		// Determine organizer and get active semester/AY
+		if ($role === 'Admin') {
+			$organizer = 'Student Parliament';
+			$settings = $this->db->get('student_parliament_settings')->row();
+			if ($settings) {
+				$semester = $settings->semester;
+				$academicYear = $settings->academic_year;
+			}
+		} elseif (isset($user['is_officer']) && $user['is_officer'] === 'Yes') {
+			$org = $this->get_organization_by_student($student_id);
+			if ($org && $org->is_active == 1) {
+				$organizer = $org->org_name;
+				$semester = $org->semester;
+				$academicYear = $org->academic_year;
+			}
+		} elseif (isset($user['is_officer_dept']) && $user['is_officer_dept'] === 'Yes' && !empty($user['dept_id'])) {
+			$dept = $this->get_department_by_id($user['dept_id']);
+			if ($dept && $dept->is_active == 1) {
+				$organizer = $dept->dept_name;
+				$semester = $dept->semester;
+				$academicYear = $dept->academic_year;
+			}
+		}
+
+		if (!$organizer || !$semester || !$academicYear) {
+			return []; // No valid semester/AY or organizer context
+		}
+
 		$this->db->select('*');
 		$this->db->from('activity');
 		$this->db->where('is_shared', 'Yes');
+
+		$this->db->group_start();
+		$this->db->group_start();
 		$this->db->where('organizer', $organizer);
+		$this->db->where('academic_year', $academicYear);
+		$this->db->where('semester', $semester);
+		$this->db->group_end();
+
 		$this->db->or_where('organizer', 'Student Parliament');
-		$this->db->order_by('updated_at', 'DESC'); // Sort by newest activity first
+		$this->db->group_end();
+
+		$this->db->order_by('updated_at', 'DESC');
+		// Sort by newest activity first
 		//$this->db->limit($limit, $offset); // Apply pagination
 
 		$query = $this->db->get();
@@ -1403,11 +1657,50 @@ class Officer_model extends CI_Model
 
 	public function get_activities_by_sp()
 	{
-		$organizer = $this->session->userdata('dept_name');
+		// $organizer = $this->session->userdata('dept_name');
+
+		$student_id = $this->session->userdata('student_id');
+		$role       = $this->session->userdata('role');
+		$user       = $this->get_student($student_id);
+
+		$organizer = null;
+		$semester = null;
+		$academicYear = null;
+
+		// Determine organizer and get active semester/AY
+		if ($role === 'Admin') {
+			$organizer = 'Student Parliament';
+			$settings = $this->db->get('student_parliament_settings')->row();
+			if ($settings) {
+				$semester = $settings->semester;
+				$academicYear = $settings->academic_year;
+			}
+		} elseif (isset($user['is_officer']) && $user['is_officer'] === 'Yes') {
+			$org = $this->get_organization_by_student($student_id);
+			if ($org && $org->is_active == 1) {
+				$organizer = $org->org_name;
+				$semester = $org->semester;
+				$academicYear = $org->academic_year;
+			}
+		} elseif (isset($user['is_officer_dept']) && $user['is_officer_dept'] === 'Yes' && !empty($user['dept_id'])) {
+			$dept = $this->get_department_by_id($user['dept_id']);
+			if ($dept && $dept->is_active == 1) {
+				$organizer = $dept->dept_name;
+				$semester = $dept->semester;
+				$academicYear = $dept->academic_year;
+			}
+		}
+
+		if (!$organizer || !$semester || !$academicYear) {
+			return []; // No valid semester/AY or organizer context
+		}
 
 		$this->db->select('activity.*');
 		$this->db->from('activity');
 		$this->db->where('organizer', $organizer);
+
+		$this->db->where('academic_year', $academicYear);
+		$this->db->where('semester', $semester);
 
 		$query = $this->db->get();
 		return $query->result();
@@ -2074,30 +2367,64 @@ class Officer_model extends CI_Model
 
 	public function flash_fines()
 	{
+		// Officer info
+		$student_id = $this->session->userdata('student_id');
+		$role = $this->session->userdata('role');
+		$user = $this->get_student($student_id);
 
-		// Get officer details from session
-		$dept_id = $this->session->userdata('dept_id');
-		$org_id = $this->session->userdata('org_id');
-		if ($this->session->userdata('is_officer_dept') === 'Yes') {
-			$organizer = $this->session->userdata('dept_name');
-		} else {
-			$organizer = $this->session->userdata('org_name');
+		// Initialize
+		$organizer = null;
+		$semester = null;
+		$academicYear = null;
+		$dept_id = null;
+		$org_id = null;
+
+		// Prioritize Department Officer
+		if (!empty($user['is_officer_dept']) && $user['is_officer_dept'] === 'Yes' && !empty($user['dept_id'])) {
+			$dept = $this->get_department_by_id($user['dept_id']);
+			if ($dept && $dept->is_active == 1) {
+				$organizer = $dept->dept_name;
+				$semester = $dept->semester;
+				$academicYear = $dept->academic_year;
+				$dept_id = $user['dept_id'];
+			}
+		}
+		// Next, Organization Officer
+		elseif (!empty($user['is_officer']) && $user['is_officer'] === 'Yes') {
+			$org = $this->get_organization_by_student($student_id);
+			if ($org && $org->is_active == 1) {
+				$organizer = $org->org_name;
+				$semester = $org->semester;
+				$academicYear = $org->academic_year;
+				$org_id = $org->org_id;
+			}
+		}
+		// Lastly, Admin
+		elseif ($role === 'Admin') {
+			$active_sem_ay = $this->db->get_where('semester_ay', ['is_active' => 1])->row();
+			if ($active_sem_ay) {
+				$organizer = 'Student Parliament';
+				$semester = $active_sem_ay->semester;
+				$academicYear = $active_sem_ay->academic_year;
+			}
 		}
 
-
+		if (!$organizer || !$semester || !$academicYear) {
+			return []; // fallback if role detection failed
+		}
 
 		$this->db->select('
-			*,
-			users.year_level,
-			activity_time_slots.slot_name,
-			activity_time_slots.date_time_in,
-			activity_time_slots.date_time_out,
-			activity.fines AS fines_scan,
-			attendance.time_in,
-			attendance.time_out,
-			attendance.attendance_status,
-			attendance.attendance_id
-		');
+        *,
+        users.year_level,
+        activity_time_slots.slot_name,
+        activity_time_slots.date_time_in,
+        activity_time_slots.date_time_out,
+        activity.fines AS fines_scan,
+        attendance.time_in,
+        attendance.time_out,
+        attendance.attendance_status,
+        attendance.attendance_id
+    ');
 		$this->db->from('fines_summary');
 		$this->db->join('users', 'users.student_id = fines_summary.student_id');
 		$this->db->join('department', 'department.dept_id = users.dept_id');
@@ -2108,47 +2435,51 @@ class Officer_model extends CI_Model
 
 		// Filter organizer directly from fines_summary table:
 		$this->db->where('fines_summary.organizer', $organizer);
+		$this->db->where('activity.organizer', $organizer);
 		$this->db->where('activity.status', 'Completed');
+		$this->db->where('activity.academic_year', $academicYear);
+		$this->db->where('activity.semester', $semester);
 
+		// Filter to only students under this dept/org if applicable
+		if (!empty($dept_id) || !empty($org_id)) {
+			$this->db->group_start();
 
+			if (!empty($dept_id)) {
+				$this->db->where('users.dept_id', $dept_id); // Filter by department
+			}
 
-		// Filter to only students under this dept/org
-		$this->db->group_start();
-		if (!empty($dept_id)) {
-			$this->db->where('users.dept_id', $dept_id); // Filter by department
+			if (!empty($org_id)) {
+				$this->db->or_where('student_org.org_id', $org_id); // Filter by organization
+			}
+
+			$this->db->group_end();
 		}
 
-		// Check if org_id is available in session and apply the filter
-		if (!empty($org_id)) {
-			$this->db->or_where('student_org.org_id', $org_id); // Filter by organization
-		}
-
-		$this->db->group_end();
-
-		// $this->db->order_by('users.student_id, activity.activity_id');
 		$this->db->group_by('
-		users.student_id,
-		users.first_name,
-		users.last_name,
-		users.year_level,
-		department.dept_name,
-		fines.fines_amount,
-		activity.activity_title,
-		activity_time_slots.slot_name,
-		activity_time_slots.date_time_in,
-		activity_time_slots.date_time_out,
-		activity_time_slots.timeslot_id,
-		activity.fines,
-		attendance.time_in,
-		attendance.time_out,
-		attendance.attendance_status,
-		attendance.attendance_id');
+        users.student_id,
+        users.first_name,
+        users.last_name,
+        users.year_level,
+        department.dept_name,
+        fines.fines_amount,
+        activity.activity_title,
+        activity_time_slots.slot_name,
+        activity_time_slots.date_time_in,
+        activity_time_slots.date_time_out,
+        activity_time_slots.timeslot_id,
+        activity.fines,
+        attendance.time_in,
+        attendance.time_out,
+        attendance.attendance_status,
+        attendance.attendance_id
+    ');
 
 		$this->db->order_by('department.dept_name, users.year_level, users.student_id, activity.activity_id');
 
 		$query = $this->db->get();
 		return $query->result_array();
 	}
+
 
 	//PREVIOUS WORKING  DOUBLE TIME SLOT
 
@@ -2510,7 +2841,63 @@ class Officer_model extends CI_Model
 	}
 
 
+	public function get_organization_by_student($student_id)
+	{
+		$this->db->select('o.*');
+		$this->db->from('student_org so');
+		$this->db->join('organization o', 'so.org_id = o.org_id');
+		$this->db->where('so.student_id', $student_id);
+		$this->db->where('so.is_officer', 'Yes');
+		return $this->db->get()->row();
+	}
 
+
+	public function get_department_by_id($dept_id)
+	{
+		return $this->db->get_where('department', ['dept_id' => $dept_id])->row();
+	}
+
+	public function get_organization_by_id($org_id)
+	{
+		return $this->db->get_where('organization', ['org_id' => $org_id])->row();
+	}
+
+
+
+
+
+
+
+
+
+	//determining active semester start
+
+	public function update_organization_semester($org_id, $data)
+	{
+		// Set other organizations inactive
+		$this->db->where('org_id !=', $org_id)->update('organization', ['is_active' => 0]);
+
+		// Set selected organization active
+		$this->db->where('org_id', $org_id)->update('organization', $data);
+	}
+
+	public function update_department_semester($dept_id, $data)
+	{
+		// Set other departments inactive
+		$this->db->where('dept_id !=', $dept_id)->update('department', ['is_active' => 0]);
+
+		// Set selected department active
+		$this->db->where('dept_id', $dept_id)->update('department', $data);
+	}
+
+	public function update_student_parliament_settings($data)
+	{
+		$this->db->update('student_parliament_settings', $data);
+	}
+
+
+
+	//determining active semester end
 
 
 
