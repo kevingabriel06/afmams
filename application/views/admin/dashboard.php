@@ -55,48 +55,6 @@
 
 
  	<!-- Upcoming and Ongoing Activities -->
- 	<?php
-		// Static sample data (in real use, these would come from DB)
-		$activities = [
-			['title' => 'Tech Talk 2025', 'date' => '2025-06-28', 'attendance' => 120, 'status' => 'Upcoming'],
-			['title' => 'Leadership Bootcamp', 'start_date' => '2025-06-25', 'end_date' => '2025-06-30', 'attendance' => 98, 'status' => 'Ongoing'],
-			['title' => 'Coding Challenge', 'date' => '2025-07-10', 'attendance' => 60, 'status' => 'Upcoming'],
-			['title' => 'Community Outreach', 'start_date' => '2025-06-20', 'end_date' => '2025-07-05', 'attendance' => 140, 'status' => 'Ongoing']
-		];
-
-		// Sort upcoming by month
-		$thisMonth = [];
-		$nextMonth = [];
-		$ongoing = [];
-
-		$today = new DateTime();
-
-		foreach ($activities as $activity) {
-			if ($activity['status'] === 'Upcoming') {
-				$date = new DateTime($activity['date']);
-				if ($date->format('Y-m') === $today->format('Y-m')) {
-					$thisMonth[] = $activity;
-				} elseif ($date->format('Y-m') === $today->modify('+1 month')->format('Y-m')) {
-					$nextMonth[] = $activity;
-				}
-			} elseif ($activity['status'] === 'Ongoing') {
-				// Compute progress
-				$start = new DateTime($activity['start_date']);
-				$end = new DateTime($activity['end_date']);
-				$now = new DateTime();
-
-				$totalDuration = $start->diff($end)->days ?: 1;
-				$elapsed = $start->diff($now)->days;
-				$progress = min(100, max(0, round(($elapsed / $totalDuration) * 100)));
-
-				$activity['progress'] = $progress;
-				$activity['start'] = $start->format('M d');
-				$activity['end'] = $end->format('M d');
-				$ongoing[] = $activity;
-			}
-		}
-		?>
-
  	<div class="col-md-6 col-xxl-4">
  		<div class="card h-md-100">
  			<div class="card-header pb-0">
@@ -108,50 +66,60 @@
  				</h6>
  			</div>
  			<div class="card-body">
- 				<!-- Upcoming: This Month -->
- 				<?php if (!empty($thisMonth)): ?>
+
+ 				<!-- Upcoming This Month -->
+ 				<?php if (!empty($thisMonthActivities)): ?>
  					<h6 class="text-info fw-bold mb-2">Upcoming (This Month)</h6>
  					<ul class="list-group list-group-flush mb-3">
- 						<?php foreach ($thisMonth as $activity): ?>
+ 						<?php foreach ($thisMonthActivities as $activity): ?>
  							<li class="list-group-item d-flex justify-content-between align-items-center">
  								<div>
- 									<h6 class="mb-1"><?= $activity['title'] ?> <span class="badge bg-info ms-2">Upcoming</span></h6>
- 									<small class="text-muted"><i class="fas fa-calendar-alt me-1"></i><?= date('F j, Y', strtotime($activity['date'])) ?></small>
+ 									<h6 class="mb-1"><?= $activity['activity_title'] ?> <span class="badge bg-info ms-2">Upcoming</span></h6>
+ 									<small class="text-muted">
+ 										<i class="fas fa-calendar-alt me-1"></i><?= date('F j, Y', strtotime($activity['start_date'])) ?>
+ 									</small>
  								</div>
- 								<span class="badge bg-secondary rounded-pill"><?= $activity['attendance'] ?> Expected Attendees</span>
+ 								<span class="badge bg-secondary rounded-pill"><?= $activity['attendance'] ?? 0 ?> Expected Attendees</span>
  							</li>
  						<?php endforeach; ?>
  					</ul>
  				<?php endif; ?>
 
- 				<!-- Upcoming: Next Month -->
- 				<?php if (!empty($nextMonth)): ?>
+ 				<!-- Upcoming Next Month -->
+ 				<?php if (!empty($nextMonthActivities)): ?>
  					<h6 class="text-primary fw-bold mb-2">Upcoming (Next Month)</h6>
  					<ul class="list-group list-group-flush mb-3">
- 						<?php foreach ($nextMonth as $activity): ?>
+ 						<?php foreach ($nextMonthActivities as $activity): ?>
  							<li class="list-group-item d-flex justify-content-between align-items-center">
  								<div>
- 									<h6 class="mb-1"><?= $activity['title'] ?> <span class="badge bg-info ms-2">Upcoming</span></h6>
- 									<small class="text-muted"><i class="fas fa-calendar-alt me-1"></i><?= date('F j, Y', strtotime($activity['date'])) ?></small>
+ 									<h6 class="mb-1"><?= $activity['activity_title'] ?> <span class="badge bg-info ms-2">Upcoming</span></h6>
+ 									<small class="text-muted">
+ 										<i class="fas fa-calendar-alt me-1"></i><?= date('F j, Y', strtotime($activity['start_date'])) ?>
+ 									</small>
  								</div>
- 								<span class="badge bg-secondary rounded-pill"><?= $activity['attendance'] ?> Expected Attendees</span>
+ 								<span class="badge bg-secondary rounded-pill"><?= $activity['attendance'] ?? 0 ?> Expected Attendees</span>
  							</li>
  						<?php endforeach; ?>
  					</ul>
  				<?php endif; ?>
 
  				<!-- Ongoing -->
- 				<?php if (!empty($ongoing)): ?>
+ 				<?php if (!empty($ongoingActivities)): ?>
  					<h6 class="text-success fw-bold mb-2">Ongoing Activities</h6>
  					<ul class="list-group list-group-flush">
- 						<?php foreach ($ongoing as $activity): ?>
+ 						<?php foreach ($ongoingActivities as $activity): ?>
  							<li class="list-group-item">
  								<div class="d-flex justify-content-between align-items-center">
  									<div>
- 										<h6 class="mb-1"><?= $activity['title'] ?> <span class="badge bg-success ms-2">Ongoing</span></h6>
- 										<small class="text-muted">
- 											<i class="fas fa-calendar-alt me-1"></i><?= $activity['start'] ?> - <?= $activity['end'] ?>
- 										</small>
+ 										<h6 class="mb-1"><?= $activity['activity_title'] ?> <span class="badge bg-success ms-2">Ongoing</span></h6>
+ 										<div style="display:flex; gap:10px; flex-wrap: wrap;">
+ 											<div style="padding:5px 10px; background:rgba(255,255,255,0.15); border-radius:10px; backdrop-filter:blur(10px); color:#000; font-size:12px;">
+ 												<i class="fas fa-calendar-alt me-1"></i><?= $activity['start'] ?>
+ 											</div>
+ 											<div style="padding:5px 10px; background:rgba(255,255,255,0.15); border-radius:10px; backdrop-filter:blur(10px); color:#000; font-size:12px;">
+ 												<i class="fas fa-clock me-1"></i><?= $activity['start_time'] ?> - <?= $activity['end_time'] ?>
+ 											</div>
+ 										</div>
  									</div>
  									<span class="badge bg-primary rounded-pill"><?= $activity['attendance'] ?> Attendees</span>
  								</div>
@@ -164,15 +132,18 @@
  					</ul>
  				<?php endif; ?>
 
- 				<?php if (empty($thisMonth) && empty($nextMonth) && empty($ongoing)): ?>
+
+ 				<?php if (empty($thisMonthActivities) && empty($nextMonthActivities) && empty($ongoingActivities)): ?>
  					<div class="text-center text-muted py-4">
  						<i class="fas fa-calendar-times fa-2x mb-2"></i>
  						<p class="mb-0">No upcoming or ongoing activities</p>
  					</div>
  				<?php endif; ?>
+
  			</div>
  		</div>
  	</div>
+
 
 
 

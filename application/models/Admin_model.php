@@ -1685,6 +1685,9 @@ class Admin_model extends CI_Model
 		$this->db->join('department', 'department.dept_id = users.dept_id', 'left');
 		$this->db->where('attendance.activity_id', $activity_id);
 
+		// ✅ Ensure student is active
+		$this->db->where('users.is_active', 'Active');
+
 		// Add this:
 		if ($department) {
 			// Assuming $department is the department name; change to 'dept_id' if you have ID
@@ -2130,6 +2133,7 @@ class Admin_model extends CI_Model
 		');
 		$this->db->from('fines_summary');
 		$this->db->join('users', 'users.student_id = fines_summary.student_id');
+		$this->db->where('users.is_active', 'Active'); // ✅ Add this line for active user
 		$this->db->join('department', 'department.dept_id = users.dept_id');
 		$this->db->join('fines', 'fines.student_id = fines_summary.student_id');
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
@@ -2955,6 +2959,9 @@ class Admin_model extends CI_Model
 
 		return $this->db->trans_status(); // Returns true on success, false on failure
 	}
+
+
+
 
 	public function insert_exempted_students_batch($data)
 	{
