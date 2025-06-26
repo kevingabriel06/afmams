@@ -2747,14 +2747,142 @@ class Admin_model extends CI_Model
 	// GENERAL SETTINGS (FINAL CHECK)
 	protected $table = 'users'; // Your database table name
 
-	public function insert_student($user_data_batch)
+	public function insert_student($students)
 	{
 		$this->db->trans_start();
-		$this->db->insert_batch($this->table, $user_data_batch);
-		$this->db->trans_complete();
 
-		return $this->db->trans_status(); // Returns true on success, false on failure
+		$imported_ids = []; // Collect imported student_ids
+
+		foreach ($students as $student) {
+			$student['status'] = 'Active'; // Mark as active
+			$student['role'] = 'Student'; // Enforce role as student
+			$imported_ids[] = $student['student_id'];
+
+			// Check if student already exists
+			$existing = $this->db->get_where($this->table, ['student_id' => $student['student_id']])->row();
+
+			if ($existing) {
+				$this->db->where('student_id', $student['student_id']);
+				$this->db->update($this->table, $student);
+			} else {
+				$this->db->insert($this->table, $student);
+			}
+		}
+
+		// Mark students not in the current import list as inactive (but only students)
+		if (!empty($imported_ids)) {
+			$this->db->where_not_in('student_id', $imported_ids);
+			$this->db->where('role', 'Student');
+			$this->db->update($this->table, ['status' => 'Inactive']);
+		}
+
+		$this->db->trans_complete();
+		return $this->db->trans_status();
 	}
+
+	public function assign_single_student_to_activity($activity_id, $student_id, $dept_name, $timeslot_ids = [])
+	{
+		// Get activity details
+		$activity = $this->db->select('organizer, start_date, registration_deadline, registration_fee')
+			->from('activity')
+			->where('activity_id', $activity_id)
+			->get()
+			->row();
+
+		if (!$activity) return;
+
+		$organizer = $activity->organizer;
+
+		// Check if student is exempted
+		$is_exempted = $this->db->where('student_id', $student_id)
+			->get('exempted_students')
+			->num_rows() > 0;
+
+		foreach ($timeslot_ids as $timeslot_id) {
+			// Skip if already exists
+			$exists = $this->db->get_where('attendance', [
+				'activity_id' => $activity_id,
+				'timeslot_id' => $timeslot_id,
+				'student_id'  => $student_id
+			])->num_rows();
+			if ($exists > 0) continue;
+
+			// Insert into attendance
+			$attendance_data = [
+				'activity_id'        => $activity_id,
+				'timeslot_id'        => $timeslot_id,
+				'student_id'         => $student_id,
+				'attendance_status'  => $is_exempted ? 'Exempted' : 'No Status'
+			];
+			$this->db->insert('attendance', $attendance_data);
+			$attendance_id = $this->db->insert_id();
+
+			// Insert into fines
+			$this->db->insert('fines', [
+				'activity_id'    => $activity_id,
+				'timeslot_id'    => $timeslot_id,
+				'student_id'     => $student_id,
+				'attendance_id'  => $attendance_id,
+				'status'         => 'Pending',
+				'fines_amount'   => 0
+			]);
+		}
+
+		// Handle fines_summary
+		$summary = $this->db->get_where('fines_summary', [
+			'student_id' => $student_id,
+			'organizer'  => $organizer
+		])->row();
+
+		$start_date = strtotime($activity->start_date);
+		$month = (int)date('m', $start_date);
+		$year = (int)date('Y', $start_date);
+
+		$semester = ($month >= 8 && $month <= 12) ? '1st Semester' : '2nd Semester';
+		$academic_year = ($semester === '1st Semester') ? "$year-" . ($year + 1) : ($year - 1) . "-$year";
+
+		if ($summary) {
+			$this->db->where('summary_id', $summary->summary_id)
+				->update('fines_summary', [
+					'fines_status'   => 'Unpaid',
+					'semester'       => $semester,
+					'academic_year'  => $academic_year,
+					'last_updated'   => date('Y-m-d H:i:s')
+				]);
+		} else {
+			$this->db->insert('fines_summary', [
+				'student_id'     => $student_id,
+				'organizer'      => $organizer,
+				'fines_status'   => 'Unpaid',
+				'semester'       => $semester,
+				'academic_year'  => $academic_year,
+				'last_updated'   => date('Y-m-d H:i:s')
+			]);
+		}
+
+		// Handle registration
+		$fee_valid = isset($activity->registration_fee);
+		$deadline_valid = !empty($activity->registration_deadline) && $activity->registration_deadline !== '0000-00-00';
+
+		if ($fee_valid && $deadline_valid) {
+			$already_registered = $this->db->get_where('registrations', [
+				'activity_id' => $activity_id,
+				'student_id'  => $student_id
+			])->num_rows();
+
+			if ($already_registered === 0) {
+				$this->db->insert('registrations', [
+					'activity_id'         => $activity_id,
+					'student_id'          => $student_id,
+					'payment_type'        => 'No Status',
+					'registration_status' => 'No Status'
+				]);
+			}
+		}
+	}
+
+
+
 
 	public function insert_dept_officers_batch($user_data_batch, $privilege_batch)
 	{

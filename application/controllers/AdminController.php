@@ -5201,10 +5201,45 @@ class AdminController extends CI_Controller
 		}
 	}
 
-	// IMPORTING LIST STUDENT
+	// // IMPORTING LIST STUDENT
+	// public function import_list()
+	// {
+	// 	require_once FCPATH . 'vendor/autoload.php'; // Correct PhpSpreadsheet autoload path
+
+	// 	if ($_FILES['import_file']['error'] == UPLOAD_ERR_OK) {
+	// 		$fileTmpPath = $_FILES['import_file']['tmp_name'];
+	// 		$fileName = $_FILES['import_file']['name'];
+	// 		$extension = pathinfo($fileName, PATHINFO_EXTENSION);
+
+	// 		try {
+	// 			// Read data based on file type
+	// 			if ($extension == 'csv') {
+	// 				$data = $this->readCSV($fileTmpPath);
+	// 			} elseif ($extension == 'xlsx') {
+	// 				$data = $this->readXLSX($fileTmpPath);
+	// 			} else {
+	// 				echo json_encode(['success' => false, 'message' => 'Invalid file type. Please upload a CSV or XLSX file.']);
+	// 				return;
+	// 			}
+
+	// 			// Insert into database
+	// 			if (!empty($data)) {
+	// 				$this->admin->insert_student($data);
+	// 				echo json_encode(['success' => true, 'message' => 'File uploaded and data imported successfully!']);
+	// 			} else {
+	// 				echo json_encode(['success' => false, 'message' => 'No valid data found in the file.']);
+	// 			}
+	// 		} catch (Exception $e) {
+	// 			echo json_encode(['success' => false, 'message' => 'Error processing file: ' . $e->getMessage()]);
+	// 		}
+	// 	} else {
+	// 		echo json_encode(['success' => false, 'message' => 'No file uploaded or an error occurred.']);
+	// 	}
+	// }
+
 	public function import_list()
 	{
-		require_once FCPATH . 'vendor/autoload.php'; // Correct PhpSpreadsheet autoload path
+		require_once FCPATH . 'vendor/autoload.php';
 
 		if ($_FILES['import_file']['error'] == UPLOAD_ERR_OK) {
 			$fileTmpPath = $_FILES['import_file']['tmp_name'];
@@ -5212,7 +5247,8 @@ class AdminController extends CI_Controller
 			$extension = pathinfo($fileName, PATHINFO_EXTENSION);
 
 			try {
-				// Read data based on file type
+				$data = [];
+
 				if ($extension == 'csv') {
 					$data = $this->readCSV($fileTmpPath);
 				} elseif ($extension == 'xlsx') {
@@ -5222,10 +5258,57 @@ class AdminController extends CI_Controller
 					return;
 				}
 
-				// Insert into database
 				if (!empty($data)) {
-					$this->admin->insert_student($data);
-					echo json_encode(['success' => true, 'message' => 'File uploaded and data imported successfully!']);
+					$this->admin->insert_student($data); // insert or update
+
+					// ✅ Get upcoming activities
+					$upcoming_activities = $this->db->select('*')
+						->from('activity')
+						->where('start_date >=', date('Y-m-d'))
+						->where('status', 'Upcoming')
+						->get()
+						->result();
+
+					$changes_made = false;
+
+					foreach ($data as $student) {
+						$department = $this->db->get_where('department', ['dept_id' => $student['dept_id']])->row();
+						if (!$department) continue;
+
+						$dept_name = $department->dept_name;
+
+						foreach ($upcoming_activities as $activity) {
+							$audience_array = array_map('trim', explode(',', $activity->audience));
+
+							if (in_array($dept_name, $audience_array)) {
+								$timeslots = $this->db->get_where('activity_time_slots', ['activity_id' => $activity->activity_id])->result_array();
+								$timeslot_ids = array_column($timeslots, 'timeslot_id');
+
+								$already_exists = $this->db->get_where('attendance', [
+									'activity_id' => $activity->activity_id,
+									'student_id'  => $student['student_id']
+								])->num_rows();
+
+								if ($already_exists == 0) {
+									$this->admin->assign_single_student_to_activity(
+										$activity->activity_id,
+										$student['student_id'],
+										$dept_name,
+										$timeslot_ids
+									);
+
+									$changes_made = true;
+								}
+							}
+						}
+					}
+
+					// ✅ Final response
+					if ($changes_made) {
+						echo json_encode(['success' => true, 'message' => 'File uploaded, students imported, and assigned to upcoming activities!']);
+					} else {
+						echo json_encode(['success' => true, 'message' => 'No changes made.']);
+					}
 				} else {
 					echo json_encode(['success' => false, 'message' => 'No valid data found in the file.']);
 				}
@@ -5236,6 +5319,8 @@ class AdminController extends CI_Controller
 			echo json_encode(['success' => false, 'message' => 'No file uploaded or an error occurred.']);
 		}
 	}
+
+
 
 	private function readCSV($filePath)
 	{
@@ -5304,6 +5389,8 @@ class AdminController extends CI_Controller
 		}
 		return $data;
 	}
+
+
 
 
 

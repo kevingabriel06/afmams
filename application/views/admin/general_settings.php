@@ -385,6 +385,9 @@
 												text: response.message
 											}).then(() => {
 												$('#importModal').modal('hide');
+												setTimeout(function() {
+													window.location.reload();
+												}, 2000);
 											});
 										} else {
 											Swal.fire({
@@ -499,6 +502,9 @@
 												text: response.message
 											}).then(() => {
 												$('#importModalDept').modal('hide');
+												setTimeout(function() {
+													window.location.reload();
+												}, 2000);
 											});
 										} else {
 											Swal.fire({
@@ -613,6 +619,9 @@
 												text: response.message
 											}).then(() => {
 												$('#importModalOrg').modal('hide');
+												setTimeout(function() {
+													window.location.reload();
+												}, 2000);
 											});
 										} else {
 											Swal.fire({
