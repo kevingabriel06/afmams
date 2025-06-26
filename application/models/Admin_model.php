@@ -1679,7 +1679,7 @@ class Admin_model extends CI_Model
 
 	{
 		// Step 1: Get all students who have attendance records with department info
-		$this->db->select('users.*, department.dept_name, attendance.*');
+		$this->db->select('users.*, department.dept_name, department.dept_code, attendance.*');
 		$this->db->from('attendance');
 		$this->db->join('users', 'attendance.student_id = users.student_id', 'inner'); // Only include students with attendance records
 		$this->db->join('department', 'department.dept_id = users.dept_id', 'left');
@@ -1708,6 +1708,7 @@ class Admin_model extends CI_Model
 				'student_id' => $student->student_id,
 				'name'       => $student->first_name . ' ' . $student->last_name,
 				'dept_name'  => isset($student->dept_name) ? $student->dept_name : 'No Department',
+				'dept_code'  => isset($student->dept_code) ? $student->dept_code : 'No Department',
 				'attendance_status' => $student->attendance_status
 			];
 
@@ -2747,6 +2748,32 @@ class Admin_model extends CI_Model
 	// GENERAL SETTINGS (FINAL CHECK)
 	protected $table = 'users'; // Your database table name
 
+	// //To check if the student exists in the users table 
+	// public function get_existing_student_ids($dept_id)
+	// {
+	// 	$this->db->select('student_id');
+	// 	$this->db->from('users');
+	// 	$this->db->where('dept_id', $dept_id);
+	// 	$this->db->where('is_officer_dept', 'Yes');
+	// 	return array_column($this->db->get()->result_array(), 'student_id');
+	// }
+
+
+	// //if the student is not officer anymore
+	// public function revoke_unlisted_officers($importedIds, $dept_id)
+	// {
+	// 	if (empty($importedIds)) return;
+
+	// 	$this->db->where('dept_id', $dept_id);
+	// 	$this->db->where_not_in('student_id', $importedIds);
+	// 	$this->db->where('is_officer_dept', 'Yes');
+	// 	$this->db->update('users', [
+	// 		'is_officer_dept' => 'No',
+	// 		'is_admin' => 'No',
+	// 		'role' => 'Student'
+	// 	]);
+	// }
+
 	public function insert_student($students)
 	{
 		$this->db->trans_start();
@@ -2754,7 +2781,7 @@ class Admin_model extends CI_Model
 		$imported_ids = []; // Collect imported student_ids
 
 		foreach ($students as $student) {
-			$student['status'] = 'Active'; // Mark as active
+			$student['is_active'] = 'Active'; // Mark as active
 			$student['role'] = 'Student'; // Enforce role as student
 			$imported_ids[] = $student['student_id'];
 
@@ -2773,7 +2800,7 @@ class Admin_model extends CI_Model
 		if (!empty($imported_ids)) {
 			$this->db->where_not_in('student_id', $imported_ids);
 			$this->db->where('role', 'Student');
-			$this->db->update($this->table, ['status' => 'Inactive']);
+			$this->db->update($this->table, ['is_active' => 'Inactive']);
 		}
 
 		$this->db->trans_complete();
@@ -2893,6 +2920,32 @@ class Admin_model extends CI_Model
 
 		return $this->db->trans_status(); // Returns true on success, false on failure
 	}
+
+
+	// public function insert_dept_officers_batch($user_data_batch, $privilege_batch, $updatedUsers = [])
+	// {
+	// 	$this->db->trans_start();
+
+	// 	if (!empty($user_data_batch)) {
+	// 		$this->db->insert_batch('users', $user_data_batch);
+	// 	}
+
+	// 	if (!empty($updatedUsers)) {
+	// 		foreach ($updatedUsers as $update) {
+	// 			$this->db->where('student_id', $update['student_id']);
+	// 			$this->db->update('users', $update);
+	// 		}
+	// 	}
+
+	// 	if (!empty($privilege_batch)) {
+	// 		$this->db->insert_batch('privilege', $privilege_batch);
+	// 	}
+
+	// 	$this->db->trans_complete();
+
+	// 	return $this->db->trans_status();
+	// }
+
 
 	public function insert_org_officers_batch($user_data_batch, $org_data_batch, $privilege_batch)
 	{

@@ -1294,7 +1294,6 @@
 					</div>
 				</div>
 			</div>
-
 			<script>
 				document.addEventListener("DOMContentLoaded", function() {
 					const currentYear = new Date().getFullYear();
@@ -1331,22 +1330,196 @@
 
 					const activeLabel = `${semester} AY ${startYear}-${endYear}`;
 
-					// ✅ AJAX request to insert into database
-					$.post("<?= site_url('admin/active-semester') ?>", {
-						semester: semester,
-						start_year: startYear,
-						end_year: endYear
-					}, function(response) {
-						if (response.status === 'success') {
-							alert(response.message);
-							$('#activeSemesterLabel').text(response.value); // update the label (optional)
-							$('#semesterModal').modal('hide'); // hide modal
-						} else {
-							alert(response.message);
+					// Confirm with SweetAlert
+					Swal.fire({
+						title: 'Are you sure?',
+						text: `Set ${activeLabel} as the active semester?`,
+						icon: 'question',
+						showCancelButton: true,
+						confirmButtonText: 'Yes, save it!',
+						cancelButtonText: 'Cancel'
+					}).then((result) => {
+						if (result.isConfirmed) {
+							// AJAX request
+							$.post("<?= site_url('admin/active-semester') ?>", {
+								semester: semester,
+								start_year: startYear,
+								end_year: endYear
+							}, function(response) {
+								if (response.status === 'success') {
+									Swal.fire({
+										icon: 'success',
+										title: 'Saved!',
+										text: response.message,
+										timer: 2000,
+										showConfirmButton: false
+									});
+									$('#activeSemesterLabel').text(response.value);
+									$('#semesterModal').modal('hide');
+								} else {
+									Swal.fire({
+										icon: 'error',
+										title: 'Failed!',
+										text: response.message
+									});
+								}
+							}, 'json');
 						}
-					}, 'json');
+					});
 				}
 			</script>
+
+
+
+
+			<!-- Set Semester Schedule -->
+			<div class="col-md-6">
+				<div class="border rounded p-3 h-100 d-flex justify-content-between align-items-start">
+					<div class="d-flex">
+						<div class="me-3">
+							<span class="fs-4 text-primary"><i class="fas fa-calendar-check"></i></span>
+						</div>
+						<div>
+							<h6 class="mb-1">Set Semester Schedule</h6>
+							<p class="mb-0 text-muted small">Configure start and end dates for each semester in an academic year.</p>
+						</div>
+					</div>
+					<button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#setSemesterModal">Set</button>
+				</div>
+			</div>
+
+
+
+			<!-- Modal: Set Semester Dates -->
+			<div class="modal fade" id="setSemesterModal" tabindex="-1" aria-labelledby="setSemesterLabel" aria-hidden="true">
+				<div class="modal-dialog">
+					<form id="setSemesterForm" method="POST" action="<?= site_url('AdminController/save_sem'); ?>">
+						<div class="modal-content">
+							<div class="modal-header">
+								<h5 class="modal-title" id="setSemesterLabel">Set Semester Dates</h5>
+								<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+							</div>
+							<div class="modal-body">
+
+								<!-- Academic Year -->
+								<div class="mb-3">
+									<label for="academic_year" class="form-label">Academic Year</label>
+									<select class="form-select" name="academic_year" id="academic_year" required
+										style="max-height: 200px; overflow-y: auto; display: block;">
+										<!-- Populated by JS -->
+									</select>
+								</div>
+
+								<!-- First Semester -->
+								<div class="mb-3">
+									<label class="form-label">First Semester</label>
+									<div class="input-group">
+										<span class="input-group-text">Start</span>
+										<input type="month" class="form-control" name="first_start" required
+											value="<?= isset($semester) ? date('Y-' . str_pad($semester->first_start, 2, '0', STR_PAD_LEFT)) : '' ?>">
+										<span class="input-group-text">End</span>
+										<input type="month" class="form-control" name="first_end" required
+											value="<?= isset($semester) ? date('Y-' . str_pad($semester->first_end, 2, '0', STR_PAD_LEFT)) : '' ?>">
+									</div>
+								</div>
+
+								<!-- Second Semester -->
+								<div class="mb-3">
+									<label class="form-label">Second Semester</label>
+									<div class="input-group">
+										<span class="input-group-text">Start</span>
+										<input type="month" class="form-control" name="second_start" required
+											value="<?= isset($semester) ? date('Y-' . str_pad($semester->second_start, 2, '0', STR_PAD_LEFT)) : '' ?>">
+										<span class="input-group-text">End</span>
+										<input type="month" class="form-control" name="second_end" required
+											value="<?= isset($semester) ? date('Y-' . str_pad($semester->second_end, 2, '0', STR_PAD_LEFT)) : '' ?>">
+									</div>
+								</div>
+
+
+							</div>
+							<div class="modal-footer">
+								<button type="submit" class="btn btn-primary">Save</button>
+							</div>
+						</div>
+					</form>
+				</div>
+			</div>
+
+
+
+			<!-- JavaScript for Dynamic Academic Year Dropdown -->
+
+			<script>
+				document.addEventListener('DOMContentLoaded', function() {
+					const yearSelect = document.getElementById('academic_year');
+					const currentYear = new Date().getFullYear();
+
+					yearSelect.innerHTML = '<option value="">Select Academic Year</option>';
+					for (let i = currentYear - 2; i <= currentYear + 10; i++) {
+						const next = i + 1;
+						const option = document.createElement('option');
+						option.value = `${i}-${next}`;
+						option.text = `${i}-${next}`;
+						yearSelect.appendChild(option);
+					}
+					yearSelect.value = `${currentYear}-${currentYear + 1}`;
+
+					// SweetAlert confirmation + AJAX submit
+					const form = document.getElementById('setSemesterForm');
+					form.addEventListener('submit', function(e) {
+						e.preventDefault();
+
+						Swal.fire({
+							title: 'Confirm Save?',
+							text: 'Are you sure you want to save these semester dates?',
+							icon: 'question',
+							showCancelButton: true,
+							confirmButtonText: 'Yes, save it!',
+							cancelButtonText: 'Cancel'
+						}).then((result) => {
+							if (result.isConfirmed) {
+								const formData = new FormData(form);
+
+								Swal.fire({
+									title: 'Saving...',
+									html: 'Please wait while your data is being saved.',
+									didOpen: () => {
+										Swal.showLoading();
+									},
+									allowOutsideClick: false,
+									allowEscapeKey: false
+								});
+
+								fetch(form.action, {
+										method: 'POST',
+										body: formData
+									})
+									.then(response => response.ok ? response.text() : Promise.reject())
+									.then(() => {
+										Swal.fire({
+											title: 'Success!',
+											text: 'Semester dates saved successfully.',
+											icon: 'success',
+											timer: 2000,
+											showConfirmButton: false
+										}).then(() => {
+											window.location.href = '<?= site_url("admin/general-settings") ?>'; // Redirect to settings page
+										});
+									})
+									.catch(() => {
+										Swal.fire({
+											title: 'Error!',
+											text: 'Something went wrong while saving.',
+											icon: 'error'
+										});
+									});
+							}
+						});
+					});
+				});
+			</script>
+
 
 
 

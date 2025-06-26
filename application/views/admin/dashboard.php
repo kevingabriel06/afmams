@@ -52,108 +52,133 @@
 
 
  <div class="row g-3 mb-4">
+
+
+ 	<!-- Upcoming and Ongoing Activities -->
+ 	<?php
+		// Static sample data (in real use, these would come from DB)
+		$activities = [
+			['title' => 'Tech Talk 2025', 'date' => '2025-06-28', 'attendance' => 120, 'status' => 'Upcoming'],
+			['title' => 'Leadership Bootcamp', 'start_date' => '2025-06-25', 'end_date' => '2025-06-30', 'attendance' => 98, 'status' => 'Ongoing'],
+			['title' => 'Coding Challenge', 'date' => '2025-07-10', 'attendance' => 60, 'status' => 'Upcoming'],
+			['title' => 'Community Outreach', 'start_date' => '2025-06-20', 'end_date' => '2025-07-05', 'attendance' => 140, 'status' => 'Ongoing']
+		];
+
+		// Sort upcoming by month
+		$thisMonth = [];
+		$nextMonth = [];
+		$ongoing = [];
+
+		$today = new DateTime();
+
+		foreach ($activities as $activity) {
+			if ($activity['status'] === 'Upcoming') {
+				$date = new DateTime($activity['date']);
+				if ($date->format('Y-m') === $today->format('Y-m')) {
+					$thisMonth[] = $activity;
+				} elseif ($date->format('Y-m') === $today->modify('+1 month')->format('Y-m')) {
+					$nextMonth[] = $activity;
+				}
+			} elseif ($activity['status'] === 'Ongoing') {
+				// Compute progress
+				$start = new DateTime($activity['start_date']);
+				$end = new DateTime($activity['end_date']);
+				$now = new DateTime();
+
+				$totalDuration = $start->diff($end)->days ?: 1;
+				$elapsed = $start->diff($now)->days;
+				$progress = min(100, max(0, round(($elapsed / $totalDuration) * 100)));
+
+				$activity['progress'] = $progress;
+				$activity['start'] = $start->format('M d');
+				$activity['end'] = $end->format('M d');
+				$ongoing[] = $activity;
+			}
+		}
+		?>
+
  	<div class="col-md-6 col-xxl-4">
  		<div class="card h-md-100">
  			<div class="card-header pb-0">
  				<h6 class="mb-0 mt-2 d-flex align-items-center">
- 					Completed Activities
- 					<span class="ms-1 text-400" data-bs-toggle="tooltip" data-bs-placement="top" title="Completed activities in this semester">
+ 					Upcoming & Ongoing Activities
+ 					<span class="ms-1 text-400" data-bs-toggle="tooltip" title="Sorted by status and time">
  						<span class="far fa-question-circle" data-fa-transform="shrink-1"></span>
  					</span>
  				</h6>
  			</div>
  			<div class="card-body">
- 				<?php
-					$completedCount = $current_semester['completed_count'];
+ 				<!-- Upcoming: This Month -->
+ 				<?php if (!empty($thisMonth)): ?>
+ 					<h6 class="text-info fw-bold mb-2">Upcoming (This Month)</h6>
+ 					<ul class="list-group list-group-flush mb-3">
+ 						<?php foreach ($thisMonth as $activity): ?>
+ 							<li class="list-group-item d-flex justify-content-between align-items-center">
+ 								<div>
+ 									<h6 class="mb-1"><?= $activity['title'] ?> <span class="badge bg-info ms-2">Upcoming</span></h6>
+ 									<small class="text-muted"><i class="fas fa-calendar-alt me-1"></i><?= date('F j, Y', strtotime($activity['date'])) ?></small>
+ 								</div>
+ 								<span class="badge bg-secondary rounded-pill"><?= $activity['attendance'] ?> Expected Attendees</span>
+ 							</li>
+ 						<?php endforeach; ?>
+ 					</ul>
+ 				<?php endif; ?>
 
-					// Prepare data: month => count (fill zero for missing months)
-					$monthData = [];
-					foreach ($monthly_breakdown as $row) {
-						$monthNum = (int)$row->month;
-						$monthName = date("F", mktime(0, 0, 0, $monthNum, 1));
-						$monthData[$monthNum] = [
-							'name' => $monthName,
-							'count' => (int)$row->count
-						];
-					}
+ 				<!-- Upcoming: Next Month -->
+ 				<?php if (!empty($nextMonth)): ?>
+ 					<h6 class="text-primary fw-bold mb-2">Upcoming (Next Month)</h6>
+ 					<ul class="list-group list-group-flush mb-3">
+ 						<?php foreach ($nextMonth as $activity): ?>
+ 							<li class="list-group-item d-flex justify-content-between align-items-center">
+ 								<div>
+ 									<h6 class="mb-1"><?= $activity['title'] ?> <span class="badge bg-info ms-2">Upcoming</span></h6>
+ 									<small class="text-muted"><i class="fas fa-calendar-alt me-1"></i><?= date('F j, Y', strtotime($activity['date'])) ?></small>
+ 								</div>
+ 								<span class="badge bg-secondary rounded-pill"><?= $activity['attendance'] ?> Expected Attendees</span>
+ 							</li>
+ 						<?php endforeach; ?>
+ 					</ul>
+ 				<?php endif; ?>
 
-					// Sort months numerically
-					ksort($monthData);
+ 				<!-- Ongoing -->
+ 				<?php if (!empty($ongoing)): ?>
+ 					<h6 class="text-success fw-bold mb-2">Ongoing Activities</h6>
+ 					<ul class="list-group list-group-flush">
+ 						<?php foreach ($ongoing as $activity): ?>
+ 							<li class="list-group-item">
+ 								<div class="d-flex justify-content-between align-items-center">
+ 									<div>
+ 										<h6 class="mb-1"><?= $activity['title'] ?> <span class="badge bg-success ms-2">Ongoing</span></h6>
+ 										<small class="text-muted">
+ 											<i class="fas fa-calendar-alt me-1"></i><?= $activity['start'] ?> - <?= $activity['end'] ?>
+ 										</small>
+ 									</div>
+ 									<span class="badge bg-primary rounded-pill"><?= $activity['attendance'] ?> Attendees</span>
+ 								</div>
+ 								<div class="progress mt-2" style="height: 6px;">
+ 									<div class="progress-bar bg-success" role="progressbar" style="width: <?= $activity['progress'] ?>%;" aria-valuenow="<?= $activity['progress'] ?>" aria-valuemin="0" aria-valuemax="100"></div>
+ 								</div>
+ 								<small class="text-muted"><?= $activity['progress'] ?>% Complete</small>
+ 							</li>
+ 						<?php endforeach; ?>
+ 					</ul>
+ 				<?php endif; ?>
 
-					// Final arrays for chart
-					$months = [];
-					$counts = [];
-
-					foreach ($monthData as $data) {
-						$months[] = $data['name'];
-						$counts[] = $data['count'];
-					}
-
-					// Percentage calculation (fixed)
-					$percentage_change = 0;
-					if ($previous_semester['completed_count'] > 0) {
-						$percentage_change = (($completedCount - $previous_semester['completed_count']) / $previous_semester['completed_count']) * 100;
-					} elseif ($previous_semester['completed_count'] == 0 && $completedCount > 0) {
-						$percentage_change = 100;
-					}
-
-					if ($percentage_change > 1000) {
-						$percentage_change = 1000;
-					}
-					?>
-
- 				<!-- Completed count -->
- 				<div class="mb-3">
- 					<div class="d-flex align-items-end gap-1">
- 						<h1 class="text-primary mb-0"><?= $completedCount ?></h1>
- 						<span class="badge <?= $percentage_change >= 0 ? 'badge-subtle-success' : 'badge-subtle-danger' ?> rounded-pill fs-11 mb-1">
- 							<?= ($percentage_change >= 0 ? '+' : '') . round($percentage_change, 2) ?>%
- 						</span>
+ 				<?php if (empty($thisMonth) && empty($nextMonth) && empty($ongoing)): ?>
+ 					<div class="text-center text-muted py-4">
+ 						<i class="fas fa-calendar-times fa-2x mb-2"></i>
+ 						<p class="mb-0">No upcoming or ongoing activities</p>
  					</div>
- 				</div>
-
- 				<!-- Bar Chart -->
- 				<div id="completedActivitiesChart" style="height: 250px;"></div>
-
- 				<!-- Chart Initialization -->
- 				<script>
- 					var chartDom = document.getElementById('completedActivitiesChart');
- 					var myChart = echarts.init(chartDom);
- 					var option = {
- 						tooltip: {
- 							trigger: 'axis',
- 							formatter: '{b0} : {c0}'
- 						},
- 						xAxis: {
- 							type: 'category',
- 							data: <?= json_encode($months) ?>
- 						},
- 						yAxis: {
- 							type: 'value'
- 						},
- 						series: [{
- 							data: <?= json_encode($counts) ?>,
- 							type: 'bar',
- 							barWidth: '50%',
- 							itemStyle: {
- 								color: '#2196f3' // Blue color
- 							}
- 						}],
- 						grid: {
- 							top: 10,
- 							bottom: 40,
- 							left: 40,
- 							right: 10
- 						}
- 					};
- 					myChart.setOption(option);
- 					window.addEventListener('resize', function() {
- 						myChart.resize();
- 					});
- 				</script>
+ 				<?php endif; ?>
  			</div>
  		</div>
  	</div>
+
+
+
+
+
+
 
  	<!-- Total Fines per Activity -->
  	<div class="col-md-6 col-xxl-4">
