@@ -184,6 +184,85 @@ class AdminController extends CI_Controller
 		//To get which semester and academic year is currently active
 		$data['semester_ay'] = $this->db->get('semester_ay')->row(); // fetch the only row
 
+
+
+		// UPCOMING & ONGOING ACTIVITIES (For Student Parliament)
+		$this->db->select('activity_id, activity_title, start_date, end_date, status');
+		$this->db->from('activity');
+		$this->db->where('organizer', 'Student Parliament');
+		$this->db->where_in('status', ['Upcoming', 'Ongoing']);
+		$activities = $this->db->get()->result_array();
+
+		$thisMonth = [];
+		$nextMonth = [];
+		$ongoing = [];
+
+		$today = new DateTime();
+		$nextMonthDate = (clone $today)->modify('+1 month');
+
+		foreach ($activities as $activity) {
+			if ($activity['status'] === 'Upcoming' && !empty($activity['start_date'])) {
+				$date = new DateTime($activity['start_date']);
+				if ($date->format('Y-m') === $today->format('Y-m')) {
+					$activity['attendance'] = $this->db
+						->where('activity_id', $activity['activity_id'])
+						->where('attendees_status', 'Attending')
+						->count_all_results('attendees');
+					$thisMonth[] = $activity;
+				} elseif ($date->format('Y-m') === $nextMonthDate->format('Y-m')) {
+					$activity['attendance'] = $this->db
+						->where('activity_id', $activity['activity_id'])
+						->where('attendees_status', 'Attending')
+						->count_all_results('attendees');
+					$nextMonth[] = $activity;
+				}
+			} elseif ($activity['status'] === 'Ongoing') {
+				// Fetch earliest and latest time from activity_time_slots
+				$time_slot = $this->db->query("
+					SELECT 
+						MIN(date_time_in) AS start_time,
+						MAX(date_time_out) AS end_time
+					FROM activity_time_slots
+					WHERE activity_id = ?
+				", [$activity['activity_id']])->row();
+
+				$startTimestamp = strtotime($time_slot->start_time ?? '');
+				$endTimestamp   = strtotime($time_slot->end_time ?? '');
+				$currentTimestamp = time();
+
+				if ($startTimestamp && $endTimestamp && $endTimestamp > $startTimestamp) {
+					$total = $endTimestamp - $startTimestamp;
+					$elapsed = $currentTimestamp - $startTimestamp;
+					$progress = min(100, max(0, round(($elapsed / $total) * 100)));
+				} else {
+					$progress = 0;
+				}
+
+				// Fetch attendance count (unique student per activity with any time_in)
+				$activity['attendance'] = $this->db->query("
+					SELECT COUNT(DISTINCT student_id) as attendee_count
+					FROM attendance
+					WHERE activity_id = ? AND time_in IS NOT NULL
+				", [$activity['activity_id']])->row()->attendee_count ?? 0;
+
+				$activity['start_time'] = $startTimestamp ? date('g:i A', $startTimestamp) : 'N/A';
+				$activity['end_time'] = $endTimestamp ? date('g:i A', $endTimestamp) : 'N/A';
+				$activity['progress'] = $progress;
+				$activity['start'] = $activity['start_date'] ? date('M d, Y', strtotime($activity['start_date'])) : 'N/A';
+				$activity['end'] = $activity['end_date'] ? date('M d, Y', strtotime($activity['end_date'])) : 'N/A';
+
+				$ongoing[] = $activity;
+			}
+		}
+
+
+
+
+		$data['thisMonthActivities'] = $thisMonth;
+		$data['nextMonthActivities'] = $nextMonth;
+		$data['ongoingActivities'] = $ongoing;
+		// END UPCOMING & ONGOING ACTIVITIES (For Student Parliament)
+
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/dashboard', $data);
 		$this->load->view('layout/footer', $data);
@@ -447,6 +526,7 @@ class AdminController extends CI_Controller
 		$this->db->from('users u');
 		$this->db->join('department d', 'u.dept_id = d.dept_id');
 		$this->db->where('role', 'Student');
+		$this->db->where('u.is_active', 'Active'); // ✅ Only active students
 
 		// Filter by department name if provided and not "all"
 		if (!empty($data['audience']) && strtolower($data['audience']) !== 'all') {
@@ -2889,7 +2969,13 @@ class AdminController extends CI_Controller
 
 			if ($result) {
 				// notifications start
-				$students = $this->db->select('student_id')->where('role', 'student')->get('users')->result_array();
+				// $students = $this->db->select('student_id')->where('role', 'student')->get('users')->result_array();
+				$students = $this->db
+					->select('student_id')
+					->where('role', 'student')
+					->where('is_active', 'Active') // ✅ Only active students
+					->get('users')
+					->result_array();
 
 				$notification_data = [];
 				foreach ($students as $student) {
@@ -5632,45 +5718,6 @@ class AdminController extends CI_Controller
 
 
 	// IMPORT DEPARTMENT OFFICERS
-	public function import_list_dept()
-	{
-		require_once FCPATH . 'vendor/autoload.php';
-
-		if ($_FILES['import_file']['error'] === UPLOAD_ERR_OK) {
-			$fileTmpPath = $_FILES['import_file']['tmp_name'];
-			$fileName = $_FILES['import_file']['name'];
-			$extension = pathinfo($fileName, PATHINFO_EXTENSION);
-
-			try {
-				if ($extension === 'csv') {
-					$data = $this->readCSVDept($fileTmpPath);
-				} elseif ($extension === 'xlsx') {
-					$data = $this->readXLSXDept($fileTmpPath);
-				} else {
-					echo json_encode(['success' => false, 'message' => 'Invalid file type. Only CSV or XLSX allowed.']);
-					return;
-				}
-
-				if (!empty($data['users']) && !empty($data['privilege'])) {
-					$success = $this->admin->insert_dept_officers_batch($data['users'], $data['privilege']);
-					if ($success) {
-						echo json_encode(['success' => true, 'message' => 'Department officers imported successfully.']);
-					} else {
-						echo json_encode(['success' => false, 'message' => 'Database transaction failed.']);
-					}
-				} else {
-					echo json_encode(['success' => false, 'message' => 'No valid data found in the file.']);
-				}
-			} catch (Exception $e) {
-				echo json_encode(['success' => false, 'message' => 'Error processing file: ' . $e->getMessage()]);
-			}
-		} else {
-			echo json_encode(['success' => false, 'message' => 'No file uploaded or upload error.']);
-		}
-	}
-
-
-
 	// public function import_list_dept()
 	// {
 	// 	require_once FCPATH . 'vendor/autoload.php';
@@ -5691,58 +5738,9 @@ class AdminController extends CI_Controller
 	// 			}
 
 	// 			if (!empty($data['users']) && !empty($data['privilege'])) {
-	// 				// Get current dept_id from session
-	// 				$dept_id = $this->session->userdata('user')['dept_id'] ?? null;
-	// 				if (!$dept_id) {
-	// 					echo json_encode(['success' => false, 'message' => 'Department ID not found.']);
-	// 					return;
-	// 				}
-
-	// 				// Get current officers in this department
-	// 				$existingStudentIds = $this->admin->get_existing_student_ids($dept_id); // returns array of student_id
-
-	// 				// Convert to associative array with student_id as key for easier lookup
-	// 				$existingUsers = array_flip($existingStudentIds);
-
-	// 				$updatedUsers = [];
-	// 				$privilegeUpdates = [];
-	// 				$importedIds = [];
-
-	// 				foreach ($data['users'] as &$user) {
-	// 					$studentId = $user['student_id'];
-	// 					$importedIds[] = $studentId;
-
-	// 					$isExisting = isset($existingUsers[$studentId]);
-
-	// 					$position = isset($user['position']) ? strtolower(trim($user['position'])) : '';
-	// 					$isOfficer = 'Yes';
-	// 					$isAdmin = ($position === 'president' || $position === 'adviser') ? 'Yes' : 'No';
-	// 					$isActive = 'active';
-
-	// 					if ($isExisting) {
-	// 						$updatedUsers[] = [
-	// 							'student_id' => $studentId,
-	// 							'is_officer_dept' => $isOfficer,
-	// 							'is_admin' => $isAdmin,
-	// 							'is_active' => $isActive,
-	// 							'role' => 'Officer'
-	// 						];
-	// 					} else {
-	// 						$user['is_officer_dept'] = $isOfficer;
-	// 						$user['is_admin'] = $isAdmin;
-	// 						$user['is_active'] = $isActive;
-	// 						$user['role'] = 'Officer';
-	// 					}
-	// 				}
-
-	// 				// Revoke those who are not in the current import
-	// 				$this->admin->revoke_unlisted_officers($importedIds, $dept_id);
-
-	// 				// Perform insert and update
-	// 				$success = $this->admin->insert_dept_officers_batch($data['users'], $data['privilege'], $updatedUsers);
-
+	// 				$success = $this->admin->insert_dept_officers_batch($data['users'], $data['privilege']);
 	// 				if ($success) {
-	// 					echo json_encode(['success' => true, 'message' => 'Department officers imported and updated successfully.']);
+	// 					echo json_encode(['success' => true, 'message' => 'Department officers imported successfully.']);
 	// 				} else {
 	// 					echo json_encode(['success' => false, 'message' => 'Database transaction failed.']);
 	// 				}
@@ -5756,6 +5754,78 @@ class AdminController extends CI_Controller
 	// 		echo json_encode(['success' => false, 'message' => 'No file uploaded or upload error.']);
 	// 	}
 	// }
+
+
+
+	public function import_list_dept()
+	{
+		require_once FCPATH . 'vendor/autoload.php';
+
+		if ($_FILES['import_file']['error'] === UPLOAD_ERR_OK) {
+			$fileTmpPath = $_FILES['import_file']['tmp_name'];
+			$fileName = $_FILES['import_file']['name'];
+			$extension = pathinfo($fileName, PATHINFO_EXTENSION);
+
+			try {
+				if ($extension === 'csv') {
+					$data = $this->readCSVDept($fileTmpPath);
+				} elseif ($extension === 'xlsx') {
+					$data = $this->readXLSXDept($fileTmpPath);
+				} else {
+					echo json_encode(['success' => false, 'message' => 'Invalid file type. Only CSV or XLSX allowed.']);
+					return;
+				}
+
+				if (!empty($data['users']) && !empty($data['privilege'])) {
+					$imported_student_ids = array_column($data['users'], 'student_id');
+
+					// Set all existing department officers to Inactive first
+					$this->db->where('role', 'Officer')
+						->where('is_officer_dept', 'Yes')
+						->update('users', ['is_active' => 'Inactive']);
+
+					// Loop through each user
+					foreach ($data['users'] as $user) {
+						$existing = $this->db->get_where('users', ['student_id' => $user['student_id']])->row();
+
+						if ($existing) {
+							// Update existing user to Active and update their info
+							$this->db->where('student_id', $user['student_id'])
+								->update('users', array_merge($user, ['is_active' => 'Active']));
+						} else {
+							// New user: insert and mark Active
+							$user['is_active'] = 'Active';
+							$this->db->insert('users', $user);
+						}
+					}
+
+					// Insert privileges in batch
+					// Loop through privilege entries
+					foreach ($data['privilege'] as $priv) {
+						$existing_priv = $this->db->get_where('privilege', ['student_id' => $priv['student_id']])->row();
+
+						if ($existing_priv) {
+							// Update if student_id already exists
+							$this->db->where('student_id', $priv['student_id'])
+								->update('privilege', $priv);
+						} else {
+							// Insert new privilege entry
+							$this->db->insert('privilege', $priv);
+						}
+					}
+
+
+					echo json_encode(['success' => true, 'message' => 'Department officers imported successfully.']);
+				} else {
+					echo json_encode(['success' => false, 'message' => 'No valid data found in the file.']);
+				}
+			} catch (Exception $e) {
+				echo json_encode(['success' => false, 'message' => 'Error processing file: ' . $e->getMessage()]);
+			}
+		} else {
+			echo json_encode(['success' => false, 'message' => 'No file uploaded or upload error.']);
+		}
+	}
 
 
 	private function parseDeptFile($rows)
@@ -5820,7 +5890,44 @@ class AdminController extends CI_Controller
 		return $this->parseDeptFile($rows);
 	}
 
-	// IMPORTING ORGANIZATION OFFICERS
+	//IMPORTING ORGANIZATION OFFICERS
+	// public function import_list_org()
+	// {
+	// 	require_once FCPATH . 'vendor/autoload.php';
+
+	// 	if ($_FILES['import_file']['error'] === UPLOAD_ERR_OK) {
+	// 		$fileTmpPath = $_FILES['import_file']['tmp_name'];
+	// 		$fileName = $_FILES['import_file']['name'];
+	// 		$extension = pathinfo($fileName, PATHINFO_EXTENSION);
+
+	// 		try {
+	// 			if ($extension === 'csv') {
+	// 				$data = $this->readCSVOrg($fileTmpPath);
+	// 			} elseif ($extension === 'xlsx') {
+	// 				$data = $this->readXLSXOrg($fileTmpPath);
+	// 			} else {
+	// 				echo json_encode(['success' => false, 'message' => 'Invalid file type. Only CSV or XLSX allowed.']);
+	// 				return;
+	// 			}
+
+	// 			if (!empty($data['users']) && !empty($data['student_org']) && !empty($data['privilege'])) {
+	// 				$success = $this->admin->insert_org_officers_batch($data['users'], $data['student_org'], $data['privilege']);
+	// 				if ($success) {
+	// 					echo json_encode(['success' => true, 'message' => 'Organization officers imported successfully.']);
+	// 				} else {
+	// 					echo json_encode(['success' => false, 'message' => 'Database transaction failed.']);
+	// 				}
+	// 			} else {
+	// 				echo json_encode(['success' => false, 'message' => 'No valid data found in the file.']);
+	// 			}
+	// 		} catch (Exception $e) {
+	// 			echo json_encode(['success' => false, 'message' => 'Error processing file: ' . $e->getMessage()]);
+	// 		}
+	// 	} else {
+	// 		echo json_encode(['success' => false, 'message' => 'No file uploaded or upload error.']);
+	// 	}
+	// }
+
 	public function import_list_org()
 	{
 		require_once FCPATH . 'vendor/autoload.php';
@@ -5841,12 +5948,70 @@ class AdminController extends CI_Controller
 				}
 
 				if (!empty($data['users']) && !empty($data['student_org']) && !empty($data['privilege'])) {
-					$success = $this->admin->insert_org_officers_batch($data['users'], $data['student_org'], $data['privilege']);
-					if ($success) {
-						echo json_encode(['success' => true, 'message' => 'Organization officers imported successfully.']);
-					} else {
-						echo json_encode(['success' => false, 'message' => 'Database transaction failed.']);
+					$imported_student_ids = array_column($data['users'], 'student_id');
+
+					// Step 1: Get all current org officers (is_officer = 'Yes')
+					$current_officers = $this->db->select('student_id')
+						->from('student_org')
+						->where('is_officer', 'Yes')
+						->get()
+						->result_array();
+
+					$current_officer_ids = array_column($current_officers, 'student_id');
+
+					// Step 2: Mark existing officers as Inactive
+					if (!empty($current_officer_ids)) {
+						$this->db->where_in('student_id', $current_officer_ids)
+							->update('users', ['is_active' => 'Inactive']);
 					}
+
+					// Step 3: Insert or update users
+					foreach ($data['users'] as $user) {
+						$existing = $this->db->get_where('users', ['student_id' => $user['student_id']])->row();
+
+						if ($existing) {
+							$this->db->where('student_id', $user['student_id'])
+								->update('users', array_merge($user, ['is_active' => 'Active']));
+						} else {
+							$user['is_active'] = 'Active';
+							$this->db->insert('users', $user);
+						}
+					}
+
+					// Step 4: Insert or update student_org
+					foreach ($data['student_org'] as $org) {
+						$existing_org = $this->db->get_where('student_org', ['student_id' => $org['student_id']])->row();
+
+						if ($existing_org) {
+							// Update if student_id already exists in student_org
+							$this->db->where('student_id', $org['student_id'])
+								->update('student_org', [
+									'org_id' => $org['org_id'],
+									'is_officer' => $org['is_officer'],
+									'is_admin' => $org['is_admin']
+								]);
+						} else {
+							$this->db->insert('student_org', $org);
+						}
+					}
+
+					// Step 5: Insert privileges
+					// Loop through privilege entries
+					foreach ($data['privilege'] as $priv) {
+						$existing_priv = $this->db->get_where('privilege', ['student_id' => $priv['student_id']])->row();
+
+						if ($existing_priv) {
+							// Update if student_id already exists
+							$this->db->where('student_id', $priv['student_id'])
+								->update('privilege', $priv);
+						} else {
+							// Insert new privilege entry
+							$this->db->insert('privilege', $priv);
+						}
+					}
+
+
+					echo json_encode(['success' => true, 'message' => 'Organization officers imported and updated successfully.']);
 				} else {
 					echo json_encode(['success' => false, 'message' => 'No valid data found in the file.']);
 				}
@@ -5857,6 +6022,14 @@ class AdminController extends CI_Controller
 			echo json_encode(['success' => false, 'message' => 'No file uploaded or upload error.']);
 		}
 	}
+
+
+
+
+
+
+
+
 
 	private function parseOrgFile($rows)
 	{
