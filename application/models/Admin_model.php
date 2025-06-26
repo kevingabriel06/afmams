@@ -2909,8 +2909,6 @@ class Admin_model extends CI_Model
 	}
 
 
-
-
 	public function insert_dept_officers_batch($user_data_batch, $privilege_batch)
 	{
 		$this->db->trans_start();
