@@ -228,8 +228,8 @@
 					<label for="semester-filter" class="form-label">Semester</label>
 					<select id="semester-filter" class="form-select">
 						<option value="" selected>Select Semester</option>
-						<option value="1st-semester">1st Semester</option>
-						<option value="2nd-semester">2nd Semester</option>
+						<option value="1st semester">1st Semester</option>
+						<option value="2nd semester">2nd Semester</option>
 					</select>
 				</div>
 
@@ -290,12 +290,12 @@
 				// August to December → 1st Semester
 				startYear = currentYear;
 				endYear = currentYear + 1;
-				semester = "1st-semester";
+				semester = "1st semester";
 			} else if (currentMonth >= 0 && currentMonth <= 6) {
 				// January to July → 2nd Semester
 				startYear = currentYear - 1;
 				endYear = currentYear;
-				semester = "2nd-semester";
+				semester = "2nd semester";
 			}
 
 			// Set selected values
@@ -309,37 +309,69 @@
 			}, 200); // Slight delay to ensure end year is populated
 		}
 
-		// Main function to apply filters
+		// // Main function to apply filters
+		// window.applyFilters = function() {
+		// 	const selectedStartYear = parseInt($('#start-year').val());
+		// 	const selectedEndYear = parseInt($('#end-year').val());
+		// 	const selectedSemester = $('#semester-filter').val();
+
+		// 	let startDate, endDate;
+
+		// 	// Year range must be exactly 1 year
+		// 	if (!selectedStartYear || !selectedEndYear || selectedEndYear - selectedStartYear !== 1) {
+		// 		$('#start-year, #end-year').addClass('is-invalid');
+		// 		alert("Please select a valid academic year range with a one-year difference.");
+		// 		return;
+		// 	} else {
+		// 		$('#start-year, #end-year').removeClass('is-invalid');
+		// 	}
+
+		// 	// Define semester-specific date ranges
+		// 	if (selectedSemester === "1st-semester") {
+		// 		startDate = new Date(selectedStartYear, 7, 1); // Aug 1
+		// 		endDate = new Date(selectedStartYear, 11, 31); // Dec 31
+		// 	} else if (selectedSemester === "2nd-semester") {
+		// 		startDate = new Date(selectedEndYear, 0, 1); // Jan 1
+		// 		endDate = new Date(selectedEndYear, 6, 31); // Jul 31
+		// 	} else {
+		// 		startDate = new Date(selectedStartYear, 0, 1); // Jan 1
+		// 		endDate = new Date(selectedEndYear, 11, 31); // Dec 31
+		// 	}
+
+		// 	filterActivitiesByDate(startDate, endDate);
+		// };
+
+
 		window.applyFilters = function() {
-			const selectedStartYear = parseInt($('#start-year').val());
-			const selectedEndYear = parseInt($('#end-year').val());
+			const selectedStartYear = $('#start-year').val();
+			const selectedEndYear = $('#end-year').val();
 			const selectedSemester = $('#semester-filter').val();
 
-			let startDate, endDate;
-
-			// Year range must be exactly 1 year
 			if (!selectedStartYear || !selectedEndYear || selectedEndYear - selectedStartYear !== 1) {
 				$('#start-year, #end-year').addClass('is-invalid');
 				alert("Please select a valid academic year range with a one-year difference.");
 				return;
-			} else {
-				$('#start-year, #end-year').removeClass('is-invalid');
 			}
 
-			// Define semester-specific date ranges
-			if (selectedSemester === "1st-semester") {
-				startDate = new Date(selectedStartYear, 7, 1); // Aug 1
-				endDate = new Date(selectedStartYear, 11, 31); // Dec 31
-			} else if (selectedSemester === "2nd-semester") {
-				startDate = new Date(selectedEndYear, 0, 1); // Jan 1
-				endDate = new Date(selectedEndYear, 6, 31); // Jul 31
-			} else {
-				startDate = new Date(selectedStartYear, 0, 1); // Jan 1
-				endDate = new Date(selectedEndYear, 11, 31); // Dec 31
+			// Clean and map semester format for PHP side
+			let semesterFormatted = selectedSemester === "1st semester" ? "1st Semester" :
+				selectedSemester === "2nd semester" ? "2nd Semester" : "";
+
+			if (!semesterFormatted) {
+				alert("Please select a valid semester.");
+				return;
 			}
 
-			filterActivitiesByDate(startDate, endDate);
+			const academicYear = `${selectedStartYear}-${selectedEndYear}`;
+			const params = new URLSearchParams({
+				semester: semesterFormatted,
+				academic_year: academicYear
+			});
+
+			// Redirect to controller with GET params
+			window.location.href = `?${params.toString()}`;
 		};
+
 
 		function filterActivitiesByDate(startDate, endDate) {
 			const activities = document.querySelectorAll('tr[data-start-date]');
@@ -380,6 +412,31 @@
 		}
 
 		// Automatically load the current semester on page load
-		loadCurrentSemester();
+		// Automatically load the current semester only if no filters are applied
+		const urlParams = new URLSearchParams(window.location.search);
+		const semesterFromURL = urlParams.get('semester'); // e.g., "1st Semester"
+		const academicYearFromURL = urlParams.get('academic_year'); // e.g., "2024-2025"
+
+		if (semesterFromURL && academicYearFromURL) {
+			const [startYear, endYear] = academicYearFromURL.split('-');
+
+			startYearDropdown.val(startYear).trigger('change');
+
+			// Wait for end year to populate before setting it
+			setTimeout(() => {
+				endYearDropdown.val(endYear);
+
+				// Map URL semester to dropdown value
+				if (semesterFromURL === "1st Semester") {
+					semesterDropdown.val("1st semester");
+				} else if (semesterFromURL === "2nd Semester") {
+					semesterDropdown.val("2nd semester");
+				}
+			}, 200);
+		} else {
+			loadCurrentSemester(); // Default if no filters
+		}
+
+
 	});
 </script>

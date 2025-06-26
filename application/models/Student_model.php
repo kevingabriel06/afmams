@@ -608,78 +608,153 @@ class Student_model extends CI_Model
 	// }
 
 
-	public function get_attendance($student_id)
+
+	//THIS IS TABLE WITHOUT THE FILTER FUNCTIONALITY
+	// public function get_attendance($student_id)
+	// {
+
+	// 	// 🔹 Get the active semester and academic year
+	// 	$semester_ay = $this->db
+	// 		->where('is_active', 1)
+	// 		->get('semester_ay')
+	// 		->row();
+
+	// 	if (!$semester_ay) {
+	// 		return [
+	// 			'attendance' => [],
+	// 			'semester' => null,
+	// 			'academic_year' => null
+	// 		];
+	// 	}
+
+	// 	$academicYear = $semester_ay->academic_year;
+	// 	$semester = $semester_ay->semester;
+
+	// 	$this->db->select('
+	//     GROUP_CONCAT(attendance.attendance_id ORDER BY activity_time_slots.slot_name) AS attendance_ids,
+	//     GROUP_CONCAT(attendance.time_in ORDER BY activity_time_slots.slot_name) AS all_time_in,
+	//     GROUP_CONCAT(attendance.time_out ORDER BY activity_time_slots.slot_name) AS all_time_out,
+	//     GROUP_CONCAT(activity_time_slots.slot_name ORDER BY activity_time_slots.slot_name) AS slot_name,
+	//     attendance.activity_id,
+	//     activity.activity_title,
+	//     activity.organizer,
+	//     activity.start_date
+	// ');
+	// 	$this->db->from('attendance');
+	// 	$this->db->join('activity', 'activity.activity_id = attendance.activity_id');
+	// 	$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = attendance.timeslot_id');
+	// 	$this->db->where('attendance.student_id', $student_id);
+	// 	$this->db->where('activity.academic_year', $academicYear); // ✅ Filter by active AY
+	// 	$this->db->where('activity.semester', $semester);          // ✅ Filter by active semester
+
+	// 	$this->db->group_by('attendance.activity_id');
+
+	// 	$query = $this->db->get();
+	// 	$results = $query->result();
+
+	// 	foreach ($results as &$record) {
+	// 		$timeIns = explode(',', $record->all_time_in);
+	// 		$timeOuts = explode(',', $record->all_time_out);
+
+	// 		$total = max(count($timeIns), count($timeOuts));
+	// 		$emptyCount = 0;
+	// 		$filledCount = 0;
+	// 		$incompleteCount = 0;
+
+	// 		for ($i = 0; $i < $total; $i++) {
+	// 			$in = isset($timeIns[$i]) ? trim($timeIns[$i]) : '';
+	// 			$out = isset($timeOuts[$i]) ? trim($timeOuts[$i]) : '';
+
+	// 			if ($in === '' && $out === '') {
+	// 				$emptyCount++;
+	// 			} elseif ($in !== '' && $out !== '') {
+	// 				$filledCount++;
+	// 			} else {
+	// 				// Mixed case - incomplete attendance for this timeslot
+	// 				$incompleteCount++;
+	// 			}
+	// 		}
+
+	// 		if ($emptyCount === $total) {
+	// 			$record->attendance_status = 'Absent';
+	// 		} elseif ($filledCount === $total) {
+	// 			$record->attendance_status = 'Present';
+	// 		} else {
+	// 			$record->attendance_status = 'Incomplete';
+	// 		}
+	// 	}
+
+	// 	return [
+	// 		'attendance' => $results,
+	// 		'semester' => $semester,
+	// 		'academic_year' => $academicYear
+	// 	];
+	// }
+
+
+
+
+	public function get_attendance($student_id, $semester = null, $academicYear = null)
 	{
+		// 🔹 If no filters passed, use active semester
+		if (!$semester || !$academicYear) {
+			$semester_ay = $this->db
+				->where('is_active', 1)
+				->get('semester_ay')
+				->row();
 
-		// 🔹 Get the active semester and academic year
-		$semester_ay = $this->db
-			->where('is_active', 1)
-			->get('semester_ay')
-			->row();
+			if (!$semester_ay) {
+				return [
+					'attendance' => [],
+					'semester' => null,
+					'academic_year' => null
+				];
+			}
 
-		if (!$semester_ay) {
-			return [
-				'attendance' => [],
-				'semester' => null,
-				'academic_year' => null
-			];
+			$academicYear = $semester_ay->academic_year;
+			$semester = $semester_ay->semester;
 		}
 
-		$academicYear = $semester_ay->academic_year;
-		$semester = $semester_ay->semester;
-
 		$this->db->select('
-        GROUP_CONCAT(attendance.attendance_id ORDER BY activity_time_slots.slot_name) AS attendance_ids,
-        GROUP_CONCAT(attendance.time_in ORDER BY activity_time_slots.slot_name) AS all_time_in,
-        GROUP_CONCAT(attendance.time_out ORDER BY activity_time_slots.slot_name) AS all_time_out,
-        GROUP_CONCAT(activity_time_slots.slot_name ORDER BY activity_time_slots.slot_name) AS slot_name,
-        attendance.activity_id,
-        activity.activity_title,
-        activity.organizer,
-        activity.start_date
-    ');
+		GROUP_CONCAT(attendance.attendance_id ORDER BY activity_time_slots.slot_name) AS attendance_ids,
+		GROUP_CONCAT(attendance.time_in ORDER BY activity_time_slots.slot_name) AS all_time_in,
+		GROUP_CONCAT(attendance.time_out ORDER BY activity_time_slots.slot_name) AS all_time_out,
+		GROUP_CONCAT(activity_time_slots.slot_name ORDER BY activity_time_slots.slot_name) AS slot_name,
+		attendance.activity_id,
+		activity.activity_title,
+		activity.organizer,
+		activity.start_date
+	');
 		$this->db->from('attendance');
 		$this->db->join('activity', 'activity.activity_id = attendance.activity_id');
 		$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = attendance.timeslot_id');
 		$this->db->where('attendance.student_id', $student_id);
-		$this->db->where('activity.academic_year', $academicYear); // ✅ Filter by active AY
-		$this->db->where('activity.semester', $semester);          // ✅ Filter by active semester
-
+		$this->db->where('activity.academic_year', $academicYear);
+		$this->db->where('activity.semester', $semester);
 		$this->db->group_by('attendance.activity_id');
 
 		$query = $this->db->get();
 		$results = $query->result();
 
+		// Analyze attendance status
 		foreach ($results as &$record) {
 			$timeIns = explode(',', $record->all_time_in);
 			$timeOuts = explode(',', $record->all_time_out);
-
 			$total = max(count($timeIns), count($timeOuts));
-			$emptyCount = 0;
-			$filledCount = 0;
-			$incompleteCount = 0;
+			$emptyCount = $filledCount = $incompleteCount = 0;
 
 			for ($i = 0; $i < $total; $i++) {
 				$in = isset($timeIns[$i]) ? trim($timeIns[$i]) : '';
 				$out = isset($timeOuts[$i]) ? trim($timeOuts[$i]) : '';
 
-				if ($in === '' && $out === '') {
-					$emptyCount++;
-				} elseif ($in !== '' && $out !== '') {
-					$filledCount++;
-				} else {
-					// Mixed case - incomplete attendance for this timeslot
-					$incompleteCount++;
-				}
+				if ($in === '' && $out === '') $emptyCount++;
+				elseif ($in !== '' && $out !== '') $filledCount++;
+				else $incompleteCount++;
 			}
 
-			if ($emptyCount === $total) {
-				$record->attendance_status = 'Absent';
-			} elseif ($filledCount === $total) {
-				$record->attendance_status = 'Present';
-			} else {
-				$record->attendance_status = 'Incomplete';
-			}
+			if ($emptyCount === $total) $record->attendance_status = 'Absent';
+			elseif ($filledCount === $total) $record->attendance_status = 'Present';
+			else $record->attendance_status = 'Incomplete';
 		}
 
 		return [

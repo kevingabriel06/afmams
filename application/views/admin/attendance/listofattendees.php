@@ -141,7 +141,7 @@
 								<tr class="attendance-row">
 									<td class="text-nowrap id"><?php echo $student['student_id']; ?></td>
 									<td class="text-nowrap name"><?php echo $student['name']; ?></td>
-									<td class="text-nowrap department"><?php echo $student['dept_name']; ?></td>
+									<td class="text-nowrap department"><?php echo $student['dept_code']; ?></td>
 									<!-- Loop through the timeslots to show the time in and time out for each -->
 									<?php foreach ($timeslots as $slot): ?>
 										<?php

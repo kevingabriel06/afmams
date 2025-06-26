@@ -834,9 +834,13 @@ class StudentController extends CI_Controller
 		// Fetching user details (with profile picture and role, etc.)
 		$data['users'] = $this->student->get_student($student_id);
 
+		// Optional filters from GET
+		$semester = $this->input->get('semester'); // e.g., "1st Semester"
+		$academic_year = $this->input->get('academic_year'); // e.g., "2024-2025"
+
 		// Fetch attendance of this student across all activities
 		// $data['attendances'] = $this->student->get_attendance($student_id);
-		$attendanceData = $this->student->get_attendance($student_id);
+		$attendanceData = $this->student->get_attendance($student_id, $semester, $academic_year);
 		$data['attendances'] = $attendanceData['attendance']; // ✅ only the list
 		$data['semester'] = $attendanceData['semester'];      // optional
 		$data['academic_year'] = $attendanceData['academic_year']; // optional
