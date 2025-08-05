@@ -138,7 +138,10 @@
 						</thead>
 						<tbody class="list" id="table-ticket-body">
 							<?php foreach ($students as $student): ?>
-								<tr class="attendance-row">
+								<tr class="attendance-row"
+									data-dept-name="<?php echo strtolower($student['dept_name']); ?>"
+									data-dept-code="<?php echo strtolower($student['dept_code']); ?>">
+
 									<td class="text-nowrap id"><?php echo $student['student_id']; ?></td>
 									<td class="text-nowrap name"><?php echo $student['name']; ?></td>
 									<td class="text-nowrap department"><?php echo $student['dept_code']; ?></td>
@@ -160,31 +163,31 @@
 										</td>
 									<?php endforeach; ?>
 									<td class="status">
-										<?php if ($student['attendance_status'] == 'Present'): ?>
+										<?php if ($student['status'] == 'Present'): ?>
 											<span class="badge badge rounded-pill d-block p-2 badge-subtle-success">
-												<?php echo $student['attendance_status']; ?>
+												<?php echo $student['status']; ?>
 												<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span>
 											</span>
-										<?php elseif ($student['attendance_status'] == 'Absent'): ?>
+										<?php elseif ($student['status'] == 'Absent'): ?>
 											<span class="badge badge rounded-pill d-block p-2 badge-subtle-danger">
-												<?php echo $student['attendance_status']; ?>
+												<?php echo $student['status']; ?>
 												<span class="ms-1 fas fa-times" data-fa-transform="shrink-2"></span>
 											</span>
-										<?php elseif ($student['attendance_status'] == 'No Status'): ?>
+										<?php elseif ($student['status'] == 'No Status'): ?>
 											<span class="badge badge rounded-pill d-block p-2 badge-subtle-danger">
 												No Status
 												<span class="ms-1 fas fa-times" data-fa-transform="shrink-2"></span>
 											</span>
-										<?php elseif ($student['attendance_status'] == 'Incomplete'): ?>
+										<?php elseif ($student['status'] == 'Incomplete'): ?>
 											<span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">
-												<?php echo $student['attendance_status']; ?>
+												<?php echo $student['status']; ?>
 												<span class="ms-1 fas fa-exclamation" data-fa-transform="shrink-2"></span>
 											</span>
-										<?php elseif ($student['attendance_status'] == 'Excused'): ?>
+										<?php elseif ($student['status'] == 'Excused'): ?>
 											<span class="badge badge rounded-pill d-block p-2 badge-subtle-primary">
 												Excused
 											</span>
-										<?php elseif ($student['attendance_status'] == 'Exempted'): ?>
+										<?php elseif ($student['status'] == 'Exempted'): ?>
 											<span class="badge badge rounded-pill d-block p-2 badge-subtle-primary">
 												Exempted
 											</span>
@@ -240,7 +243,7 @@
 						<select id="department-filter" class="form-select">
 							<option value="" selected>Select Department</option>
 							<?php foreach ($departments as $department): ?>
-								<option value="<?php echo $department->dept_name; ?>"><?php echo $department->dept_name; ?></option>
+								<option value="<?php echo $department->dept_code; ?>"><?php echo $department->dept_name; ?></option>
 							<?php endforeach; ?>
 						</select>
 					</div>
@@ -255,37 +258,29 @@
 
 	<script>
 		function applyFilters() {
-			// Get selected values from the modal filters
-			var status = document.getElementById("status-filter").value;
-			var department = document.getElementById("department-filter").value;
+			var status = document.getElementById("status-filter").value.toLowerCase();
+			var department = document.getElementById("department-filter").value.toLowerCase();
 
-			// Get all activity rows
 			var activityRows = document.querySelectorAll(".attendance-row");
 			var filteredRows = 0;
 
-			// Loop through each activity row
 			activityRows.forEach(function(row) {
-				// Get the status and department values from the row (add status and department attributes in PHP)
-				var rowStatus = row.querySelector(".status") ? row.querySelector(".status").textContent.trim() : "";
-				var rowDepartment = row.querySelector(".department") ? row.querySelector(".department").textContent.trim() : "";
+				var rowStatus = row.querySelector(".status") ? row.querySelector(".status").textContent.trim().toLowerCase() : "";
+				var deptName = row.getAttribute("data-dept-name")?.toLowerCase() || "";
+				var deptCode = row.getAttribute("data-dept-code")?.toLowerCase() || "";
 
-				// Fallback: If status or department is empty, treat it as "No Status" or "No Department"
-				rowStatus = rowStatus === "" ? "No Status" : rowStatus;
-				rowDepartment = rowDepartment === "" ? "No Department" : rowDepartment;
+				var statusMatch = (status === "" || rowStatus === status);
+				var departmentMatch = (department === "" || deptName === department || deptCode === department);
 
-				// Check if the row matches the selected filters
-				if (
-					(status === "" || rowStatus === status) &&
-					(department === "" || rowDepartment === department)
-				) {
-					row.style.display = ""; // Show the row if it matches
+				if (statusMatch && departmentMatch) {
+					row.style.display = "";
 					filteredRows++;
 				} else {
-					row.style.display = "none"; // Hide the row if it doesn't match
+					row.style.display = "none";
 				}
 			});
 
-			// Close the modal properly
+			// Close modal
 			var modalElement = document.getElementById("filterModal");
 			var modal = bootstrap.Modal.getInstance(modalElement);
 			if (modal) {

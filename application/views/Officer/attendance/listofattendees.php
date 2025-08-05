@@ -127,31 +127,31 @@
 										</td>
 									<?php endforeach; ?>
 									<td class="status">
-										<?php if ($student['attendance_status'] == 'Present'): ?>
+										<?php if ($student['status'] == 'Present'): ?>
 											<span class="badge badge rounded-pill d-block p-2 badge-subtle-success">
-												<?php echo $student['attendance_status']; ?>
+												<?php echo $student['status']; ?>
 												<span class="ms-1 fas fa-check" data-fa-transform="shrink-2"></span>
 											</span>
-										<?php elseif ($student['attendance_status'] == 'Absent'): ?>
+										<?php elseif ($student['status'] == 'Absent'): ?>
 											<span class="badge badge rounded-pill d-block p-2 badge-subtle-danger">
-												<?php echo $student['attendance_status']; ?>
+												<?php echo $student['status']; ?>
 												<span class="ms-1 fas fa-times" data-fa-transform="shrink-2"></span>
 											</span>
-										<?php elseif ($student['attendance_status'] == 'No Status'): ?>
+										<?php elseif ($student['status'] == 'No Status'): ?>
 											<span class="badge badge rounded-pill d-block p-2 badge-subtle-danger">
 												No Status
 												<span class="ms-1 fas fa-times" data-fa-transform="shrink-2"></span>
 											</span>
-										<?php elseif ($student['attendance_status'] == 'Incomplete'): ?>
+										<?php elseif ($student['status'] == 'Incomplete'): ?>
 											<span class="badge badge rounded-pill d-block p-2 badge-subtle-warning">
-												<?php echo $student['attendance_status']; ?>
+												<?php echo $student['status']; ?>
 												<span class="ms-1 fas fa-exclamation" data-fa-transform="shrink-2"></span>
 											</span>
-										<?php elseif ($student['attendance_status'] == 'Excused'): ?>
+										<?php elseif ($student['status'] == 'Excused'): ?>
 											<span class="badge badge rounded-pill d-block p-2 badge-subtle-primary">
 												Excused
 											</span>
-										<?php elseif ($student['attendance_status'] == 'Exempted'): ?>
+										<?php elseif ($student['status'] == 'Exempted'): ?>
 											<span class="badge badge rounded-pill d-block p-2 badge-subtle-primary">
 												Exempted
 											</span>

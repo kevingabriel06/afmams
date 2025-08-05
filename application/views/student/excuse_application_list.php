@@ -396,6 +396,9 @@
 				startYearDropdown.append(new Option(year, year));
 			}
 
+
+
+
 			// Update End Year based on selected Start Year
 			startYearDropdown.on('change', function() {
 				const selectedStartYear = parseInt(this.value);

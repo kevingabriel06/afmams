@@ -957,7 +957,7 @@
 		if (!studentsMap.has(fine.student_id)) {
 			studentsMap.set(fine.student_id, {
 				id: fine.student_id,
-				name: `${fine.first_name} ${fine.last_name}`,
+				name: `${fine.last_name} ${fine.first_name}`,
 				department: fine.dept_name,
 				year: fine.year_level,
 				fines: [],
