@@ -662,21 +662,52 @@ class Admin_model extends CI_Model
 	}
 
 	// FETCHING ACTIVITIES
+	// public function activity_organized()
+	// {
+	// 	$this->db->select('activity.*');  // Select all columns from the activity table
+	// 	$this->db->from('activity');
+	// 	$this->db->where('activity.organizer', 'Student Parliament');
+	// 	$this->db->where('status', 'Completed');
+
+	// 	// LEFT JOIN to match activities with forms (if they exist)
+	// 	$this->db->join('forms', 'activity.activity_id = forms.activity_id', 'left');
+
+	// 	// Filter to get only activities that do NOT have a form (form.activity_id is NULL)
+	// 	$this->db->where('forms.activity_id IS NULL');
+
+	// 	return $this->db->get()->result();
+	// }
+
+
+
 	public function activity_organized()
 	{
-		$this->db->select('activity.*');  // Select all columns from the activity table
+		// Get the active semester and academic year
+		$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+		if (!$semester_ay) {
+			return []; // No active semester/year set
+		}
+		$academicYear = $semester_ay->academic_year;
+		$semester = $semester_ay->semester;
+
+		$this->db->select('activity.*');
 		$this->db->from('activity');
 		$this->db->where('activity.organizer', 'Student Parliament');
-		$this->db->where('status', 'Completed');
 
-		// LEFT JOIN to match activities with forms (if they exist)
+		// ✅ Only "Upcoming" or "Ongoing" activities
+		$this->db->where_in('activity.status', ['Upcoming', 'Ongoing']);
+
+		// ✅ Only for active semester and academic year
+		$this->db->where('activity.academic_year', $academicYear);
+		$this->db->where('activity.semester', $semester);
+
+		// ✅ Exclude those with existing forms
 		$this->db->join('forms', 'activity.activity_id = forms.activity_id', 'left');
-
-		// Filter to get only activities that do NOT have a form (form.activity_id is NULL)
 		$this->db->where('forms.activity_id IS NULL');
 
 		return $this->db->get()->result();
 	}
+
 
 	// Save form data to the 'forms' table
 	public function saveForm($data)
@@ -1597,31 +1628,41 @@ class Admin_model extends CI_Model
 	//used for exporting filtered attendance
 
 
-	public function get_filtered_attendance_by_activity($activity_id, $status = null, $department = null)
+	public function get_filtered_attendance_by_activity($activity_id, $status = null, $department = null, $dept_code = null)
 	{
-		// Step 1: Get students who have attendance records and match the optional department
-		$this->db->select('users.*, department.dept_name');
+		$this->db->select('users.*, department.dept_name, department.dept_code');
 		$this->db->from('attendance');
 		$this->db->join('users', 'attendance.student_id = users.student_id', 'inner');
 		$this->db->join('department', 'department.dept_id = users.dept_id', 'left');
 		$this->db->where('attendance.activity_id', $activity_id);
+
+		// ✅ Ensure student is active
+		$this->db->where('users.is_active', 'Active');
+
+		// Apply department filter if any
 		if (!empty($department)) {
 			$this->db->where('department.dept_name', $department);
+		} elseif (!empty($dept_code)) {
+			$this->db->where('department.dept_code', $dept_code);
 		}
+
+
+		//sort by lastname
 		$this->db->group_by('users.student_id');
+		$this->db->order_by('users.last_name', 'ASC');
+
 		$students = $this->db->get()->result();
 
-		// Step 2: Get all timeslots for the activity
 		$timeslots = $this->db->get_where('activity_time_slots', ['activity_id' => $activity_id])->result();
 
-		// Step 3: Build and optionally filter by status
 		$data = [];
 
 		foreach ($students as $student) {
 			$row = [
 				'student_id' => $student->student_id,
-				'name'       => $student->first_name . ' ' . $student->last_name,
+				'name'       => $student->last_name . ' ' . $student->first_name,
 				'dept_name'  => isset($student->dept_name) ? $student->dept_name : 'No Department',
+				'dept_code'  => isset($student->dept_code) ? $student->dept_code : 'N/A',
 			];
 
 			$slot_statuses = [];
@@ -1664,7 +1705,6 @@ class Admin_model extends CI_Model
 				$row['status'] = 'Incomplete';
 			}
 
-			// Apply status filter if provided
 			if ($status === null || $row['status'] === $status) {
 				$data[] = $row;
 			}
@@ -1674,8 +1714,8 @@ class Admin_model extends CI_Model
 	}
 
 
+	public function get_all_students_attendance_by_activity($activity_id, $department = null, $status = null, $dept_code = null)
 
-	public function get_all_students_attendance_by_activity($activity_id, $department = null, $status = null)
 
 	{
 		// Step 1: Get all students who have attendance records with department info
@@ -1688,11 +1728,12 @@ class Admin_model extends CI_Model
 		// ✅ Ensure student is active
 		$this->db->where('users.is_active', 'Active');
 
-		// Add this:
-		if ($department) {
-			// Assuming $department is the department name; change to 'dept_id' if you have ID
-			$this->db->where('department.dept_name', $department);
+		if (!empty($dept_code)) {
+			$this->db->where('TRIM(LOWER(department.dept_code))', strtolower(trim($dept_code)));
 		}
+
+
+
 
 
 
@@ -1709,7 +1750,7 @@ class Admin_model extends CI_Model
 		foreach ($students as $student) {
 			$row = [
 				'student_id' => $student->student_id,
-				'name'       => $student->first_name . ' ' . $student->last_name,
+				'name'       => $student->last_name . ' ' . $student->first_name,
 				'dept_name'  => isset($student->dept_name) ? $student->dept_name : 'No Department',
 				'dept_code'  => isset($student->dept_code) ? $student->dept_code : 'No Department',
 				'attendance_status' => $student->attendance_status
@@ -2108,45 +2149,128 @@ class Admin_model extends CI_Model
 		return $query->row(); // Returns a single activity
 	}
 
-	public function flash_fines()
-	{
+	// public function flash_fines()
+	// {
 
+	// 	// Get the active semester and academic year
+	// 	$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+	// 	if (!$semester_ay) {
+	// 		return []; // No active semester/year set
+	// 	}
+	// 	$academicYear = $semester_ay->academic_year;
+	// 	$semester = $semester_ay->semester;
+
+	// 	$this->db->select('
+	// 		*,
+	// 		users.year_level,
+	// 		activity_time_slots.slot_name,
+	// 		activity_time_slots.date_time_in,
+	// 		activity_time_slots.date_time_out,
+	// 		activity.fines AS fines_scan,
+	// 		attendance.time_in,
+	// 		attendance.time_out,
+	// 		attendance.attendance_status,
+	// 		attendance.attendance_id,
+	// 		fines_summary.fines_status
+	// 	');
+	// 	$this->db->from('fines_summary');
+	// 	$this->db->join('users', 'users.student_id = fines_summary.student_id');
+	// 	$this->db->where('users.is_active', 'Active'); // ✅ Add this line for active user
+	// 	$this->db->join('department', 'department.dept_id = users.dept_id');
+	// 	$this->db->join('fines', 'fines.student_id = fines_summary.student_id');
+	// 	$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+	// 	$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = fines.timeslot_id', 'left');  // added this join
+	// 	$this->db->join('attendance', 'attendance.student_id = fines_summary.student_id AND attendance.activity_id = fines.activity_id AND attendance.timeslot_id = fines.timeslot_id', 'left');
+
+	// 	$this->db->where('activity.organizer', 'Student Parliament');
+	// 	$this->db->where('activity.status', 'Completed');
+
+	// 	$this->db->where('activity.academic_year', $academicYear); // Active academic year
+	// 	$this->db->where('activity.semester', $semester); // Active semester
+
+
+	// 	if (!empty($status)) {
+	// 		$this->db->where('fines_summary.fines_status', $status);
+	// 	}
+
+
+	// 	// $this->db->order_by('users.student_id, activity.activity_id');
+	// 	$this->db->group_by('
+	// 	users.student_id,
+	// 	users.first_name,
+	// 	users.last_name,
+	// 	users.year_level,
+	// 	department.dept_name,
+	// 	fines.fines_amount,
+	// 	activity.activity_title,
+	// 	activity_time_slots.slot_name,
+	// 	activity_time_slots.date_time_in,
+	// 	activity_time_slots.date_time_out,
+	// 	activity_time_slots.timeslot_id,
+	// 	activity.fines,
+	// 	attendance.time_in,
+	// 	attendance.time_out,
+	// 	attendance.attendance_status,
+	// 	attendance.attendance_id');
+	// 	// $this->db->order_by('department.dept_name, users.year_level, users.student_id, activity.activity_id');
+	// 	$this->db->order_by('department.dept_name, users.year_level, users.last_name, users.first_name, activity.activity_id');
+
+
+	// 	$query = $this->db->get();
+	// 	return $query->result_array();
+	// }
+
+
+	public function flash_fines($department = null, $year_level = null, $status = null)
+	{
 		// Get the active semester and academic year
 		$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
 		if (!$semester_ay) {
-			return []; // No active semester/year set
+			return [];
 		}
 		$academicYear = $semester_ay->academic_year;
 		$semester = $semester_ay->semester;
 
 		$this->db->select('
-			*,
-			users.year_level,
-			activity_time_slots.slot_name,
-			activity_time_slots.date_time_in,
-			activity_time_slots.date_time_out,
-			activity.fines AS fines_scan,
-			attendance.time_in,
-			attendance.time_out,
-			attendance.attendance_status,
-			attendance.attendance_id
-		');
+		*,
+		users.year_level,
+		activity_time_slots.slot_name,
+		activity_time_slots.date_time_in,
+		activity_time_slots.date_time_out,
+		activity.fines AS fines_scan,
+		attendance.time_in,
+		attendance.time_out,
+		attendance.attendance_status,
+		attendance.attendance_id,
+		fines_summary.fines_status
+	');
 		$this->db->from('fines_summary');
 		$this->db->join('users', 'users.student_id = fines_summary.student_id');
-		$this->db->where('users.is_active', 'Active'); // ✅ Add this line for active user
+		$this->db->where('users.is_active', 'Active');
 		$this->db->join('department', 'department.dept_id = users.dept_id');
 		$this->db->join('fines', 'fines.student_id = fines_summary.student_id');
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
-		$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = fines.timeslot_id', 'left');  // added this join
+		$this->db->join('activity_time_slots', 'activity_time_slots.timeslot_id = fines.timeslot_id', 'left');
 		$this->db->join('attendance', 'attendance.student_id = fines_summary.student_id AND attendance.activity_id = fines.activity_id AND attendance.timeslot_id = fines.timeslot_id', 'left');
 
 		$this->db->where('activity.organizer', 'Student Parliament');
 		$this->db->where('activity.status', 'Completed');
+		$this->db->where('activity.academic_year', $academicYear);
+		$this->db->where('activity.semester', $semester);
 
-		$this->db->where('activity.academic_year', $academicYear); // Active academic year
-		$this->db->where('activity.semester', $semester); // Active semester
+		// ✅ Optional filters
+		if (!empty($department)) {
+			$this->db->where('department.dept_name', $department);
+		}
+		if (!empty($year_level)) {
+			$this->db->where('users.year_level', $year_level);
+		}
+		if (!empty($status)) {
+			$this->db->where('fines_summary.fines_status', $status);
+		}
 
-		// $this->db->order_by('users.student_id, activity.activity_id');
+
+
 		$this->db->group_by('
 		users.student_id,
 		users.first_name,
@@ -2164,37 +2288,76 @@ class Admin_model extends CI_Model
 		attendance.time_out,
 		attendance.attendance_status,
 		attendance.attendance_id');
-		$this->db->order_by('department.dept_name, users.year_level, users.student_id, activity.activity_id');
 
-		$query = $this->db->get();
-		return $query->result_array();
+		$this->db->order_by('department.dept_name, users.year_level, users.last_name, users.first_name, activity.activity_id');
+
+		return $this->db->get()->result_array();
 	}
+
 
 
 
 	//EXPORT FINES USING FILTER 
-	public function get_fines_by_filter($department = null, $year_level = null)
+	public function get_fines_by_filter($department = null, $year_level = null, $status = null)
 	{
-		$this->db->select('users.student_id, users.first_name, users.last_name, users.year_level, 
-        department.dept_name, activity.activity_title, fines.fines_amount');
+		// Get active semester and academic year
+		$semester_ay = $this->db->where('is_active', 1)->get('semester_ay')->row();
+		if (!$semester_ay) {
+			return []; // No active semester/year set
+		}
+		$academicYear = $semester_ay->academic_year;
+		$semester = $semester_ay->semester;
+
+		$this->db->select('
+		users.student_id, 
+		users.first_name, 
+		users.last_name, 
+		users.year_level, 
+		department.dept_name, 
+		activity.activity_title, 
+		activity.semester,
+		activity.academic_year,
+		fines.fines_amount,
+		fines_summary.fines_status
+	');
 		$this->db->from('fines');
 		$this->db->join('users', 'users.student_id = fines.student_id');
 		$this->db->join('department', 'department.dept_id = users.dept_id');
 		$this->db->join('activity', 'activity.activity_id = fines.activity_id');
+		$this->db->join('fines_summary', 'fines_summary.student_id = fines.student_id', 'left');
+
+
 		$this->db->where('activity.organizer', 'Student Parliament');
 
-		if (!empty($department)) {
-			$this->db->where('department.dept_name', $department);  // filtering by department name if your input is name
-		}
+		// ✅ Filter by active semester and academic year
+		$this->db->where('activity.academic_year', $academicYear);
+		$this->db->where('activity.semester', $semester);
 
+		// ✅ Ensure student is active
+		$this->db->where('users.is_active', 'Active');
+
+		// ✅ Optional filters
+		if (!empty($department)) {
+			$this->db->where('department.dept_name', $department);
+		}
 		if (!empty($year_level)) {
 			$this->db->where('users.year_level', $year_level);
 		}
 
-		$this->db->order_by('users.student_id, activity.activity_id');
+
+		if (!empty($status)) {
+			$this->db->where('fines_summary.fines_status', $status);
+		}
+
+
+		// $this->db->order_by('users.student_id, activity.activity_id');
+		$this->db->order_by('department.dept_name, users.year_level, users.last_name, users.first_name, activity.activity_id');
+
+
 
 		return $this->db->get()->result();
 	}
+
 
 
 

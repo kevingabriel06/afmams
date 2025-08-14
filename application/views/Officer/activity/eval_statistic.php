@@ -111,15 +111,32 @@
 							$rating_icon = '';
 							$rating_color = '';
 
-							if ($overall_rating >= 4) {
+							// if ($overall_rating >= 4) {
+							// 	$rating_text = 'Good';
+							// 	$rating_icon = '🟢';
+							// 	$rating_color = 'lightgreen';
+							// } elseif ($overall_rating >= 3) {
+							// 	$rating_text = 'Average';
+							// 	$rating_icon = '🟡';
+							// 	$rating_color = 'yellow';
+							// } elseif ($overall_rating >= 2) {
+							// 	$rating_text = 'Needs Improvement';
+							// 	$rating_icon = '🟠';
+							// 	$rating_color = 'orange';
+							// } else {
+							// 	$rating_text = 'Poor';
+							// 	$rating_icon = '🔴';
+							// 	$rating_color = 'red';
+							// }
+							if ($overall_rating >= 3.5) {
 								$rating_text = 'Good';
 								$rating_icon = '🟢';
 								$rating_color = 'lightgreen';
-							} elseif ($overall_rating >= 3) {
+							} elseif ($overall_rating >= 2.5) {
 								$rating_text = 'Average';
 								$rating_icon = '🟡';
 								$rating_color = 'yellow';
-							} elseif ($overall_rating >= 2) {
+							} elseif ($overall_rating >= 1.5) {
 								$rating_text = 'Needs Improvement';
 								$rating_icon = '🟠';
 								$rating_color = 'orange';
@@ -128,6 +145,7 @@
 								$rating_icon = '🔴';
 								$rating_color = 'red';
 							}
+
 							?>
 
 							<tfoot>

@@ -187,11 +187,16 @@ class AdminController extends CI_Controller
 
 
 		// UPCOMING & ONGOING ACTIVITIES (For Student Parliament)
+		$semester_ay = $data['semester_ay'];
+
 		$this->db->select('activity_id, activity_title, start_date, end_date, status');
 		$this->db->from('activity');
 		$this->db->where('organizer', 'Student Parliament');
 		$this->db->where_in('status', ['Upcoming', 'Ongoing']);
+		$this->db->where('semester', $semester_ay->semester);
+		$this->db->where('academic_year', $semester_ay->academic_year);
 		$activities = $this->db->get()->result_array();
+
 
 		$thisMonth = [];
 		$nextMonth = [];
@@ -219,24 +224,33 @@ class AdminController extends CI_Controller
 			} elseif ($activity['status'] === 'Ongoing') {
 				// Fetch earliest and latest time from activity_time_slots
 				$time_slot = $this->db->query("
-					SELECT 
-						MIN(date_time_in) AS start_time,
-						MAX(date_time_out) AS end_time
-					FROM activity_time_slots
-					WHERE activity_id = ?
-				", [$activity['activity_id']])->row();
+	SELECT 
+		MIN(date_time_in) AS start_time,
+		MAX(date_time_out) AS end_time
+	FROM activity_time_slots
+	WHERE activity_id = ?
+", [$activity['activity_id']])->row();
+
 
 				$startTimestamp = strtotime($time_slot->start_time ?? '');
 				$endTimestamp   = strtotime($time_slot->end_time ?? '');
 				$currentTimestamp = time();
 
 				if ($startTimestamp && $endTimestamp && $endTimestamp > $startTimestamp) {
-					$total = $endTimestamp - $startTimestamp;
-					$elapsed = $currentTimestamp - $startTimestamp;
-					$progress = min(100, max(0, round(($elapsed / $total) * 100)));
+					if ($currentTimestamp < $startTimestamp) {
+						$progress = 0; // not started yet
+					} elseif ($currentTimestamp >= $endTimestamp) {
+						$progress = 100; // already ended
+					} else {
+						$total = $endTimestamp - $startTimestamp;
+						$elapsed = $currentTimestamp - $startTimestamp;
+						$progress = round(($elapsed / $total) * 100);
+					}
 				} else {
 					$progress = 0;
 				}
+
+
 
 				// Fetch attendance count (unique student per activity with any time_in)
 				$activity['attendance'] = $this->db->query("
@@ -262,6 +276,12 @@ class AdminController extends CI_Controller
 		$data['nextMonthActivities'] = $nextMonth;
 		$data['ongoingActivities'] = $ongoing;
 		// END UPCOMING & ONGOING ACTIVITIES (For Student Parliament)
+
+		//Limit to 2 activities only 
+		$data['thisMonthActivities'] = array_slice($thisMonth, 0, 2);
+		$data['nextMonthActivities'] = array_slice($nextMonth, 0, 2);
+		$data['ongoingActivities'] = array_slice($ongoing, 0, 2);
+
 
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/dashboard', $data);
@@ -2206,14 +2226,22 @@ class AdminController extends CI_Controller
 		$form = $this->admin->forms($form_id);
 		$responses = $this->admin->get_student_evaluation_responses($form_id);
 
-		// Group responses by question
-		$grouped_by_question = [];
+		// Separate rating and long-answer questions
+		$rating_questions = [];
+		$long_answers = [];
+
 		foreach ($responses as $r) {
-			$question = $r->question;
-			if (!isset($grouped_by_question[$question])) {
-				$grouped_by_question[$question] = [];
+			if ($r->type === 'rating') {
+				if (!isset($rating_questions[$r->question])) {
+					$rating_questions[$r->question] = [];
+				}
+				$rating_questions[$r->question][] = $r->answer;
+			} elseif ($r->type === 'short') {
+				if (!isset($long_answers[$r->question])) {
+					$long_answers[$r->question] = [];
+				}
+				$long_answers[$r->question][] = $r->answer;
 			}
-			$grouped_by_question[$question][] = $r->answer;
 		}
 
 		// Load header/footer based on user
@@ -2255,72 +2283,108 @@ class AdminController extends CI_Controller
 			}
 		}
 
-		$pdf = new PDF('P', 'mm', 'Letter');
+		$pdf = new PDF('P', 'mm', 'Legal');
 		$pdf->headerImage = $headerImage;
 		$pdf->footerImage = $footerImage;
 		$pdf->AddPage();
-
 		$pdf->AddFont('DejaVuSans', '', 'DejaVuSans.php');
 		$pdf->AddFont('DejaVuSans', 'B', 'DejaVuSans-Bold.php');
 
 		$pdf->SetFont('DejaVuSans', 'B', 14);
-		$pdf->Cell(0, 10, 'Evaluation Responses: ' . $form->title, 0, 1, 'C');
+		$pdf->Cell(0, 10, 'Rating Questions Summary: ' . $form->title, 0, 1, 'C');
 		$pdf->Ln(5);
 
-		foreach ($grouped_by_question as $question => $responses) {
-			$uniqueResponses = array_unique($responses);
+		// 🔧 Rating Scale Table (Full Width: 190mm)
+		$pdf->SetFont('DejaVuSans', 'B', 11);
+		$pdf->Cell(95, 8, 'Average Rating', 1, 0, 'C');
+		$pdf->Cell(95, 8, 'Category', 1, 1, 'C');
 
-			// Question header
+		$pdf->SetFont('DejaVuSans', '', 11);
+		$pdf->Cell(95, 8, '1', 1, 0, 'C');
+		$pdf->Cell(95, 8, 'Poor', 1, 1, 'C');
+		$pdf->Cell(95, 8, '2', 1, 0, 'C');
+		$pdf->Cell(95, 8, 'Needs Improvement', 1, 1, 'C');
+		$pdf->Cell(95, 8, '3', 1, 0, 'C');
+		$pdf->Cell(95, 8, 'Average', 1, 1, 'C');
+		$pdf->Cell(95, 8, '4', 1, 0, 'C');
+		$pdf->Cell(95, 8, 'Good', 1, 1, 'C');
+		$pdf->Ln(5);
+
+		// 🔵 Rating Summary Table Header (also 190mm total)
+		$pdf->SetFont('DejaVuSans', 'B', 11);
+		$pdf->SetFillColor(204, 229, 255);
+		$pdf->Cell(70, 8, 'Question', 1, 0, 'C', true);
+		$pdf->Cell(25, 8, 'Avg Rating', 1, 0, 'C', true);
+		$pdf->Cell(15, 8, '4', 1, 0, 'C', true);
+		$pdf->Cell(15, 8, '3', 1, 0, 'C', true);
+		$pdf->Cell(15, 8, '2', 1, 0, 'C', true);
+		$pdf->Cell(15, 8, '1', 1, 0, 'C', true);
+		$pdf->Cell(35, 8, 'Total Responses', 1, 1, 'C', true); // adjusted to keep total 190mm
+
+		$overallSum = 0;
+		$overallCount = 0;
+
+		$pdf->SetFont('DejaVuSans', '', 11);
+		foreach ($rating_questions as $question => $answers) {
+			$counts = [1 => 0, 2 => 0, 3 => 0, 4 => 0];
+			$sum = 0;
+			$total = 0;
+
+			foreach ($answers as $answer) {
+				if (is_numeric($answer)) {
+					$val = intval($answer);
+					if ($val >= 1 && $val <= 4) {
+						$counts[$val]++;
+						$sum += $val;
+						$total++;
+					}
+				}
+			}
+
+			$avg = $total > 0 ? $sum / $total : 0;
+			$overallSum += $sum;
+			$overallCount += $total;
+
+			$pdf->Cell(70, 8, $question, 1);
+			$pdf->Cell(25, 8, number_format($avg, 2), 1, 0, 'C');
+			$pdf->Cell(15, 8, round(($counts[4] / max(1, $total)) * 100) . '%', 1, 0, 'C');
+			$pdf->Cell(15, 8, round(($counts[3] / max(1, $total)) * 100) . '%', 1, 0, 'C');
+			$pdf->Cell(15, 8, round(($counts[2] / max(1, $total)) * 100) . '%', 1, 0, 'C');
+			$pdf->Cell(15, 8, round(($counts[1] / max(1, $total)) * 100) . '%', 1, 0, 'C');
+			$pdf->Cell(35, 8, $total, 1, 1, 'C');
+		}
+
+		$overallAvg = $overallCount > 0 ? $overallSum / $overallCount : 0;
+		$category = 'Poor';
+		if ($overallAvg >= 3.5) $category = 'Good';
+		elseif ($overallAvg >= 2.5) $category = 'Average';
+		elseif ($overallAvg >= 1.5) $category = 'Needs Improvement';
+
+		$pdf->Ln(5);
+		$pdf->SetFont('DejaVuSans', 'B', 12);
+		$pdf->Cell(0, 10, 'Overall Average Rating: ' . number_format($overallAvg, 2) . " ($category)", 0, 1, 'C');
+		$pdf->Ln(10);
+
+		// 🟡 Long Answer Section (Same width: 190mm)
+		foreach ($long_answers as $question => $responses) {
 			$pdf->SetFont('DejaVuSans', 'B', 12);
 			$pdf->MultiCell(0, 8, "Question: " . $question, 0, 'L');
 			$pdf->Ln(2);
 
-
-
-			// Table header
-			$pdf->SetFillColor(204, 229, 255); // Light blue
-			$pdf->SetTextColor(0); // Black text
+			$pdf->SetFillColor(230, 240, 255);
 			$pdf->SetFont('DejaVuSans', 'B', 11);
 			$pdf->Cell(10, 8, '#', 1, 0, 'C', true);
 			$pdf->Cell(180, 8, 'Response', 1, 1, 'C', true);
 
-
-
-			// Responses
 			$pdf->SetFont('DejaVuSans', '', 11);
 			$row = 1;
 			$fill = false;
-			$row = 1;
-			$pdf->SetFont('DejaVuSans', '', 11);
-			foreach ($uniqueResponses as $response) {
-				$pdf->SetFillColor(230, 240, 255); // Softer light blue
+			foreach (array_unique($responses) as $response) {
+				$pdf->SetFillColor(245, 250, 255);
 				$pdf->Cell(10, 8, $row++, 1, 0, 'C', $fill);
 				$pdf->MultiCell(180, 8, $response, 1, 'L', $fill);
 				$fill = !$fill;
 			}
-
-
-
-			// Average rating (if numeric)
-			$sum = 0;
-			$count = 0;
-			foreach ($uniqueResponses as $response) {
-				if (is_numeric($response)) {
-					$sum += floatval($response);
-					$count++;
-				}
-			}
-
-			if ($count > 0) {
-				$average = $sum / $count;
-				$pdf->Ln(2);
-				$pdf->SetFont('DejaVuSans', 'B', 11);
-				$pdf->SetFillColor(220, 235, 255); // Light blue
-				$pdf->Cell(190, 10, 'Average Rating: ' . number_format($average, 2), 1, 1, 'C', true);
-			}
-
-
-
 			$pdf->Ln(10);
 		}
 
@@ -2328,6 +2392,7 @@ class AdminController extends CI_Controller
 		$filename = 'Evaluation_Responses_' . date('Ymd_His') . '.pdf';
 		$pdf->Output('D', $filename);
 	}
+
 
 
 
@@ -2347,7 +2412,17 @@ class AdminController extends CI_Controller
 		$overall_rating = $this->admin->overall_rating($form_id);
 		$answer_summary = $this->admin->answer_summary($form_id);
 
+		// ✅ FIX: Compute weighted average overall_rating
+		$total_sum = 0;
+		$total_count = 0;
+		foreach ($rating_summary as $rating) {
+			$total_sum += $rating['avg_rating'] * $rating['total_responses'];
+			$total_count += $rating['total_responses'];
+		}
+		$overall_rating = $total_count > 0 ? $total_sum / $total_count : 0;
+
 		$percentage = ($total_attendees > 0) ? round(($total_respondents / $total_attendees) * 100, 2) : 0;
+
 
 		// Set header/footer image filenames
 		$data['headerImage'] = 'header.png'; // Or whatever your actual filename is
@@ -3355,7 +3430,7 @@ class AdminController extends CI_Controller
 				->set_status_header(200)
 				->set_output(json_encode([
 					'status' => 'error',
-					'message' => 'No changes made or record not found.'
+					'message' => 'Student is not listed as a participant in this activity.'
 				]));
 		}
 	}
@@ -3712,7 +3787,7 @@ class AdminController extends CI_Controller
 				->set_status_header(200)
 				->set_output(json_encode([
 					'status' => 'error',
-					'message' => 'No changes made or record not found.'
+					'message' => 'Student is not listed as a participant in the selected activity.'
 				]));
 		}
 	}
@@ -3746,21 +3821,55 @@ class AdminController extends CI_Controller
 	}
 
 	// SHOWING ATTENDANCE LIST - PAGE (FINAL CHECK)
+	// public function list_attendees($activity_id)
+	// {
+	// 	$data['title'] = 'List of Attendees';
+
+	// 	$student_id = $this->session->userdata('student_id');
+
+	// 	// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+	// 	$data['users'] = $this->admin->get_student($student_id);
+
+	// 	$data['activities'] = $this->admin->get_activity_specific($activity_id);
+	// 	// $data['students'] = $this->admin->get_all_students_attendance_by_activity($activity_id);
+	// 	$data['students'] = $this->admin->get_filtered_attendance_by_activity($activity_id, $status, $department);
+	// 	$data['timeslots'] = $this->admin->get_timeslots_by_activity($activity_id);
+	// 	$data['departments'] = $this->admin->department_selection();
+
+	// 	$data['activity_id'] = $activity_id; // Add this line 
+
+	// 	$this->load->view('layout/header', $data);
+	// 	$this->load->view('admin/attendance/listofattendees', $data);
+	// 	$this->load->view('layout/footer', $data);
+	// }
+
+
 	public function list_attendees($activity_id)
 	{
 		$data['title'] = 'List of Attendees';
 
 		$student_id = $this->session->userdata('student_id');
 
-		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE - NECESSARRY
+		// FETCHING DATA BASED ON THE ROLES AND PROFILE PICTURE
 		$data['users'] = $this->admin->get_student($student_id);
 
 		$data['activities'] = $this->admin->get_activity_specific($activity_id);
-		$data['students'] = $this->admin->get_all_students_attendance_by_activity($activity_id);
+
+		// Get optional filters from GET parameters
+		$status = $this->input->get('status');       // e.g. 'Present', 'Absent', etc.
+		$department = $this->input->get('department'); // e.g. 'Information Systems'
+
+		// Load filtered students
+		$data['students'] = $this->admin->get_filtered_attendance_by_activity($activity_id, $status, $department);
+
 		$data['timeslots'] = $this->admin->get_timeslots_by_activity($activity_id);
 		$data['departments'] = $this->admin->department_selection();
 
-		$data['activity_id'] = $activity_id; // Add this line 
+		$data['activity_id'] = $activity_id;
+
+		// Optional: retain filters in view (e.g. for dropdown pre-select)
+		$data['selected_status'] = $status;
+		$data['selected_department'] = $department;
 
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/attendance/listofattendees', $data);
@@ -3780,7 +3889,13 @@ class AdminController extends CI_Controller
 		$this->load->model('Admin_model');
 
 		// Use your model to check if filtered attendance exists
-		$results = $this->Admin_model->get_all_students_attendance_by_activity($activity_id, $department, $status);
+		// $results = $this->Admin_model->get_all_students_attendance_by_activity($activity_id, $department, $status);
+
+
+		$dept_code = $input['department'] ?? null; // input sends dept_code
+
+		$results = $this->Admin_model->get_all_students_attendance_by_activity($activity_id, null, $status, $dept_code);
+
 
 		$hasData = !empty($results);
 
@@ -3788,6 +3903,213 @@ class AdminController extends CI_Controller
 			'success' => true,
 			'hasData' => $hasData
 		]);
+	}
+
+
+
+	public function export_attendance_pdf($activity_id)
+	{
+		ob_clean();
+
+		$this->load->model('Admin_model');
+
+		// $department = $this->input->get('department') ?? null;
+		// $status = $this->input->get('status') ?? null;
+
+		// $students = $this->Admin_model->get_filtered_attendance_by_activity($activity_id, $status, $department);
+
+		$department_code = $this->input->get('department') ?? null;
+		$status = $this->input->get('status') ?? null;
+
+		$students = $this->Admin_model->get_filtered_attendance_by_activity($activity_id, $status, null, $department_code);
+
+
+		$timeslots = $this->Admin_model->get_timeslots_by_activity($activity_id);
+		$activity = $this->Admin_model->get_activity_specific($activity_id);
+
+		$semester = $activity['semester'] ?? 'N/A';
+		$academic_year = $activity['academic_year'] ?? 'N/A';
+
+		$user = [
+			'role'             => $this->session->userdata('role'),
+			'student_id'       => $this->session->userdata('student_id'),
+			'is_officer'       => $this->session->userdata('is_officer'),
+			'is_officer_dept'  => $this->session->userdata('is_officer_dept'),
+			'dept_id'          => $this->session->userdata('dept_id'),
+		];
+
+		if (!$user['role'] || !$user['student_id']) {
+			echo json_encode(['success' => false, 'message' => 'Missing session data.']);
+			return;
+		}
+
+		$headerImage = '';
+		$footerImage = '';
+
+		if ($user['role'] === 'Admin') {
+			$settings = $this->db->get('student_parliament_settings')->row();
+			if ($settings) {
+				$headerImage = $settings->header;
+				$footerImage = $settings->footer;
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
+			$org = $this->db->select('organization.header, organization.footer')
+				->join('organization', 'student_org.org_id = organization.org_id')
+				->where('student_org.student_id', $user['student_id'])
+				->get('student_org')->row();
+			if ($org) {
+				$headerImage = $org->header;
+				$footerImage = $org->footer;
+			}
+		} elseif ($user['role'] === 'Officer' && $user['is_officer_dept'] === 'Yes') {
+			$dept = $this->db->select('header, footer')
+				->where('dept_id', $user['dept_id'])
+				->get('department')->row();
+			if ($dept) {
+				$headerImage = $dept->header;
+				$footerImage = $dept->footer;
+			}
+		}
+
+		$pdf = new PDF('P', 'mm', 'Legal');
+		$pdf->headerImage = $headerImage;
+		$pdf->footerImage = $footerImage;
+		$pdf->SetMargins(10, 10, 10);
+		$pdf->AddPage();
+		$pdf->SetFont('Arial', 'B', 14);
+		$pdf->Cell(0, 10, 'Attendance Report - Activity: ' . ($activity ? $activity['activity_title'] : 'N/A'), 0, 1, 'C');
+
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell(0, 7, "$semester - A.Y. $academic_year", 0, 1, 'C');
+
+		$pdf->Ln(5);
+		$pdf->SetFont('Arial', '', 8);
+
+		// Setup
+		$pageWidth = $pdf->GetPageWidth() - 20; // total usable width
+		$outerMargin = 10;
+		$internalPadding = 2; // left/right inside cell
+		$cellMarginLeft = 10;
+
+		// 1. Build header + rows
+		$all_rows = [];
+		$header = ['#', 'Student ID', 'Name', 'Department'];
+		foreach ($timeslots as $slot) {
+			$slotName = strtolower($slot->slot_name);
+			if ($slotName === 'morning') $label = 'Morning';
+			elseif ($slotName === 'afternoon') $label = 'Afternoon';
+			elseif ($slotName === 'evening') $label = 'Evening';
+			else $label = ucfirst($slot->slot_name);
+
+			$header[] = "$label In";
+			$header[] = "$label Out";
+		}
+		$header[] = 'Status';
+		$all_rows[] = $header;
+
+		foreach ($students as $i => $student) {
+			$row = [
+				$i + 1,
+				$student['student_id'],
+				$student['name'],
+				$student['dept_code']
+			];
+
+			foreach ($timeslots as $slot) {
+				$period = strtolower($slot->slot_name) === 'morning' ? 'am' : 'pm';
+				$inTime = $student["in_$period"] ?? null;
+				$outTime = $student["out_$period"] ?? null;
+
+				$formattedIn = $inTime ? date('h:i A', strtotime($inTime)) : 'No Data';
+				$formattedOut = $outTime ? date('h:i A', strtotime($outTime)) : 'No Data';
+
+				$row[] = $formattedIn;
+				$row[] = $formattedOut;
+			}
+
+			$row[] = $student['status'];
+			$all_rows[] = $row;
+		}
+
+		// 2. Measure widths with internal padding
+		$colWidths = [];
+		for ($col = 0; $col < count($all_rows[0]); $col++) {
+			$maxWidth = 0;
+			foreach ($all_rows as $row) {
+				$cellText = isset($row[$col]) ? $row[$col] : '';
+				$cellWidth = $pdf->GetStringWidth($cellText);
+				if ($cellWidth > $maxWidth) {
+					$maxWidth = $cellWidth;
+				}
+			}
+			$colWidths[] = $maxWidth + (2 * $internalPadding);
+		}
+
+
+		// 3. Always scale proportionally to fill full width
+		$totalWidth = array_sum($colWidths);
+		$scale = $pageWidth / $totalWidth;
+		foreach ($colWidths as &$w) {
+			$w *= $scale;
+		}
+		unset($w);
+
+
+		// 4. Recalculate margin to center the table
+		$adjustedWidth = array_sum($colWidths);
+		$margin_left = ($pdf->GetPageWidth() - $adjustedWidth) / 2;
+
+		// 5. Print table header
+		$pdf->SetFont('Arial', 'B', 9);
+		$pdf->SetX($margin_left);
+		foreach ($all_rows[0] as $i => $colName) {
+			$pdf->Cell($colWidths[$i], 8, ' ' . $colName . ' ', 1, 0, 'C'); // Add space inside text
+		}
+		$pdf->Ln();
+
+		// 6. Print table rows
+		$pdf->SetFont('Arial', '', 8);
+		for ($i = 1; $i < count($all_rows); $i++) {
+			$pdf->SetX($margin_left);
+			foreach ($all_rows[$i] as $j => $cell) {
+				$pdf->Cell($colWidths[$j], 8, ' ' . $cell . ' ', 1, 0, 'L');
+			}
+			$pdf->Ln();
+		}
+
+		$pdf->Ln(10);
+
+
+		$pdf->SetFont('Arial', '', 10);
+		$pdf->Cell(0, 6, 'Prepared by:', 0, 1, 'L');
+		$pdf->Cell(80, 6, '_________________________', 0, 1, 'L');
+
+		$exporter = $this->db->select("CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name) AS full_name")
+			->where('student_id', $user['student_id'])
+			->get('users')->row();
+		$pdf->Cell(80, 6, $exporter ? $exporter->full_name : 'N/A', 0, 1, 'L');
+
+		$adviserQuery = $this->db->select("CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name) AS full_name")
+			->from('users')
+			->where('role', 'Admin')
+			->where('is_admin', 'Yes')
+			->where('is_officer_dept', 'No');
+
+		if (!empty($user['dept_id'])) {
+			$adviserQuery->where('dept_id', $user['dept_id']);
+		} else {
+			$adviserQuery->where('dept_id IS NULL', null, false);
+		}
+
+		$adviser = $adviserQuery->get()->row();
+
+		$pdf->Ln(8);
+		$pdf->Cell(0, 6, 'Approved by:', 0, 1, 'L');
+		$pdf->Cell(80, 6, '_________________________', 0, 1, 'L');
+		$pdf->Cell(80, 6, $adviser ? $adviser->full_name : 'N/A', 0, 1, 'L');
+
+		$filename = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $activity['activity_title']) . '_attendance_report.pdf';
+		$pdf->Output('I', $filename);
 	}
 
 	// public function export_attendance_pdf($activity_id)
@@ -3968,192 +4290,6 @@ class AdminController extends CI_Controller
 
 
 
-	public function export_attendance_pdf($activity_id)
-	{
-		ob_clean();
-
-		$this->load->model('Admin_model');
-
-		$department = $this->input->get('department') ?? null;
-		$status = $this->input->get('status') ?? null;
-
-		$students = $this->Admin_model->get_all_students_attendance_by_activity($activity_id, $department, $status);
-		usort($students, function ($a, $b) {
-			return strcmp($a['name'], $b['name']);
-		});
-
-		$timeslots = $this->Admin_model->get_timeslots_by_activity($activity_id);
-		$activity = $this->Admin_model->get_activity_specific($activity_id);
-
-		$semester = $activity['semester'] ?? 'N/A';
-		$academic_year = $activity['academic_year'] ?? 'N/A';
-
-		$user = [
-			'role'             => $this->session->userdata('role'),
-			'student_id'       => $this->session->userdata('student_id'),
-			'is_officer'       => $this->session->userdata('is_officer'),
-			'is_officer_dept'  => $this->session->userdata('is_officer_dept'),
-			'dept_id'          => $this->session->userdata('dept_id'),
-		];
-
-		if (!$user['role'] || !$user['student_id']) {
-			echo json_encode(['success' => false, 'message' => 'Missing session data.']);
-			return;
-		}
-
-		$headerImage = '';
-		$footerImage = '';
-
-		if ($user['role'] === 'Admin') {
-			$settings = $this->db->get('student_parliament_settings')->row();
-			if ($settings) {
-				$headerImage = $settings->header;
-				$footerImage = $settings->footer;
-			}
-		} elseif ($user['role'] === 'Officer' && $user['is_officer'] === 'Yes') {
-			$org = $this->db->select('organization.header, organization.footer')
-				->join('organization', 'student_org.org_id = organization.org_id')
-				->where('student_org.student_id', $user['student_id'])
-				->get('student_org')->row();
-			if ($org) {
-				$headerImage = $org->header;
-				$footerImage = $org->footer;
-			}
-		} elseif ($user['role'] === 'Officer' && $user['is_officer_dept'] === 'Yes') {
-			$dept = $this->db->select('header, footer')
-				->where('dept_id', $user['dept_id'])
-				->get('department')->row();
-			if ($dept) {
-				$headerImage = $dept->header;
-				$footerImage = $dept->footer;
-			}
-		}
-
-		$pdf = new PDF('P', 'mm', 'Legal');
-		$pdf->headerImage = $headerImage;
-		$pdf->footerImage = $footerImage;
-		$pdf->SetMargins(10, 10, 10);
-		$pdf->AddPage();
-		$pdf->SetFont('Arial', 'B', 14);
-		$pdf->Cell(0, 10, 'Attendance Report - Activity: ' . ($activity ? $activity['activity_title'] : 'N/A'), 0, 1, 'C');
-
-		$pdf->SetFont('Arial', '', 10);
-		$pdf->Cell(0, 7, "$semester - A.Y. $academic_year", 0, 1, 'C');
-
-		$pdf->Ln(5);
-		$pdf->SetFont('Arial', '', 8);
-
-		$header = ['#', 'Student ID', 'Name', 'Department'];
-		foreach ($timeslots as $slot) {
-			$period = strtolower($slot->slot_name) === 'morning' ? 'AM' : 'PM';
-			$header[] = "$period In";
-			$header[] = "$period Out";
-		}
-		$header[] = 'Status';
-
-		$max_widths = [];
-		foreach ($header as $col) {
-			$max_widths[] = $pdf->GetStringWidth($col);
-		}
-
-		$counter = 1;
-		foreach ($students as $student) {
-			$row = [
-				$counter,
-				$student['student_id'],
-				$student['name'],
-				$student['dept_code']
-			];
-
-			foreach ($timeslots as $slot) {
-				$period = strtolower($slot->slot_name) === 'morning' ? 'am' : 'pm';
-				$row[] = $student["in_$period"] ?? 'No Data';
-				$row[] = $student["out_$period"] ?? 'No Data';
-			}
-
-			$row[] = $student['status'];
-
-			foreach ($row as $i => $cell) {
-				$max_widths[$i] = max($max_widths[$i], $pdf->GetStringWidth($cell));
-			}
-
-			$counter++;
-		}
-
-		$padding = 6;
-		foreach ($max_widths as &$w) {
-			$w += $padding;
-		}
-
-		$table_width = array_sum($max_widths);
-		$page_width = $pdf->GetPageWidth();
-		$margin_left = ($page_width - $table_width) / 2;
-
-		$pdf->SetFont('Arial', 'B', 9);
-		$pdf->SetX($margin_left);
-		foreach ($header as $i => $col) {
-			$pdf->Cell($max_widths[$i], 8, $col, 1, 0, 'C');
-		}
-		$pdf->Ln();
-
-		$pdf->SetFont('Arial', '', 8);
-		$counter = 1;
-		foreach ($students as $student) {
-			$row = [
-				$counter,
-				$student['student_id'],
-				$student['name'],
-				$student['dept_code']
-			];
-
-			foreach ($timeslots as $slot) {
-				$period = strtolower($slot->slot_name) === 'morning' ? 'am' : 'pm';
-				$row[] = $student["in_$period"] ?? 'No Data';
-				$row[] = $student["out_$period"] ?? 'No Data';
-			}
-
-			$row[] = $student['status'];
-
-			$pdf->SetX($margin_left);
-			foreach ($row as $i => $cell) {
-				$pdf->Cell($max_widths[$i], 8, $cell, 1, 0, 'L');
-			}
-			$pdf->Ln();
-			$counter++;
-		}
-
-		$pdf->Ln(10);
-		$pdf->SetFont('Arial', '', 10);
-		$pdf->Cell(0, 6, 'Prepared by:', 0, 1, 'L');
-		$pdf->Cell(80, 6, '_________________________', 0, 1, 'L');
-
-		$exporter = $this->db->select("CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name) AS full_name")
-			->where('student_id', $user['student_id'])
-			->get('users')->row();
-		$pdf->Cell(80, 6, $exporter ? $exporter->full_name : 'N/A', 0, 1, 'L');
-
-		$adviserQuery = $this->db->select("CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name) AS full_name")
-			->from('users')
-			->where('role', 'Admin')
-			->where('is_admin', 'Yes')
-			->where('is_officer_dept', 'No');
-
-		if (!empty($user['dept_id'])) {
-			$adviserQuery->where('dept_id', $user['dept_id']);
-		} else {
-			$adviserQuery->where('dept_id IS NULL', null, false);
-		}
-
-		$adviser = $adviserQuery->get()->row();
-
-		$pdf->Ln(8);
-		$pdf->Cell(0, 6, 'Approved by:', 0, 1, 'L');
-		$pdf->Cell(80, 6, '_________________________', 0, 1, 'L');
-		$pdf->Cell(80, 6, $adviser ? $adviser->full_name : 'N/A', 0, 1, 'L');
-
-		$filename = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $activity['activity_title']) . '_attendance_report.pdf';
-		$pdf->Output('I', $filename);
-	}
 
 
 
@@ -4194,16 +4330,22 @@ class AdminController extends CI_Controller
 
 		$student_id = $this->session->userdata('student_id');
 
-		$data['users'] = $this->admin->get_student($student_id);
+		// 🔽 Get filters from GET request
+		$department = $this->input->get('department');
+		$year_level = $this->input->get('year_level');
+		$status = $this->input->get('status');
 
+		$data['users'] = $this->admin->get_student($student_id);
 		$data['departments'] = $this->admin->get_department();
 
-		$data['fines'] = $this->admin->flash_fines();
+		// 🔽 Pass filters to flash_fines()
+		$data['fines'] = $this->admin->flash_fines($department, $year_level, $status);
 
 		$this->load->view('layout/header', $data);
 		$this->load->view('admin/fines/listoffines', $data);
 		$this->load->view('layout/footer', $data);
 	}
+
 
 	//FINES PAYMENTS CONFIRMATION
 	public function confirm_payment()
@@ -4732,7 +4874,20 @@ class AdminController extends CI_Controller
 		$department = $this->input->get('department');
 		$year_level = $this->input->get('year_level');
 
-		$fines_data = $this->Admin_model->get_fines_by_filter($department, $year_level);
+		$status = $this->input->get('status'); // <-- ADD THIS LINE
+
+
+		$fines_data = $this->Admin_model->get_fines_by_filter($department, $year_level, $status);
+
+
+		$semester = 'N/A';
+		$academic_year = 'N/A';
+
+		if (!empty($fines_data)) {
+			$semester = $fines_data[0]->semester ?? 'N/A';
+			$academic_year = $fines_data[0]->academic_year ?? 'N/A';
+		}
+
 
 		if (empty($fines_data)) {
 			echo "No fine data available to export.";
@@ -4786,9 +4941,13 @@ class AdminController extends CI_Controller
 		$pdf->headerImage = $headerImage;
 		$pdf->footerImage = $footerImage;
 		$pdf->AddPage('L', 'Letter');
-		$pdf->SetFont('Arial', 'B', 6);
-		$pdf->Cell(0, 8, 'Student Parliament Fines Report', 0, 1, 'C');
-		$pdf->Ln(5);
+		// 🔹 Make the title BIGGER (e.g., font size 14)
+		$pdf->SetFont('Arial', 'B', 14);
+		$pdf->Cell(0, 10, 'Student Parliament Fines Report', 0, 1, 'C');
+		// 🔹 Make the semester & A.Y. line smaller (e.g., font size 9)
+		$pdf->SetFont('Arial', '', 9);
+		$pdf->Cell(0, 6, "$semester - A.Y. $academic_year", 0, 1, 'C');
+		$pdf->Ln(3); // Slightly smaller spacing
 
 		$activities = [];
 		foreach ($fines_data as $fine) {
@@ -4815,20 +4974,24 @@ class AdminController extends CI_Controller
 			}
 		}
 
-		$other_columns_width = 15 + 15;
-		$total_width = $student_id_width + $name_width + $dept_name_width + array_sum($activity_widths) + $other_columns_width;
+		// Original fixed widths
+		$fixed_total_fines_width = 15;
+		$fixed_status_width = 15;
+
+		$unscaled_total_width = $student_id_width + $name_width + $dept_name_width + array_sum($activity_widths) + $fixed_total_fines_width + $fixed_status_width;
 		$page_width = $pdf->GetPageWidth() - $pdf->getLeftMargin() - $pdf->getRightMargin();
 
-		if ($total_width > $page_width) {
-			$scale = $page_width / $total_width;
-			$student_id_width *= $scale;
-			$name_width *= $scale;
-			$dept_name_width *= $scale;
-			foreach ($activities as $act) {
-				$activity_widths[$act] *= $scale;
-			}
-			$total_width = $page_width;
+		// Scale everything
+		$scale = $page_width / $unscaled_total_width;
+		$student_id_width *= $scale;
+		$name_width *= $scale;
+		$dept_name_width *= $scale;
+		foreach ($activities as $act) {
+			$activity_widths[$act] *= $scale;
 		}
+		$total_fines_width = $fixed_total_fines_width * $scale;
+		$status_width = $fixed_status_width * $scale;
+		$total_width = $page_width; // now fully scaled to match the page
 
 		usort($fines_data, function ($a, $b) {
 			return [$a->dept_name, $a->year_level, $a->student_id] <=> [$b->dept_name, $b->year_level, $b->student_id];
@@ -4860,8 +5023,8 @@ class AdminController extends CI_Controller
 				foreach ($activities as $act) {
 					$pdf->Cell($activity_widths[$act], 8, $act, 1, 0, 'C');
 				}
-				$pdf->Cell(15, 8, 'Total Fines', 1, 0, 'C');
-				$pdf->Cell(15, 8, 'Status', 1, 1, 'C');
+				$pdf->Cell($total_fines_width, 8, 'Total Fines', 1, 0, 'C');
+				$pdf->Cell($status_width, 8, 'Status', 1, 1, 'C');
 			}
 
 			if ($fine->year_level !== $current_year) {
@@ -4878,21 +5041,23 @@ class AdminController extends CI_Controller
 					$pdf->SetFillColor(255, 255, 255);
 					$pdf->SetX(($page_width - $total_width) / 2 + $pdf->getLeftMargin());
 					$pdf->Cell($student_id_width, 8, $prev_fine->student_id, 1, 0, 'L');
-					$pdf->Cell($name_width, 8, $prev_fine->first_name . ' ' . $prev_fine->last_name, 1, 0, 'L');
+					$pdf->Cell($name_width, 8, $prev_fine->last_name . ' ' . $prev_fine->first_name, 1, 0, 'L');
 					$pdf->Cell($dept_name_width, 8, $prev_fine->dept_name, 1, 0, 'L');
 					foreach ($activities as $act) {
 						$amount = isset($student_fines[$act]) ? 'PHP ' . number_format($student_fines[$act], 2) : 'PHP 0.00';
 						$pdf->Cell($activity_widths[$act], 8, $amount, 1, 0, 'R');
 					}
 					$total_fines = array_sum($student_fines);
-					$status = $total_fines > 0 ? 'Unpaid' : 'Paid';
-					$pdf->Cell(15, 8, 'PHP ' . number_format($total_fines, 2), 1, 0, 'R');
-					$pdf->Cell(15, 8, $status, 1, 1, 'C');
+					// $status = $total_fines > 0 ? 'Unpaid' : 'Paid';
+					$status = isset($prev_fine->fines_status) ? $prev_fine->fines_status : 'Unknown';
+					$pdf->Cell($total_fines_width, 8, 'PHP ' . number_format($total_fines, 2), 1, 0, 'R');
+					$pdf->Cell($status_width, 8, $status, 1, 1, 'C');
 				}
 				$current_student_id = $fine->student_id;
 				$student_fines = [];
 				$prev_fine = $fine;
 			}
+
 			$student_fines[$title] = isset($student_fines[$title])
 				? $student_fines[$title] + $fine->fines_amount
 				: $fine->fines_amount;
@@ -4910,10 +5075,12 @@ class AdminController extends CI_Controller
 				$pdf->Cell($activity_widths[$act], 8, $amount, 1, 0, 'R');
 			}
 			$total_fines = array_sum($student_fines);
-			$status = $total_fines > 0 ? 'Unpaid' : 'Paid';
-			$pdf->Cell(15, 8, 'PHP ' . number_format($total_fines, 2), 1, 0, 'R');
-			$pdf->Cell(15, 8, $status, 1, 1, 'C');
+			// $status = $total_fines > 0 ? 'Unpaid' : 'Paid';
+			$status = isset($prev_fine->fines_status) ? $prev_fine->fines_status : 'Unknown';
+			$pdf->Cell($total_fines_width, 8, 'PHP ' . number_format($total_fines, 2), 1, 0, 'R');
+			$pdf->Cell($status_width, 8, $status, 1, 1, 'C');
 		}
+
 
 		// Add signature lines
 		$pdf->Ln(10);

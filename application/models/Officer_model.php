@@ -1805,12 +1805,19 @@ class Officer_model extends CI_Model
 	public function get_all_students_attendance_by_activity($activity_id)
 	{
 		// Step 1: Get all students who have attendance records with department info
-		$this->db->select('users.*, department.dept_name, attendance.*');
+		$this->db->select('users.*, department.dept_name, department.dept_code, attendance.*');
 		$this->db->from('attendance');
 		$this->db->join('users', 'attendance.student_id = users.student_id', 'inner'); // Only include students with attendance records
 		$this->db->join('department', 'department.dept_id = users.dept_id', 'left');
 		$this->db->where('attendance.activity_id', $activity_id);
+		// ✅ Ensure student is active
+		$this->db->where('users.is_active', 'Active');
 		$this->db->group_by('users.student_id');  // Ensure students appear once
+
+
+
+		$this->db->group_by('users.student_id');  // Ensure students appear once
+		$this->db->order_by('users.last_name', 'ASC'); // Sort A to Z by last name
 		$students = $this->db->get()->result();
 
 		// Step 2: Get all timeslots for the activity
@@ -1822,8 +1829,9 @@ class Officer_model extends CI_Model
 		foreach ($students as $student) {
 			$row = [
 				'student_id' => $student->student_id,
-				'name'       => $student->first_name . ' ' . $student->last_name,
+				'name'       => $student->last_name . ' ' . $student->first_name,
 				'dept_name'  => isset($student->dept_name) ? $student->dept_name : 'No Department',
+				'dept_code'  => isset($student->dept_code) ? $student->dept_code : 'No Department',
 				'attendance_status' => $student->attendance_status
 			];
 
@@ -2434,7 +2442,8 @@ class Officer_model extends CI_Model
 		$this->db->join('attendance', 'attendance.student_id = fines_summary.student_id AND attendance.activity_id = fines.activity_id AND attendance.timeslot_id = fines.timeslot_id', 'left');
 
 		// Filter organizer directly from fines_summary table:
-		$this->db->where('fines_summary.organizer', $organizer);
+		$this->db->where('users.is_active', 'Active'); // ✅ Add this line for active user
+		// $this->db->where('fines_summary.organizer', $organizer);
 		$this->db->where('activity.organizer', $organizer);
 		$this->db->where('activity.status', 'Completed');
 		$this->db->where('activity.academic_year', $academicYear);

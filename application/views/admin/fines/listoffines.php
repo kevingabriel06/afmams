@@ -344,6 +344,7 @@
 											const url = new URL("<?= base_url('AdminController/export_fines_pdf') ?>");
 											if (department) url.searchParams.append('department', department);
 											if (year) url.searchParams.append('year_level', year);
+											if (status) url.searchParams.append('status', status); // ✅ This line is essential
 
 											window.open(url.toString(), '_blank');
 										} else {
@@ -480,6 +481,8 @@
 			const studentYear = row.querySelector('td:nth-child(3)')?.textContent.trim().toLowerCase() || '';
 			const studentDepartment = row.querySelector('td:nth-child(4)')?.textContent.trim().toLowerCase() || '';
 			const studentStatus = row.querySelector('td:nth-child(6) span')?.textContent.trim().toLowerCase() || '';
+
+
 
 			// Check if row matches all selected filters
 			const yearMatches = (year === "" || studentYear === year);
@@ -1065,7 +1068,7 @@
 		if (!studentsMap.has(fine.student_id)) {
 			studentsMap.set(fine.student_id, {
 				id: fine.student_id,
-				name: `${fine.first_name} ${fine.last_name}`,
+				name: `${fine.last_name} ${fine.first_name}`,
 				department: fine.dept_name,
 				year: fine.year_level,
 				fines: [],
